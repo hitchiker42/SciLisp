@@ -49,9 +49,11 @@ extern int yydebug;
     TOK_INT = 259,
     TOK_ID = 260,
     TOK_TYPEINFO = 261,
-    TOK_LPAREN = 262,
-    TOK_RPAREN = 263,
-    TOK_DEF = 264
+    TOK_CHAR = 262,
+    TOK_LPAREN = 263,
+    TOK_RPAREN = 264,
+    TOK_QUOTE = 265,
+    TOK_DEF = 266
   };
 #endif
 
