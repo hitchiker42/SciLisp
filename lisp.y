@@ -1,7 +1,9 @@
 %{
 #include "common.h"
-#define YYSTYPE data
+#include "lex.yy.h"
+#define YYSTYPE sexp
 #define __USING_BISON__
+  void yyerror(sexp* ast,const char* s);
   /*union data {
   double real64;
   long int64;
@@ -11,46 +13,47 @@
   symref* var;//incldues functions
   };*/
 %}
-%token <real64> TOK_REAL
-%token <int64> TOK_INT
-%token <string> TOK_ID
-%token <string> TOK_TYPEINFO
-%token <utf8_char> TOK_CHAR
+%token TOK_REAL
+%token TOK_INT
+%token TOK_ID
+%token TOK_TYPEINFO
+%token TOK_CHAR
 %token TOK_LPAREN "("
 %token TOK_RPAREN ")"
 %token TOK_QUOTE "'"
 %token TOK_DEF
-%type <sexp> nil
-%type <sexp> atom
-%type <sexp> SEXP
-%type <sexp> SEXPS
-%type <sexp> CONS
-%type <sexp> LIST
-%type <sexp> input
+%parse-param {sexp *ast}
 %defines
 %%
 input:
 %empty {$$=NIL;}
-| SEXP input {$$=mklist($1,$2);}
+| SEXP input {PRINT_MSG("Parsing input");*ast=mklist($1,$2);}
 SEXP:  
-atom {$$=$1;}
-| LIST {$$=$1;}
+atom {HERE();$$=$1;}
+| LIST {HERE();$$=$1;}
 nil:
 '('')' {sexp temp=NIL;$$=temp;}
 atom:
-TOK_REAL {sexp temp=(sexp){_double,(data)$1};$$=temp;}
-|TOK_INT {sexp temp=(sexp){_long,(data)$1};$$=temp;}
-|TOK_CHAR {sexp temp=(sexp){_utf8_char,(data)$1};$$=temp;}
+TOK_REAL {$$=$1;}//{sexp temp=(sexp){_double,(data)$1};$$=temp;}
+|TOK_INT {$$=$1;}//{sexp temp=(sexp){_long,(data)$1};$$=temp;}
+|TOK_CHAR {$$=$1;}//{sexp temp=(sexp){_utf8_char,(data)$1};$$=temp;}
 CONS:
 nil
-| '(' SEXP '.' SEXP ')' {cons* temp_val=xmalloc(sizeof(cons));
+| '(' SEXP '.' SEXP ')' {PRINT_MSG("Parsing a cons cell");
+  cons* temp_val=xmalloc(sizeof(cons));
   temp_val->car=$2,temp_val->cdr=$4;
-  sexp temp=(sexp){_cons,(data)temp-val};$$=temp;}
+  sexp temp=(sexp){_cons,(data)temp_val};$$=temp;}
 LIST:
 CONS {$$=$1;}
 | '(' SEXPS ')' {$$=$2;}
 SEXPS:
-SEXP {$$=$1}
+SEXP {$$=$1;}
 | SEXPS '.' SEXP {$$=mkImproper($1,NIL,$3);}
 | SEXPS SEXP {$$=mklist($1,$2,NIL);}
 %%
+void yyerror(sexp* ast,const char* s){
+  PRINT_MSG("Running yyerror");
+  const char* temp=princ(*ast);
+  fprintf(stderr,"%s\n",temp);  
+  PRINT_MSG("yyerror run");
+}

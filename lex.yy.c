@@ -480,9 +480,9 @@ char *yytext;
 #line 1 "lisp.lex"
 #line 2 "lisp.lex"
   #include "common.h"
-  #define YYSTYPE data
+  #define YYSTYPE sexp
   #include "lisp.tab.h"
-
+  extern sexp* yylval;
 /*
 union data {
   double real64;
@@ -493,7 +493,8 @@ union data {
   symref* var;//incldues functions
 };
 */
-#line 497 "lex.yy.c"
+/*%option bison-bridge*/
+#line 498 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -539,10 +540,6 @@ char *yyget_text (void );
 int yyget_lineno (void );
 
 void yyset_lineno (int line_number  );
-
-YYSTYPE * yyget_lval (void );
-
-void yyset_lval (YYSTYPE * yylval_param  );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -651,11 +648,9 @@ static int input (void );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int yylex \
-               (YYSTYPE * yylval_param );
+extern int yylex (void);
 
-#define YY_DECL int yylex \
-               (YYSTYPE * yylval_param )
+#define YY_DECL int yylex (void)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -681,13 +676,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-        YYSTYPE * yylval;
-    
 #line 24 "lisp.lex"
 
-#line 689 "lex.yy.c"
-
-    yylval = yylval_param;
+#line 682 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -773,72 +764,77 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 YY_RULE_SETUP
 #line 25 "lisp.lex"
-{PRINT_MSG("lexing int");yylval->int64 = strtol(yytext,NULL,10);return TOK_INT;}
+{PRINT_MSG("lexing int");yylval->tag=_long;
+  yylval->val.int64 = strtol(yytext,NULL,10);return TOK_INT;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 26 "lisp.lex"
-{PRINT_MSG("lexing real");yylval->real64 = strtod(yytext,NULL);
+#line 27 "lisp.lex"
+{PRINT_MSG("lexing real");yylval->tag=_double;
+  yylval->val.real64 = strtod(yytext,NULL);
   return TOK_REAL;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 28 "lisp.lex"
-PRINT_MSG("lexing define");return TOK_DEF;
+#line 30 "lisp.lex"
+{PRINT_MSG("lexing define");return TOK_DEF;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 29 "lisp.lex"
-{PRINT_MSG("lexing char");yylval->utf8_char=(wchar_t)(yytext[1]); 
-  return TOK_CHAR;}
+#line 31 "lisp.lex"
+{PRINT_MSG("lexing char");yylval->tag=_char;
+          yylval->val.utf8_char=(wchar_t)(yytext[1]);
+          return TOK_CHAR;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 31 "lisp.lex"
-{PRINT_MSG("lexing typename");yylval->string=strdup(&yytext[2]);
+#line 34 "lisp.lex"
+{PRINT_MSG("lexing typename");yylval->tag=_str;
+  yylval->val.string=strdup(&yytext[2]);
   return TOK_TYPEINFO;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 33 "lisp.lex"
+#line 37 "lisp.lex"
 {PRINT_MSG("Lexing quote");return TOK_QUOTE;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 34 "lisp.lex"
-PRINT_MSG("lexing ID");yylval->string=strdup(yytext);return TOK_ID;
+#line 38 "lisp.lex"
+{PRINT_MSG("lexing ID");yylval->tag=_str;
+  yylval->val.string=strdup(yytext);return TOK_ID;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 35 "lisp.lex"
+#line 40 "lisp.lex"
 return TOK_LPAREN;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 36 "lisp.lex"
+#line 41 "lisp.lex"
 return TOK_RPAREN;
 	YY_BREAK
 case 10:
 /* rule 10 can match eol */
 YY_RULE_SETUP
-#line 37 "lisp.lex"
+#line 42 "lisp.lex"
 
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 38 "lisp.lex"
+#line 43 "lisp.lex"
 
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 39 "lisp.lex"
+#line 44 "lisp.lex"
 return -1;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 45 "lisp.lex"
+#line 50 "lisp.lex"
 ECHO;
 	YY_BREAK
-#line 842 "lex.yy.c"
+#line 838 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1830,4 +1826,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 45 "lisp.lex"
+#line 50 "lisp.lex"

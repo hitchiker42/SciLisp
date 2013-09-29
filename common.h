@@ -8,6 +8,7 @@
 #include <wchar.h>
 #include <unistd.h>
 #include <stdarg.h>
+//#include "cons.h"
 #define HERE_ON
 #if defined (HERE_ON)
 #define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
@@ -29,7 +30,7 @@ typedef union data data;
 typedef struct sexp sexp;
 typedef struct cons cons;
 typedef struct symref symref;
-typedef data YYSTYPE;
+//typedef sexp YYSTYPE;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 extern symref* symbolTable;
 enum _tag {
@@ -47,7 +48,7 @@ union data {
   long int64;
   wchar_t utf8_char;
   char* string;
-  cons* pair;
+  cons* cons;
   symref* var;//incldues functions
   void* fun;
 };
@@ -70,6 +71,33 @@ struct cons{
 #define getSym(name,Var)\
   HASH_FIND_STR(symbolTable,name,Var)
 static const sexp NIL={-1,0};
-extern sexp mklist(sexp head,...);
-extern sexp mkImproper(sexp head,...);
+static const char* princ(sexp obj){
+  PRINT_MSG("Starting princ");
+  char* retval=xmalloc(1000*sizeof(char));
+  switch (obj.tag){
+    case _double: 
+      snprintf(retval,1000," %g ",obj.val.real64);
+      break;
+    case _long:
+      snprintf(retval,1000," %#0x ",obj.val.int64);
+      break;
+    case _sym:
+      snprintf(retval,1000," %s ",obj.val.var->name);
+      break;
+    case _char:
+      snprintf(retval,1000," %lc ",obj.val.utf8_char);
+      break;
+    case _cons:
+      PRINT_MSG("starting princ for cons");
+      if(obj.val.cons == 0){snprintf(retval,1000,"(null)");}
+      else{
+        snprintf(retval,1000,"(%s . %s)",princ(obj.val.cons->car),princ(obj.val.cons->cdr));}
+      PRINT_MSG("finished princ for cons");
+      break;
+  }
+  PRINT_MSG("Finished princ");
+  return retval;
+}
+sexp mklist(sexp head,...);
+sexp mkImproper(sexp head,...);
 #endif

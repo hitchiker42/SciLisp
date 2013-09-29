@@ -5,6 +5,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <signal.h>
+#include <getopt.h>
 void handle_sigsegv(int signal){
   fprintf(stderr,"recieved segfault, exiting\n");
   exit(1);
@@ -29,10 +30,19 @@ int parens_matched(char* line,int parens){
   }
   return parens;
 }
-int main(){
+int main(int argc,char* argv[]){
   sigaction(SIGSEGV,sigsegv_action,NULL);
-  symref *symbolTable=NULL,*tmpsym;
-  initPrims();
+  symref *symbolTable=NULL,*tmpsym; 
+ initPrims(); 
+ if(argv[1]!=NULL){
+   FILE* file=fopen(argv[1],"r");
+   HERE();
+   yyin=file;
+   sexp* ast=xmalloc(sizeof(sexp));
+   yyparse(ast);
+   puts(princ(*ast));
+   return 0;
+ }
   int parens,start_pos,yytag;
   char tmpFile[L_tmpnam];
   tmpnam_r(tmpFile);
@@ -78,8 +88,12 @@ int main(){
     }
     fflush(my_pipe);
     fseeko(my_pipe,start_pos,SEEK_SET);
-    HERE_MSG("Lines Read, Calling yylex");
-    while((yytag=yylex(yylval)) != -1){
+    HERE_MSG("Lines Read, Calling yyparse");
+    sexp* ast=xmalloc(sizeof(sexp));
+    yyparse(ast);
+    puts(princ(*ast));
+  }
+    /*    while((yytag=yylex(yylval)) != -1){
       switch (yytag){
         case TOK_ID:
           printf("Lexed id %s\n",yylval->string);
@@ -148,5 +162,7 @@ int main(){
           break;;
       }
     }
-  }
+    }*/
 }
+//  }
+//}

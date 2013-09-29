@@ -65,8 +65,10 @@
 #line 1 "lisp.y" /* yacc.c:339  */
 
 #include "common.h"
-#define YYSTYPE data
+#include "lex.yy.h"
+#define YYSTYPE sexp
 #define __USING_BISON__
+  void yyerror(sexp* ast,const char* s);
   /*union data {
   double real64;
   long int64;
@@ -76,7 +78,7 @@
   symref* var;//incldues functions
   };*/
 
-#line 80 "lisp.tab.c" /* yacc.c:339  */
+#line 82 "lisp.tab.c" /* yacc.c:339  */
 
 # ifndef YY_NULL
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -124,17 +126,22 @@ extern int yydebug;
 #endif
 
 /* Value type.  */
+#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+typedef int YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
+# define YYSTYPE_IS_DECLARED 1
+#endif
 
 
 extern YYSTYPE yylval;
 
-int yyparse (void);
+int yyparse (sexp *ast);
 
 #endif /* !YY_YY_LISP_TAB_H_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
 
-#line 138 "lisp.tab.c" /* yacc.c:358  */
+#line 145 "lisp.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -413,8 +420,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    33,    33,    34,    36,    37,    39,    41,    42,    43,
-      45,    46,    50,    51,    53,    54,    55
+       0,    29,    29,    30,    32,    33,    35,    37,    38,    39,
+      41,    42,    47,    48,    50,    51,    52
 };
 #endif
 
@@ -546,7 +553,7 @@ do                                                              \
     }                                                           \
   else                                                          \
     {                                                           \
-      yyerror (YY_("syntax error: cannot back up")); \
+      yyerror (ast, YY_("syntax error: cannot back up")); \
       YYERROR;                                                  \
     }                                                           \
 while (0)
@@ -583,7 +590,7 @@ do {                                                                      \
     {                                                                     \
       YYFPRINTF (stderr, "%s ", Title);                                   \
       yy_symbol_print (stderr,                                            \
-                  Type, Value); \
+                  Type, Value, ast); \
       YYFPRINTF (stderr, "\n");                                           \
     }                                                                     \
 } while (0)
@@ -594,10 +601,11 @@ do {                                                                      \
 `----------------------------------------*/
 
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, sexp *ast)
 {
   FILE *yyo = yyoutput;
   YYUSE (yyo);
+  YYUSE (ast);
   if (!yyvaluep)
     return;
 # ifdef YYPRINT
@@ -613,12 +621,12 @@ yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvalue
 `--------------------------------*/
 
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, sexp *ast)
 {
   YYFPRINTF (yyoutput, "%s %s (",
              yytype < YYNTOKENS ? "token" : "nterm", yytname[yytype]);
 
-  yy_symbol_value_print (yyoutput, yytype, yyvaluep);
+  yy_symbol_value_print (yyoutput, yytype, yyvaluep, ast);
   YYFPRINTF (yyoutput, ")");
 }
 
@@ -651,7 +659,7 @@ do {                                                            \
 `------------------------------------------------*/
 
 static void
-yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule)
+yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule, sexp *ast)
 {
   unsigned long int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
@@ -665,7 +673,7 @@ yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule)
       yy_symbol_print (stderr,
                        yystos[yyssp[yyi + 1 - yynrhs]],
                        &(yyvsp[(yyi + 1) - (yynrhs)])
-                                              );
+                                              , ast);
       YYFPRINTF (stderr, "\n");
     }
 }
@@ -673,7 +681,7 @@ yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, int yyrule)
 # define YY_REDUCE_PRINT(Rule)          \
 do {                                    \
   if (yydebug)                          \
-    yy_reduce_print (yyssp, yyvsp, Rule); \
+    yy_reduce_print (yyssp, yyvsp, Rule, ast); \
 } while (0)
 
 /* Nonzero means print parse trace.  It is left uninitialized so that
@@ -931,9 +939,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 `-----------------------------------------------*/
 
 static void
-yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, sexp *ast)
 {
   YYUSE (yyvaluep);
+  YYUSE (ast);
   if (!yymsg)
     yymsg = "Deleting";
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
@@ -960,7 +969,7 @@ int yynerrs;
 `----------*/
 
 int
-yyparse (void)
+yyparse (sexp *ast)
 {
     int yystate;
     /* Number of tokens to shift before error messages enabled.  */
@@ -1195,93 +1204,94 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 33 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=NIL;}
-#line 1201 "lisp.tab.c" /* yacc.c:1646  */
+#line 29 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=NIL;}
+#line 1210 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 34 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=mklist((yyvsp[-1].sexp),(yyvsp[0].sexp));}
-#line 1207 "lisp.tab.c" /* yacc.c:1646  */
+#line 30 "lisp.y" /* yacc.c:1646  */
+    {PRINT_MSG("Parsing input");*ast=mklist((yyvsp[-1]),(yyvsp[0]));}
+#line 1216 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 36 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=(yyvsp[0].sexp);}
-#line 1213 "lisp.tab.c" /* yacc.c:1646  */
+#line 32 "lisp.y" /* yacc.c:1646  */
+    {HERE();(yyval)=(yyvsp[0]);}
+#line 1222 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 37 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=(yyvsp[0].sexp);}
-#line 1219 "lisp.tab.c" /* yacc.c:1646  */
+#line 33 "lisp.y" /* yacc.c:1646  */
+    {HERE();(yyval)=(yyvsp[0]);}
+#line 1228 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 39 "lisp.y" /* yacc.c:1646  */
-    {sexp temp=NIL;(yyval.sexp)=temp;}
-#line 1225 "lisp.tab.c" /* yacc.c:1646  */
+#line 35 "lisp.y" /* yacc.c:1646  */
+    {sexp temp=NIL;(yyval)=temp;}
+#line 1234 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 41 "lisp.y" /* yacc.c:1646  */
-    {sexp temp=(sexp){_double,(data)(yyvsp[0].real64)};(yyval.sexp)=temp;}
-#line 1231 "lisp.tab.c" /* yacc.c:1646  */
+#line 37 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=(yyvsp[0]);}
+#line 1240 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 42 "lisp.y" /* yacc.c:1646  */
-    {sexp temp=(sexp){_long,(data)(yyvsp[0].int64)};(yyval.sexp)=temp;}
-#line 1237 "lisp.tab.c" /* yacc.c:1646  */
+#line 38 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=(yyvsp[0]);}
+#line 1246 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 43 "lisp.y" /* yacc.c:1646  */
-    {sexp temp=(sexp){_utf8_char,(data)(yyvsp[0].utf8_char)};(yyval.sexp)=temp;}
-#line 1243 "lisp.tab.c" /* yacc.c:1646  */
+#line 39 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=(yyvsp[0]);}
+#line 1252 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 46 "lisp.y" /* yacc.c:1646  */
-    {cons* temp_val=xmalloc(sizeof(cons));
-  temp_val->car=(yyvsp[-3].sexp),temp_val->cdr=(yyvsp[-1].sexp);
-  sexp temp=(sexp){_cons,(data)temp-val};(yyval.sexp)=temp;}
-#line 1251 "lisp.tab.c" /* yacc.c:1646  */
+#line 42 "lisp.y" /* yacc.c:1646  */
+    {PRINT_MSG("Parsing a cons cell");
+  cons* temp_val=xmalloc(sizeof(cons));
+  temp_val->car=(yyvsp[-3]),temp_val->cdr=(yyvsp[-1]);
+  sexp temp=(sexp){_cons,(data)temp_val};(yyval)=temp;}
+#line 1261 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 50 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=(yyvsp[0].sexp);}
-#line 1257 "lisp.tab.c" /* yacc.c:1646  */
+#line 47 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=(yyvsp[0]);}
+#line 1267 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 51 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=(yyvsp[-1].sexp);}
-#line 1263 "lisp.tab.c" /* yacc.c:1646  */
+#line 48 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=(yyvsp[-1]);}
+#line 1273 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 53 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=(yyvsp[0].sexp)}
-#line 1269 "lisp.tab.c" /* yacc.c:1646  */
+#line 50 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=(yyvsp[0]);}
+#line 1279 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 54 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=mkImproper((yyvsp[-2].sexp),NIL,(yyvsp[0].sexp));}
-#line 1275 "lisp.tab.c" /* yacc.c:1646  */
+#line 51 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=mkImproper((yyvsp[-2]),NIL,(yyvsp[0]));}
+#line 1285 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 55 "lisp.y" /* yacc.c:1646  */
-    {(yyval.sexp)=mklist((yyvsp[-1].sexp),(yyvsp[0].sexp),NIL);}
-#line 1281 "lisp.tab.c" /* yacc.c:1646  */
+#line 52 "lisp.y" /* yacc.c:1646  */
+    {(yyval)=mklist((yyvsp[-1]),(yyvsp[0]),NIL);}
+#line 1291 "lisp.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 1285 "lisp.tab.c" /* yacc.c:1646  */
+#line 1295 "lisp.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1331,7 +1341,7 @@ yyerrlab:
     {
       ++yynerrs;
 #if ! YYERROR_VERBOSE
-      yyerror (YY_("syntax error"));
+      yyerror (ast, YY_("syntax error"));
 #else
 # define YYSYNTAX_ERROR yysyntax_error (&yymsg_alloc, &yymsg, \
                                         yyssp, yytoken)
@@ -1358,7 +1368,7 @@ yyerrlab:
                 yymsgp = yymsg;
               }
           }
-        yyerror (yymsgp);
+        yyerror (ast, yymsgp);
         if (yysyntax_error_status == 2)
           goto yyexhaustedlab;
       }
@@ -1382,7 +1392,7 @@ yyerrlab:
       else
         {
           yydestruct ("Error: discarding",
-                      yytoken, &yylval);
+                      yytoken, &yylval, ast);
           yychar = YYEMPTY;
         }
     }
@@ -1438,7 +1448,7 @@ yyerrlab1:
 
 
       yydestruct ("Error: popping",
-                  yystos[yystate], yyvsp);
+                  yystos[yystate], yyvsp, ast);
       YYPOPSTACK (1);
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -1475,7 +1485,7 @@ yyabortlab:
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
 yyexhaustedlab:
-  yyerror (YY_("memory exhausted"));
+  yyerror (ast, YY_("memory exhausted"));
   yyresult = 2;
   /* Fall through.  */
 #endif
@@ -1487,7 +1497,7 @@ yyreturn:
          user semantic actions for why this is necessary.  */
       yytoken = YYTRANSLATE (yychar);
       yydestruct ("Cleanup: discarding lookahead",
-                  yytoken, &yylval);
+                  yytoken, &yylval, ast);
     }
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYABORT or YYACCEPT.  */
@@ -1496,7 +1506,7 @@ yyreturn:
   while (yyssp != yyss)
     {
       yydestruct ("Cleanup: popping",
-                  yystos[*yyssp], yyvsp);
+                  yystos[*yyssp], yyvsp, ast);
       YYPOPSTACK (1);
     }
 #ifndef yyoverflow
@@ -1509,5 +1519,11 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 56 "lisp.y" /* yacc.c:1906  */
+#line 53 "lisp.y" /* yacc.c:1906  */
 
+void yyerror(sexp* ast,const char* s){
+  PRINT_MSG("Running yyerror");
+  const char* temp=princ(*ast);
+  fprintf(stderr,"%s\n",temp);  
+  PRINT_MSG("yyerror run");
+}
