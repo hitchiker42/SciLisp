@@ -1,11 +1,12 @@
 #include "common.h"
 #include "prim.h"
 #include "lex.yy.h"
-#include "lisp.tab.h"
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <signal.h>
 #include <getopt.h>
+jmp_buf main_loop;
+static char *line_read;
 void handle_sigsegv(int signal){
   fprintf(stderr,"recieved segfault, exiting\n");
   exit(1);
@@ -15,7 +16,13 @@ const struct sigaction* restrict sigsegv_action=&action_object;
 #define reset_line()       free (line_read);    \
   line_read = (char *)NULL
 extern FILE* yyin;
-int parens_matched(char* line,int parens){
+/*Scan a line, subtract 1 from parens for each ")"
+ *add 1 to parens for each "(", return -1 if we find a close parenteses
+ *without an opening one.
+ *parens is an int containing the number of currently open parentheses
+ *it could probably be a pointer, but I like to keep functions pure
+ */
+int parens_matched(const char* line,int parens){
   int i=0;
   char cur_char;
   while((cur_char=line[i]) != '\0'){
@@ -30,69 +37,94 @@ int parens_matched(char* line,int parens){
   }
   return parens;
 }
+/*read input from file input, parse it into an abstract syntax tree,
+ *write c code to c_code file(generate a tmp file if c_code == NULL)
+ *and compile the c file with gcc to output file output*/
+int compile(FILE* input,const char *output,FILE* c_code){
+    HERE();
+    sexp ast=yyparse(input);
+    princ(ast);
+    //codegen(output,c_code,ast);
+    exit(0);
+}
+/* Read interactive input using readline.
+ * outfile is a temporary file essentally used as a pipe. read scans a line
+ * and if that line has an open paren without a matching close paren read
+ * will continue to scan lines unitl all parentese are matched, or it finds
+ * a syntax error(really just an extra close paren).
+ * input is written to outfile as a place to hold the current input. It is
+ * assumed that code will be read from outfile and evaluated. Read returns 
+ * the position in outfile where it started scanning*/
+int lispRead(FILE* outfile,char* filename){
+    FILE* my_pipe=outfile;
+    char* tmpFile=filename;
+    int parens,start_pos;
+  MAIN_LOOP:while(1){
+      parens=0;
+      start_pos=ftello(my_pipe);
+      //makesure readline buffer is NULL
+      if (line_read){
+        free (line_read);
+        line_read = (char *)NULL;
+      }
+      line_read = readline("in>");
+      if (line_read && *line_read){      
+        add_history (line_read);
+      }
+      parens=parens_matched(line_read,0);
+      fputs(line_read,my_pipe);
+      fputc(' ',my_pipe);
+      while(parens){
+        if(parens<0){
+          fprintf(stderr,"Extra close parentheses\n");
+          truncate(tmpFile,0);
+          goto MAIN_LOOP;
+        }    
+        line_read=readline(">");
+        if(line_read == NULL){
+          HERE();
+          exit(0);
+        }
+        if (line_read && *line_read){
+          add_history (line_read);
+        }
+        puts(line_read);
+        parens=parens_matched(line_read,parens);
+        fputs(line_read,my_pipe);
+        fputc(' ',my_pipe);
+      }
+      fflush(my_pipe);
+    }
+    return start_pos;
+  }
 int main(int argc,char* argv[]){
+  //setup handler for sigsegv, so we can exit gracefully on a segfault
   sigaction(SIGSEGV,sigsegv_action,NULL);
-  symref *symbolTable=NULL,*tmpsym; 
- initPrims(); 
- if(argv[1]!=NULL){
-   FILE* file=fopen(argv[1],"r");
-   HERE();
-   yyin=file;
-   sexp* ast=xmalloc(sizeof(sexp));
-   yyparse(ast);
-   puts(princ(*ast));
-   return 0;
- }
-  int parens,start_pos,yytag;
+  initPrims(); //read primitives into syntax table, this really should just 
+  // read a binary file containing a prepopulaed syntax table;
+  static char *line_read =(char *)NULL;
+  //need to replace with proper getopt interface
+  if(argv[1]!=NULL){
+    FILE* file=fopen(argv[1],"r");
+    compile(file,"a.out",NULL);
+  }
+  int parens,start_pos;
   char tmpFile[L_tmpnam];
   tmpnam_r(tmpFile);
-  data* yylval_param=malloc(sizeof(data));
-  data* yylval=malloc(sizeof(data));
   char test[100];
   FILE* my_pipe=fopen(tmpFile,"w+");
   yyin=my_pipe;
-  static char *line_read=(char *)NULL;
   rl_set_signals();
- MAIN_LOOP:while(1){
-    parens=0;
-    start_pos=ftello(my_pipe);
-    if (line_read){
-      free (line_read);
-      line_read = (char *)NULL;
-    }
-    line_read = readline("in>");
-    if (line_read && *line_read){      
-      add_history (line_read);
-    }
-    parens=parens_matched(line_read,0);
-    fputs(line_read,my_pipe);
-    fputc(' ',my_pipe);
-    while(parens){
-      if(parens<0){
-        fprintf(stderr,"Extra close parentheses\n");
-        truncate(tmpFile,0);
-        goto MAIN_LOOP;
-      }    
-      line_read=readline(">");
-      if(line_read == NULL){
-        HERE();
-        exit(0);
-      }
-      if (line_read && *line_read){
-        add_history (line_read);
-      }
-      puts(line_read);
-      parens=parens_matched(line_read,parens);
-      fputs(line_read,my_pipe);
-      fputc(' ',my_pipe);
-    }
-    fflush(my_pipe);
-    fseeko(my_pipe,start_pos,SEEK_SET);
-    HERE_MSG("Lines Read, Calling yyparse");
-    sexp* ast=xmalloc(sizeof(sexp));
-    yyparse(ast);
-    puts(princ(*ast));
-  }
+  //read
+  start_pos=lispRead(my_pipe,tmpFile);
+  fseeko(my_pipe,start_pos,SEEK_SET);
+  HERE_MSG("Lines Read, Calling yyparse");
+  //eval
+  sexp ast=yyparse(my_pipe);
+  sexp result=internal_eval(ast);
+  //print
+  princ(ast);
+}
     /*    while((yytag=yylex(yylval)) != -1){
       switch (yytag){
         case TOK_ID:
@@ -163,6 +195,5 @@ int main(int argc,char* argv[]){
       }
     }
     }*/
-}
 //  }
 //}
