@@ -1,6 +1,7 @@
 #include "common.h"
 #include "cons.h"
 #include "lex.yy.h"
+/*Memory is falling out of scope somewhere, need to find out where*/
 #define nextTok() yytag=yylex()
 #define isSpecial(TOK) (TOK==TOK_DEF || TOK==TOK_DEFUN || TOK==TOK_SETQ ||\
     TOK==TOK_DATATYPE || TOK==TOK_UNION || TOK==TOK_ENUM || TOK==TOK_STRUCT ||\
@@ -55,6 +56,7 @@ sexp yyparse(FILE* input){
     }
     if(yylval){free(yylval);}
     prev_pos->cdr=NIL;
+    fputs(princ(ast),stderr);
     return ast;
   }
 }

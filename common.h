@@ -1,3 +1,4 @@
+/*Refactor special forms to use enum type*/
 #ifndef __COMMON_H__
 #define __COMMON_H__
 #include <stdio.h>
@@ -13,17 +14,19 @@
 //#include "cons.h"
 #define HERE_ON
 #define VERBOSE_LEXING
-#if defined (HERE_ON)
+#if defined (HERE_ON) && !(defined (HERE_OFF))
 #define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
 #define HERE_MSG(string) fprintf(stderr,"here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
 #define PRINT_MSG(string) fputs(string,stderr);fputs("\n",stderr)
+#define PRINT_FMT(string,fmt...) fprintf(stderr,string,##fmt);fputs("\n",stderr)
 #else
 #define HERE()
 #define HERE_MSG(string)
 #define PRINT_MSG(string)
+#define PRINT_FMT(string,fmt...)
 #endif
-#if defined (VERBOSE_LEXING)
+#if defined (VERBOSE_LEXING) && !(defined (QUIET_LEXING))
 #define LEX_MSG(string) fputs(string,stderr);fputs("\n",stderr)
 #else
 #define LEX_MSG(string)
@@ -36,6 +39,7 @@
 #define xmalloc_atomic GC_MALLOC_ATOMIC
 typedef enum _tag _tag;
 typedef enum TOKEN TOKEN;
+typedef enum special_form special_form;
 typedef union data data;
 typedef struct sexp sexp;
 typedef struct cons cons;
@@ -62,6 +66,7 @@ union data {
   cons* cons;
   symref* var;//incldues functions
   void* fun;
+  special_form special;
 };
 struct sexp{
   _tag tag;
@@ -83,7 +88,7 @@ enum TOKEN{
   TOK_REAL=2,
   TOK_CHAR=3,
   TOK_STRING=4,
-  TOK_ID=5,
+  TOK_ID=5,  
   //reserved words
   TOK_LAMBDA=6,
   TOK_DEF=7,//def or define
@@ -117,6 +122,24 @@ enum TOKEN{
   TOK_LCBRACE=54,
   TOK_RCBRACE=55
 };
+enum special_form{
+  _def=0,
+  _defun=1,
+  _setq=2,
+  _if=3,
+  _let=4,
+  _do=5,
+  _lambda=6,
+  _progn=7,
+  _go=8,
+  _tag=9,
+  _struct=10,
+  _union=11,
+  _datatype=12,
+  _enum=13,
+  _eval=14,
+  _defmacro=15
+};
 #define addSym(Var)\
   HASH_ADD_KEYPTR(hh, symbolTable, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
@@ -128,7 +151,7 @@ sexp* yylval;
 static const char* tag_name(_tag obj_tag){
   switch(obj_tag){
     case _nil:
-      return "nil";
+  n    return "nil";
     case _cons:
       return "cons";
     case _double:
@@ -151,21 +174,21 @@ static const char* tag_name(_tag obj_tag){
 }
 static const char* princ(sexp obj){
   PRINT_MSG("Starting princ");
-  fprintf(stderr,"princ for a %s object",tag_name(obj.tag));
+  PRINT_FMT("princ for a %s object",tag_name(obj.tag));
   char* retval;
   switch (obj.tag){
     case _double: 
       asprintf(&retval,"%g",(double)obj.val.real64);
-      fprintf(stderr,"real %g",obj.val.real64);
+      PRINT_FMT("real %g",obj.val.real64);
       break;
     case _long:
       asprintf(&retval,"%#0x",(long)obj.val.int64);
-      fprintf(stderr,"long %#0x",obj.val.int64);
+      PRINT_FMT("long %#0x",obj.val.int64);
       break;
     case _fun:
     case _sym:     
       asprintf(&retval,"%s",obj.val.var->name);
-      fputs(obj.val.var->name,stderr);
+      PRINT_MSG(obj.val.var->name);
       break;
     case _char:
       asprintf(&retval,"%lc",obj.val.utf8_char);
@@ -176,8 +199,8 @@ static const char* princ(sexp obj){
       else{
         const char* car_str=princ(obj.val.cons->car);
         const char* cdr_str=princ(obj.val.cons->cdr);
-        fputs(car_str,stderr);
-        fputs(cdr_str,stderr);
+        PRINT_MSG(car_str);
+        PRINT_MSG(cdr_str);
         asprintf(&retval,"(%s . %s)",car_str,cdr_str);
       }
       PRINT_MSG("finished princ for cons");
