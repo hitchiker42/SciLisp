@@ -3,11 +3,6 @@
 #include "lex.yy.h"
 /*Memory is falling out of scope somewhere, need to find out where*/
 #define nextTok() yytag=yylex()
-#define isSpecial(TOK) (TOK==TOK_DEF || TOK==TOK_DEFUN || TOK==TOK_SETQ ||\
-    TOK==TOK_DATATYPE || TOK==TOK_UNION || TOK==TOK_ENUM || TOK==TOK_STRUCT ||\
-    TOK==TOK_GO || TOK==TOK_TAG || TOK==TOK_LAMBDA || TOK==TOK_PROGN ||\
-    TOK==TOK_IF || TOK==TOK_LET || TOK==TOK_DO || TOK==TOK_QUASI ||\
-                        TOK==TOK_EVAL || TOK==TOK_DEFMACRO)
 #define CAR(cons_sexp) cons_sexp.val.cons->car
 #define CDR(cons_sexp) cons_sexp.val.cons->cdr
 //#define CAR car
@@ -21,7 +16,6 @@ jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp yyparse(FILE* input){
-  HERE();
   if(setjmp(ERROR)){
     PRINT_MSG("Jumped to error");
     if(error_str){
@@ -33,12 +27,10 @@ sexp yyparse(FILE* input){
   } else{
     yyin=input;
     ast.tag=_cons;
-    ast.val.cons=xmalloc(sizeof(cons));
-    cons* cur_pos=ast.val.cons;
+    cons* cur_pos=ast.val.cons=xmalloc(sizeof(cons));
     cons* prev_pos;
     yylval=malloc(sizeof(sexp));
     while((nextTok()) != -1){
-      fprintf(stderr,"current token = %d\n",yytag);
       if(yytag == TOK_LPAREN){
         nextTok();
         cur_pos->car=parse_cons();
@@ -56,48 +48,59 @@ sexp yyparse(FILE* input){
     }
     if(yylval){free(yylval);}
     prev_pos->cdr=NIL;
-    fputs(princ(ast),stderr);
+    PRINT_MSG(princ(ast));
     return ast;
   }
 }
 sexp parse_cons(){
-  HERE();
+  //sexp* result=xmalloc(sizeof(sexp)); 
   sexp result;
   result.tag=_cons;
   result.val.cons=xmalloc(sizeof(cons));
-  sexp cons_pos=result.val.cons->cdr;
+  cons* cons_pos=result.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+  //  sexp cons_pos=result.val.cons->cdr;
   //at this point there's no difference between any macro, special form or function
-  if (isSpecial(yytag)){
-    CAR(result)=*yylval;
+  if (yytag == TOK_SPECIAL){
+    result.val.cons->car=*yylval;
   } else if(yytag==TOK_ID){
-    CAR(result)=(sexp){_fun,(data)yylval->val.string};
-    fprintf(stderr,"funciton name %s\n",CAR(result).val.string);
+    getSym(yylval->val.string,tmpsym);
+    if(tmpsym){
+      PRINT_MSG("Found prim");
+      result.val.cons->car=(sexp){_fun,(data)(symref*)tmpsym};
+    } else {
+    tmpsym=xmalloc(sizeof(symref));
+    tmpsym->name=yylval->val.string;
+    result.val.cons->car=(sexp){_fun,(data)(symref*)tmpsym};
+    }
   } else {
     asprintf(&error_str,"Expecting a function or special form, got %s",princ(*yylval));
     longjmp(ERROR,-1);
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
+  sexp temp;
   while((nextTok())!=TOK_RPAREN){
-    cons_pos.val.cons=xmalloc(sizeof(cons));
     if(yytag == TOK_LPAREN){
       nextTok();
-      cons_pos.val.cons->car=parse_cons();
+      cons_pos->car=parse_cons();
     } else {
-      HERE();
-      cons_pos.val.cons->car=parse_atom();
+      temp=parse_atom();
+      cons_pos->car.val=temp.val;
+      cons_pos->car.tag=temp.tag;
     }
-    cons_pos=cdr(cons_pos);
+    cons_pos->cdr.val.cons=xmalloc(sizeof(cons));
+    cons_pos=cons_pos->cdr.val.cons;
   }
+  cons_pos->cdr=NIL;
   return result;
 }
 sexp parse_atom(){
-  HERE();
   sexp retval;
   switch(yytag){
     case TOK_EOF:
       my_abort("EOF found in the middle of input\n");
     case TOK_REAL:      
-      return *yylval;
+      //*yylval;
+      return (sexp){_double,(data)(double)yylval->val.real64};
     case TOK_INT:
       return *yylval;
     case TOK_QUOTE:

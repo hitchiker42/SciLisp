@@ -1,7 +1,6 @@
 #ifndef __PRIM_H_
 #define __PRIM_H_
 #include "common.h"
-#include <math.h>
 #include "cons.h"
 #define op_to_fun(op,fun_name,type)\
   static inline type fun_name(type x,type y){   \
@@ -36,9 +35,26 @@ static inline long ash(long x,long y){
   if(y<=0){return x >> y;}
   else{return x<<(-y);}
 }
+static inline sexp lisp_add(sexp x){
+  double sum=0;
+  if(x.tag == _double||x.tag==_long){return x;}
+  if(x.tag == _cons){
+    do{
+      switch(car(x).tag){
+        case _long:
+          sum+=(double)x.val.int64;
+          break;
+        case _double:
+          sum+=x.val.real64;
+          break;
+      }
+    } while ((x=cdr(x)).tag != _nil);
+  } return (sexp){_double,(data)(double)sum};
+}
 //args are (name in c,value,name in lisp)       
 #define initPrims()\
   symbolTable=NULL;\
+  makeSyms(PRIM_add_sym,lisp_add,"add");\
   makeSyms(PRIM_fadd_sym,lisp_fadd,"+");\
   makeSyms(PRIM_fsub_sym,lisp_fsub,"-");\
   makeSyms(PRIM_fmul_sym,lisp_fmul,"*");\
