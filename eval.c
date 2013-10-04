@@ -6,38 +6,85 @@
 #include "cons.h"
 symref tempsym;
 jmp_buf ERROR;
-char* error_str;
 static sexp eval_special(sexp expr);
+static sexp call_function(sexp curFun,sexp expr);
 sexp internal_eval(sexp expr){
+  HERE();
   switch(expr.tag){    
     case _cons:
       if(SYMBOLP(car(expr))){
-        sexp curFun=car(expr);
-        if(!curFun.val.raw_fun){
-          longjmp(ERROR,-1);
+        sexp curFun=car(expr).val.var->val;
+        if(!FUNP(curFun)){
+          CORD_fprintf(stderr,"tag = %s\n",toString_tag(curFun));
+          CORD_sprintf(&error_str,"%r is not a function or special form",
+                       print(curFun));
+          goto ERROR;
+        } else {
+          call_function(curFun,expr);
         }
-        //assume maximu of a binary function, needs to be fixed asap
-        //but if it gets me a vaguely working interpreter so be it
-        //(name . (arg1 .(arg2 . ())))
-        sexp arg1,arg2;
-        if(CONSP(cdr(expr))){
-          arg1=internal_eval(car(cdr(expr)));
-        } else {}
-        if (CONSP(cdr(cdr(expr)))){
-          arg2=internal_eval(car(cdr(cdr(expr))));
-        } else {}
-        HERE();
-        double(*fp)(double,double)=curFun.val.raw_fun;
-        HERE();
-        double retval=fp(getDoubleVal(arg1),getDoubleVal(arg2));
-        HERE();
-        return(sexp){_double,(data)(double)retval};
       } else if(SPECP(car(expr))){
         return eval_special(expr);
+      }
+    case _sym:
+      getSym(expr.val.var->name,tempsym);
+      if(tempsym){
+        return internal_eval(tempsym->val);
+      } else {
+        CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
+        goto ERROR;
       }
   default:
     return expr;
   }
+  ERROR:
+  longjmp(ERROR,-1);
+}
+static inline sexp call_function(sexp curFun,sexp expr){
+  int i;
+  sexp cur_arg;
+#define getArgs(numargs)                                       \
+  cur_arg=cdr(expr);                                                  \
+  sexp args##numargs[numargs];                                          \
+    for(i=0;i<numargs;i++){                                             \
+      if(!CONSP(cur_arg)){                                              \
+        CORD_sprintf(&error_str,"Too few Arguments given to %r",        \
+                     FLNAME(curFun));                                   \
+        goto ERROR;                                                     \
+      } else {                                                          \
+        args##numargs[i]=internal_eval(car(cur_arg));                   \
+          cur_arg=cdr(cur_arg);                                         \
+      }                                                                 \
+    }
+switch (FMAX_ARGS(curFun)){
+  case 0:
+    if(!NILP(cdr(expr))){
+      CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
+                   FLNAME(curFun));
+    } else {
+      return F_CALL(curFun).f0();
+    }
+  case 1:
+    if(!NILP(cddr(curFun))){
+      CORD_sprintf(&error_str,"Excess Arguments given to %r",
+                   FLNAME(curFun));
+      goto ERROR;
+    } else {
+      sexp args=internal_eval(cdar(curFun));
+      return F_CALL(curFun).f1(args);
+    }
+  case 2:              
+    getArgs(2);
+    return F_CALL(curFun).f2(args2[0],args2[1]);
+  case 3:
+    getArgs(3);
+    return F_CALL(curFun).f3(args3[0],args3[1],args3[2]);
+  case 4:
+    getArgs(4);
+    return F_CALL(curFun).f4(args4[0],args4[1],args4[2],args4[3]);
+ }
+ ERROR:
+ longjmp(ERROR,-1);
+#undef getArgs
 }
 static inline sexp eval_special(sexp expr){
   //this is an internal only inline function, ie this function itself
@@ -53,7 +100,7 @@ static inline sexp eval_special(sexp expr){
       //to a value once or not?
       newSym=cdar(expr);
       if(!SYMBOLP(newSym)){
-        asprintf(&error_str,"%s is not a symbol",print(cdar(expr)));
+        CORD_sprintf(&error_str,"%s is not a symbol",print(cdar(expr)));
       } else {
         sexp symVal=internal_eval(cddr(expr));
         newSym.val.var->val=symVal;
@@ -95,23 +142,4 @@ static inline sexp eval_special(sexp expr){
           } else if(tempsexp.tag == _long){
             printf("Symbol value is %ld\n",tempsexp.val.int64);
           } else {
-            printf("Symbol value is nil\n");
-          }
-        } else {
-          symref* newsym = xmalloc(sizeof(symref));
-          newsym->name=yylval->val.string;
-          yytag=yylex();
-          if (yytag == TOK_REAL){
-            printf("yylval->real64 = %f\n",yylval->val.real64);
-            newsym->val=(sexp){_double,yylval->val.real64};
-          } else if (yytag == TOK_INT){
-            printf("yylval->int64 = %ld\n",yylval->val.int64);
-            newsym->val.tag=_long;
-            newsym->val.val.int64=(long)yylval->val.int64;
-          } else {
-            newsym->val=NIL;
-          }
-          addSym(newsym);
-          printf("added Symbol %s to symbol table\n",newsym->name);
-        }
-        break;*/
+          printf("Symbol value is nil\n");*/

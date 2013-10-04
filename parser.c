@@ -14,17 +14,16 @@
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
 symref tmpsym;//for reading from hash table
-char* error_str;//global error string
 TOKEN yytag;//current token
 jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp yyparse(FILE* input){
+  HERE();
   if(setjmp(ERROR)){
     PRINT_MSG("Jumped to error");
     if(error_str){
-      fputs(error_str,stderr);
-      free(error_str);
+      CORD_fprintf(stderr,error_str);
     }
     if(yylval){free(yylval);}
     return NIL;    
@@ -35,8 +34,9 @@ sexp yyparse(FILE* input){
     cons* prev_pos;
     yylval=malloc(sizeof(sexp));
     while((nextTok()) != -1){
+      HERE();
       if(yytag == TOK_LPAREN){
-        nextTok();
+        HERE();
         cur_pos->car=parse_cons();
         cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
         cur_pos->cdr.tag=_cons;
@@ -57,6 +57,7 @@ sexp yyparse(FILE* input){
 }
 sexp parse_cons(){
   //sexp* result=xmalloc(sizeof(sexp)); 
+  nextTok();
   sexp result;
   result.tag=_cons;
   result.val.cons=xmalloc(sizeof(cons));
@@ -64,28 +65,35 @@ sexp parse_cons(){
   //  sexp cons_pos=result.val.cons->cdr;
   //at this point there's no difference between any macro, special form or function
   if (yytag == TOK_SPECIAL){
+    HERE();
     result.val.cons->car=*yylval;
   } else if(yytag==TOK_ID){
-    getSym(yylval->val.string,tmpsym);
+    PRINT_FMT("found id %s",yylval->val.cord);
+    getSym(yylval->val.cord,tmpsym);
+    HERE();
     if(tmpsym){
       PRINT_FMT("Found prim %s",tmpsym->name);
-      result.val.cons->car=(sexp){_sym,(data)(symref)tmpsym};
+      result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
     } else {
     tmpsym=xmalloc(sizeof(symbol));
     tmpsym->name=yylval->val.string;
     tmpsym->val=(sexp){_fun,(data)0};
-    result.val.cons->car=(sexp){_sym,(data)(symref)tmpsym};
+    result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
     }
   } else {
-    asprintf(&error_str,"Expecting a function or special form, got %s",print(*yylval));
+    HERE();
+    CORD_fprintf(stderr,"Expecting a function or special form, got %r",print(*yylval));
+    HERE();
     longjmp(ERROR,-1);
   }
+  HERE();
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
   cons* old_pos;
   while((nextTok())!=TOK_RPAREN){
+    HERE();
+    PRINT_FMT("%d",yytag);
     if(yytag == TOK_LPAREN){
-      nextTok();
       cons_pos->car=parse_cons();
     } else {
       temp=parse_atom();
@@ -138,36 +146,22 @@ sexp parse_atom(){
         return (sexp){_sym,(data)(symref)tmpsym};        
       }
     default:
-      asprintf(&error_str,"Error, expected literal atom recieved %s\n",print(*yylval));
+      CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n",print(*yylval));
       longjmp(ERROR,-1);
   }
 }
-
-  
-     /*//uses a bucnch of global variables, bad form
 sexp parse_sexp(){
-  if(yytag==TOK_LPAREN){
-    nextTok();
-    switch(yytag){
-      case TOK_DEF:
-      nextTok();
-      if(yytag != TOK_ID){error_str("Expected a symbol name after a define");goto ERROR;}
-      else{
-        symref* newsym=xmalloc(sizeof(symref));
-        newsym->name=yylval->val.string;
-        nextTok();
-        newsym->val=parse_sexp();
-        addSym(newsym);
-        return newsym->val;
-      }
-   
- 
-      
-          
-    case TOK_ID://Aka a function call
-  }
-}        
-sexp yyparse(FILE* input){
+  nextTok();
+  if(yytag == TOK_LPAREN){return parse_cons();}
+  else{return parse_atom();}
+}
+sexp lispRead(CORD code){
+  char* stringBuf = CORD_to_char_star(code);
+  FILE* stringStream = fmemopen(stringBuf,CORD_len(code),"r");
+  yyin=stringStream;
+  return parse_sexp();
+}
+/*sexp yyparse(FILE* input){
   yyin=input;
   yylval=malloc(sizeof(sexp));
   while((yytag=yylex())!=-1){

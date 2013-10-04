@@ -5,8 +5,6 @@
  ****************************************************************/
 #include "common.h"
 #define YY_DECL TOKEN yylex(void)
-#define YY_NEW_FILE
-#define YY_DO_BEFORE_ACTION
 %}
 DIGIT [0-9]
 /*Identifiers are normal id chars and start %,+,*,!,?,-,^,$,/,&,<,> end*/

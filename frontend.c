@@ -4,10 +4,10 @@
  ****************************************************************/
 #include "common.h"
 #include "prim.h"
+#include "lex.yy.h"
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <getopt.h>
-jmp_buf main_loop;
+jmp_buf main_loop,ERROR;
 static char *line_read;
 void handle_sigsegv(int signal){
   fprintf(stderr,"recieved segfault, exiting\n");
@@ -45,6 +45,7 @@ int parens_matched(const char* line,int parens){
 int compile(FILE* input,const char *output,FILE* c_code){
     HERE();
     sexp ast=yyparse(input);
+    HERE();
     CORD_printf("%r\n",print(car(ast)));
     //codegen(output,c_code,ast);
     exit(0);
@@ -126,6 +127,9 @@ int main(int argc,char* argv[]){
   yyin=my_pipe;
   rl_set_signals();
  REPL:while(1){
+    if(setjmp(ERROR)){
+      printf(error_str);
+    }
   //read
   start_pos=lispReadLine(my_pipe,tmpFile);
   fseeko(my_pipe,start_pos,SEEK_SET);
@@ -137,75 +141,3 @@ int main(int argc,char* argv[]){
   CORD_printf(print(result));puts("\n");
   }
 }
-    /*    while((yytag=yylex(yylval)) != -1){
-      switch (yytag){
-        case TOK_ID:
-          printf("Lexed id %s\n",yylval->string);
-          getSym(yylval->string,tmpsym);
-          if(tmpsym){
-            printf("Symbol %s found in symbol table\n",tmpsym->name);
-            sexp tempsexp=tmpsym->val;
-            printf("Symbol bytes are %#0lx\n",tempsexp.val);
-            if(tempsexp.tag == _fun){
-              yytag=yylex(yylval);
-              double x,y;
-              if(yytag=TOK_REAL){x=yylval->real64;}
-              else if(yytag=TOK_INT){x=(double)yylval->int64;}
-              else{continue;}
-              yytag=yylex(yylval);
-              if(yytag=TOK_REAL){y=yylval->real64;}
-              else if(yytag=TOK_INT){y=(double)yylval->int64;}
-              else{continue;}
-              double(*fp)(double,double)=tempsexp.val.fun;
-              double result=fp(x,y);
-              printf("%f %s %f = %f\n",x,tmpsym->name,y,result);
-            } else if(tempsexp.tag==_double){
-              printf("Symbol value is %f\n",tempsexp.val.real64);
-            } else if(tempsexp.tag == _long){
-              printf("Symbol value is %ld\n",tempsexp.val.int64);
-            } else {
-              printf("Symbol value is nil\n");
-            }
-          } else {
-            symref* newsym = xmalloc(sizeof(symref));
-            newsym->name=yylval->string;
-            yytag=yylex(yylval);
-            if (yytag == TOK_REAL){
-              printf("yylval->real64 = %f\n",yylval->real64);
-              newsym->val=(sexp){_double,yylval->real64};
-            } else if (yytag == TOK_INT){
-              printf("yylval->int64 = %ld\n",yylval->int64);
-              newsym->val.tag=_long;
-              newsym->val.val.int64=yylval->int64;
-            } else {
-              newsym->val=NIL;
-            }
-            addSym(newsym);
-            printf("added Symbol %s to symbol table\n",newsym->name);
-          }
-          break;
-        case TOK_REAL:
-          printf("Lexed real %f\n",yylval->real64);
-          break;
-        case TOK_INT:
-          printf("Lexed int %d\n",yylval->int64);
-        case TOK_LPAREN:
-          puts("Lexed (\n");
-          break;
-        case TOK_RPAREN:
-          puts("Lexed )\n");
-          break;
-        case TOK_TYPEINFO:
-          printf("Lexed typename %s\n",yylval->string);
-          break;
-        case TOK_QUOTE:
-          printf("Lexed a quote\n");
-          break;
-        default:
-          printf("Lexed Unknown Token\n");
-          break;;
-      }
-    }
-    }*/
-//  }
-//}

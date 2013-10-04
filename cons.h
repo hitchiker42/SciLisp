@@ -31,7 +31,7 @@ static sexp Cons(sexp car_cell,sexp cdr_cell){
   retval.val.cons->car=cdr_cell;
   return retval;
 }
-static inline set_car(sexp cell,sexp new_val){
+static inline sexp set_car(sexp cell,sexp new_val){
   return (cell.val.cons->car=new_val);
 }
 static inline sexp caar(sexp cell){return car(car(cell));}

@@ -12,6 +12,8 @@ typedef enum TOKEN TOKEN;
 typedef enum special_form special_form;
 typedef union data data;
 typedef union env_type env_type;
+typedef union symbol_type symbol_type;
+typedef union funcall funcall;
 typedef struct sexp sexp;
 typedef struct cons cons;
 typedef struct symbol symbol;
@@ -35,6 +37,7 @@ typedef fxn_proto* fxn_ptr;
 #define CHARP(obj) (obj.tag == _char)
 #define FUNP(obj) (obj.tag == _fun)
 enum _tag {
+  _unbound = -2,
   _nil = -1,
   _cons = 0,
   _double = 1,
@@ -122,27 +125,45 @@ enum TOKEN{
   TOK_LCBRACE=54,
   TOK_RCBRACE=55
 };
-struct fxn_proto{
-  int num_args;
-  _tag* arg_types;
-  void* function;
+union funcall{
+    sexp(*f0)(void);
+    sexp(*f1)(sexp);
+    sexp(*f2)(sexp,sexp);
+
+    sexp(*f3)(sexp,sexp,sexp);
+    sexp(*f4)(sexp,sexp,sexp,sexp);
 };
+struct fxn_proto{
+  CORD cname;
+  CORD lispname;
+  short min_args,max_args;
+  funcall fxn_call;
+};
+#define FMAX_ARGS(fxn) fxn.val.fun->max_args
+#define FMIN_ARGS(fxn) fxn.val.fun->min_args
+#define FCNAME(fxn) fxn.val.fun->cname
+#define FLNAME(fxn) fxn.val.fun->lispname
+#define F_CALL(fxn) fxn.val.fun->fxn_call
 struct local_symbol{
   CORD name;
-  sexp value;
+  sexp val;
   local_symbol* next;
 };
 struct local_env{
-  env_type* enclosing;
-  local_symbol* first;
+  env* enclosing;
+  local_symbol* head;
 };
 struct hash_env{
-  env_type* enclosing;
+  env* enclosing;
   symref head;
 };
 union env_type{
   local_env local;
   hash_env hash;
+};
+union symbol_type{
+  symref global;
+  local_symbol* local;
 };
 struct env{
   enum {
@@ -155,4 +176,11 @@ static struct option long_options[] = {
   {"output",required_argument,0,'o'},
   {0       ,0                ,0,0  }
 };
-  
+hash_env globalSymbolTable;
+sexp getSymlocal(local_env cur_env,CORD name);
+sexp lookupSym(env* cur_env,CORD name);
+#define getSym(name,Var)                                \
+  HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)
+#define addSym(Var)                                                     \
+  HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
+  //         hh_name, head,        key_ptr,   key_len,           item_ptr

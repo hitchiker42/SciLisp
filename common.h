@@ -20,9 +20,9 @@
 #include <uthash.h>
 #include <wchar.h>*/
 #include "types.h"
-#include "lex.yy.h"
+//#include "lex.yy.h"
 #define HERE_ON
-//#define VERBOSE_LEXING
+#define VERBOSE_LEXING
 #if defined (HERE_ON) && !(defined (HERE_OFF))\
   || (defined (DEBUG)) && !(defined (NDEBUG))
 #define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
@@ -52,22 +52,19 @@
 #define double_sexp(double_val) (sexp){_double,(data)(double)double_val}
 #define long_sexp(long_val) (sexp){_long,(data)(long)long_val}
 #define cons_sexp(cons_val) (sexp){_cons,(data)(cons*)cons_val}
-#define addSym(Var)\
-  HASH_ADD_KEYPTR(hh, symbolTable, Var->name, strlen(Var->name), Var)
-  //         hh_name, head,        key_ptr,   key_len,           item_ptr
-#define getSym(name,Var)\
-  HASH_FIND_STR(symbolTable,name,Var)
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
 static const sexp NIL={-1,0};
-symref symbolTable;
+static const sexp UNBOUND={-2,0};
 sexp* yylval;
 c_string tag_name(_tag obj_tag);
 CORD princ(sexp obj);
 CORD print(sexp obj);
+sexp lisp_print(sexp obj);
 sexp yyparse(FILE* input);
 void codegen(const char* output,FILE* c_code,sexp ast);
 sexp internal_eval(sexp expr);
+CORD error_str;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){
   switch(x.tag){
@@ -89,4 +86,5 @@ static inline int isTrue(sexp x){
   }
   return 1;
 }
+c_string toString_tag(sexp obj);
 #endif

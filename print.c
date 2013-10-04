@@ -85,5 +85,10 @@ CORD print(sexp obj){
         retval=CORD_cat_char(acc,')');
       }
       return CORD_balance(retval);
+    default:
+      return "error";
   }
+}
+sexp lisp_print(sexp obj){
+  return (sexp){_str,(data)print(obj)};
 }
