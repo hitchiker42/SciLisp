@@ -5,6 +5,8 @@
  ****************************************************************/
 #include "common.h"
 #define YY_DECL TOKEN yylex(void)
+#define YY_NEW_FILE
+#define YY_DO_BEFORE_ACTION
 %}
 DIGIT [0-9]
 /*Identifiers are normal id chars and start %,+,*,!,?,-,^,$,/,&,<,> end*/
@@ -73,6 +75,10 @@ eval {LEX_MSG("lexing eval");
   yylval->tag=_special;yylval->val.special=_eval;return TOK_SPECIAL;}
 defmacro {LEX_MSG("lexing defmacro");
   yylval->tag=_special;yylval->val.special=_defmacro;return TOK_SPECIAL;}
+or {LEX_MSG("lexing or");
+  yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
+and {LEX_MSG("lexing and");
+  yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}
 {QUOTE} {LEX_MSG("Lexing quote");
   yylval->tag=_special;yylval->val.special=_quote;return TOK_QUOTE;}
 "," {LEX_MSG("Lexing comma");

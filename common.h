@@ -14,11 +14,17 @@
 #include <setjmp.h>
 #include <math.h>
 #include <signal.h>
+/*types.h has
+#include "include/cord.h"
+#include <string.h>
+#include <uthash.h>
+#include <wchar.h>*/
 #include "types.h"
-//#include "lex.yy.h"
+#include "lex.yy.h"
 #define HERE_ON
 //#define VERBOSE_LEXING
-#if defined (HERE_ON) && !(defined (HERE_OFF))
+#if defined (HERE_ON) && !(defined (HERE_OFF))\
+  || (defined (DEBUG)) && !(defined (NDEBUG))
 #define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
 #define HERE_MSG(string) fprintf(stderr,"here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
@@ -56,12 +62,13 @@
 static const sexp NIL={-1,0};
 symref symbolTable;
 sexp* yylval;
-const char* restrict tag_name(_tag obj_tag);
-const char* restrict princ(sexp obj);
+c_string tag_name(_tag obj_tag);
+CORD princ(sexp obj);
 CORD print(sexp obj);
 sexp yyparse(FILE* input);
 void codegen(const char* output,FILE* c_code,sexp ast);
 sexp internal_eval(sexp expr);
+static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){
   switch(x.tag){
     case _double:

@@ -4,7 +4,6 @@
  ****************************************************************/
 #include "common.h"
 #include "prim.h"
-#include "lex.yy.h"
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <getopt.h>
@@ -105,12 +104,20 @@ int main(int argc,char* argv[]){
   sigaction(SIGSEGV,sigsegv_action,NULL);
   initPrims(); //read primitives into syntax table, this really should just 
   // read a binary file containing a prepopulaed syntax table;
-  static char *line_read =(char *)NULL;
-  //need to replace with proper getopt interface
-  if(argv[1]!=NULL){
-    FILE* file=fopen(argv[1],"r");
-    compile(file,"a.out",NULL);
+  int c;
+  while(1){
+    c=getopt_long(argc,argv,"o:",long_options,NULL);
+    if(c==-1){break;}
+    switch(c){
+      case 'o':
+        output_file=optarg;
+    }
   }
+  if(optind < argc){
+    FILE* file=fopen(argv[optind],"r");
+    compile(file,output_file,NULL);
+  }
+  static char *line_read =(char *)NULL;
   int parens,start_pos;
   char tmpFile[L_tmpnam];
   tmpnam_r(tmpFile);

@@ -6,19 +6,24 @@
 #include <string.h>
 #include <uthash.h>
 #include <wchar.h>
+#include <getopt.h>
 typedef enum _tag _tag;
 typedef enum TOKEN TOKEN;
 typedef enum special_form special_form;
 typedef union data data;
+typedef union env_type env_type;
 typedef struct sexp sexp;
 typedef struct cons cons;
 typedef struct symbol symbol;
-typedef symbol* symref;
 typedef struct fxn_proto fxn_proto;
-typedef fxn_proto* fxn_ptr;
-//typedef sexp YYSTYPE;
+typedef struct env env;
+typedef struct local_symbol local_symbol;
+typedef struct local_env local_env;
+typedef struct hash_env hash_env;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 typedef const char* restrict c_string;
+typedef symbol* symref;
+typedef fxn_proto* fxn_ptr;
 #define NILP(obj) (obj.tag == _nil)
 #define CONSP(obj) (obj.tag == _cons)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
@@ -60,7 +65,9 @@ enum special_form{
   _defmacro=15,
   _quasi=16,
   _quote=17,
-  _comma=18
+  _comma=18,
+  _and=19,
+  _or=20
 };
 union data {
   double real64;
@@ -120,3 +127,32 @@ struct fxn_proto{
   _tag* arg_types;
   void* function;
 };
+struct local_symbol{
+  CORD name;
+  sexp value;
+  local_symbol* next;
+};
+struct local_env{
+  env_type* enclosing;
+  local_symbol* first;
+};
+struct hash_env{
+  env_type* enclosing;
+  symref head;
+};
+union env_type{
+  local_env local;
+  hash_env hash;
+};
+struct env{
+  enum {
+    _local=0,
+    _hash=1
+  } tag;
+  env_type env;
+};
+static struct option long_options[] = {
+  {"output",required_argument,0,'o'},
+  {0       ,0                ,0,0  }
+};
+  
