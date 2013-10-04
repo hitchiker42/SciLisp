@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #ifndef __PRIM_H_
 #define __PRIM_H_
 #include "common.h"
@@ -75,4 +79,5 @@ static inline sexp lisp_add(sexp x){
   DEFCONSTDBL(PRIM_pi,3.14159265358979323846,"pi");
 //should write symbol table to a file
 void memoizePrims(){}
+
 #endif  

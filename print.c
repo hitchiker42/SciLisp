@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #include "common.h"
 #include "cons.h"
 c_string tag_name(_tag obj_tag){

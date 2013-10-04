@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #ifndef __CONS_H__
 #define __CONS_H__
 #include "common.h"

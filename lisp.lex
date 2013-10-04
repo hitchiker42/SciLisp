@@ -1,5 +1,9 @@
 %{
-  #include "common.h"
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
+#include "common.h"
 #define YY_DECL TOKEN yylex(void)
 %}
 DIGIT [0-9]

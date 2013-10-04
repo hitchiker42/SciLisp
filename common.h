@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 /*Refactor special forms to use enum type*/
 #ifndef __COMMON_H__
 #define __COMMON_H__
