@@ -839,7 +839,7 @@ case 3:
 YY_RULE_SETUP
 #line 33 "lisp.lex"
 {LEX_MSG("Lexing string");yylval->tag=_str;
-  yylval->val.string=strdup(yytext);return TOK_STRING;}
+  yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
 	YY_BREAK
 case 4:
 /* rule 4 can match eol */
@@ -967,7 +967,7 @@ case 24:
 YY_RULE_SETUP
 #line 76 "lisp.lex"
 {LEX_MSG("lexing typename");yylval->tag=_str;
-  yylval->val.string=strdup(&yytext[2]);
+  yylval->val.cord=CORD_strdup(&yytext[2]);
   return TOK_TYPEINFO;}
 	YY_BREAK
 case 25:
@@ -984,7 +984,7 @@ case 27:
 YY_RULE_SETUP
 #line 81 "lisp.lex"
 {LEX_MSG("lexing ID");yylval->tag=_str;
-  yylval->val.string=strdup(yytext);return TOK_ID;}
+  yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP

@@ -5,14 +5,13 @@
 #include <stdlib.h>
 //#define GC_DEBUG
 #include <gc.h>
-#include <string.h>
-#include <uthash.h>
-#include <wchar.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <setjmp.h>
 #include <math.h>
-//#include "cons.h"
+#include <signal.h>
+#include "types.h"
+//#include "lex.yy.h"
 #define HERE_ON
 //#define VERBOSE_LEXING
 #if defined (HERE_ON) && !(defined (HERE_OFF))
@@ -40,21 +39,22 @@
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
-#define double_sexp(double_val) (sexp){_double,(data)(double)double_va}
-#define long_sexp(long_val) (sexp){_long,(data)(long)long_va}
-#define cons_sexp(cons_val) (sexp){_cons,(data)(cons*)cons_va}
-#include "types.h"
+#define double_sexp(double_val) (sexp){_double,(data)(double)double_val}
+#define long_sexp(long_val) (sexp){_long,(data)(long)long_val}
+#define cons_sexp(cons_val) (sexp){_cons,(data)(cons*)cons_val}
 #define addSym(Var)\
   HASH_ADD_KEYPTR(hh, symbolTable, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
 #define getSym(name,Var)\
   HASH_FIND_STR(symbolTable,name,Var)
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
+#define CORD_strdup(str) CORD_from_char_star(str)
 static const sexp NIL={-1,0};
-symref* symbolTable;
+symref symbolTable;
 sexp* yylval;
 const char* restrict tag_name(_tag obj_tag);
 const char* restrict princ(sexp obj);
+CORD print(sexp obj);
 sexp yyparse(FILE* input);
 void codegen(const char* output,FILE* c_code,sexp ast);
 sexp internal_eval(sexp expr);
@@ -63,6 +63,7 @@ static inline double getDoubleVal(sexp x){
     case _double:
       return x.val.real64;
     case _long:
+      HERE();
       return (double)x.val.int64;
   }
 }

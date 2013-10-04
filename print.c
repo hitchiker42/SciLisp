@@ -1,4 +1,5 @@
 #include "common.h"
+#include "cons.h"
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){
     case _nil:
@@ -23,56 +24,62 @@ c_string tag_name(_tag obj_tag){
       return "macro";
   }
 }
-c_string princ_nested(sexp obj,int nest){
+c_string toString_tag(sexp obj){
+  return tag_name(obj.tag);
+}
+CORD print_num_format(sexp obj,CORD format){
+  if(!NUMBERP(obj)){return 0;}
+  else{
+    CORD retval;
+    if(FLOATP(obj)){
+      if(format != 0){
+        CORD_sprintf(&retval,format,(double)obj.val.real64);
+      } else {
+        CORD_sprintf(&retval,"%g",(double)obj.val.real64);
+      }
+    } else {
+      if(format != 0){
+        CORD_sprintf(&retval,format,(long)obj.val.int64);
+      } else {
+        CORD_sprintf(&retval,"%ld",(long)obj.val.int64);
+      }
+    }
+    return retval;
+  }
+}
+CORD print_num(sexp obj){
+  return print_num_format(obj,0);
+}
+CORD print(sexp obj){
   //PRINT_FMT("princ for a %s object",tag_name(obj.tag));
-  char* retval=xmalloc(100*sizeof(char));
+  CORD retval,acc;
   switch (obj.tag){
-    case _double: 
-      snprintf(retval,100,"%g",(double)obj.val.real64);
-      //PRINT_FMT("real %g",obj.val.real64);
-      break;
+    case _double:
     case _long:
-      snprintf(retval,100,"%#0x",(long)obj.val.int64);
-      //PRINT_FMT("long %#0x",obj.val.int64);
-      break;
+      return print_num(obj);
     case _fun:
-    case _sym:     
-      //asprintf(&retval,"%s",obj.val.var->name);
-      snprintf(retval,100,"%s",obj.val.var->name);
+    case _sym:
+      return obj.val.var->name;
       //retval=obj.val.var->name;
       //PRINT_MSG(obj.val.var->name);
       break;
     case _char:
-      snprintf(retval,100,"%lc",obj.val.utf8_char);
-      break;
+      CORD_sprintf(&retval,"%lc",obj.val.utf8_char);
+      return retval;
     case _nil:
-      retval="()";
-      break;
+      return "()";
     case _cons:
-      if(obj.val.cons == 0){snprintf(retval,100,"");}
-      else{
-        c_string car_str=princ_nested(obj.val.cons->car,1);
-        c_string cdr_str=princ_nested(obj.val.cons->cdr,1);
-        if(!strcmp(car_str,"") && !strcmp(cdr_str,"")){
-          retval="";
-        } else if (!strcmp(cdr_str,"")){
-          snprintf(retval,100,"%s",car_str);
-        } else if (!strcmp(car_str,"")){
-          snprintf(retval,100,"%s",cdr_str);
-        } else{
-        //PRINT_MSG(car_str);
-        //PRINT_MSG(cdr_str);
-          if(nest){
-          snprintf(retval,100,"(%s . %s)",car_str,cdr_str);
-          } else {
-          snprintf(retval,100,"(%s . %s)",car_str,cdr_str);
-          }
-        }
+      acc="(";
+      while(CONSP(obj)){
+        acc=CORD_cat(acc,print(car(obj)));
+        obj=cdr(obj);
+        if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
       }
-      break;
+      if(!NILP(obj)){
+        CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
+      } else {
+        retval=CORD_cat_char(acc,')');
+      }
+      return CORD_balance(retval);
   }
-  return retval;
-}
-c_string princ(sexp obj){
-  return princ_nested(obj,0);
 }

@@ -1,26 +1,36 @@
 #include "common.h"
 #include "cons.h"
+symref tempsym;
+jmp_buf ERROR;
+char* error_str;
 static sexp eval_special(sexp expr);
 sexp internal_eval(sexp expr){
   switch(expr.tag){    
     case _cons:
-      if(car(expr).tag == _fun){
+      if(SYMBOLP(car(expr))){
+        sexp curFun=car(expr);
+        if(!curFun.val.raw_fun){
+          longjmp(ERROR,-1);
+        }
         //assume maximu of a binary function, needs to be fixed asap
         //but if it gets me a vaguely working interpreter so be it
         //(name . (arg1 .(arg2 . ())))
         sexp arg1,arg2;
-        if(cdr(expr).tag !=_nil){
-          arg1=internal_eval(cdar(expr));
+        if(CONSP(cdr(expr))){
+          arg1=internal_eval(car(cdr(expr)));
         } else {}
-        if (cddr(expr).tag !=_nil){
-          arg2=internal_eval(cddar(expr));
+        if (CONSP(cdr(cdr(expr)))){
+          arg2=internal_eval(car(cdr(cdr(expr))));
         } else {}
-        double(*fp)(double,double)=symVal(car(expr)).fun;
+        HERE();
+        double(*fp)(double,double)=curFun.val.raw_fun;
+        HERE();
         double retval=fp(getDoubleVal(arg1),getDoubleVal(arg2));
+        HERE();
         return(sexp){_double,(data)(double)retval};
-      } else if(car(expr).tag == _special){
+      } else if(SPECP(car(expr))){
         return eval_special(expr);
-      } 
+      }
   default:
     return expr;
   }
@@ -31,9 +41,20 @@ static inline sexp eval_special(sexp expr){
   //a bit more clarity
   //this is always called on a cons, no need to check
   sexp special_sexp=car(expr);
+  sexp newSym;
   switch(special_sexp.val.special){
     //for now focus on def,defun,if and do
-    case _def: return NIL;
+    case _def:
+      //should I go with the lisp standard of define only assigning
+      //to a value once or not?
+      newSym=cdar(expr);
+      if(!SYMBOLP(newSym)){
+        asprintf(&error_str,"%s is not a symbol",print(cdar(expr)));
+      } else {
+        sexp symVal=internal_eval(cddr(expr));
+        newSym.val.var->val=symVal;
+        return newSym;
+      }
     case _defun: return NIL;
     case _if: return NIL;
     case _do: return NIL;

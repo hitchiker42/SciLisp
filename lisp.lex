@@ -31,7 +31,7 @@ union data {
     /*String Literal a quote, followed by either a literal \" 
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
 "\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
-  yylval->val.string=strdup(yytext);return TOK_STRING;}
+  yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
 "#"("\\|"|"\\#"|"\\\""|[^|#]) {LEX_MSG("lexing char");yylval->tag=_char;
     yylval->val.utf8_char=(wchar_t)(yytext[1]);return TOK_CHAR;}
  /*Special forms, generating function at end of file*/
@@ -74,12 +74,12 @@ defmacro {LEX_MSG("lexing defmacro");
 "," {LEX_MSG("Lexing comma");
   yylval->tag=_special;yylval->val.special=_comma;return TOK_SPECIAL;}
 {TYPENAME} {LEX_MSG("lexing typename");yylval->tag=_str;
-  yylval->val.string=strdup(&yytext[2]);
+  yylval->val.cord=CORD_strdup(&yytext[2]);
   return TOK_TYPEINFO;}
 "#|" {LEX_MSG("lexing open comment");return TOK_COMMENT_START;}
 "|#" {LEX_MSG("lexing close comment");return TOK_COMMENT_END;}
 {ID} {LEX_MSG("lexing ID");yylval->tag=_str;
-  yylval->val.string=strdup(yytext);return TOK_ID;}
+  yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}
 "[" {LEX_MSG("lexing [");return TOK_LBRACE;}

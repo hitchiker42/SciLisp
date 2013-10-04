@@ -1,5 +1,5 @@
 #include "common.h"
-#include "car.h"
+#include "cons.h"
 sexp mklist(sexp head,...){
   PRINT_MSG("Making a list");
   cons* list=xmalloc(sizeof(cons)),*next=xmalloc(sizeof(cons));
@@ -38,7 +38,7 @@ sexp mkImproper(sexp head,...){
 #define CAR(cell) cell->car
 #define CDR(cell) cell->cdr
 sexp nreverse(sexp ls){
-  cons* cur_cell=ls.val.cons,next_cell=CDR(cur_cell).val.cons;
+  cons* cur_cell=ls.val.cons,*next_cell=CDR(cur_cell).val.cons;
   sexp last_val=NIL;
   while(CDR(cur_cell).tag != _nil){
     CDR(cur_cell)=last_val;//update ptr of current cell
@@ -53,7 +53,7 @@ sexp nreverse(sexp ls){
 #undef CDR    
     
     
-sexp reduce(sexp ls,(sexp)(*reduce_fn)(sexp,sexp)){
+sexp reduce(sexp ls,sexp(*reduce_fn)(sexp,sexp)){
   sexp result=car(ls);
   while(cdr(ls).tag != _nil){
     ls=cdr(ls);
@@ -61,5 +61,5 @@ sexp reduce(sexp ls,(sexp)(*reduce_fn)(sexp,sexp)){
   }
 }
 sexp lisp_sum(sexp next_elem,sexp acc){
-  return double_sexp(getDoubleVal(next_elem)+getDoubleVal(acc));
+  return double_sexp((getDoubleVal(next_elem)+getDoubleVal(acc)));
 }

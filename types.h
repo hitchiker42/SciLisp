@@ -1,14 +1,30 @@
+#include <gc/cord.h>
+#include <string.h>
+#include <uthash.h>
+#include <wchar.h>
 typedef enum _tag _tag;
 typedef enum TOKEN TOKEN;
 typedef enum special_form special_form;
 typedef union data data;
 typedef struct sexp sexp;
 typedef struct cons cons;
-typedef struct symref symref;
+typedef struct symbol symbol;
+typedef symbol* symref;
 typedef struct fxn_proto fxn_proto;
+typedef fxn_proto* fxn_ptr;
 //typedef sexp YYSTYPE;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 typedef const char* restrict c_string;
+#define NILP(obj) (obj.tag == _nil)
+#define CONSP(obj) (obj.tag == _cons)
+#define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
+#define FLOATP(obj) (obj.tag == _double)
+#define INTP(obj) (obj.tag == _long)
+#define SYMBOLP(obj) (obj.tag == _sym)
+#define SPECP(obj) (obj.tag== _special)
+#define STRINGP(obj) (obj.tag == _str)
+#define CHARP(obj) (obj.tag == _char)
+#define FUNP(obj) (obj.tag == _fun)
 enum _tag {
   _nil = -1,
   _cons = 0,
@@ -19,7 +35,7 @@ enum _tag {
   _fun = 5,
   _sym = 6,
   _special = 7,
-  _macro = 8
+  _macro = 8,
 };
 enum special_form{
   _def=0,
@@ -47,16 +63,18 @@ union data {
   long int64;
   wchar_t utf8_char;
   c_string string;
+  CORD cord;
   cons* cons;
-  symref* var;
-  void* fun;
+  symref var;
+  fxn_ptr fun;
+  void* raw_fun;
   special_form special;
 };
 struct sexp{
   _tag tag;
   data val;
 };
-struct symref{
+struct symbol{
   const char* restrict name;
   sexp val;
   UT_hash_handle hh;

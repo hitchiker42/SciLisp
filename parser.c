@@ -9,7 +9,7 @@
 //#define CDR cdr
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
-symref* tmpsym;//for reading from hash table
+symref tmpsym;//for reading from hash table
 char* error_str;//global error string
 TOKEN yytag;//current token
 jmp_buf ERROR;//location of error handling function
@@ -48,7 +48,6 @@ sexp yyparse(FILE* input){
     }
     if(yylval){free(yylval);}
     prev_pos->cdr=NIL;
-    PRINT_MSG(princ(ast));
     return ast;
   }
 }
@@ -65,19 +64,21 @@ sexp parse_cons(){
   } else if(yytag==TOK_ID){
     getSym(yylval->val.string,tmpsym);
     if(tmpsym){
-      PRINT_MSG("Found prim");
-      result.val.cons->car=(sexp){_fun,(data)(symref*)tmpsym};
+      PRINT_FMT("Found prim %s",tmpsym->name);
+      result.val.cons->car=(sexp){_sym,(data)(symref)tmpsym};
     } else {
-    tmpsym=xmalloc(sizeof(symref));
+    tmpsym=xmalloc(sizeof(symbol));
     tmpsym->name=yylval->val.string;
-    result.val.cons->car=(sexp){_fun,(data)(symref*)tmpsym};
+    tmpsym->val=(sexp){_fun,(data)0};
+    result.val.cons->car=(sexp){_sym,(data)(symref)tmpsym};
     }
   } else {
-    asprintf(&error_str,"Expecting a function or special form, got %s",princ(*yylval));
+    asprintf(&error_str,"Expecting a function or special form, got %s",print(*yylval));
     longjmp(ERROR,-1);
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
+  cons* old_pos;
   while((nextTok())!=TOK_RPAREN){
     if(yytag == TOK_LPAREN){
       nextTok();
@@ -88,9 +89,10 @@ sexp parse_cons(){
       cons_pos->car.tag=temp.tag;
     }
     cons_pos->cdr.val.cons=xmalloc(sizeof(cons));
+    old_pos=cons_pos;
     cons_pos=cons_pos->cdr.val.cons;
   }
-  cons_pos->cdr=NIL;
+  old_pos->cdr=NIL;
   return result;
 }
 sexp parse_atom(){
@@ -121,16 +123,18 @@ sexp parse_atom(){
         return *yylval;//return anything else unevaluated
       }
     case TOK_ID:
+      //need to change this
       tmpsym=NULL;
       getSym(yylval->val.string,tmpsym);
       if(tmpsym){
         return tmpsym->val;
       } else {
-        error_str="Unknown variable encountered";
-        longjmp(ERROR,-1);
+        tmpsym=xmalloc(sizeof(symbol));
+        tmpsym->name=yylval->val.string;
+        return (sexp){_sym,(data)(symref)tmpsym};        
       }
     default:
-      asprintf(&error_str,"Error, expected literal atom recieved %s\n",princ(*yylval));
+      asprintf(&error_str,"Error, expected literal atom recieved %s\n",print(*yylval));
       longjmp(ERROR,-1);
   }
 }

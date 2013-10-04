@@ -3,7 +3,6 @@
 #include "lex.yy.h"
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <signal.h>
 #include <getopt.h>
 jmp_buf main_loop;
 static char *line_read;
@@ -43,7 +42,7 @@ int parens_matched(const char* line,int parens){
 int compile(FILE* input,const char *output,FILE* c_code){
     HERE();
     sexp ast=yyparse(input);
-    princ(ast);
+    CORD_printf("%r\n",print(car(ast)));
     //codegen(output,c_code,ast);
     exit(0);
 }
@@ -55,13 +54,12 @@ int compile(FILE* input,const char *output,FILE* c_code){
  * input is written to outfile as a place to hold the current input. It is
  * assumed that code will be read from outfile and evaluated. Read returns 
  * the position in outfile where it started scanning*/
-int lispRead(FILE* outfile,char* filename){
+int lispReadLine(FILE* outfile,char* filename){
     FILE* my_pipe=outfile;
     char* tmpFile=filename;
-    int parens,start_pos;
+    int parens,start_pos=ftello(my_pipe);
   MAIN_LOOP:while(1){
       parens=0;
-      start_pos=ftello(my_pipe);
       //makesure readline buffer is NULL
       if (line_read){
         free (line_read);
@@ -94,6 +92,7 @@ int lispRead(FILE* outfile,char* filename){
         fputc(' ',my_pipe);
       }
       fflush(my_pipe);
+      break;
     }
     return start_pos;
   }
@@ -115,15 +114,17 @@ int main(int argc,char* argv[]){
   FILE* my_pipe=fopen(tmpFile,"w+");
   yyin=my_pipe;
   rl_set_signals();
+ REPL:while(1){
   //read
-  start_pos=lispRead(my_pipe,tmpFile);
+  start_pos=lispReadLine(my_pipe,tmpFile);
   fseeko(my_pipe,start_pos,SEEK_SET);
   HERE_MSG("Lines Read, Calling yyparse");
   //eval
   sexp ast=yyparse(my_pipe);
-  sexp result=internal_eval(ast);
+  sexp result=internal_eval(car(ast));
   //print
-  princ(ast);
+  CORD_printf(print(result));puts("\n");
+  }
 }
     /*    while((yytag=yylex(yylval)) != -1){
       switch (yytag){
