@@ -1,4 +1,4 @@
-#include <gc/cord.h>
+#include "include/cord.h"
 #include <string.h>
 #include <uthash.h>
 #include <wchar.h>
