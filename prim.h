@@ -8,9 +8,12 @@
 #include "cons.h"
 #define binop_to_fun(op,fun_name,type)\
   static inline sexp fun_name(sexp x,sexp y){   \
-    if(x.tag==y.tag==_long){return\
+    if(x.tag==y.tag==_long){return                         \
         (sexp){_long,x.val.int64 op y.val.int64};}         \
-    else {return (sexp){_double,getDoubleVal(x) op getDoubleVal(y)};}   \
+    else {                                                 \
+    register double xx=getDoubleVal(x);\
+    register double yy=getDoubleVal(y);\
+    return (sexp){_double,{.real64=(xx op yy)}};}       \
   }
 //ignore tags, allow logical operations on doubles
 //be careful about this

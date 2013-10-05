@@ -26,10 +26,10 @@ union data {
 %option noyywrap
 %%
    /*Literals*/
-{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
+"-"?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
          yylval->val.int64 = (long)strtol(yytext,NULL,10);
          LEX_FMT("value of int is %ld\n",yylval->val.int64);return TOK_INT;}
-{DIGIT}+"."{DIGIT}* {LEX_MSG("lexing real");yylval->tag=_double;
+"-"?{DIGIT}+"."{DIGIT}* {LEX_MSG("lexing real");yylval->tag=_double;
   yylval->val.real64 = strtod(yytext,NULL);
   return TOK_REAL;}
     /*String Literal a quote, followed by either a literal \" 

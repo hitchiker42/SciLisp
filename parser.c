@@ -18,8 +18,8 @@ TOKEN yytag;//current token
 jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
+sexp parse_sexp();
 sexp yyparse(FILE* input){
-  HERE();
   if(setjmp(ERROR)){
     PRINT_MSG("Jumped to error");
     if(error_str){
@@ -34,9 +34,7 @@ sexp yyparse(FILE* input){
     cons* prev_pos;
     yylval=malloc(sizeof(sexp));
     while((nextTok()) != -1){
-      HERE();
       if(yytag == TOK_LPAREN){
-        HERE();
         cur_pos->car=parse_cons();
         cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
         cur_pos->cdr.tag=_cons;
@@ -65,8 +63,7 @@ sexp parse_cons(){
   //  sexp cons_pos=result.val.cons->cdr;
   //at this point there's no difference between any macro, special form or function
   if (yytag == TOK_SPECIAL){
-    HERE();
-    result.val.cons->car=*yylval;
+    result.val.cons->car=(sexp){_special,{.special = yylval->val.special}};
   } else if(yytag==TOK_ID){
     PRINT_FMT("found id %s",yylval->val.cord);
     getSym(yylval->val.cord,tmpsym);
@@ -81,9 +78,7 @@ sexp parse_cons(){
     result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
     }
   } else {
-    HERE();
     CORD_fprintf(stderr,"Expecting a function or special form, got %r",print(*yylval));
-    HERE();
     longjmp(ERROR,-1);
   }
   HERE();
@@ -91,8 +86,7 @@ sexp parse_cons(){
   sexp temp;
   cons* old_pos;
   while((nextTok())!=TOK_RPAREN){
-    HERE();
-    PRINT_FMT("%d",yytag);
+    //PRINT_FMT("%d",yytag);
     if(yytag == TOK_LPAREN){
       cons_pos->car=parse_cons();
     } else {
@@ -124,7 +118,7 @@ sexp parse_atom(){
         cons* cur_loc=xmalloc(sizeof(cons));
         cons* head=cur_loc;
         while(nextTok() != TOK_RPAREN){
-          cur_loc->car=parse_atom();
+          cur_loc->car=parse_sexp();
           cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
           cur_loc=cur_loc->cdr.val.cons;
         }
@@ -143,6 +137,7 @@ sexp parse_atom(){
       } else {
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
+        addSym(tmpsym);
         return (sexp){_sym,(data)(symref)tmpsym};        
       }
     default:
@@ -151,7 +146,6 @@ sexp parse_atom(){
   }
 }
 sexp parse_sexp(){
-  nextTok();
   if(yytag == TOK_LPAREN){return parse_cons();}
   else{return parse_atom();}
 }
@@ -159,92 +153,6 @@ sexp lispRead(CORD code){
   char* stringBuf = CORD_to_char_star(code);
   FILE* stringStream = fmemopen(stringBuf,CORD_len(code),"r");
   yyin=stringStream;
+  nextTok();
   return parse_sexp();
 }
-/*sexp yyparse(FILE* input){
-  yyin=input;
-  yylval=malloc(sizeof(sexp));
-  while((yytag=yylex())!=-1){
-    if(yytag==TOK_LPAREN){parse_sexp();}
-    else{parse_atom();}
-    switch (yytag){
-      case TOK_ID:        
-        printf("Lexed id %s\n",yylval->val.string);
-        getSym(yylval->val.string,tmpsym);
-        if(tmpsym){
-          printf("Symbol %s found in symbol table\n",tmpsym->name);
-          sexp tempsexp=tmpsym->val;
-          if(tempsexp.tag == _fun){
-            yytag=yylex();
-            double x,y;
-            if(yytag==TOK_REAL){
-              x=yylval->val.real64;
-            }
-            else if(yytag==TOK_INT){
-              x=(long)yylval->val.int64;
-            }
-            else{continue;}
-            yytag=yylex();
-            if(yytag==TOK_REAL){
-            } else if(yytag==TOK_INT){
-              y=(long)yylval->val.int64;
-            }
-            else{continue;}
-            double(*fp)(double,double)=tempsexp.val.fun;
-            double result=fp(x,y);
-            printf("%f %s %f = %f\n",x,tmpsym->name,y,result);
-          } else if(tempsexp.tag==_double){
-            printf("Symbol value is %f\n",tempsexp.val.real64);
-          } else if(tempsexp.tag == _long){
-            printf("Symbol value is %ld\n",tempsexp.val.int64);
-          } else {
-            printf("Symbol value is nil\n");
-          }
-        } else {
-          symref* newsym = xmalloc(sizeof(symref));
-          newsym->name=yylval->val.string;
-          yytag=yylex();
-          if (yytag == TOK_REAL){
-            printf("yylval->real64 = %f\n",yylval->val.real64);
-            newsym->val=(sexp){_double,yylval->val.real64};
-          } else if (yytag == TOK_INT){
-            printf("yylval->int64 = %ld\n",yylval->val.int64);
-            newsym->val.tag=_long;
-            newsym->val.val.int64=(long)yylval->val.int64;
-          } else {
-            newsym->val=NIL;
-          }
-          addSym(newsym);
-          printf("added Symbol %s to symbol table\n",newsym->name);
-        }
-        break;
-      case TOK_REAL:
-        printf("Lexed real %f\n",yylval->val.real64);
-        break;
-      case TOK_INT:
-        printf("Lexed int %d\n",yylval->val.int64);       
-      case TOK_LPAREN:
-        puts("Lexed (\n");
-        break;
-      case TOK_RPAREN:
-        puts("Lexed )\n");
-        break;
-      case TOK_TYPEINFO:
-        printf("Lexed typename %s\n",yylval->val.string);
-        break;
-      case TOK_QUOTE:
-        printf("Lexed a quote\n");
-        break;
-      default:
-        printf("Lexed Unknown Token\n");
-        break;;
-    }
-  }
-  free(yylval);
-  return ast;
- ERROR:
-  fputs(stderr,error_str);
-  free(yylval);
-  return NIL;
-}
-*/

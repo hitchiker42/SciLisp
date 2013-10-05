@@ -22,27 +22,8 @@
 #include "types.h"
 //#include "lex.yy.h"
 #define HERE_ON
-#define VERBOSE_LEXING
-#if defined (HERE_ON) && !(defined (HERE_OFF))\
-  || (defined (DEBUG)) && !(defined (NDEBUG))
-#define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
-#define HERE_MSG(string) fprintf(stderr,"here at %s,line %d\n%s\n"\
-                                 ,__FILE__,__LINE__,string)
-#define PRINT_MSG(string) fputs(string,stderr);fputs("\n",stderr)
-#define PRINT_FMT(string,fmt...) fprintf(stderr,string,##fmt);fputs("\n",stderr)
-#else
-#define HERE()
-#define HERE_MSG(string)
-#define PRINT_MSG(string)
-#define PRINT_FMT(string,fmt...)
-#endif
-#if defined (VERBOSE_LEXING) && !(defined (QUIET_LEXING))
-#define LEX_MSG(string) fputs(string,stderr);fputs("\n",stderr)
-#define LEX_FMT(string,fmt...) fprintf(stderr,string,##fmt);fputs("\n",stderr)
-#else
-#define LEX_MSG(string)
-#define LEX_FMT(string,fmt...)
-#endif
+//#define VERBOSE_LEXING
+#include "debug.h"
 #define my_abort(str,fmt...) fprintf(stderr,str,##fmt);abort()
 #define my_err(str,fmt...) fprintf(stderr,str,##fmt);return(NIL)
 #define xmalloc GC_MALLOC
@@ -71,7 +52,6 @@ static inline double getDoubleVal(sexp x){
     case _double:
       return x.val.real64;
     case _long:
-      HERE();
       return (double)x.val.int64;
   }
 }

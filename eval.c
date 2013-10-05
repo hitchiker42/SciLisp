@@ -1,16 +1,19 @@
 /*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+* Copyright (C) 2013 Tucker DiNapoli                            *
+* SciLisp is Licensed under the GNU General Public License V3   *
+****************************************************************/
 #include "common.h"
 #include "cons.h"
 symref tempsym;
 jmp_buf ERROR;
 static sexp eval_special(sexp expr);
 static sexp call_function(sexp curFun,sexp expr);
+sexp handle_error(void){
+  CORD_printf(error_str);
+  return NIL;
+}
 sexp internal_eval(sexp expr){
-  HERE();
-  switch(expr.tag){    
+  switch(expr.tag){
     case _cons:
       if(SYMBOLP(car(expr))){
         sexp curFun=car(expr).val.var->val;
@@ -20,7 +23,7 @@ sexp internal_eval(sexp expr){
                        print(curFun));
           goto ERROR;
         } else {
-          call_function(curFun,expr);
+          return call_function(curFun,expr);
         }
       } else if(SPECP(car(expr))){
         return eval_special(expr);
@@ -37,7 +40,7 @@ sexp internal_eval(sexp expr){
     return expr;
   }
   ERROR:
-  longjmp(ERROR,-1);
+  return handle_error();
 }
 static inline sexp call_function(sexp curFun,sexp expr){
   int i;
@@ -55,16 +58,16 @@ static inline sexp call_function(sexp curFun,sexp expr){
           cur_arg=cdr(cur_arg);                                         \
       }                                                                 \
     }
-switch (FMAX_ARGS(curFun)){
-  case 0:
-    if(!NILP(cdr(expr))){
-      CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
-                   FLNAME(curFun));
-    } else {
-      return F_CALL(curFun).f0();
-    }
+  switch (FMAX_ARGS(curFun)){
+    case 0:
+      if(!NILP(cdr(expr))){
+        CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
+                     FLNAME(curFun));
+      } else {
+        return F_CALL(curFun).f0();
+      }
   case 1:
-    if(!NILP(cddr(curFun))){
+    if(!NILP(cddr(expr))){
       CORD_sprintf(&error_str,"Excess Arguments given to %r",
                    FLNAME(curFun));
       goto ERROR;
@@ -72,9 +75,10 @@ switch (FMAX_ARGS(curFun)){
       sexp args=internal_eval(cdar(curFun));
       return F_CALL(curFun).f1(args);
     }
-  case 2:              
+  case 2:
     getArgs(2);
-    return F_CALL(curFun).f2(args2[0],args2[1]);
+    sexp retval=F_CALL(curFun).f2(args2[0],args2[1]);
+    return retval;
   case 3:
     getArgs(3);
     return F_CALL(curFun).f3(args3[0],args3[1],args3[2]);
@@ -83,7 +87,7 @@ switch (FMAX_ARGS(curFun)){
     return F_CALL(curFun).f4(args4[0],args4[1],args4[2],args4[3]);
  }
  ERROR:
- longjmp(ERROR,-1);
+  return handle_error();
 #undef getArgs
 }
 static inline sexp eval_special(sexp expr){
@@ -92,54 +96,27 @@ static inline sexp eval_special(sexp expr){
   //a bit more clarity
   //this is always called on a cons, no need to check
   sexp special_sexp=car(expr);
-  sexp newSym;
+  symref newSym;
   switch(special_sexp.val.special){
     //for now focus on def,defun,if and do
     case _def:
       //should I go with the lisp standard of define only assigning
       //to a value once or not?
-      newSym=cdar(expr);
-      if(!SYMBOLP(newSym)){
-        CORD_sprintf(&error_str,"%s is not a symbol",print(cdar(expr)));
+      getSym(cadr(expr).val.var->name,newSym);
+      if(!newSym){
+        CORD_sprintf(&error_str,"%s is not a symbol",print(cadr(expr)));
+        goto ERROR;
       } else {
-        sexp symVal=internal_eval(cddr(expr));
-        newSym.val.var->val=symVal;
-        return newSym;
+        sexp symVal=internal_eval(caddr(expr));
+        newSym->val=symVal;
+        HERE();
+        return (sexp){_sym,{.var = newSym}};
       }
+    case _setq: return NIL;
     case _defun: return NIL;
     case _if: return NIL;
     case _do: return NIL;
   }
+ ERROR:
+  return handle_error();
 }
-/*    switch (yytag){
-      case TOK_ID:        
-        printf("Lexed id %s\n",yylval->val.string);
-        getSym(yylval->val.string,tmpsym);
-        if(tmpsym){
-          printf("Symbol %s found in symbol table\n",tmpsym->name);
-          sexp tempsexp=tmpsym->val;
-          if(tempsexp.tag == _fun){
-            yytag=yylex();
-            double x,y;
-            if(yytag==TOK_REAL){
-              x=yylval->val.real64;
-            }
-            else if(yytag==TOK_INT){
-              x=(long)yylval->val.int64;
-            }
-            else{continue;}
-            yytag=yylex();
-            if(yytag==TOK_REAL){
-            } else if(yytag==TOK_INT){
-              y=(long)yylval->val.int64;
-            }
-            else{continue;}
-            double(*fp)(double,double)=tempsexp.val.fun;
-            double result=fp(x,y);
-            printf("%f %s %f = %f\n",x,tmpsym->name,y,result);
-          } else if(tempsexp.tag==_double){
-            printf("Symbol value is %f\n",tempsexp.val.real64);
-          } else if(tempsexp.tag == _long){
-            printf("Symbol value is %ld\n",tempsexp.val.int64);
-          } else {
-          printf("Symbol value is nil\n");*/

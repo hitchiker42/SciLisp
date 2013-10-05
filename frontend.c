@@ -8,9 +8,13 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 jmp_buf main_loop,ERROR;
+int quiet_signals=0;
 static char *line_read;
 void handle_sigsegv(int signal){
-  fprintf(stderr,"recieved segfault, exiting\n");
+  if(!quiet_signals){
+    fprintf(stderr,"recieved segfault, printing bactrace\n");
+    print_trace();
+  }
   exit(1);
 }
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
@@ -70,9 +74,11 @@ int lispReadLine(FILE* outfile,char* filename){
         line_read = (char *)NULL;
       }
       line_read = readline("in>");
-      if (line_read && *line_read){      
-        add_history (line_read);
-      }
+      if (line_read){
+        if (*line_read){
+          add_history (line_read);
+        } else {goto MAIN_LOOP;}
+      } else {puts("\n");exit(0);}
       parens=parens_matched(line_read,0);
       fputs(line_read,my_pipe);
       fputc(' ',my_pipe);
@@ -133,7 +139,6 @@ int main(int argc,char* argv[]){
   //read
   start_pos=lispReadLine(my_pipe,tmpFile);
   fseeko(my_pipe,start_pos,SEEK_SET);
-  HERE_MSG("Lines Read, Calling yyparse");
   //eval
   sexp ast=yyparse(my_pipe);
   sexp result=internal_eval(car(ast));
