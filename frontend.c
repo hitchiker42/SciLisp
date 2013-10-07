@@ -5,6 +5,7 @@
 #include "common.h"
 #include "prim.h"
 #include "lex.yy.h"
+#include "print.h"
 #include <readline/readline.h>
 #include <readline/history.h>
 jmp_buf main_loop,ERROR;

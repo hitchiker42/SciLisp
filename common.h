@@ -35,17 +35,16 @@
 #define cons_sexp(cons_val) (sexp){_cons,(data)(cons*)cons_val}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
-static const sexp NIL={-1,0};
-static const sexp UNBOUND={-2,-17};
-static const sexp LISP_TRUE={-2,{.meta = 11}};
+static const sexp NIL={.tag = -1,{.int64 = 0}};
+static const sexp UNBOUND={.tag = -2,{.int64 = -0xff}};
+static const sexp LISP_TRUE={.tag = -2,{.meta = 11}};
 sexp* yylval;
-c_string tag_name(_tag obj_tag);
-CORD princ(sexp obj);
-CORD print(sexp obj);
+FILE* yyin;
+#include "print.h"
 sexp lisp_print(sexp obj);
-sexp yyparse(FILE* input);
+extern sexp yyparse(FILE* input);
 CORD codegen(FILE* outfile,sexp ast,enum backend backend);
-sexp eval(sexp expr);
+extern sexp eval(sexp expr);
 CORD error_str;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){

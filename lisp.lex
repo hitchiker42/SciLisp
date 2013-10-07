@@ -67,6 +67,8 @@ let {LEX_MSG("lexing let");
   yylval->tag=_special;yylval->val.special=_let;return TOK_SPECIAL;}
 do {LEX_MSG("lexing do");
   yylval->tag=_special;yylval->val.special=_do;return TOK_SPECIAL;}
+while {LEX_MSG("lexing while");
+  yylval->tag=_special;yylval->val.special=_while;return TOK_SPECIAL;}
 quasiquote|"`" {LEX_MSG("lexing quasiquote");
   yylval->tag=_special;yylval->val.special=_quasi;return TOK_SPECIAL;}
 eval {LEX_MSG("lexing eval");

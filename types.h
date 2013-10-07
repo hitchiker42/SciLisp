@@ -4,7 +4,7 @@
  ****************************************************************/
 #include "include/cord.h"
 #include <string.h>
-#include <uthash.h>
+#include "include/uthash.h"
 #include <wchar.h>
 #include <getopt.h>
 typedef enum _tag _tag;
@@ -22,7 +22,6 @@ typedef struct env env;
 typedef struct local_symbol local_symbol;
 typedef struct local_env local_env;
 typedef struct hash_env hash_env;
-typedef struct array array;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 typedef const char* restrict c_string;
 typedef symbol* symref;
@@ -79,6 +78,7 @@ enum special_form{
   _and=19,
   _or=20,
   _main=21,
+  _while=22,
 };
 union data {
   double real64;
@@ -91,7 +91,7 @@ union data {
   fxn_ptr fun;
   void* raw_fun;
   special_form special;
-  array* arr;
+  data* array;
   _tag meta;
   sexp* quoted;
 };
@@ -107,10 +107,6 @@ struct symbol{
 struct cons{
   sexp car;
   sexp cdr;
-};
-struct array{
-  _tag tag;
-  data *vals;
 };
 enum TOKEN{
   TOK_EOF=-1,
@@ -222,8 +218,8 @@ mkTypeSym(Qtrue,11);
 //}
 #define isTrue(x)                                            \
   (x.tag == _nil ? 0 :                                       \
-    (x.tag = _long ? (x.val.int64 == 0 ? 0 : 1) :         \
-     (x.tag = _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1)))
+    (x.tag == _long ? (x.val.int64 == 0 ? 0 : 1) :         \
+     (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1)))
     
 enum backend{
   c=0,

@@ -27,6 +27,9 @@ sexp eval(sexp expr){
         }
       } else if(SPECP(car(expr))){
         return eval_special(expr);
+      } else {
+        CORD_sprintf(&error_str,"car of unquoted list is not a function or special form");
+        goto ERROR;
       }
     case _sym:
       getSym(expr.val.var->name,tempsym);
@@ -110,7 +113,7 @@ static inline sexp eval_special(sexp expr){
       } else {
         sexp symVal=eval(caddr(expr));
         newSym->val=symVal;
-        return (sexp){_sym,{.var = newSym}};
+        return (sexp){.tag = _sym,{.var = newSym}};
       }
     case _setq: 
       getSym(cadr(expr).val.var->name,newSym);
@@ -121,7 +124,7 @@ static inline sexp eval_special(sexp expr){
         sexp symVal=eval(caddr(expr));
         newSym->val=symVal;
         HERE();
-        return (sexp){_sym,{.var = newSym}};
+        return (sexp){.tag = _sym,{.var = newSym}};
       }
     case _lambda: return NIL;
     case _if: 
@@ -136,6 +139,14 @@ static inline sexp eval_special(sexp expr){
       }
       
     case _do: return NIL;
+    case _while:;
+      register sexp cond=cadr(expr);
+      register sexp body=caddr(expr);
+      register sexp retval=NIL;
+      while(isTrue(eval(cond))){
+        retval=eval(body);
+      }
+      return retval;
   }
  ERROR:
   return handle_error();

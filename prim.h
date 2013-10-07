@@ -6,6 +6,7 @@
 #define __PRIM_H_
 #include "common.h"
 #include "cons.h"
+#include "print.h"
 #define binop_to_fun(op,fun_name)                       \
   static inline sexp fun_name(sexp x,sexp y){           \
     if(x.tag==y.tag==_long){return                      \
