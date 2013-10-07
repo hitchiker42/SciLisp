@@ -80,6 +80,7 @@ CORD print(sexp obj){
       return retval;
     case _nil:
       return "()";
+    case _list:
     case _cons:
       acc="(";
       while(CONSP(obj)){
