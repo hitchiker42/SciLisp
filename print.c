@@ -94,10 +94,21 @@ CORD print(sexp obj){
       }
       return CORD_balance(retval);
     case _uninterned:
+      if(obj.val.meta==11){
+        return "t";
+      }
+    case _str:
+      return obj.val.cord;
     default:
-      return "print error";
+      CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
+      return error_str;
   }
 }
 sexp lisp_print(sexp obj){
-  return (sexp){_str,(data)print(obj)};
+  CORD print_string = print(obj);
+  CORD_printf("%r\n",print_string);
+  return (sexp){.tag=_str,{.cord=print_string}};
+}
+sexp lisp_typeName(sexp obj){
+  return (sexp){.tag = _str,{.cord = typeName(obj)}};
 }

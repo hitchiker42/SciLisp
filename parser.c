@@ -77,8 +77,18 @@ sexp parse_cons(){
     result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
     }
   } else {
-    CORD_fprintf(stderr,"Expecting a function or special form, got %r",print(*yylval));
-    longjmp(ERROR,-1);
+    sexp retval;
+    retval.tag=_list;
+    cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
+    cons* prev_loc=cur_loc;
+    while(nextTok() != TOK_RPAREN){
+      cur_loc->car=parse_sexp();
+      cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+      prev_loc=cur_loc;
+      cur_loc=cur_loc->cdr.val.cons;
+    }
+    prev_loc->cdr=NIL;
+    return retval;
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;

@@ -7,8 +7,8 @@
 #define YY_DECL TOKEN yylex(void)
 %}
 DIGIT [0-9]
-/*Identifiers are normal id chars and start %,+,*,!,?,-,^,$,/,&,<,> end*/
-ID [A-Za-z%+*!?\-_^$/&<>][A-Za-z%+*!?\-_^$&<>0-9]*
+/*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
+ID [A-Za-z%+*!?\-_^$/&<>=/][A-Za-z%+*!?\-_^$&<>0-9=/]*
 TYPENAME "::"[A-z_a-z][A-Z_a-z0-9]*
 QUOTE "'"|quote
 /*
@@ -98,6 +98,8 @@ and {LEX_MSG("lexing and");
 "]" {LEX_MSG("lexing ]");return TOK_RBRACE;}
 "{" {LEX_MSG("lexing {");return TOK_LCBRACE;}
 "}" {LEX_MSG("lexing }");return TOK_RCBRACE;}
+"." {LEX_MSG("lexing .");return TOK_DOT;}
+":" {LEX_MSG("lexing :");return TOK_COLON;}
 [ \t\n]+ /*whitespace*/
 ";"[^\n]* /*one line comments*/
 <<EOF>> return -1;

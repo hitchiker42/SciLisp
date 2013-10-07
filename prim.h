@@ -123,8 +123,8 @@ DEFUN("cdaar",cdaar,1,1);
 DEFUN("cadar",cadar,1,1);
 DEFUN("cdadr",cdadr,1,1);
 DEFUN("cons",Cons,2,2);
-
-//DEFUN("typeof",typeOf,1,1);
+DEFUN("typeName",lisp_typeName,1,1);
+DEFUN("print",lisp_print,1,1);
 DEFUN("<",lisp_lt,2,2);
 DEFUN(">",lisp_gt,2,2);
 DEFUN(">=",lisp_gte,2,2);
@@ -138,7 +138,14 @@ DEFUN("sin",lisp_sin,1,1);
 DEFUN("tan",lisp_tan,1,1);
 DEFUN("exp",lisp_exp,1,1);
 DEFUN("log",lisp_log,1,1);
-
+/*
+  (defun SciLisp-mkIntern ()
+    (interactive)
+    (let ((start (point)))
+    (save-excursion
+    (replace-regexp-lisp ",[0-9],[0-9]);" ");\\\\")
+    (goto-char start)
+    (replace-regexp-lisp "DEFUN(" "DEFUN_INTERN("))))*/
 #define initPrims()                             \
   globalSymbolTable.head=NULL;                  \
   DEFUN_INTERN("+",lisp_add);                   \
@@ -177,6 +184,8 @@ DEFUN("log",lisp_log,1,1);
   DEFUN_INTERN("cadar",cadar);                  \
   DEFUN_INTERN("cdadr",cdadr);                  \
   DEFUN_INTERN("cons",Cons);                    \
+  DEFUN_INTERN("typeName",lisp_typeName);            \
+  DEFUN_INTERN("print",lisp_print);             \
   DEFCONST("Meps",lisp_mach_eps);               \
   DEFCONST("pi",lisp_pi);                       \
   DEFCONST("e",lisp_euler);                     \

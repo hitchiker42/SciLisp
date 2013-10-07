@@ -8,3 +8,4 @@ CORD print_num_format(sexp obj,CORD format);
 CORD print_num(sexp obj);
 CORD print(sexp obj);
 sexp lisp_print(sexp obj);
+sexp lisp_typeName(sexp obj);

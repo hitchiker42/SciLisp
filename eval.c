@@ -39,6 +39,10 @@ sexp eval(sexp expr){
         CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
         goto ERROR;
       }
+    case _fun:
+      HERE();
+      return expr;
+
   default:
     return expr;
   }
@@ -150,4 +154,15 @@ static inline sexp eval_special(sexp expr){
   }
  ERROR:
   return handle_error();
+}
+sexp mkLambda(sexp expr,env* enclosing){
+  //for now assume expr is a sexp of the form
+  //(lambda (args ...) (body ...))
+  sexp newLambda,args,body;
+  local_symbol *cur_arg=xmalloc(sizeof(local_symbol));
+  local_env closure={.enclosing = enclosing,.head=cur_arg};
+  newLambda.tag=_lam;
+  args=cadr(expr);
+  body=caddr(expr);
+  while(
 }

@@ -1,11 +1,12 @@
 #include "common.h"
-#include "env.h"
+//#include "env.h"
+sexp getSymLocal(local_env cur_env,CORD name);
 inline sexp lookupSym(env* cur_env,CORD name){
   if(cur_env->tag==_hash){
     symref tempsym;
     getSym(name,tempsym);
   } else {
-    getSymLocal(cur_env,name);
+    getSymLocal(cur_env->env.local,name);
   }
 }    
 sexp getSymLocal(local_env cur_env,CORD name){

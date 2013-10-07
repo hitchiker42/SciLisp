@@ -26,17 +26,19 @@ force:
 	$(MAKE) -B all
 optimized:
 	CFLAGS="$(CFLAGS) -O3 -march=native -flto" $(MAKE) -B all
-parser.o:
+parser.o: parser.c
 	$(CC) $(XCFLAGS) -c parser.c -o parser.o
-cons.o:
+cons.o: cons.c
 	$(CC) $(XCFLAGS) -c cons.c -o cons.o
-print.o:
+print.o: print.c
 	$(CC) $(XCFLAGS) -c print.c -o print.o
-frontend.o:
+frontend.o: frontend.c
 	$(CC) $(XCFLAGS) -c frontend.c -o frontend.o
-eval.o:
+eval.o: eval.c
 	$(CC) $(XCFLAGS) -c eval.c -o eval.o
-codegen.o:
+codegen.o: codegen.c
 	$(CC) $(XCFLAGS) -c codegen.c -o codegen.o
+env.o: env.c
+	$(CC) $(XCFLAGS) -c env.c -o env.o
 clean:
 	rm *.o

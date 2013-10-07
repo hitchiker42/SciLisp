@@ -22,6 +22,7 @@ typedef struct env env;
 typedef struct local_symbol local_symbol;
 typedef struct local_env local_env;
 typedef struct hash_env hash_env;
+typedef struct lambda lambda;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 typedef const char* restrict c_string;
 typedef symbol* symref;
@@ -54,6 +55,7 @@ enum _tag {
   _true = 11,
   _list = 12,
   _quoted = 13,
+  _lam = 14,
 };
 enum special_form{
   _def=0,
@@ -89,7 +91,7 @@ union data {
   cons* cons;
   symref var;
   fxn_ptr fun;
-  void* raw_fun;
+  lambda* lam;
   special_form special;
   data* array;
   _tag meta;
@@ -110,25 +112,23 @@ struct cons{
 };
 enum TOKEN{
   TOK_EOF=-1,
-  //literals|ID
+  //literals|ID 0-20
   TOK_INT=1,
   TOK_REAL=2,
   TOK_CHAR=3,
   TOK_STRING=4,
   TOK_ID=5,  
-  //reserved words
+  //reserved words/characters 20-30
   TOK_SPECIAL=20,
   TOK_QUOTE=19,
   TOK_COMMENT_START=21,
   TOK_COMMENT_END=22,
-  //Types
-  TOK_TYPEDEF=23,
-  TOK_TYPEINFO=24,
-  TOK_DATATYPE=25,
-  TOK_STRUCT=26,
-  TOK_UNION=27,
-  TOK_ENUM=28,
-  //delimiters
+  TOK_DOT=23,
+  TOK_COLON=24,
+  //Types 40-50
+  TOK_TYPEDEF=40,
+  TOK_TYPEINFO=41,
+  //delimiters 50 - 60
   TOK_LPAREN=50,
   TOK_RPAREN=51,
   TOK_LBRACE=52,
@@ -145,7 +145,7 @@ union funcall{
   sexp(*fmany)(sexp,...);
 };
 struct fxn_proto{
-  CORD cname;
+  CORD cname;//non-prim sets cname to 0
   CORD lispname;
   //max_args == -1 means remaining args as a list
   short min_args,max_args;
@@ -183,6 +183,11 @@ struct env{
     _hash=1
   } tag;
   env_type env;
+};
+struct lambda{
+  local_env env;
+  short minargs,maxargs;
+  sexp body;
 };
 static struct option long_options[] = {
   {"output",required_argument,0,'o'},
