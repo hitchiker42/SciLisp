@@ -8,7 +8,7 @@ symref tempsym;
 jmp_buf ERROR;
 static sexp eval_special(sexp expr);
 static sexp call_function(sexp curFun,sexp expr);
-sexp handle_error(void){
+static sexp handle_error(void){
   CORD_printf(error_str);
   return NIL;
 }
@@ -112,13 +112,13 @@ static inline sexp eval_special(sexp expr){
       PRINT_FMT("%s",typeName(cadr(expr)));
       getSym(cadr(expr).val.var->name,newSym);
       if(!newSym){
-        CORD_sprintf(&error_str,"%s is not a symbol",print(cadr(expr)));
-        goto ERROR;
-      } else {
+        newSym=xmalloc(sizeof(symbol));
+        newSym->name=(cadr(expr).val.var->name);
+        addSym(newSym);
+      }
         sexp symVal=eval(caddr(expr));
         newSym->val=symVal;
-        return (sexp){.tag = _sym,{.var = newSym}};
-      }
+        return (sexp){.tag = _sym,.val={.var = newSym}};
     case _setq: 
       getSym(cadr(expr).val.var->name,newSym);
       if(!newSym){
@@ -128,7 +128,7 @@ static inline sexp eval_special(sexp expr){
         sexp symVal=eval(caddr(expr));
         newSym->val=symVal;
         HERE();
-        return (sexp){.tag = _sym,{.var = newSym}};
+        return (sexp){.tag = _sym,.val={.var = newSym}};
       }
     case _lambda: return NIL;
     case _if: 
@@ -158,11 +158,25 @@ static inline sexp eval_special(sexp expr){
 sexp mkLambda(sexp expr,env* enclosing){
   //for now assume expr is a sexp of the form
   //(lambda (args ...) (body ...))
-  sexp newLambda,args,body;
+  sexp args,body;
   local_symbol *cur_arg=xmalloc(sizeof(local_symbol));
   local_env closure={.enclosing = enclosing,.head=cur_arg};
-  newLambda.tag=_lam;
+  int numArgs=0;
   args=cadr(expr);
   body=caddr(expr);
-  while(
+  while(CONSP(args)){
+    if(!SYMBOLP(car(args))){
+      CORD_sprintf(&error_str,"argument %s is not a symbol",print(car(args)));
+      handle_error();
+    }
+    cur_arg->name=car(args).val.var->name;
+    cur_arg->val=UNBOUND;
+    cur_arg->next=xmalloc(sizeof(local_symbol));
+    numArgs++;
+  }
+  lambda *retval=xmalloc(sizeof(lambda));
+  retval->env=closure;
+  retval->minargs=retval->maxargs=numArgs;
+  retval->body=body;
+  return (sexp){.tag=_lam,.val={.lam = retval}};
 }

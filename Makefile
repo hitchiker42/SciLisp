@@ -10,6 +10,7 @@ XLDFLAGS:=-lgc -lm -lreadline -lcord
 LEX:=flex
 YACC:=bison
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h
+COMMON_HEADERS:=common.h debug.h types.h
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o
 BACKEND:=eval.o codegen.o
 .PHONY: clean all quiet
@@ -26,19 +27,19 @@ force:
 	$(MAKE) -B all
 optimized:
 	CFLAGS="$(CFLAGS) -O3 -march=native -flto" $(MAKE) -B all
-parser.o: parser.c
+parser.o: parser.c $(COMMON_HEADERS) cons.h
 	$(CC) $(XCFLAGS) -c parser.c -o parser.o
-cons.o: cons.c
+cons.o: cons.c $(COMMON_HEADERS) cons.h
 	$(CC) $(XCFLAGS) -c cons.c -o cons.o
-print.o: print.c
+print.o: print.c $(COMMON_HEADERS) cons.h
 	$(CC) $(XCFLAGS) -c print.c -o print.o
-frontend.o: frontend.c
+frontend.o: frontend.c $(COMMON_HEADERS) prim.h
 	$(CC) $(XCFLAGS) -c frontend.c -o frontend.o
-eval.o: eval.c
+eval.o: eval.c $(COMMON_HEADERS) cons.h
 	$(CC) $(XCFLAGS) -c eval.c -o eval.o
-codegen.o: codegen.c
+codegen.o: codegen.c $(COMMON_HEADERS) prim.h
 	$(CC) $(XCFLAGS) -c codegen.c -o codegen.o
-env.o: env.c
+env.o: env.c $(COMMON_HEADERS)
 	$(CC) $(XCFLAGS) -c env.c -o env.o
 clean:
 	rm *.o

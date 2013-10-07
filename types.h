@@ -101,8 +101,27 @@ struct sexp{
   _tag tag;
   data val;
 };
+/*would like to change this to
 struct symbol{
-  const char* restrict name;
+  CORD name;
+  sexp val;
+};
+struct global_symbol{
+  CORD name;
+  sexp val;
+  UT_hash_handle hh;
+  };
+then we do
+union symbols{
+  global_symbol global;
+  local_symbol local;
+};
+and finally
+symbols sym={.global = *symref_of_something};
+symbol var = *(symbol*)&sym
+*/
+struct symbol{
+  CORD name;
   sexp val;
   UT_hash_handle hh;
 };
@@ -173,9 +192,13 @@ union env_type{
   local_env local;
   hash_env hash;
 };
-union symbol_type{
+union symbol_ref{
   symref global;
   local_symbol* local;
+};
+union symbol_val{
+  local_symbol local;
+  symbol global;
 };
 struct env{
   enum {
@@ -195,14 +218,14 @@ static struct option long_options[] = {
 };
 hash_env globalSymbolTable;
 sexp getSymlocal(local_env cur_env,CORD name);
-sexp lookupSym(env* cur_env,CORD name);
+sexp lookupSym(env cur_env,CORD name);
 #define getSym(name,Var)                                \
   HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)
 #define addSym(Var)                                                     \
   HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
-#define mkTypeSym(name,val)                     \
-  static const sexp name = {-2, {.meta = val}}
+#define mkTypeSym(name,mval)                     \
+  static const sexp name = {.tag=-2, .val={.meta = mval}}
 mkTypeSym(Quninterned,-2);
 mkTypeSym(Qnil,-1);
 mkTypeSym(Qcons,0);

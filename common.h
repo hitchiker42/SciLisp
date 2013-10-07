@@ -9,6 +9,7 @@
 #include <stdlib.h>
 //#define GC_DEBUG
 #include <gc.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <setjmp.h>
@@ -35,9 +36,9 @@
 #define cons_sexp(cons_val) (sexp){_cons,(data)(cons*)cons_val}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
-static const sexp NIL={.tag = -1,{.int64 = 0}};
-static const sexp UNBOUND={.tag = -2,{.int64 = -0xff}};
-static const sexp LISP_TRUE={.tag = -2,{.meta = 11}};
+static const sexp NIL={.tag = -1,.val={.int64 = 0}};
+static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
+static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 sexp* yylval;
 FILE* yyin;
 #include "print.h"
@@ -46,6 +47,7 @@ extern sexp yyparse(FILE* input);
 CORD codegen(FILE* outfile,sexp ast,enum backend backend);
 extern sexp eval(sexp expr);
 CORD error_str;
+env topLevelEnv;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){
   switch(x.tag){

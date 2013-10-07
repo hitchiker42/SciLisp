@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <execinfo.h>
 #if defined (HERE_ON) && !(defined (HERE_OFF))\
   || (defined (DEBUG)) && !(defined (NDEBUG))

@@ -107,8 +107,8 @@ CORD print(sexp obj){
 sexp lisp_print(sexp obj){
   CORD print_string = print(obj);
   CORD_printf("%r\n",print_string);
-  return (sexp){.tag=_str,{.cord=print_string}};
+  return (sexp){.tag=_str,.val={.cord=print_string}};
 }
 sexp lisp_typeName(sexp obj){
-  return (sexp){.tag = _str,{.cord = typeName(obj)}};
+  return (sexp){.tag = _str,.val={.cord = CORD_from_char_star(typeName(obj))}};
 }

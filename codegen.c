@@ -2,10 +2,19 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+//Idea
+//make a cfg, identify basic blocks and assign an sexp value to
+//each basic block
+
 #include "common.h"
 #include "cons.h"
+#include "prim.h"
 #include <assert.h>
+symref tempsym;
 CORD c_codegen(sexp ast);
+int tmp_counter=0;
+//lazy fillin untill I add better error handling
+static void handle_error(){abort();}
 CORD codegen(FILE* outfile,sexp ast,enum backend backend){
   switch(backend){
     case 0:
@@ -35,6 +44,17 @@ c_string get_cType(sexp obj){
   }
 }
 
+#define get_c_char(c) (isalnum(c)?c:'_') 
+CORD to_c_symbol(CORD symName){
+  char* c_name=CORD_to_char_star(symName);
+  int i;
+  for(i=0;i<CORD_len(symName);i++){
+    c_name[i]=get_c_char(c_name[i]);
+  }
+  CORD retval;
+  CORD_sprintf(&retval,"%s__%d__",c_name,tmp_counter++);
+  return retval;
+}
 //not much now, but if I need to expand the header this will make it easy
 static inline CORD c_header(){
   register CORD retval="#include \"common.h\"\n";
@@ -45,16 +65,19 @@ static inline CORD c_header(){
 CORD c_codegen_specials(sexp expr,CORD code);
 CORD c_codegen_functions(sexp expr,CORD code);
 CORD c_codegen_sub(sexp expr);
+CORD c_code;
+CORD declarations;
 CORD c_codegen(sexp ast){
-  register CORD code=c_header();
+  initPrims();
+  c_code=c_header();
   sexp cur_block=car(ast);
   while(CONSP(cur_block)){
     switch(car(cur_block).tag){
       case _special://for now things need to be special forms, either main, or defines
-        CORD_append(code,c_codegen_specials(cur_block,code));
+        CORD_append(c_code,c_codegen_specials(cur_block,c_code));
     }
   }
-  return code;
+  return c_code;
 }
 CORD c_codegen_sub(sexp expr){//this is basically eval for codegen
   CORD code="";
@@ -96,8 +119,26 @@ CORD c_codegen_specials(sexp expr,CORD code){
       assert(CONSP(cadr(expr)));
       CORD_append(code,c_codegen_sub(cdr(expr)));
       return code;
-    case _def:;
-      register CORD temp;
+    case _setq:
+    case _def:
+      if(!SYMBOLP(cadr(expr))){
+        CORD_sprintf(&error_str,"can not define %s, it is not a symbol",
+                     print(cadr(expr)));
+        handle_error();
+      }
+      register CORD temp=(cadr(expr).val.var->name);
+      register sexp Var=lookupSym(topLevelEnv,temp);
+      if(Var.val.var){
+        //standard lisp behavior, define won't redefine stuff
+        if(car(expr).tag == _def){
+          return "";
+        }
+      }
+      //add Var to top level env
+      temp=CORD_cat("sexp ",
+                    CORD_cat(to_c_symbol(temp),
+                             CORD_cat(" = ",c_codegen_sub(cddr(expr)))));      
+      return temp;
   }
 }
 CORD c_codegen_functions(sexp expr,CORD code){}

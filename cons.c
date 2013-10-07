@@ -33,12 +33,12 @@ sexp mkImproper(sexp head,...){
   while((cur_loc=va_arg(ap,sexp)).tag != _nil){
     next->car=cur_loc;
     next->cdr.val.cons=xmalloc(sizeof(cons));
-    list->cdr=(sexp){_cons,(data)(cons*)next};
+    list->cdr=(sexp){.tag=_cons,(data)(cons*)next};
     next=next->cdr.val.cons;
   }
   cur_loc=va_arg(ap,sexp);
   next->cdr=cur_loc;
-  return (sexp){_cons,(data)(cons*)list};
+  return (sexp){.tag=_cons,(data)(cons*)list};
 }
 #define CAR(cell) cell->car
 #define CDR(cell) cell->cdr

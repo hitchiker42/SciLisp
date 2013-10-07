@@ -63,18 +63,18 @@ sexp parse_cons(){
   //  sexp cons_pos=result.val.cons->cdr;
   //at this point there's no difference between any macro, special form or function
   if (yytag == TOK_SPECIAL){
-    result.val.cons->car=(sexp){_special,{.special = yylval->val.special}};
+    result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
   } else if(yytag==TOK_ID){
     //PRINT_FMT("found id %s",yylval->val.cord);
     getSym(yylval->val.cord,tmpsym);
     if(tmpsym){
       //PRINT_FMT("Found prim %s",tmpsym->name);
-      result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
+      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
     } else {
     tmpsym=xmalloc(sizeof(symbol));
     tmpsym->name=yylval->val.string;
     tmpsym->val=UNBOUND;
-    result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
+    result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
     }
   } else {
     sexp retval;
@@ -116,7 +116,7 @@ sexp parse_atom(){
       my_abort("EOF found in the middle of input\n");
     case TOK_REAL:
       //*yylval;
-      return (sexp){_double,(data)(double)yylval->val.real64};
+      return (sexp){_double,.val={.real64=yylval->val.real64}};
     case TOK_INT:
       return *yylval;
     case TOK_QUOTE:
@@ -143,14 +143,40 @@ sexp parse_atom(){
       tmpsym=NULL;
       getSym(yylval->val.string,tmpsym);
       if(tmpsym){
-        return (sexp){_sym,{.var = tmpsym}};
+        return (sexp){.tag=_sym,.val={.var = tmpsym}};
       } else {
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
         tmpsym->val=UNBOUND;
-        addSym(tmpsym);
-        return (sexp){_sym,{.var = tmpsym}};
+        //addSym(tmpsym);
+        return (sexp){.tag=_sym,.val={.var = tmpsym}};
       }
+    case TOK_LBRACE:
+      nextTok();
+      sexp retval;
+      int size=8,i=-1;
+      data* arr=retval.val.array=xmalloc(size*sizeof(data));
+      retval.tag=_array;
+      _tag arrType=yylval->tag;
+      if (arrType != _double || arrType!=_long){
+        CORD_sprintf(&error_str,
+                     "Arrays of type %s are unimplemented\n",arrType);
+        longjmp(ERROR,-1);
+      }
+      do{
+        if(i++>size){
+          arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(data));
+        }
+        switch (arrType){
+          case _double:
+            arr[i].real64=yylval->val.real64;break;
+          case _long:
+            arr[i].int64=yylval->val.int64;break;
+          default:
+            my_abort("How'd you get here?");
+        }
+      } while(nextTok() != TOK_RBRACE);
+      return retval;  
     default:
       CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n",print(*yylval));
       longjmp(ERROR,-1);
