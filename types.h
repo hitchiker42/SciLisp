@@ -22,12 +22,13 @@ typedef struct env env;
 typedef struct local_symbol local_symbol;
 typedef struct local_env local_env;
 typedef struct hash_env hash_env;
+typedef struct array array;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 typedef const char* restrict c_string;
 typedef symbol* symref;
 typedef fxn_proto* fxn_ptr;
 #define NILP(obj) (obj.tag == _nil)
-#define CONSP(obj) (obj.tag == _cons)
+#define CONSP(obj) (obj.tag == _cons || obj.tag == _list)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
 #define FLOATP(obj) (obj.tag == _double)
 #define INTP(obj) (obj.tag == _long)
@@ -36,8 +37,9 @@ typedef fxn_proto* fxn_ptr;
 #define STRINGP(obj) (obj.tag == _str)
 #define CHARP(obj) (obj.tag == _char)
 #define FUNP(obj) (obj.tag == _fun)
+#define NUM_TYPES 16
 enum _tag {
-  _unbound = -2,
+  _uninterned = -2,
   _nil = -1,
   _cons = 0,
   _double = 1,
@@ -48,6 +50,11 @@ enum _tag {
   _sym = 6,
   _special = 7,
   _macro = 8,
+  _type = 9,
+  _array = 10,
+  _true = 11,
+  _list = 12,
+  _quoted = 13,
 };
 enum special_form{
   _def=0,
@@ -70,7 +77,8 @@ enum special_form{
   _quote=17,
   _comma=18,
   _and=19,
-  _or=20
+  _or=20,
+  _main=21,
 };
 union data {
   double real64;
@@ -83,6 +91,9 @@ union data {
   fxn_ptr fun;
   void* raw_fun;
   special_form special;
+  array* arr;
+  _tag meta;
+  sexp* quoted;
 };
 struct sexp{
   _tag tag;
@@ -96,6 +107,10 @@ struct symbol{
 struct cons{
   sexp car;
   sexp cdr;
+};
+struct array{
+  _tag tag;
+  data *vals;
 };
 enum TOKEN{
   TOK_EOF=-1,
@@ -126,16 +141,17 @@ enum TOKEN{
   TOK_RCBRACE=55
 };
 union funcall{
-    sexp(*f0)(void);
-    sexp(*f1)(sexp);
-    sexp(*f2)(sexp,sexp);
-
-    sexp(*f3)(sexp,sexp,sexp);
-    sexp(*f4)(sexp,sexp,sexp,sexp);
+  sexp(*f0)(void);
+  sexp(*f1)(sexp);
+  sexp(*f2)(sexp,sexp);
+  sexp(*f3)(sexp,sexp,sexp);
+  sexp(*f4)(sexp,sexp,sexp,sexp);
+  sexp(*fmany)(sexp,...);
 };
 struct fxn_proto{
   CORD cname;
   CORD lispname;
+  //max_args == -1 means remaining args as a list
   short min_args,max_args;
   funcall fxn_call;
 };
@@ -184,3 +200,34 @@ sexp lookupSym(env* cur_env,CORD name);
 #define addSym(Var)                                                     \
   HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
+#define mkTypeSym(name,val)                     \
+  static const sexp name = {-2, {.meta = val}}
+mkTypeSym(Quninterned,-2);
+mkTypeSym(Qnil,-1);
+mkTypeSym(Qcons,0);
+mkTypeSym(Qdouble,1);
+mkTypeSym(Qlong,2);
+mkTypeSym(Qchar,3);
+mkTypeSym(Qstr,4);
+mkTypeSym(Qfun,5);
+mkTypeSym(Qsym,6);
+mkTypeSym(Qspec,7);
+mkTypeSym(Qmacro,8);
+mkTypeSym(Qtype,9);
+mkTypeSym(Qarr,10);
+mkTypeSym(Qtrue,11);
+//static const sexp typeArray[NUM_TYPES-1] = {Quninterned,Qnil,Qcons,Qdouble,Qlong,Qchar,Qstr,Qfun,Qsym,Qspec,Qmacro,Qtype,Qarr,Qtrue};
+//static sexp typeOf(sexp obj){
+//  return typeArray[obj.tag+2];
+//}
+#define isTrue(x)                                            \
+  (x.tag == _nil ? 0 :                                       \
+    (x.tag = _long ? (x.val.int64 == 0 ? 0 : 1) :         \
+     (x.tag = _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1)))
+    
+enum backend{
+  c=0,
+  llvm=1,
+  as=2,
+};
+

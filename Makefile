@@ -8,12 +8,12 @@ QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING
 XCFLAGS:=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -lgc -lm -lcord -foptimize-sibling-calls
 LEX:=flex
 YACC:=bison
-FRONTEND:=frontend.c lex.yy.c common.h parser.c cons.c print.c\
-prim.h types.h cons.h
+FRONTEND:=common.h lex.yy.c parser.c  cons.c print.c\
+prim.h types.h cons.h frontend.c
 BACKEND:=eval.c codegen.c
 .PHONY: clean all quiet
-all: test_interpreter
-test_interpreter: $(FRONTEND) $(BACKEND)
+all: SciLisp
+SciLisp: $(FRONTEND) $(BACKEND)
 	$(CC) $(XCFLAGS) -lreadline $^ -o $@
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex

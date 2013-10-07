@@ -7,13 +7,16 @@
 #include "common.h"
 sexp mklist(sexp head,...);
 sexp mkImproper(sexp head,...);
+sexp nreverse(sexp ls);
+sexp reduce(sexp ls,sexp reduce_fn);
+sexp mapcar(sexp ls,sexp map_fn);
 static inline sexp car(sexp cell){
-  if(cell.tag == _nil){return NIL;}
-  if(cell.tag != _cons){my_err("Argument not a cons cell\n");}
+  if(NILP(cell)){return NIL;}
+  if(!CONSP(cell)){my_err("Argument not a cons cell\n");}
   else return cell.val.cons->car;
 }
 static inline sexp cdr(sexp cell){
-  if(cell.tag != _cons){my_err("Argument not a cons cell\n");}
+  if(!(CONSP(cell))){my_err("Argument not a cons cell\n");}
   else return cell.val.cons->cdr;
 }
 static inline sexp nth(sexp cell,int n){

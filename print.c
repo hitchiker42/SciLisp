@@ -6,6 +6,8 @@
 #include "cons.h"
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){
+    case _uninterned:
+      return "uninterned";
     case _nil:
       return "nil";
     case _cons:
@@ -26,9 +28,15 @@ c_string tag_name(_tag obj_tag){
       return "special form";
     case _macro:
       return "macro";
+    case _array:
+      return "array";
+    case _type:
+      return "type";
+    case _true:
+      return "t";
   }
 }
-c_string toString_tag(sexp obj){
+c_string typeName(sexp obj){
   return tag_name(obj.tag);
 }
 CORD print_num_format(sexp obj,CORD format){
@@ -85,8 +93,9 @@ CORD print(sexp obj){
         retval=CORD_cat_char(acc,')');
       }
       return CORD_balance(retval);
+    case _uninterned:
     default:
-      return "error";
+      return "print error";
   }
 }
 sexp lisp_print(sexp obj){

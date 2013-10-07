@@ -73,7 +73,7 @@ int lispReadLine(FILE* outfile,char* filename){
         free (line_read);
         line_read = (char *)NULL;
       }
-      line_read = readline("in>");
+      line_read = readline("SciLisp>");
       if (line_read){
         if (*line_read){
           add_history (line_read);
@@ -132,6 +132,7 @@ int main(int argc,char* argv[]){
   FILE* my_pipe=fopen(tmpFile,"w+");
   yyin=my_pipe;
   rl_set_signals();
+  puts("SciLisp  Copyright (C) 2013  Tucker DiNapoli");
  REPL:while(1){
     if(setjmp(ERROR)){
       printf(error_str);
@@ -141,7 +142,7 @@ int main(int argc,char* argv[]){
   fseeko(my_pipe,start_pos,SEEK_SET);
   //eval
   sexp ast=yyparse(my_pipe);
-  sexp result=internal_eval(car(ast));
+  sexp result=eval(car(ast));
   //print
   CORD_printf(print(result));puts("\n");
   }

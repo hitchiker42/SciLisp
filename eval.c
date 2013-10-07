@@ -12,13 +12,13 @@ sexp handle_error(void){
   CORD_printf(error_str);
   return NIL;
 }
-sexp internal_eval(sexp expr){
+sexp eval(sexp expr){
   switch(expr.tag){
     case _cons:
       if(SYMBOLP(car(expr))){
         sexp curFun=car(expr).val.var->val;
         if(!FUNP(curFun)){
-          CORD_fprintf(stderr,"tag = %s\n",toString_tag(curFun));
+          CORD_fprintf(stderr,"tag = %s\n",typeName(curFun));
           CORD_sprintf(&error_str,"%r is not a function or special form",
                        print(curFun));
           goto ERROR;
@@ -31,7 +31,7 @@ sexp internal_eval(sexp expr){
     case _sym:
       getSym(expr.val.var->name,tempsym);
       if(tempsym){
-        return internal_eval(tempsym->val);
+        return eval(tempsym->val);
       } else {
         CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
         goto ERROR;
@@ -54,7 +54,7 @@ static inline sexp call_function(sexp curFun,sexp expr){
                      FLNAME(curFun));                                   \
         goto ERROR;                                                     \
       } else {                                                          \
-        args##numargs[i]=internal_eval(car(cur_arg));                   \
+        args##numargs[i]=eval(car(cur_arg));                   \
           cur_arg=cdr(cur_arg);                                         \
       }                                                                 \
     }
@@ -72,7 +72,7 @@ static inline sexp call_function(sexp curFun,sexp expr){
                    FLNAME(curFun));
       goto ERROR;
     } else {
-      sexp args=internal_eval(cdar(curFun));
+      sexp args=eval(cadr(expr));
       return F_CALL(curFun).f1(args);
     }
   case 2:
@@ -102,19 +102,39 @@ static inline sexp eval_special(sexp expr){
     case _def:
       //should I go with the lisp standard of define only assigning
       //to a value once or not?
+      PRINT_FMT("%s",typeName(cadr(expr)));
       getSym(cadr(expr).val.var->name,newSym);
       if(!newSym){
         CORD_sprintf(&error_str,"%s is not a symbol",print(cadr(expr)));
         goto ERROR;
       } else {
-        sexp symVal=internal_eval(caddr(expr));
+        sexp symVal=eval(caddr(expr));
+        newSym->val=symVal;
+        return (sexp){_sym,{.var = newSym}};
+      }
+    case _setq: 
+      getSym(cadr(expr).val.var->name,newSym);
+      if(!newSym){
+        CORD_sprintf(&error_str,"%s is not a symbol",print(cadr(expr)));
+        goto ERROR;
+      } else {
+        sexp symVal=eval(caddr(expr));
         newSym->val=symVal;
         HERE();
         return (sexp){_sym,{.var = newSym}};
       }
-    case _setq: return NIL;
-    case _defun: return NIL;
-    case _if: return NIL;
+    case _lambda: return NIL;
+    case _if: 
+      //car  cadr    caddr   car(cdddr)
+      //(if .(cond . (then . (else .()))))
+      if(cdr(cdddr(expr)).tag != _nil){
+        CORD_sprintf(&error_str,"excess arguments to if expression\n");
+        goto ERROR;
+      } else {
+        register sexp cond = eval(cadr(expr));
+        return (isTrue(cond) ? eval(caddr(expr)) : eval(car(cdddr(expr))));
+      }
+      
     case _do: return NIL;
   }
  ERROR:

@@ -26,7 +26,7 @@ sexp yyparse(FILE* input){
       CORD_fprintf(stderr,error_str);
     }
     if(yylval){free(yylval);}
-    return NIL;    
+    return NIL;
   } else{
     yyin=input;
     ast.tag=_cons;
@@ -46,7 +46,7 @@ sexp yyparse(FILE* input){
         cur_pos->cdr.tag=_cons;
         prev_pos=cur_pos;
         cur_pos=cur_pos->cdr.val.cons;
-      }        
+      }
     }
     if(yylval){free(yylval);}
     prev_pos->cdr=NIL;
@@ -54,7 +54,7 @@ sexp yyparse(FILE* input){
   }
 }
 sexp parse_cons(){
-  //sexp* result=xmalloc(sizeof(sexp)); 
+  //sexp* result=xmalloc(sizeof(sexp));
   nextTok();
   sexp result;
   result.tag=_cons;
@@ -65,23 +65,21 @@ sexp parse_cons(){
   if (yytag == TOK_SPECIAL){
     result.val.cons->car=(sexp){_special,{.special = yylval->val.special}};
   } else if(yytag==TOK_ID){
-    PRINT_FMT("found id %s",yylval->val.cord);
+    //PRINT_FMT("found id %s",yylval->val.cord);
     getSym(yylval->val.cord,tmpsym);
-    HERE();
     if(tmpsym){
-      PRINT_FMT("Found prim %s",tmpsym->name);
+      //PRINT_FMT("Found prim %s",tmpsym->name);
       result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
     } else {
     tmpsym=xmalloc(sizeof(symbol));
     tmpsym->name=yylval->val.string;
-    tmpsym->val=(sexp){_fun,(data)0};
+    tmpsym->val=UNBOUND;
     result.val.cons->car=(sexp){_sym,{.var =tmpsym}};
     }
   } else {
     CORD_fprintf(stderr,"Expecting a function or special form, got %r",print(*yylval));
     longjmp(ERROR,-1);
   }
-  HERE();
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
   cons* old_pos;
@@ -106,7 +104,7 @@ sexp parse_atom(){
   switch(yytag){
     case TOK_EOF:
       my_abort("EOF found in the middle of input\n");
-    case TOK_REAL:      
+    case TOK_REAL:
       //*yylval;
       return (sexp){_double,(data)(double)yylval->val.real64};
     case TOK_INT:
@@ -115,15 +113,17 @@ sexp parse_atom(){
       nextTok();
       //parse a literal list
       if(yytag==TOK_LPAREN){
-        cons* cur_loc=xmalloc(sizeof(cons));
-        cons* head=cur_loc;
+        sexp retval;
+        retval.tag=_list;
+        cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
+        cons* prev_loc=cur_loc;
         while(nextTok() != TOK_RPAREN){
           cur_loc->car=parse_sexp();
           cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+          prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
         }
-        cur_loc->cdr=NIL;
-        sexp retval={_cons,(data)head};
+        prev_loc->cdr=NIL;
         return retval;
       } else{
         return *yylval;//return anything else unevaluated
@@ -133,12 +133,13 @@ sexp parse_atom(){
       tmpsym=NULL;
       getSym(yylval->val.string,tmpsym);
       if(tmpsym){
-        return tmpsym->val;
+        return (sexp){_sym,{.var = tmpsym}};
       } else {
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
+        tmpsym->val=UNBOUND;
         addSym(tmpsym);
-        return (sexp){_sym,(data)(symref)tmpsym};        
+        return (sexp){_sym,{.var = tmpsym}};
       }
     default:
       CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n",print(*yylval));

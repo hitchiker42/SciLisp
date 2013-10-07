@@ -6,20 +6,21 @@
 #include "cons.h"
 sexp mklist(sexp head,...){
   PRINT_MSG("Making a list");
-  cons* list=xmalloc(sizeof(cons)),*next=xmalloc(sizeof(cons));
-  list->car=head;  
   va_list ap;
-  sexp cur_loc,next_sexp;
-  cons*next_cell;
+  sexp retval,cur_loc;
+  retval.tag=_list;
+  cons *next=retval.val.cons=xmalloc(sizeof(cons));
+  cons *prev=next;
+  next->car=head;
   va_start(ap,head);
   while((cur_loc=va_arg(ap,sexp)).tag != _nil){
     next->car=cur_loc;
     next->cdr.val.cons=xmalloc(sizeof(cons));
-    list->cdr=(sexp){_cons,(data)(cons*)next};
+    prev=next;
     next=next->cdr.val.cons;
   }
-  next->cdr=NIL;
-  return (sexp){_cons,(data)(cons*)list};
+  prev->cdr=NIL;
+  return retval;
 }
 sexp mkImproper(sexp head,...){
   PRINT_MSG("Making an improper list");
@@ -44,7 +45,7 @@ sexp mkImproper(sexp head,...){
 sexp nreverse(sexp ls){
   cons* cur_cell=ls.val.cons,*next_cell=CDR(cur_cell).val.cons;
   sexp last_val=NIL;
-  while(CDR(cur_cell).tag != _nil){
+  while(!NILP(CDR(cur_cell))){
     CDR(cur_cell)=last_val;//update ptr of current cell
     last_val=CDR(next_cell);//get ptr to current cell
     cur_cell=next_cell;//update current cell
@@ -57,13 +58,32 @@ sexp nreverse(sexp ls){
 #undef CDR    
     
     
-sexp reduce(sexp ls,sexp(*reduce_fn)(sexp,sexp)){
+sexp reduce(sexp ls,sexp reduce_fn){
+  if(!CONSP(ls) || !FUNP(reduce_fn)){
+    //error;
+  }
   sexp result=car(ls);
+  sexp(*f)(sexp,sexp)=reduce_fn.val.fun->fxn_call.f2;
   while(cdr(ls).tag != _nil){
     ls=cdr(ls);
-    result=reduce_fn(car(ls),result);
+    result=f(car(ls),result);
   }
 }
-sexp lisp_sum(sexp next_elem,sexp acc){
-  return double_sexp((getDoubleVal(next_elem)+getDoubleVal(acc)));
+sexp mapcar(sexp ls,sexp map_fn){
+  if(!CONSP(ls) || !FUNP(map_fn)){
+    //error;
+  }
+  sexp result;
+  cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
+  result.tag=_cons;
+  sexp(*f)(sexp)=map_fn.val.fun->fxn_call.f1;
+  while(!NILP(cdr(ls))){
+    cur_cell->car=f(car(ls));
+    cur_cell->cdr.val.cons=xmalloc(sizeof(cons));
+    cur_cell=cur_cell->cdr.val.cons;
+    ls=cdr(ls);
+  }
+  cur_cell->car=f(car(ls));
+  cur_cell->cdr=NIL;
+  return result;
 }

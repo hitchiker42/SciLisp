@@ -36,15 +36,16 @@
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
 static const sexp NIL={-1,0};
-static const sexp UNBOUND={-2,0};
+static const sexp UNBOUND={-2,-17};
+static const sexp LISP_TRUE={-2,{.meta = 11}};
 sexp* yylval;
 c_string tag_name(_tag obj_tag);
 CORD princ(sexp obj);
 CORD print(sexp obj);
 sexp lisp_print(sexp obj);
 sexp yyparse(FILE* input);
-void codegen(const char* output,FILE* c_code,sexp ast);
-sexp internal_eval(sexp expr);
+CORD codegen(FILE* outfile,sexp ast,enum backend backend);
+sexp eval(sexp expr);
 CORD error_str;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){
@@ -55,16 +56,5 @@ static inline double getDoubleVal(sexp x){
       return (double)x.val.int64;
   }
 }
-static inline int isTrue(sexp x){
-  if(x.tag == _nil){return 0;}
-  else if(x.tag ==_double){
-    if(ceil(x.val.real64)){return 1;}
-    return 0;
-  } else if(x.tag ==_long){
-    if(x.val.int64){return 1;}
-    return 0;
-  }
-  return 1;
-}
-c_string toString_tag(sexp obj);
+c_string typeName(sexp obj);
 #endif
