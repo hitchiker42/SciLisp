@@ -20,6 +20,7 @@
 #define LEX_MSG(string)
 #define LEX_FMT(string,fmt...)
 #endif
+#define format_error_str(format,args...) CORD_sprintf(&error_str,format,##args)
 static void print_trace(void){ 
   void *array[50];
   size_t size,i;

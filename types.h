@@ -14,18 +14,23 @@ typedef union data data;
 typedef union env_type env_type;
 typedef union symbol_type symbol_type;
 typedef union funcall funcall;
+typedef union symbol_ref symbol_ref;
+typedef union symbol_val symbol_val;
 typedef struct sexp sexp;
 typedef struct cons cons;
-typedef struct symbol symbol;
 typedef struct fxn_proto fxn_proto;
-typedef struct env env;
+typedef struct symbol symbol;
 typedef struct local_symbol local_symbol;
+typedef struct global_symbol global_symbol;
 typedef struct local_env local_env;
-typedef struct hash_env hash_env;
+typedef struct global_env global_env;
+typedef struct env env;
 typedef struct lambda lambda;
 typedef const sexp(*sexp_binop)(sexp,sexp);
 typedef const char* restrict c_string;
 typedef symbol* symref;
+typedef global_symbol* global_symref;
+typedef local_symbol* local_symref;
 typedef fxn_proto* fxn_ptr;
 #define NILP(obj) (obj.tag == _nil)
 #define CONSP(obj) (obj.tag == _cons || obj.tag == _list)
@@ -37,6 +42,7 @@ typedef fxn_proto* fxn_ptr;
 #define STRINGP(obj) (obj.tag == _str)
 #define CHARP(obj) (obj.tag == _char)
 #define FUNP(obj) (obj.tag == _fun)
+#define LAMBDAP(obj) (obj.tag == _lam)
 #define NUM_TYPES 16
 enum _tag {
   _uninterned = -2,
@@ -56,6 +62,7 @@ enum _tag {
   _list = 12,
   _quoted = 13,
   _lam = 14,
+  _lenv = 15,
 };
 enum special_form{
   _def=0,
@@ -96,34 +103,13 @@ union data {
   data* array;
   _tag meta;
   sexp* quoted;
+  local_symref lenv;
 };
 struct sexp{
   _tag tag;
+  short len;
+  short meta;
   data val;
-};
-/*would like to change this to
-struct symbol{
-  CORD name;
-  sexp val;
-};
-struct global_symbol{
-  CORD name;
-  sexp val;
-  UT_hash_handle hh;
-  };
-then we do
-union symbols{
-  global_symbol global;
-  local_symbol local;
-};
-and finally
-symbols sym={.global = *symref_of_something};
-symbol var = *(symbol*)&sym
-*/
-struct symbol{
-  CORD name;
-  sexp val;
-  UT_hash_handle hh;
 };
 struct cons{
   sexp car;
@@ -144,6 +130,7 @@ enum TOKEN{
   TOK_COMMENT_END=22,
   TOK_DOT=23,
   TOK_COLON=24,
+  TOK_LAMBDA=25,
   //Types 40-50
   TOK_TYPEDEF=40,
   TOK_TYPEINFO=41,
@@ -175,37 +162,62 @@ struct fxn_proto{
 #define FCNAME(fxn) fxn.val.fun->cname
 #define FLNAME(fxn) fxn.val.fun->lispname
 #define F_CALL(fxn) fxn.val.fun->fxn_call
+/*would like to change this to
+struct symbol{
+  CORD name;
+  sexp val;
+};
+struct global_symbol{
+  CORD name;
+  sexp val;
+  UT_hash_handle hh;
+  };
+then we do
+union symbols{
+  global_symbol global;
+  local_symbol local;
+};
+and finally
+symbols sym={.global = *symref_of_something};
+symbol var = *(symbol*)&sym
+*/
+struct symbol{
+  CORD name;
+  sexp val;
+};
+struct global_symbol{
+  CORD name;
+  sexp val;
+  UT_hash_handle hh;
+};
 struct local_symbol{
   CORD name;
   sexp val;
-  local_symbol* next;
+  local_symref next;
 };
 struct local_env{
   env* enclosing;
-  local_symbol* head;
+  local_symref head;
 };
-struct hash_env{
+struct global_env{
   env* enclosing;
-  symref head;
-};
-union env_type{
-  local_env local;
-  hash_env hash;
+  global_symref head;
 };
 union symbol_ref{
-  symref global;
-  local_symbol* local;
+  global_symref global;
+  local_symref local;
 };
 union symbol_val{
   local_symbol local;
-  symbol global;
+  global_symbol global;
 };
 struct env{
+  env* enclosing;
+  symbol_ref head;
   enum {
     _local=0,
-    _hash=1
+    _global=1
   } tag;
-  env_type env;
 };
 struct lambda{
   local_env env;
@@ -216,15 +228,30 @@ static struct option long_options[] = {
   {"output",required_argument,0,'o'},
   {0       ,0                ,0,0  }
 };
-hash_env globalSymbolTable;
-sexp getSymlocal(local_env cur_env,CORD name);
-sexp lookupSym(env cur_env,CORD name);
-#define getSym(name,Var)                                \
+global_env globalSymbolTable;
+env topLevelEnv;
+local_symref getLocalSym(local_env cur_env,CORD name);
+global_symref getGlobalSym(CORD name);
+symref getSym(env cur_env,CORD name);
+symref addSym(env cur_env,symref Var);
+symref addGlobalSym(symref Var);
+symref addLocalSym(local_env cur_env,symref Var);
+#define toSymbol(sym) (*(symbol*)&sym)
+#define toSymref(ref) (*(symref*)&(ref))
+static inline size_t symbolSize(env cur_env){
+  switch(cur_env.tag){
+    case _global:
+      return sizeof(global_symbol);
+    case _local:
+      return sizeof(local_symbol);
+  }
+}
+#define getGlobalSymMacro(name,Var)                                  \
   HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)
-#define addSym(Var)                                                     \
+#define addGlobalSymMacro(Var)                                               \
   HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
-#define mkTypeSym(name,mval)                     \
+#define mkTypeSym(name,mval)                                    \
   static const sexp name = {.tag=-2, .val={.meta = mval}}
 mkTypeSym(Quninterned,-2);
 mkTypeSym(Qnil,-1);
@@ -254,4 +281,3 @@ enum backend{
   llvm=1,
   as=2,
 };
-

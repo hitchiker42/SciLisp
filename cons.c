@@ -33,12 +33,12 @@ sexp mkImproper(sexp head,...){
   while((cur_loc=va_arg(ap,sexp)).tag != _nil){
     next->car=cur_loc;
     next->cdr.val.cons=xmalloc(sizeof(cons));
-    list->cdr=(sexp){.tag=_cons,(data)(cons*)next};
+    list->cdr=(sexp){.tag=_cons,.val={.cons = next}};
     next=next->cdr.val.cons;
   }
   cur_loc=va_arg(ap,sexp);
   next->cdr=cur_loc;
-  return (sexp){.tag=_cons,(data)(cons*)list};
+  return (sexp){.tag=_cons,.val={.cons=list}};
 }
 #define CAR(cell) cell->car
 #define CDR(cell) cell->cdr
@@ -63,11 +63,19 @@ sexp reduce(sexp ls,sexp reduce_fn){
     //error;
   }
   sexp result=car(ls);
-  sexp(*f)(sexp,sexp)=reduce_fn.val.fun->fxn_call.f2;
+  sexp(*f)(sexp,sexp);
+  switch(reduce_fn.tag){
+    case _fun:
+      f=reduce_fn.val.fun->fxn_call.f2;
+      break;
+    case _lam:
+      break;
+  }
   while(cdr(ls).tag != _nil){
     ls=cdr(ls);
     result=f(car(ls),result);
   }
+  return result;
 }
 sexp mapcar(sexp ls,sexp map_fn){
   if(!CONSP(ls) || !FUNP(map_fn)){
@@ -75,7 +83,7 @@ sexp mapcar(sexp ls,sexp map_fn){
   }
   sexp result;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
-  result.tag=_cons;
+  result.tag=_cons;  
   sexp(*f)(sexp)=map_fn.val.fun->fxn_call.f1;
   while(!NILP(cdr(ls))){
     cur_cell->car=f(car(ls));

@@ -31,9 +31,9 @@
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
-#define double_sexp(double_val) (sexp){_double,(data)(double)double_val}
-#define long_sexp(long_val) (sexp){_long,(data)(long)long_val}
-#define cons_sexp(cons_val) (sexp){_cons,(data)(cons*)cons_val}
+#define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
+#define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
+#define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
 static const sexp NIL={.tag = -1,.val={.int64 = 0}};
@@ -45,9 +45,9 @@ FILE* yyin;
 sexp lisp_print(sexp obj);
 extern sexp yyparse(FILE* input);
 CORD codegen(FILE* outfile,sexp ast,enum backend backend);
-extern sexp eval(sexp expr);
+extern sexp eval(sexp expr,env cur_env);
+#define global_eval(expr) eval(expr,topLevelEnv)
 CORD error_str;
-env topLevelEnv;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){
   switch(x.tag){

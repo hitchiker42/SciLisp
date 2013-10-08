@@ -5,13 +5,14 @@ else
 OPT_FLAG:=-Og
 endif
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING
-XCFLAGS=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
-XLDFLAGS:=-lgc -lm -lreadline -lcord
+WARNING_FLAGS=-Wall -Wno-switch -Wno-unused
+XCFLAGS=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(WARNING_FLAGS) $(XLDFLAGS)
+XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
 LEX:=flex
 YACC:=bison
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h
 COMMON_HEADERS:=common.h debug.h types.h
-FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o
+FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o
 BACKEND:=eval.o codegen.o
 .PHONY: clean all quiet
 all: SciLisp

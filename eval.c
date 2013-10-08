@@ -4,43 +4,51 @@
 ****************************************************************/
 #include "common.h"
 #include "cons.h"
-symref tempsym;
 jmp_buf ERROR;
-static sexp eval_special(sexp expr);
-static sexp call_function(sexp curFun,sexp expr);
+static sexp eval_special(sexp expr,env cur_env);
+static sexp call_builtin(sexp expr,env cur_env);
+static sexp call_lambda(sexp expr,env cur_env);
+static sexp eval_def(sexp expr,env cur_env);
+static sexp eval_if(sexp expr,env cur_env);
+static sexp eval_while(sexp expr,env cur_env);
+static sexp eval_lambda(sexp expr,env cur_env);
 static sexp handle_error(void){
   CORD_printf(error_str);
   return NIL;
 }
-sexp eval(sexp expr){
+sexp eval(sexp expr,env cur_env){
+  symref tempsym=0;
   switch(expr.tag){
     case _cons:
       if(SYMBOLP(car(expr))){
         sexp curFun=car(expr).val.var->val;
+        if(LAMBDAP(curFun)){
+          return call_lambda(expr,cur_env);
+        }
         if(!FUNP(curFun)){
           CORD_fprintf(stderr,"tag = %s\n",typeName(curFun));
           CORD_sprintf(&error_str,"%r is not a function or special form",
                        print(curFun));
           goto ERROR;
         } else {
-          return call_function(curFun,expr);
+          return call_builtin(expr,cur_env);
         }
       } else if(SPECP(car(expr))){
-        return eval_special(expr);
+        HERE();
+        return eval_special(expr,cur_env);
       } else {
-        CORD_sprintf(&error_str,"car of unquoted list is not a function or special form");
+        format_error_str("car of unquoted list is not a function or special form");
         goto ERROR;
       }
     case _sym:
-      getSym(expr.val.var->name,tempsym);
+      tempsym = getSym(cur_env,expr.val.var->name);
       if(tempsym){
-        return eval(tempsym->val);
+        return eval(tempsym->val,cur_env);
       } else {
         CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
         goto ERROR;
       }
     case _fun:
-      HERE();
       return expr;
 
   default:
@@ -49,19 +57,22 @@ sexp eval(sexp expr){
   ERROR:
   return handle_error();
 }
-static inline sexp call_function(sexp curFun,sexp expr){
+static inline sexp call_builtin(sexp expr,env cur_env){
+  sexp curFun=car(expr).val.var->val;
   int i;
   sexp cur_arg;
-#define getArgs(numargs)                                       \
-  cur_arg=cdr(expr);                                                  \
+#define getArgs(numargs)                                                \
+  cur_arg=cdr(expr);                                                    \
+  if(NILP(cur_arg)){goto ARGS_ERR ## numargs;}                         \
   sexp args##numargs[numargs];                                          \
     for(i=0;i<numargs;i++){                                             \
       if(!CONSP(cur_arg)){                                              \
-        CORD_sprintf(&error_str,"Too few Arguments given to %r",        \
+        ARGS_ERR ## numargs:                                            \
+          CORD_sprintf(&error_str,"Too few Arguments given to %r",      \
                      FLNAME(curFun));                                   \
         goto ERROR;                                                     \
       } else {                                                          \
-        args##numargs[i]=eval(car(cur_arg));                   \
+        args##numargs[i]=eval(car(cur_arg),cur_env);                    \
           cur_arg=cdr(cur_arg);                                         \
       }                                                                 \
     }
@@ -79,7 +90,7 @@ static inline sexp call_function(sexp curFun,sexp expr){
                    FLNAME(curFun));
       goto ERROR;
     } else {
-      sexp args=eval(cadr(expr));
+      sexp args=eval(cadr(expr),cur_env);
       return F_CALL(curFun).f1(args);
     }
   case 2:
@@ -97,7 +108,7 @@ static inline sexp call_function(sexp curFun,sexp expr){
   return handle_error();
 #undef getArgs
 }
-static inline sexp eval_special(sexp expr){
+static inline sexp eval_special(sexp expr,env cur_env){
   //this is an internal only inline function, ie this function itself
   //won't be in the generated code, it's just used to git the source code
   //a bit more clarity
@@ -107,76 +118,106 @@ static inline sexp eval_special(sexp expr){
   switch(special_sexp.val.special){
     //for now focus on def,defun,if and do
     case _def:
-      //should I go with the lisp standard of define only assigning
-      //to a value once or not?
-      PRINT_FMT("%s",typeName(cadr(expr)));
-      getSym(cadr(expr).val.var->name,newSym);
-      if(!newSym){
-        newSym=xmalloc(sizeof(symbol));
-        newSym->name=(cadr(expr).val.var->name);
-        addSym(newSym);
-      }
-        sexp symVal=eval(caddr(expr));
-        newSym->val=symVal;
-        return (sexp){.tag = _sym,.val={.var = newSym}};
+      return eval_def(expr,cur_env);
     case _setq: 
-      getSym(cadr(expr).val.var->name,newSym);
+      newSym = getSym(cur_env,cadr(expr).val.var->name);
       if(!newSym){
         CORD_sprintf(&error_str,"%s is not a symbol",print(cadr(expr)));
-        goto ERROR;
+        handle_error();
       } else {
-        sexp symVal=eval(caddr(expr));
+        sexp symVal=eval(caddr(expr),cur_env);
         newSym->val=symVal;
         HERE();
         return (sexp){.tag = _sym,.val={.var = newSym}};
       }
-    case _lambda: return NIL;
+    case _lambda: 
+      return eval_lambda(expr,cur_env);
     case _if: 
-      //car  cadr    caddr   car(cdddr)
-      //(if .(cond . (then . (else .()))))
-      if(cdr(cdddr(expr)).tag != _nil){
-        CORD_sprintf(&error_str,"excess arguments to if expression\n");
-        goto ERROR;
-      } else {
-        register sexp cond = eval(cadr(expr));
-        return (isTrue(cond) ? eval(caddr(expr)) : eval(car(cdddr(expr))));
-      }
-      
+      return eval_if(expr,cur_env);
     case _do: return NIL;
-    case _while:;
-      register sexp cond=cadr(expr);
-      register sexp body=caddr(expr);
-      register sexp retval=NIL;
-      while(isTrue(eval(cond))){
-        retval=eval(body);
-      }
-      return retval;
+    case _while:
+      return eval_while(expr,cur_env);
   }
- ERROR:
+ error:
   return handle_error();
 }
-sexp mkLambda(sexp expr,env* enclosing){
+sexp eval_lambda(sexp expr,env cur_env){
   //for now assume expr is a sexp of the form
   //(lambda (args ...) (body ...))
   sexp args,body;
-  local_symbol *cur_arg=xmalloc(sizeof(local_symbol));
-  local_env closure={.enclosing = enclosing,.head=cur_arg};
-  int numArgs=0;
-  args=cadr(expr);
+  env* cur_env_loc;
+  PRINT_MSG(print(cdr(expr)));
+  if(cur_env.enclosing != 0){
+    cur_env_loc=xmalloc(sizeof(env));
+    *cur_env_loc=cur_env;
+  } else {
+    cur_env_loc=&topLevelEnv;
+  }
+  PRINT_MSG(tag_name(cadr(expr).tag));
+  local_env closure={.enclosing = cur_env_loc,.head=cadr(expr).val.lenv};
+  int numargs=cadr(expr).len;
   body=caddr(expr);
-  while(CONSP(args)){
+  /*  while(CONSP(args)){
+    HERE();
     if(!SYMBOLP(car(args))){
-      CORD_sprintf(&error_str,"argument %s is not a symbol",print(car(args)));
+      format_error_str("argument %s is not a symbol",print(car(args)));
       handle_error();
     }
+    HERE();
     cur_arg->name=car(args).val.var->name;
+    HERE();
     cur_arg->val=UNBOUND;
+    HERE();
     cur_arg->next=xmalloc(sizeof(local_symbol));
-    numArgs++;
-  }
+    HERE();
+    args=cdr(args);
+    numargs++;
+    HERE();
+    }*/
   lambda *retval=xmalloc(sizeof(lambda));
   retval->env=closure;
-  retval->minargs=retval->maxargs=numArgs;
+  retval->minargs=retval->maxargs=numargs;
   retval->body=body;
   return (sexp){.tag=_lam,.val={.lam = retval}};
+}
+static inline sexp eval_def(sexp expr,env cur_env){
+  //should i go with the lisp standard of define only assigning
+  //to a value once or not?
+  symref newSym;
+  PRINT_FMT("%s",typeName(cadr(expr)));
+  newSym=getSym(cur_env,cadr(expr).val.var->name);
+  sexp symVal=eval(caddr(expr),cur_env);
+  if(!newSym){
+    newSym=xmalloc(sizeof(global_symbol));
+    newSym->name=(cadr(expr).val.var->name);
+    newSym=addSym(cur_env,newSym);
+    newSym->val=symVal;
+  } else {
+    newSym->val=symVal;
+  }
+  return (sexp){.tag = _sym,.val={.var = newSym}};
+}
+static inline sexp eval_if(sexp expr,env cur_env){
+  //car  cadr    caddr   car(cdddr)
+  //(if .(cond . (then . (else .()))))
+  if(cdr(cdddr(expr)).tag != _nil){
+    CORD_sprintf(&error_str,"excess arguments to if expression\n");
+    handle_error;
+  } else {
+    register sexp cond = eval(cadr(expr),cur_env);
+    return (isTrue(cond) ? eval(caddr(expr),cur_env) 
+            : eval(car(cdddr(expr)),cur_env));
+  }
+}
+static inline sexp eval_while(sexp expr,env cur_env){
+  register sexp cond=cadr(expr);
+  register sexp body=caddr(expr);
+  register sexp retval=NIL;
+  while(isTrue(eval(cond,cur_env))){
+    retval=eval(body,cur_env);
+  }
+  return retval;
+}
+static inline sexp call_lambda(sexp expr,env cur_env){
+  return NIL;
 }

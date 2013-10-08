@@ -6,19 +6,56 @@
 #include "cons.h"
 #include "lex.yy.h"
 /*Memory is falling out of scope somewhere, need to find out where*/
-#define nextTok() yytag=yylex()
+#define nextTok() (yytag=yylex())
 #define CAR(cons_sexp) cons_sexp.val.cons->car
 #define CDR(cons_sexp) cons_sexp.val.cons->cdr
 //#define CAR car
 //#define CDR cdr
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
-symref tmpsym;//for reading from hash table
 TOKEN yytag;//current token
 jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
+static inline void handle_error(){
+  longjmp(ERROR,-1);
+}
+static inline sexp parse_list(){
+  sexp retval;
+  retval.tag=_list;
+  cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
+  cons* prev_loc=cur_loc;
+  while(nextTok() != TOK_RPAREN){
+    cur_loc->car=parse_sexp();
+    cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+    prev_loc=cur_loc;
+    cur_loc=cur_loc->cdr.val.cons;
+  }
+  prev_loc->cdr=NIL;
+  return retval;
+}
+static inline sexp parse_arg_list(){
+  sexp retval;
+  int i=0;
+  retval.tag=_lenv;
+  local_symref cur_sym=retval.val.lenv=xmalloc(sizeof(local_symbol));
+  while(nextTok() != TOK_RPAREN){
+    PRINT_FMT("yytag = %d",yytag);
+    if(yytag != TOK_ID){
+      format_error_str("function arguments must be identifiers");
+      handle_error();
+    }
+    cur_sym->name=yylval->val.cord;
+    cur_sym->val=UNBOUND;
+    cur_sym->next=xmalloc(sizeof(local_symbol));
+    cur_sym=cur_sym->next;
+    i++;
+  };
+  cur_sym=0;
+  retval.len=i;
+  return retval;
+}
 sexp yyparse(FILE* input){
   if(setjmp(ERROR)){
     PRINT_MSG("Jumped to error");
@@ -28,6 +65,7 @@ sexp yyparse(FILE* input){
     if(yylval){free(yylval);}
     return NIL;
   } else{
+    yytag=-1;
     yyin=input;
     ast.tag=_cons;
     cons* cur_pos=ast.val.cons=xmalloc(sizeof(cons));
@@ -57,6 +95,7 @@ sexp parse_cons(){
   //sexp* result=xmalloc(sizeof(sexp));
   nextTok();
   sexp result;
+  symref tmpsym=0;
   result.tag=_cons;
   result.val.cons=xmalloc(sizeof(cons));
   cons* cons_pos=result.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
@@ -66,7 +105,7 @@ sexp parse_cons(){
     result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
   } else if(yytag==TOK_ID){
     //PRINT_FMT("found id %s",yylval->val.cord);
-    getSym(yylval->val.cord,tmpsym);
+    tmpsym = (symref)getGlobalSym(yylval->val.cord);
     if(tmpsym){
       //PRINT_FMT("Found prim %s",tmpsym->name);
       result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
@@ -76,8 +115,36 @@ sexp parse_cons(){
     tmpsym->val=UNBOUND;
     result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
     }
-  } else {
+  } else if(yytag=TOK_LAMBDA){
     sexp retval;
+    retval.val.cons=xmalloc(sizeof(cons));
+    retval.tag=_cons;
+    retval.val.cons->car=*yylval;
+    if(nextTok() != TOK_LPAREN){
+      format_error_str("expected argument list following lambda or defun");
+      handle_error();
+    }
+    cons* temp;
+    temp=retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+    temp->car=parse_arg_list();
+    PRINT_MSG(tag_name(cdar(retval).tag));
+    temp->cdr.val.cons=xmalloc(sizeof(cons));
+    temp=temp->cdr.val.cons;
+    temp->cdr=NIL;
+    if(nextTok() == TOK_LPAREN){
+      temp->car=parse_list();
+    } else {
+      temp->car=parse_atom();
+    }
+    if(nextTok() != TOK_RPAREN){
+      format_error_str("error, missing closing parentheses");
+      handle_error();
+    }
+    PRINT_MSG(print(cdr(retval)));
+    return retval;
+  } else {
+    return parse_list();
+      /*    sexp retval;
     retval.tag=_list;
     cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
     cons* prev_loc=cur_loc;
@@ -88,7 +155,7 @@ sexp parse_cons(){
       cur_loc=cur_loc->cdr.val.cons;
     }
     prev_loc->cdr=NIL;
-    return retval;
+    return retval;*/
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
@@ -111,9 +178,11 @@ sexp parse_cons(){
 }
 sexp parse_atom(){
   sexp retval;
+  symref tmpsym=0;
   switch(yytag){
     case TOK_EOF:
-      my_abort("EOF found in the middle of input\n");
+      format_error_str("EOF found in the middle of input\n");
+      handle_error();
     case TOK_REAL:
       //*yylval;
       return (sexp){_double,.val={.real64=yylval->val.real64}};
@@ -123,7 +192,8 @@ sexp parse_atom(){
       nextTok();
       //parse a literal list
       if(yytag==TOK_LPAREN){
-        sexp retval;
+        return parse_list();
+        /*        sexp retval;
         retval.tag=_list;
         cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
         cons* prev_loc=cur_loc;
@@ -134,34 +204,31 @@ sexp parse_atom(){
           cur_loc=cur_loc->cdr.val.cons;
         }
         prev_loc->cdr=NIL;
-        return retval;
+        return retval;*/
       } else{
         return *yylval;//return anything else unevaluated
       }
     case TOK_ID:
-      //need to change this
-      tmpsym=NULL;
-      getSym(yylval->val.string,tmpsym);
+      tmpsym=(symref)getGlobalSym(yylval->val.string);
       if(tmpsym){
         return (sexp){.tag=_sym,.val={.var = tmpsym}};
       } else {
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
         tmpsym->val=UNBOUND;
-        //addSym(tmpsym);
         return (sexp){.tag=_sym,.val={.var = tmpsym}};
       }
     case TOK_LBRACE:
       nextTok();
       sexp retval;
       int size=8,i=-1;
-      data* arr=retval.val.array=xmalloc(size*sizeof(data));
+      data* arr=retval.val.array=xmalloc_atomic(size*sizeof(data));
       retval.tag=_array;
       _tag arrType=yylval->tag;
       if (arrType != _double || arrType!=_long){
         CORD_sprintf(&error_str,
                      "Arrays of type %s are unimplemented\n",arrType);
-        longjmp(ERROR,-1);
+        handle_error();
       }
       do{
         if(i++>size){
@@ -176,10 +243,14 @@ sexp parse_atom(){
             my_abort("How'd you get here?");
         }
       } while(nextTok() != TOK_RBRACE);
-      return retval;  
+      return retval;
+    case TOK_STRING:
+      return *yylval;
+    case TOK_CHAR:
+      return *yylval;
     default:
       CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n",print(*yylval));
-      longjmp(ERROR,-1);
+      handle_error();
   }
 }
 sexp parse_sexp(){

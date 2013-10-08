@@ -7,6 +7,7 @@
 #define YY_DECL TOKEN yylex(void)
 %}
 DIGIT [0-9]
+HEX_DIGIT [0-9a-fA-f]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
 ID [A-Za-z%+*!?\-_^$/&<>=/][A-Za-z%+*!?\-_^$&<>0-9=/]*
 TYPENAME "::"[A-z_a-z][A-Z_a-z0-9]*
@@ -27,8 +28,9 @@ union data {
 %%
    /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
-         yylval->val.int64 = (long)strtol(yytext,NULL,10);
-         LEX_FMT("value of int is %ld\n",yylval->val.int64);return TOK_INT;}
+  yylval->val.int64 = (long)strtol(yytext,NULL,10);return TOK_INT;}
+[+\-]?"0"[xX]{HEX_DIGIT}+ {LEX_MSG("lexing hex int");yylval->tag=_long;
+  yylval->val.int64=(long)strtol(yytext,NULL,16);return TOK_INT;}
 [+\-]?{DIGIT}+"."{DIGIT}* {LEX_MSG("lexing real");yylval->tag=_double;
   yylval->val.real64 = strtod(yytext,NULL);
   return TOK_REAL;}
@@ -45,7 +47,7 @@ union data {
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
 defun {LEX_MSG("lexing defun");
-  yylval->tag=_special;yylval->val.special=_defun;return TOK_SPECIAL;}
+  yylval->tag=_special;yylval->val.special=_defun;return TOK_LAMBDA;}
 setq {LEX_MSG("lexing setq");
   yylval->tag=_special;yylval->val.special=_setq;return TOK_SPECIAL;}
 datatype {LEX_MSG("lexing datatype");
@@ -60,8 +62,8 @@ go {LEX_MSG("lexing go");
   yylval->tag=_special;yylval->val.special=_go;return TOK_SPECIAL;}
 tagbody {LEX_MSG("lexing tagbody");
   yylval->tag=_special;yylval->val.special=_tagbody;return TOK_SPECIAL;}
-lamdba {LEX_MSG("lexing lambda");
-  yylval->tag=_special;yylval->val.special=_lambda;return TOK_SPECIAL;}
+lambda {LEX_MSG("lexing lambda");
+  yylval->tag=_special;yylval->val.special=_lambda;return TOK_LAMBDA;}
 progn {LEX_MSG("lexing progn");
   yylval->tag=_special;yylval->val.special=_progn;return TOK_SPECIAL;}
 if {LEX_MSG("lexing if");

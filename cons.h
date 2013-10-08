@@ -31,7 +31,7 @@ static sexp Cons(sexp car_cell,sexp cdr_cell){
   retval.tag=_cons;
   retval.val.cons=GC_malloc(sizeof(cons));
   retval.val.cons->car=car_cell;
-  retval.val.cons->car=cdr_cell;
+  retval.val.cons->cdr=cdr_cell;
   return retval;
 }
 static inline sexp set_car(sexp cell,sexp new_val){

@@ -32,13 +32,13 @@
   return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
 #define DEFUN_INTERN(lisp_name,c_name)                                  \
-  symbol c_name ## _sym=(symbol){lisp_name,(sexp){.tag=_fun,.val={.fun = &c_name##call}},0}; \
-  symref c_name ## _ptr=&c_name##_sym;                                  \
-  addSym(c_name##_ptr)
+  global_symbol c_name ## _sym=(global_symbol){lisp_name,(sexp){.tag=_fun,.val={.fun = &c_name##call}},0}; \
+  global_symref c_name ## _ptr=&c_name##_sym;                                  \
+  addGlobalSymMacro(c_name##_ptr)
 #define DEFCONST(lisp_name,c_name)              \
-  symbol c_name ## _sym={lisp_name,c_name,0};   \
-  symref c_name ## _ptr=&c_name##_sym;          \
-  addSym(c_name##_ptr);
+  global_symbol c_name ## _sym={lisp_name,c_name,0};   \
+  global_symref c_name ## _ptr=&c_name##_sym;          \
+  addGlobalSymMacro(c_name##_ptr);
 #define MK_PREDICATE(lname,cname,tag)           \
   sexp cname(sexp obj){                         \
   if(obj.tag == tag){                           \
@@ -131,6 +131,7 @@ DEFUN("cdadr",cdadr,1,1);
 DEFUN("cons",Cons,2,2);
 DEFUN("typeName",lisp_typeName,1,1);
 DEFUN("print",lisp_print,1,1);
+DEFUN("reduce",reduce,2,2);
 DEFUN("<",lisp_lt,2,2);
 DEFUN(">",lisp_gt,2,2);
 DEFUN(">=",lisp_gte,2,2);
@@ -153,8 +154,8 @@ DEFUN("log",lisp_log,1,1);
     (goto-char start)
     (replace-regexp-lisp "DEFUN(" "DEFUN_INTERN("))))*/
 #define initPrims()                             \
-  globalSymbolTable.head=NULL;                  \
-  topLevelEnv=(env){.tag = 1,.env={.hash = globalSymbolTable}}; \
+  globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
+  topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head=globalSymbolTable.head}; \
   DEFUN_INTERN("+",lisp_add);                   \
   DEFUN_INTERN("-",lisp_sub);                   \
   DEFUN_INTERN("*",lisp_mul);                   \
@@ -190,8 +191,9 @@ DEFUN("log",lisp_log,1,1);
   DEFUN_INTERN("cadar",cadar);                  \
   DEFUN_INTERN("cdadr",cdadr);                  \
   DEFUN_INTERN("cons",Cons);                    \
-  DEFUN_INTERN("typeName",lisp_typeName);            \
+  DEFUN_INTERN("typeName",lisp_typeName);       \
   DEFUN_INTERN("print",lisp_print);             \
+  DEFUN_INTERN("reduce",reduce);                \
   DEFCONST("Meps",lisp_mach_eps);               \
   DEFCONST("pi",lisp_pi);                       \
   DEFCONST("e",lisp_euler);                     \

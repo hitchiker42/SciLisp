@@ -1,22 +1,53 @@
 #include "common.h"
 //#include "env.h"
-sexp getSymLocal(local_env cur_env,CORD name);
-inline sexp lookupSym(env cur_env,CORD name){
-  if(cur_env.tag==_hash){
-    symref tempsym;
-    getSym(name,tempsym);
-    return (sexp){.tag=_sym,.val={.var=tempsym}};
-  } else {
-    getSymLocal(cur_env.env.local,name);
+local_symref getLocalSym(local_env cur_env,CORD name);
+global_symref getGlobalSym(CORD name){
+  global_symref tempsym;
+  getGlobalSymMacro(name,tempsym);
+  return tempsym;
+}
+symref addGlobalSym(symref Var){
+  global_symref GlobalVar=xmalloc(sizeof(global_symbol));
+  GlobalVar->name=Var->name;
+  GlobalVar->val=Var->val;
+  addGlobalSymMacro(GlobalVar);
+  return toSymref(GlobalVar);
+}
+symref getSym(env cur_env,CORD name){
+  switch(cur_env.tag){
+    case _global:{
+      global_symref tempsym;
+      getGlobalSymMacro(name,tempsym);
+      return (symref)tempsym;
+      //return (sexp){.tag=_sym,.val={.var=tempsym}};
+    }
+    case _local:
+      (symref)getLocalSym((*(local_env*)&cur_env),name);
   }
 }    
-sexp getSymLocal(local_env cur_env,CORD name){
-  local_symbol* local_symref=cur_env.head;
-  while(local_symref != NULL){
-    if(CORD_cmp(local_symref->name,name)){
-      return local_symref->val;      
+local_symref getLocalSym(local_env cur_env,CORD name){
+  local_symref cur_sym=cur_env.head;
+  while(cur_sym != NULL){
+    if(CORD_cmp(cur_sym->name,name)){
+      return cur_sym;      
     }
-    local_symref=local_symref->next;
+    cur_sym=cur_sym->next;
   }
-  lookupSym(&cur_env.enclosing,name);
+  getSym(*cur_env.enclosing,name);
+}
+symref addLocalSym(local_env cur_env,symref Var){
+  local_symref LocalVar=xmalloc(sizeof(local_symbol));
+  LocalVar->next=cur_env.head;
+  LocalVar->name=Var->name;
+  LocalVar->val=Var->val;
+  cur_env.head=LocalVar;
+  return toSymref(LocalVar);
+}
+symref addSym(env cur_env,symref Var){
+  switch (cur_env.tag){
+    case _global:
+      return addGlobalSym(Var);
+    case _local:
+      return addLocalSym((*(local_env*)&cur_env),Var);
+  }
 }

@@ -143,7 +143,7 @@ int main(int argc,char* argv[]){
   fseeko(my_pipe,start_pos,SEEK_SET);
   //eval
   sexp ast=yyparse(my_pipe);
-  sexp result=eval(car(ast));
+  sexp result=global_eval(car(ast));
   //print
   CORD_printf(print(result));puts("\n");
   }

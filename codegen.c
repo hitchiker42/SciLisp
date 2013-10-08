@@ -127,7 +127,7 @@ CORD c_codegen_specials(sexp expr,CORD code){
         handle_error();
       }
       register CORD temp=(cadr(expr).val.var->name);
-      register sexp Var=lookupSym(topLevelEnv,temp);
+      register sexp Var=(sexp){.tag=_sym,.val={.var =getSym(topLevelEnv,temp)}};
       if(Var.val.var){
         //standard lisp behavior, define won't redefine stuff
         if(car(expr).tag == _def){
