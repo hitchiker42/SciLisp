@@ -4,6 +4,7 @@
  ****************************************************************/
 #include "common.h"
 #include "cons.h"
+#include "print.h"
 #define mk_tag_name(tag,name) case tag: return #name
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){
@@ -29,6 +30,9 @@ c_string tag_name(_tag obj_tag){
 c_string typeName(sexp obj){
   return tag_name(obj.tag);
 }
+sexp lisp_typeName(sexp obj){
+  return (sexp){.tag = _str,.val={.cord = CORD_from_char_star(typeName(obj))}};
+}
 CORD print_num_format(sexp obj,CORD format){
   if(!NUMBERP(obj)){return 0;}
   else{
@@ -49,7 +53,7 @@ CORD print_num_format(sexp obj,CORD format){
     return retval;
   }
 }
-CORD print_num(sexp obj){
+inline CORD print_num(sexp obj){
   return print_num_format(obj,0);
 }
 CORD print(sexp obj){
@@ -99,7 +103,7 @@ CORD print(sexp obj){
       while(cur_sym != 0){
         acc=CORD_cat(acc,cur_sym->name);
         cur_sym=cur_sym->next;
-        if(cur_sym){
+        if(cur_sym != 0){
           acc=CORD_cat_char(acc,' ');
         }
       }
@@ -145,6 +149,4 @@ sexp lisp_print(sexp obj){
   CORD_printf("%r\n",print_string);
   return (sexp){.tag=_str,.val={.cord=print_string}};
 }
-sexp lisp_typeName(sexp obj){
-  return (sexp){.tag = _str,.val={.cord = CORD_from_char_star(typeName(obj))}};
-}
+

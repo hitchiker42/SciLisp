@@ -5,6 +5,9 @@
 #include "common.h"
 #include "cons.h"
 jmp_buf ERROR;
+//static fuctions which are really just part of eval, but broken
+//up into seperate functions to modularise eval, and make it 
+//easier to write and understand, should be self explanitory
 static sexp eval_special(sexp expr,env cur_env);
 static sexp call_builtin(sexp expr,env cur_env);
 static sexp call_lambda(sexp expr,env cur_env);
@@ -12,13 +15,16 @@ static sexp eval_def(sexp expr,env cur_env);
 static sexp eval_if(sexp expr,env cur_env);
 static sexp eval_while(sexp expr,env cur_env);
 static sexp eval_lambda(sexp expr,env cur_env);
+//standard error handling function
 static sexp handle_error(void){
   CORD_printf(error_str);
   return NIL;
 }
+//evaluate the lisp expression expr in the environment cur_env
 sexp eval(sexp expr,env cur_env){
   symref tempsym=0;
   switch(expr.tag){
+    //a cons cell must be a function call or a special form
     case _cons:
       if(SYMBOLP(car(expr))){
         sexp curFun=XCAR(expr).val.var->val;
@@ -222,5 +228,35 @@ static inline sexp eval_while(sexp expr,env cur_env){
   return retval;
 }
 static inline sexp call_lambda(sexp expr,env cur_env){
-  return NIL;
+  HERE();
+  local_symref cur_param=XCAR(expr).val.lam->env.head;
+  sexp args=cadr(expr);
+  int minargs=XCAR(expr).val.lam->minargs;
+  int maxargs=XCAR(expr).val.lam->maxargs;
+  int i=0;
+  HERE();
+  while((i<minargs || CONSP(args)) && cur_param != 0){
+    HERE();
+    if(!CONSP(args)){
+      format_error_str("not enough arguments passed to function");
+      handle_error();
+    }
+    HERE();
+    cur_param->val=eval(XCAR(args),cur_env);//set curent formal parameter
+    i++;cur_param=cur_param->next;args=XCDR(args);//update values
+  }
+  HERE();
+  cur_param=XCAR(expr).val.lam->env.head;
+  env closure={.enclosing=XCAR(expr).val.lam->env.enclosing,
+               .head={.local=cur_param},.tag=0};
+  HERE();
+  sexp retval=eval(XCAR(expr).val.lam->body,closure);
+  HERE();
+  PRINT_MSG(print(retval));
+  //clear parameters(I think this is necessary)
+  while(cur_param!=0){
+    cur_param->val=NIL;
+  }
+  HERE();
+  return retval;
 }

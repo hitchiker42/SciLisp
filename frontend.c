@@ -12,6 +12,7 @@
 jmp_buf main_loop,ERROR;
 int quiet_signals=0;
 static char *line_read;
+void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
   if(!quiet_signals){
     fprintf(stderr,"recieved segfault, printing bactrace\n");
@@ -33,7 +34,9 @@ extern FILE* yyin;
  *without an opening one.
  *parens is an int containing the number of currently open parentheses
  *it could probably be a pointer, but I like to keep functions pure
+ *(HA, I wrote that a while ago, but then I added the pure attribute)
  */
+int parens_matched(const char* line,int parens)__attribute__((pure));
 int parens_matched(const char* line,int parens){
   int i=0;
   char cur_char;
@@ -52,6 +55,7 @@ int parens_matched(const char* line,int parens){
 /*read input from file input, parse it into an abstract syntax tree,
  *write c code to c_code file(generate a tmp file if c_code == NULL)
  *and compile the c file with gcc to output file output*/
+int compile(FILE* input,const char *output,FILE* c_code) __attribute__((noreturn));
 int compile(FILE* input,const char *output,FILE* c_code){
     HERE();
     sexp ast=yyparse(input);

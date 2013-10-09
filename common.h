@@ -2,7 +2,7 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
-/*Refactor special forms to use enum type*/
+//global includes
 #ifndef __COMMON_H__
 #define __COMMON_H__
 #include <stdio.h>
@@ -21,10 +21,13 @@
 #include <uthash.h>
 #include <wchar.h>*/
 #include "types.h"
+#include "print.h"
 //#include "lex.yy.h"
+//enable/disable debugging/lexing output
 #define HERE_ON
 //#define VERBOSE_LEXING
 #include "debug.h"
+//common macros, & memory allocation macros
 #define my_abort(str,fmt...) fprintf(stderr,str,##fmt);abort()
 #define my_err(str,fmt...) fprintf(stderr,str,##fmt);return(NIL)
 #define xmalloc GC_MALLOC
@@ -36,16 +39,18 @@
 #define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
+//lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.int64 = 0}};
 static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
+static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 sexp* yylval;
 FILE* yyin;
 static int evalError=0;
-#include "print.h"
-sexp lisp_print(sexp obj);
 extern sexp yyparse(FILE* input);
+//only function externed from eval, so I just put it here
 sexp eval(sexp expr,env cur_env);
+//global localtion of error messages
 CORD error_str;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){
@@ -56,5 +61,4 @@ static inline double getDoubleVal(sexp x){
       return (double)x.val.int64;
   }
 }
-c_string typeName(sexp obj);
 #endif

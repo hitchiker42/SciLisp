@@ -7,31 +7,32 @@
 #include "include/uthash.h"
 #include <wchar.h>
 #include <getopt.h>
-typedef enum _tag _tag;
-typedef enum TOKEN TOKEN;
-typedef enum special_form special_form;
-typedef union data data;
-typedef union env_type env_type;
-typedef union symbol_type symbol_type;
-typedef union funcall funcall;
-typedef union symbol_ref symbol_ref;
-typedef union symbol_val symbol_val;
-typedef struct sexp sexp;
-typedef struct cons cons;
-typedef struct fxn_proto fxn_proto;
-typedef struct symbol symbol;
-typedef struct local_symbol local_symbol;
-typedef struct global_symbol global_symbol;
-typedef struct local_env local_env;
-typedef struct global_env global_env;
-typedef struct env env;
-typedef struct lambda lambda;
-typedef const sexp(*sexp_binop)(sexp,sexp);
-typedef const char* restrict c_string;
-typedef symbol* symref;
-typedef global_symbol* global_symref;
-typedef local_symbol* local_symref;
-typedef fxn_proto* fxn_ptr;
+typedef enum _tag _tag;//different types of a lisp object
+typedef enum TOKEN TOKEN;//type of values returned from yylex
+typedef enum special_form special_form;//different types of special forms
+typedef union data data;//core representation of a lisp object
+typedef union env_type env_type;//generic environment
+typedef union symbol_type symbol_type;//generic symbol
+typedef union funcall funcall;//type of primitive functions
+typedef union symbol_ref symbol_ref;//generic symbol pointer
+typedef union symbol_val symbol_val;//generic symbol
+typedef struct sexp sexp;//type of all lisp objects
+typedef struct cons cons;//cons cell, for lists,pairs and everything else
+typedef struct fxn_proto fxn_proto;//primitive function prototype
+typedef struct symbol symbol;//generic symbol type
+typedef struct local_symbol local_symbol;//type of symbol used in local envs
+typedef struct global_symbol global_symbol;//type of symbol used in global envs
+typedef struct env env;//generic symbol namespace
+typedef struct local_env local_env;//linked list representing a local namespace
+typedef struct global_env global_env;//hash table representing global namespace
+typedef struct lambda lambda;//type of lambda expressions
+typedef const sexp(*sexp_binop)(sexp,sexp);//not used
+typedef const char* restrict c_string;//type of \0 terminated c strings
+typedef symbol* symref;//type of generic symbol referances
+typedef global_symbol* global_symref;//"" global ""
+typedef local_symbol* local_symref;//"" local ""
+typedef fxn_proto* fxn_ptr;//pointer to primitive function
+//c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
 #define CONSP(obj) (obj.tag == _cons || obj.tag == _list)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
@@ -45,6 +46,7 @@ typedef fxn_proto* fxn_ptr;
 #define LAMBDAP(obj) (obj.tag == _lam)
 #define NUM_TYPES 16
 enum _tag {
+  _false = -3,
   _uninterned = -2,
   _nil = -1,
   _cons = 0,
@@ -107,8 +109,8 @@ union data {
 };
 struct sexp{
   _tag tag;
-  short len;
-  short meta;
+  short len;//length of a list, array or string
+  short meta;//random meta data, needs to be an enum at some point
   data val;
 };
 struct cons{
@@ -162,25 +164,6 @@ struct fxn_proto{
 #define FCNAME(fxn) fxn.val.fun->cname
 #define FLNAME(fxn) fxn.val.fun->lispname
 #define F_CALL(fxn) fxn.val.fun->fxn_call
-/*would like to change this to
-struct symbol{
-  CORD name;
-  sexp val;
-};
-struct global_symbol{
-  CORD name;
-  sexp val;
-  UT_hash_handle hh;
-  };
-then we do
-union symbols{
-  global_symbol global;
-  local_symbol local;
-};
-and finally
-symbols sym={.global = *symref_of_something};
-symbol var = *(symbol*)&sym
-*/
 struct symbol{
   CORD name;
   sexp val;
@@ -224,18 +207,21 @@ struct lambda{
   short minargs,maxargs;
   sexp body;
 };
+//aviable command line options
 static struct option long_options[] = {
   {"output",required_argument,0,'o'},
   {0       ,0                ,0,0  }
 };
 global_env globalSymbolTable;
 env topLevelEnv;
+//basically env.h(move to seperate file?)
 local_symref getLocalSym(local_env cur_env,CORD name);
 global_symref getGlobalSym(CORD name);
 symref getSym(env cur_env,CORD name);
 symref addSym(env cur_env,symref Var);
 symref addGlobalSym(symref Var);
 symref addLocalSym(local_env cur_env,symref Var);
+//type punning macros
 #define toSymbol(sym) (*(symbol*)&sym)
 #define toSymref(ref) (*(symref*)&(ref))
 static inline size_t symbolSize(env cur_env){
@@ -251,6 +237,7 @@ static inline size_t symbolSize(env cur_env){
 #define addGlobalSymMacro(Var)                                               \
   HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
+//literal objects for each type
 #define mkTypeSym(name,mval)                                    \
   static const sexp name = {.tag=-2, .val={.meta = mval}}
 mkTypeSym(Quninterned,-2);
@@ -271,11 +258,13 @@ mkTypeSym(Qtrue,11);
 //static sexp typeOf(sexp obj){
 //  return typeArray[obj.tag+2];
 //}
+//defines what values are considered false
 #define isTrue(x)                                            \
-  (x.tag == _nil ? 0 :                                       \
-    (x.tag == _long ? (x.val.int64 == 0 ? 0 : 1) :         \
-     (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1)))
-    
+  (x.tag == _false ? 0 :                                     \
+    (x.tag == _nil ? 0 :                                     \
+     (x.tag == _long ? (x.val.int64 == 0 ? 0 : 1) :             \
+      (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1))))
+//possible compilier backends
 enum backend{
   c=0,
   llvm=1,

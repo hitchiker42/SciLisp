@@ -14,6 +14,7 @@ jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
+static void handle_error() __attribute__((noreturn));
 static void handle_error(){
   evalError=1;
   longjmp(ERROR,-1);
@@ -219,7 +220,7 @@ sexp parse_atom(){
       nextTok();
       sexp retval;
       int size=8,i=-1;
-      data* arr=retval.val.array=xmalloc(size*sizeof(data));      
+      data* arr=retval.val.array=xmalloc_atomic(size*sizeof(data));      
       retval.tag=_array;
       HERE();
       _tag arrType=yylval->tag;
@@ -261,10 +262,14 @@ sexp parse_sexp(){
   if(yytag == TOK_LPAREN){return parse_cons();}
   else{return parse_atom();}
 }
-sexp lispRead(CORD code){
+sexp lispRead(CORD code) __attribute__((pure));
+sexp lispRead(CORD code) {
   char* stringBuf = CORD_to_char_star(code);
   FILE* stringStream = fmemopen(stringBuf,CORD_len(code),"r");
   yyin=stringStream;
   nextTok();
   return parse_sexp();
 }
+
+
+
