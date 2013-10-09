@@ -41,12 +41,11 @@ static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 sexp* yylval;
 FILE* yyin;
+static int evalError=0;
 #include "print.h"
 sexp lisp_print(sexp obj);
 extern sexp yyparse(FILE* input);
-CORD codegen(FILE* outfile,sexp ast,enum backend backend);
-extern sexp eval(sexp expr,env cur_env);
-#define global_eval(expr) eval(expr,topLevelEnv)
+sexp eval(sexp expr,env cur_env);
 CORD error_str;
 static c_string output_file="a.out";
 static inline double getDoubleVal(sexp x){

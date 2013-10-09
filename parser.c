@@ -1,4 +1,4 @@
-/*****************************************************************
+ /*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
@@ -7,10 +7,6 @@
 #include "lex.yy.h"
 /*Memory is falling out of scope somewhere, need to find out where*/
 #define nextTok() (yytag=yylex())
-#define CAR(cons_sexp) cons_sexp.val.cons->car
-#define CDR(cons_sexp) cons_sexp.val.cons->cdr
-//#define CAR car
-//#define CDR cdr
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
 TOKEN yytag;//current token
@@ -18,7 +14,8 @@ jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
-static inline void handle_error(){
+static void handle_error(){
+  evalError=1;
   longjmp(ERROR,-1);
 }
 static inline sexp parse_list(){
@@ -65,7 +62,6 @@ sexp yyparse(FILE* input){
     if(yylval){free(yylval);}
     return NIL;
   } else{
-    yytag=-1;
     yyin=input;
     ast.tag=_cons;
     cons* cur_pos=ast.val.cons=xmalloc(sizeof(cons));
@@ -115,7 +111,7 @@ sexp parse_cons(){
     tmpsym->val=UNBOUND;
     result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
     }
-  } else if(yytag=TOK_LAMBDA){
+  } else if(yytag==TOK_LAMBDA){
     sexp retval;
     retval.val.cons=xmalloc(sizeof(cons));
     retval.tag=_cons;
@@ -219,19 +215,25 @@ sexp parse_atom(){
         return (sexp){.tag=_sym,.val={.var = tmpsym}};
       }
     case TOK_LBRACE:
+      HERE();
       nextTok();
       sexp retval;
       int size=8,i=-1;
-      data* arr=retval.val.array=xmalloc_atomic(size*sizeof(data));
+      data* arr=retval.val.array=xmalloc(size*sizeof(data));      
       retval.tag=_array;
+      HERE();
       _tag arrType=yylval->tag;
-      if (arrType != _double || arrType!=_long){
+      PRINT_MSG(tag_name(arrType));
+      if (arrType != _double && arrType!=_long){
+        HERE();
         CORD_sprintf(&error_str,
                      "Arrays of type %s are unimplemented\n",arrType);
         handle_error();
       }
+      retval.meta=(arrType == _double?1:2);
       do{
-        if(i++>size){
+        if(i++>=size){
+          HERE();
           arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(data));
         }
         switch (arrType){
@@ -243,6 +245,8 @@ sexp parse_atom(){
             my_abort("How'd you get here?");
         }
       } while(nextTok() != TOK_RBRACE);
+      retval.len=i+1;
+      PRINT_FMT("len = %d",i+1);
       return retval;
     case TOK_STRING:
       return *yylval;

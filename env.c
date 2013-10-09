@@ -11,6 +11,7 @@ symref addGlobalSym(symref Var){
   GlobalVar->name=Var->name;
   GlobalVar->val=Var->val;
   addGlobalSymMacro(GlobalVar);
+  PRINT_MSG(GlobalVar->name);
   return toSymref(GlobalVar);
 }
 symref getSym(env cur_env,CORD name){
@@ -18,18 +19,18 @@ symref getSym(env cur_env,CORD name){
     case _global:{
       global_symref tempsym;
       getGlobalSymMacro(name,tempsym);
-      return (symref)tempsym;
+      return *(symref*)&tempsym;
       //return (sexp){.tag=_sym,.val={.var=tempsym}};
     }
     case _local:
-      (symref)getLocalSym((*(local_env*)&cur_env),name);
+      return (symref)getLocalSym((*(local_env*)&cur_env),name);
   }
-}    
+}
 local_symref getLocalSym(local_env cur_env,CORD name){
   local_symref cur_sym=cur_env.head;
   while(cur_sym != NULL){
     if(CORD_cmp(cur_sym->name,name)){
-      return cur_sym;      
+      return cur_sym;
     }
     cur_sym=cur_sym->next;
   }

@@ -21,7 +21,7 @@ sexp eval(sexp expr,env cur_env){
   switch(expr.tag){
     case _cons:
       if(SYMBOLP(car(expr))){
-        sexp curFun=car(expr).val.var->val;
+        sexp curFun=XCAR(expr).val.var->val;
         if(LAMBDAP(curFun)){
           return call_lambda(expr,cur_env);
         }
@@ -72,13 +72,13 @@ static inline sexp call_builtin(sexp expr,env cur_env){
                      FLNAME(curFun));                                   \
         goto ERROR;                                                     \
       } else {                                                          \
-        args##numargs[i]=eval(car(cur_arg),cur_env);                    \
-          cur_arg=cdr(cur_arg);                                         \
+        args##numargs[i]=eval(XCAR(cur_arg),cur_env);                    \
+          cur_arg=XCDR(cur_arg);                                         \
       }                                                                 \
     }
   switch (FMAX_ARGS(curFun)){
     case 0:
-      if(!NILP(cdr(expr))){
+      if(!NILP(XCDR(expr))){
         CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
                      FLNAME(curFun));
       } else {
@@ -121,15 +121,18 @@ static inline sexp eval_special(sexp expr,env cur_env){
       return eval_def(expr,cur_env);
     case _setq: 
       newSym = getSym(cur_env,cadr(expr).val.var->name);
+      sexp symVal=eval(caddr(expr),cur_env);
       if(!newSym){
-        CORD_sprintf(&error_str,"%s is not a symbol",print(cadr(expr)));
-        handle_error();
-      } else {
-        sexp symVal=eval(caddr(expr),cur_env);
+        //NEED TO MAKE GENERIC
+        newSym=xmalloc(sizeof(global_symbol));
+        newSym->name=(cadr(expr).val.var->name);
+        newSym=addSym(cur_env,newSym);
         newSym->val=symVal;
+      } else {
+        newSym->val=symVal;
+      }
         HERE();
         return (sexp){.tag = _sym,.val={.var = newSym}};
-      }
     case _lambda: 
       return eval_lambda(expr,cur_env);
     case _if: 
@@ -184,7 +187,7 @@ static inline sexp eval_def(sexp expr,env cur_env){
   //should i go with the lisp standard of define only assigning
   //to a value once or not?
   symref newSym;
-  PRINT_FMT("%s",typeName(cadr(expr)));
+  //PRINT_FMT("%s",typeName(cadr(expr)));  
   newSym=getSym(cur_env,cadr(expr).val.var->name);
   sexp symVal=eval(caddr(expr),cur_env);
   if(!newSym){

@@ -6,6 +6,7 @@
 #include "prim.h"
 #include "lex.yy.h"
 #include "print.h"
+#include "codegen.h"
 #include <readline/readline.h>
 #include <readline/history.h>
 jmp_buf main_loop,ERROR;
@@ -17,6 +18,10 @@ void handle_sigsegv(int signal){
     print_trace();
   }
   exit(1);
+}
+static void fastforward(FILE* stream){
+  fflush(stream);
+  fseeko(stream,0,SEEK_END);
 }
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
 const struct sigaction* restrict sigsegv_action=&action_object;
@@ -50,8 +55,11 @@ int parens_matched(const char* line,int parens){
 int compile(FILE* input,const char *output,FILE* c_code){
     HERE();
     sexp ast=yyparse(input);
-    HERE();
-    CORD_printf("%r\n",print(car(ast)));
+    if(NILP(ast)){
+      CORD_printf("parsing failed exiting compiler\n");
+      exit(1);
+    }      
+    CORD_printf("%r\n",print(XCAR(ast)));
     //codegen(output,c_code,ast);
     exit(0);
 }
@@ -134,17 +142,21 @@ int main(int argc,char* argv[]){
   yyin=my_pipe;
   rl_set_signals();
   puts("SciLisp  Copyright (C) 2013  Tucker DiNapoli");
+  sexp ast,result;
  REPL:while(1){
-    if(setjmp(ERROR)){
-      printf(error_str);
+    if(setjmp(ERROR)){printf(error_str);}
+    if(evalError){fastforward(my_pipe);evalError=0;}      
+    //read
+    start_pos=lispReadLine(my_pipe,tmpFile);
+    fseeko(my_pipe,start_pos,SEEK_SET);
+    //eval
+    ast=yyparse(my_pipe);
+    if(!NILP(ast)){
+      result=eval(XCAR(ast),topLevelEnv);
+    } else {
+      result=NIL;
     }
-  //read
-  start_pos=lispReadLine(my_pipe,tmpFile);
-  fseeko(my_pipe,start_pos,SEEK_SET);
-  //eval
-  sexp ast=yyparse(my_pipe);
-  sexp result=global_eval(car(ast));
-  //print
-  CORD_printf(print(result));puts("\n");
+    //print
+    CORD_printf(print(result));puts("\n");
   }
 }

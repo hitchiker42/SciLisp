@@ -5,8 +5,11 @@ else
 OPT_FLAG:=-Og
 endif
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING
-WARNING_FLAGS=-Wall -Wno-switch -Wno-unused
-XCFLAGS=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(WARNING_FLAGS) $(XLDFLAGS)
+# -Wsuggest-attribute=pure  maybe add this warning for looking for optimizations
+WARNING_FLAGS=-Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare\
+-Wmissing-field-initializers 
+XCFLAGS=-ggdb $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(WARNING_FLAGS) $(XLDFLAGS)
+XCFLAGS_NOWARN=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
 XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
 LEX:=flex
 YACC:=bison
@@ -21,7 +24,7 @@ SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
-	$(CC) $(XCFLAGS) -c lex.yy.c -o lex.yy.o
+	$(CC) $(XCFLAGS_NOWARN) -c lex.yy.c -o lex.yy.o
 quiet: 
 	CFLAGS="$(CFLAGS)$(QUIET_FLAGS)" $(MAKE) all
 force:
@@ -38,8 +41,13 @@ frontend.o: frontend.c $(COMMON_HEADERS) prim.h
 	$(CC) $(XCFLAGS) -c frontend.c -o frontend.o
 eval.o: eval.c $(COMMON_HEADERS) cons.h
 	$(CC) $(XCFLAGS) -c eval.c -o eval.o
-codegen.o: codegen.c $(COMMON_HEADERS) prim.h
-	$(CC) $(XCFLAGS) -c codegen.c -o codegen.o
+codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
+	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
+# or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
+c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
+	$(CC) $(XCFLAGS) -c c_codegen.c -o c_codegen.o
+llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.c cons.h
+	$(CC) $(XCFLAGS) -c llvm_codegen.c -o llvm_codegen.o
 env.o: env.c $(COMMON_HEADERS)
 	$(CC) $(XCFLAGS) -c env.c -o env.o
 clean:

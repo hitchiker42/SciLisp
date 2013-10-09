@@ -25,7 +25,7 @@ sexp mklist(sexp head,...){
 sexp mkImproper(sexp head,...){
   PRINT_MSG("Making an improper list");
   cons* list=xmalloc(sizeof(cons)),*next=xmalloc(sizeof(cons));
-  list->car=head;  
+  list->car=head;
   va_list ap;
   sexp cur_loc,next_sexp;
   cons*next_cell;
@@ -40,29 +40,26 @@ sexp mkImproper(sexp head,...){
   next->cdr=cur_loc;
   return (sexp){.tag=_cons,.val={.cons=list}};
 }
-#define CAR(cell) cell->car
-#define CDR(cell) cell->cdr
+
 sexp nreverse(sexp ls){
-  cons* cur_cell=ls.val.cons,*next_cell=CDR(cur_cell).val.cons;
+  cons* cur_cell=ls.val.cons,*next_cell=cur_cell->cdr.val.cons;
   sexp last_val=NIL;
-  while(!NILP(CDR(cur_cell))){
-    CDR(cur_cell)=last_val;//update ptr of current cell
-    last_val=CDR(next_cell);//get ptr to current cell
+  while(!NILP(cur_cell->cdr)){
+    cur_cell->cdr=last_val;//update ptr of current cell
+    last_val=next_cell->cdr;//get ptr to current cell
     cur_cell=next_cell;//update current cell
-    next_cell=CDR(cur_cell).val.cons;//update next cell, unchecked union access
-  } 
-  CDR(cur_cell)=last_val;
+    next_cell=cur_cell->cdr.val.cons;//update next cell, unchecked union access
+  }
+  cur_cell->cdr=last_val;
   return cons_sexp(cur_cell);
 }
-#undef CAR
-#undef CDR    
-    
-    
+
+
 sexp reduce(sexp ls,sexp reduce_fn){
   if(!CONSP(ls) || !FUNP(reduce_fn)){
     //error;
   }
-  sexp result=car(ls);
+  sexp result=XCAR(ls);
   sexp(*f)(sexp,sexp);
   switch(reduce_fn.tag){
     case _fun:
@@ -71,9 +68,9 @@ sexp reduce(sexp ls,sexp reduce_fn){
     case _lam:
       break;
   }
-  while(cdr(ls).tag != _nil){
-    ls=cdr(ls);
-    result=f(car(ls),result);
+  while(CONSP(cdr(ls))){
+    ls=XCDR(ls);
+    result=f(XCAR(ls),result);
   }
   return result;
 }
@@ -83,15 +80,15 @@ sexp mapcar(sexp ls,sexp map_fn){
   }
   sexp result;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
-  result.tag=_cons;  
+  result.tag=_cons;
   sexp(*f)(sexp)=map_fn.val.fun->fxn_call.f1;
-  while(!NILP(cdr(ls))){
+  while(!NILP(XCDR(ls))){
     cur_cell->car=f(car(ls));
     cur_cell->cdr.val.cons=xmalloc(sizeof(cons));
     cur_cell=cur_cell->cdr.val.cons;
-    ls=cdr(ls);
+    ls=XCDR(ls);
   }
-  cur_cell->car=f(car(ls));
+  cur_cell->car=f(XCAR(ls));
   cur_cell->cdr=NIL;
   return result;
 }

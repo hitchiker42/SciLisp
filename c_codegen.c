@@ -1,30 +1,5 @@
-/*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
-//Idea
-//make a cfg, identify basic blocks and assign an sexp value to
-//each basic block
-
-#include "common.h"
-#include "cons.h"
-#include "prim.h"
-#include <assert.h>
-symref tempsym;
-CORD c_codegen(sexp ast);
+#include "codegen.h"
 int tmp_counter=0;
-//lazy fillin untill I add better error handling
-static void handle_error(){abort();}
-CORD codegen(FILE* outfile,sexp ast,enum backend backend){
-  switch(backend){
-    case 0:
-      ;//WHAT?!?!, why is this necessary
-      CORD c_code=c_codegen(ast);
-      return c_code;
-    default:
-      return "";
-  }
-}
 c_string get_cType(sexp obj){
   switch(obj.tag){
     case _cons:
@@ -130,7 +105,7 @@ CORD c_codegen_specials(sexp expr,CORD code){
       register sexp Var=(sexp){.tag=_sym,.val={.var =getSym(topLevelEnv,temp)}};
       if(Var.val.var){
         //standard lisp behavior, define won't redefine stuff
-        if(car(expr).tag == _def){
+        if(car(expr).val.special == _def){
           return "";
         }
       }
@@ -139,6 +114,11 @@ CORD c_codegen_specials(sexp expr,CORD code){
                     CORD_cat(to_c_symbol(temp),
                              CORD_cat(" = ",c_codegen_sub(cddr(expr)))));      
       return temp;
+    default:
+      return "";
   }
 }
-CORD c_codegen_functions(sexp expr,CORD code){}
+CORD c_codegen_functions(sexp expr,CORD code){
+  return "";
+}
+

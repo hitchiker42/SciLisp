@@ -111,6 +111,30 @@ CORD print(sexp obj){
                     print((sexp){.tag=_lenv,.val={.lenv =obj.val.lam->env.head}})
                     ," ",print(obj.val.lam->body),")");
       return CORD_balance(acc);
+    case _array:
+      acc="[";
+      int i;
+      CORD format=0;
+      data* arr=obj.val.array;
+      PRINT_FMT("len = %d",obj.len);
+      if(obj.meta==1){
+        for(i=0;i<obj.len;i++){
+          CORD_sprintf(&format,"%f",arr[i].real64);
+          acc=CORD_cat(acc,format);
+          if(i<obj.len-1){
+            acc=CORD_cat_char(acc,' ');
+          }
+        }
+      } else {
+        for(i=0;i<obj.len;i++){
+          CORD_sprintf(&format,"%d",arr[i].int64);
+          acc=CORD_cat(acc,format);
+          if(i<obj.len-1){
+            acc=CORD_cat_char(acc,' ');
+          }
+        }
+      }
+      return CORD_balance(CORD_cat(acc,"]"));
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;

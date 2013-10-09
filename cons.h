@@ -49,6 +49,20 @@ static inline sexp cddar(sexp cell){return cdr(cdr(car(cell)));}
 static inline sexp cdaar(sexp cell){return cdr(car(car(cell)));}
 static inline sexp cadar(sexp cell){return car(cdr(car(cell)));}
 static inline sexp cdadr(sexp cell){return cdr(car(cdr(cell)));}
+#define XCAR(cell) cell.val.cons->car
+#define XCDR(cell) cell.val.cons->cdr
+#define XCAAR(cell) XCAR(XCAR(cell))
+#define XCADR(cell) XCAR(XCDR(cell))
+#define XCDAR(cell) XCDR(XCAR(cell))
+#define XCDDR(cell) XCDR(XCDR(cell))
+#define XCAAAR(cell) XCAR(XCAR(XCAR(cell)))
+#define XCAADR(cell) XCAR(XCAR(XCDR(cell)))
+#define XCADDR(cell) XCAR(XCDR(XCDR(cell)))
+#define XCDDDR(cell) XCDR(XCDR(XCDR(cell)))
+#define XCDDAR(cell) XCDR(XCDR(XCAR(cell)))
+#define XCDAAR(cell) XCDR(XCAR(XCAR(cell)))
+#define XCADAR(cell) XCAR(XCDR(XCAR(cell)))
+#define XCDADR(cell) XCDR(XCAR(XCDR(cell)))
 #endif
 
 

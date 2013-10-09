@@ -9,7 +9,7 @@
 #include "print.h"
 #define binop_to_fun(op,fun_name)                       \
   static inline sexp fun_name(sexp x,sexp y){           \
-    if(x.tag==y.tag==_long){return                      \
+    if((x.tag==y.tag)==_long){return                                    \
         (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}};} \
     else {                                              \
       register double xx=getDoubleVal(x);               \
@@ -18,7 +18,7 @@
   }
 #define mkLisp_cmp(op,cname)                                    \
   static inline sexp cname(sexp x,sexp y){                           \
-    if(x.tag == y.tag==_long){                                  \
+    if((x.tag == y.tag)==_long){                                     \
       return (x.val.int64 op y.val.int64 ? LISP_TRUE : NIL);    \
         } else {                                                \
       register double xx=getDoubleVal(x);                       \
@@ -93,9 +93,21 @@ mkMathFun1(sin,lisp_sin);
 mkMathFun1(tan,lisp_tan);
 mkMathFun1(exp,lisp_exp);
 mkMathFun1(log,lisp_log);
-static long ash(long x,long y){
-  if(y<=0){return x >> y;}
-  else{return x<<(-y);}
+static inline sexp lisp_abs(sexp x){
+    if(x.tag==_long){return
+        (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};}
+    else {
+      return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};}
+}
+static inline sexp ash(sexp x,sexp y){
+  if(y.tag != _long || x.tag != _long){
+    fprintf(stderr,"arguments to ash must be integers");
+    return NIL;
+  } else if(y.val.int64>=0){
+    return lisp_rshift(x,y);
+  } else{
+    return lisp_lshift(x,(sexp){.tag=_long,.val={.int64 = (labs(y.val.int64))}});
+  }
 }
 /*static sexp funcall(sexp fn,sexp args){
   local_symbol* cur_arg = fn.val.lam->env.head;
@@ -145,6 +157,8 @@ DEFUN("sin",lisp_sin,1,1);
 DEFUN("tan",lisp_tan,1,1);
 DEFUN("exp",lisp_exp,1,1);
 DEFUN("log",lisp_log,1,1);
+DEFUN("abs",lisp_abs,1,1);
+DEFUN("ash",ash,2,2);
 /*
   (defun SciLisp-mkIntern ()
     (interactive)
@@ -155,7 +169,7 @@ DEFUN("log",lisp_log,1,1);
     (replace-regexp-lisp "DEFUN(" "DEFUN_INTERN("))))*/
 #define initPrims()                             \
   globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
-  topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head=globalSymbolTable.head}; \
+  topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
   DEFUN_INTERN("+",lisp_add);                   \
   DEFUN_INTERN("-",lisp_sub);                   \
   DEFUN_INTERN("*",lisp_mul);                   \
@@ -194,6 +208,8 @@ DEFUN("log",lisp_log,1,1);
   DEFUN_INTERN("typeName",lisp_typeName);       \
   DEFUN_INTERN("print",lisp_print);             \
   DEFUN_INTERN("reduce",reduce);                \
+  DEFUN_INTERN("abs",lisp_abs);                 \
+  DEFUN_INTERN("ash",ash);                      \
   DEFCONST("Meps",lisp_mach_eps);               \
   DEFCONST("pi",lisp_pi);                       \
   DEFCONST("e",lisp_euler);                     \
