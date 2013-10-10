@@ -210,6 +210,7 @@ struct lambda{
 //aviable command line options
 static struct option long_options[] = {
   {"output",required_argument,0,'o'},
+  {"eval",  required_argument,0,'e'},
   {0       ,0                ,0,0  }
 };
 global_env globalSymbolTable;
@@ -230,7 +231,7 @@ static inline size_t symbolSize(env cur_env){
       return sizeof(global_symbol);
     case _local:
       return sizeof(local_symbol);
-  }
+ }
 }
 #define getGlobalSymMacro(name,Var)                                  \
   HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)

@@ -126,11 +126,26 @@ int main(int argc,char* argv[]){
   // read a binary file containing a prepopulaed syntax table;
   int c;
   while(1){
-    c=getopt_long(argc,argv,"o:",long_options,NULL);
+    c=getopt_long(argc,argv,"o:e:",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
         output_file=optarg;
+      case 'e':{
+        sexp ast ;
+        FILE* file=fopen(optarg,"r");
+        if(!file){
+          ast=lispRead(optarg);
+        } else {
+          ast = yyparse(file);
+        }
+        while (CONSP(ast)){
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          CORD_printf(print(result));puts("");
+          ast=XCDR(ast);
+        }
+        exit(0);
+      }
     }
   }
   if(optind < argc){
@@ -153,7 +168,7 @@ int main(int argc,char* argv[]){
     //read
     start_pos=lispReadLine(my_pipe,tmpFile);
     fseeko(my_pipe,start_pos,SEEK_SET);
-    //eval
+    //eval;
     ast=yyparse(my_pipe);
     if(!NILP(ast)){
       result=eval(XCAR(ast),topLevelEnv);

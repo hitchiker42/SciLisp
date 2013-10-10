@@ -50,6 +50,7 @@ static int evalError=0;
 extern sexp yyparse(FILE* input);
 //only function externed from eval, so I just put it here
 sexp eval(sexp expr,env cur_env);
+sexp lispRead(CORD code) __attribute__((pure));
 //global localtion of error messages
 CORD error_str;
 static c_string output_file="a.out";

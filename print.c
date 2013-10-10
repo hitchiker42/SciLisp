@@ -129,7 +129,7 @@ CORD print(sexp obj){
             acc=CORD_cat_char(acc,' ');
           }
         }
-      } else {
+      } else {;
         for(i=0;i<obj.len;i++){
           CORD_sprintf(&format,"%d",arr[i].int64);
           acc=CORD_cat(acc,format);
@@ -139,6 +139,8 @@ CORD print(sexp obj){
         }
       }
       return CORD_balance(CORD_cat(acc,"]"));
+    case _special:
+      return "Got special form";
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;

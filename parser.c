@@ -38,8 +38,9 @@ static inline sexp parse_arg_list(){
   int i=0;
   retval.tag=_lenv;
   local_symref cur_sym=retval.val.lenv=xmalloc(sizeof(local_symbol));
+  local_symref prev_sym=cur_sym;
   while(nextTok() != TOK_RPAREN){
-    PRINT_FMT("yytag = %d",yytag);
+    //PRINT_FMT("yytag = %d",yytag);
     if(yytag != TOK_ID){
       format_error_str("function arguments must be identifiers");
       handle_error();
@@ -47,10 +48,11 @@ static inline sexp parse_arg_list(){
     cur_sym->name=yylval->val.cord;
     cur_sym->val=UNBOUND;
     cur_sym->next=xmalloc(sizeof(local_symbol));
+    prev_sym=cur_sym;
     cur_sym=cur_sym->next;
     i++;
   };
-  cur_sym=0;
+  prev_sym->next=0;
   retval.len=i;
   return retval;
 }
@@ -117,19 +119,29 @@ sexp parse_cons(){
     retval.val.cons=xmalloc(sizeof(cons));
     retval.tag=_cons;
     retval.val.cons->car=*yylval;
-    if(nextTok() != TOK_LPAREN){
+    sexp fake_retval=retval;
+  TEST_ARG_LIST:if(nextTok() != TOK_LPAREN){
+      if(retval.val.cons->car.val.special == _defun){
+        retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+        fake_retval=XCDR(retval);
+        XCAR(fake_retval)=*yylval;
+        goto TEST_ARG_LIST;
+      }  else{
       format_error_str("expected argument list following lambda or defun");
       handle_error();
+      }
     }
     cons* temp;
-    temp=retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+    temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
     temp->car=parse_arg_list();
-    PRINT_MSG(tag_name(cdar(retval).tag));
+    //    PRINT_MSG(tag_name(temp->car.tag));
     temp->cdr.val.cons=xmalloc(sizeof(cons));
     temp=temp->cdr.val.cons;
     temp->cdr=NIL;
+    HERE();
     if(nextTok() == TOK_LPAREN){
       temp->car=parse_list();
+      temp->car.tag=_cons;
     } else {
       temp->car=parse_atom();
     }
@@ -248,6 +260,7 @@ sexp parse_atom(){
       } while(nextTok() != TOK_RBRACE);
       retval.len=i+1;
       PRINT_FMT("len = %d",i+1);
+      PRINT_MSG(print(retval));
       return retval;
     case TOK_STRING:
       return *yylval;
@@ -262,7 +275,7 @@ sexp parse_sexp(){
   if(yytag == TOK_LPAREN){return parse_cons();}
   else{return parse_atom();}
 }
-sexp lispRead(CORD code) __attribute__((pure));
+
 sexp lispRead(CORD code) {
   char* stringBuf = CORD_to_char_star(code);
   FILE* stringStream = fmemopen(stringBuf,CORD_len(code),"r");

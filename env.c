@@ -29,12 +29,12 @@ symref getSym(env cur_env,CORD name){
 local_symref getLocalSym(local_env cur_env,CORD name){
   local_symref cur_sym=cur_env.head;
   while(cur_sym != NULL){
-    if(CORD_cmp(cur_sym->name,name)){
+    if(!CORD_cmp(cur_sym->name,name)){
       return cur_sym;
     }
     cur_sym=cur_sym->next;
   }
-  getSym(*cur_env.enclosing,name);
+  return (local_symref)getSym(*cur_env.enclosing,name);
 }
 symref addLocalSym(local_env cur_env,symref Var){
   local_symref LocalVar=xmalloc(sizeof(local_symbol));

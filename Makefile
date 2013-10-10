@@ -1,5 +1,5 @@
 ifeq ($(CC),clang)
-OPT_FLAG:=-O1
+OPT_FLAG:=-O2
 WARNING_FLAGS:=-w
 else ifeq ($(CXX),clang++)
 OPT_FLAG:=-O1

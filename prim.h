@@ -31,12 +31,14 @@
   static inline sexp fun_name(sexp x,sexp y){           \
   return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
-#define DEFUN_INTERN(lisp_name,c_name)                                  \
-  global_symbol c_name ## _sym=(global_symbol){lisp_name,(sexp){.tag=_fun,.val={.fun = &c_name##call}},0}; \
-  global_symref c_name ## _ptr=&c_name##_sym;                                  \
-  addGlobalSymMacro(c_name##_ptr)
+/*  global_symbol c_name ## _sym=(global_symbol){lisp_name,(sexp){.tag=_fun,.val={.fun = &c_name##call}},0}; \
+    global_symref c_name ## _ptr=&c_name##_sym;                                  */
+#define DEFUN_INTERN(lname,cname)                                  \
+  global_symbol cname ## _sym=(global_symbol){.name = lname,.val = {.tag=_fun,.val={.fun = &cname##call}}}; \
+  global_symref cname ## _ptr=&cname##_sym;                             \
+  addGlobalSymMacro(cname##_ptr)
 #define DEFCONST(lisp_name,c_name)              \
-  global_symbol c_name ## _sym={lisp_name,c_name,0};   \
+  global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};   \
   global_symref c_name ## _ptr=&c_name##_sym;          \
   addGlobalSymMacro(c_name##_ptr);
 #define MK_PREDICATE(lname,cname,tag)           \
@@ -45,7 +47,7 @@
   return LISP_TRUE;
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   static fxn_proto cname##call=                                 \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
+    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};    
 #define DEFUN_ARGS_0	(void)
 #define DEFUN_ARGS_1	(sexp)
 #define DEFUN_ARGS_2	(sexp, sexp)
@@ -71,21 +73,25 @@
   return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};              \
 }
 //create c functions for primitives
+//arithmatic primitives
 binop_to_fun(+,lisp_add);
 binop_to_fun(-,lisp_sub);
 binop_to_fun(*,lisp_mul);
 binop_to_fun(/,lisp_div);
+//bitwise primitives(need to add !)
 lop_to_fun(^,lisp_xor);
 lop_to_fun(>>,lisp_rshift);
 lop_to_fun(<<,lisp_lshift);
 lop_to_fun(&,lisp_logand);
 lop_to_fun(|,lisp_logor);
+//compairson primitives
 mkLisp_cmp(>,lisp_gt);
 mkLisp_cmp(<,lisp_lt);
 mkLisp_cmp(>=,lisp_gte);
 mkLisp_cmp(<=,lisp_lte);
 mkLisp_cmp(!=,lisp_ne);
 mkLisp_cmp(==,lisp_equals);
+//math primitives
 mkMathFun2(pow,lisp_pow);
 mkMathFun1(sqrt,lisp_sqrt);
 mkMathFun1(cos,lisp_cos);
@@ -98,6 +104,15 @@ static inline sexp lisp_abs(sexp x){
         (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};}
     else {
       return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};}
+}
+static inline sexp lisp_mod(sexp x,sexp y){
+  if((x.tag==y.tag)==_long){
+    return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};
+  } else {
+    register double xx=getDoubleVal(x);               
+    register double yy=getDoubleVal(y);               
+    return (sexp){.tag=_double,.val={.real64=fmod(xx,yy)}};
+  }
 }
 static inline sexp ash(sexp x,sexp y){
   if(y.tag != _long || x.tag != _long){
@@ -159,6 +174,7 @@ DEFUN("exp",lisp_exp,1,1);
 DEFUN("log",lisp_log,1,1);
 DEFUN("abs",lisp_abs,1,1);
 DEFUN("ash",ash,2,2);
+DEFUN("mod",lisp_mod,2,2);
 /*
   (defun SciLisp-mkIntern ()
     (interactive)
@@ -210,9 +226,11 @@ DEFUN("ash",ash,2,2);
   DEFUN_INTERN("reduce",reduce);                \
   DEFUN_INTERN("abs",lisp_abs);                 \
   DEFUN_INTERN("ash",ash);                      \
+  DEFUN_INTERN("mod",lisp_mod);                 \
   DEFCONST("Meps",lisp_mach_eps);               \
   DEFCONST("pi",lisp_pi);                       \
   DEFCONST("e",lisp_euler);                     \
   DEFCONST("nil",NIL);                          \
-  DEFCONST("t",LISP_TRUE);
+  DEFCONST("t",LISP_TRUE);                      \
+  DEFCONST("#f",LISP_FALSE);
 #endif
