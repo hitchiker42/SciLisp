@@ -11,7 +11,7 @@ OPT_FLAG:=-Og
 endif
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING
 # -Wsuggest-attribute=pure|const|noreturn maybe add this warning for looking for optimizations
-WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wsuggest-attribute=pure -Wsuggest-attribute=const -Wsuggest-attribute=noreturn
+WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
 COMMON_CFLAGS=-ggdb $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto 
 XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
 XCFLAGS:=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) 

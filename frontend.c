@@ -24,6 +24,10 @@ static void fastforward(FILE* stream){
   fflush(stream);
   fseeko(stream,0,SEEK_END);
 }
+static void truncate_and_rewind(FILE* stream,c_string name){
+  truncate(name,0);
+  rewind(stream);
+}
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
 const struct sigaction* restrict sigsegv_action=&action_object;
 #define reset_line()       free (line_read);    \
@@ -164,7 +168,7 @@ int main(int argc,char* argv[]){
   sexp ast,result;
  REPL:while(1){
     if(setjmp(ERROR)){printf(error_str);}
-    if(evalError){fastforward(my_pipe);evalError=0;}      
+    if(evalError){truncate_and_rewind(my_pipe,tmpFile);evalError=0;}      
     //read
     start_pos=lispReadLine(my_pipe,tmpFile);
     fseeko(my_pipe,start_pos,SEEK_SET);
