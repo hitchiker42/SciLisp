@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+/*TODO: add quoting in such a way that I can assign a list 
+  to a variable*/
 #include "common.h"
 #include "cons.h"
 jmp_buf ERROR;

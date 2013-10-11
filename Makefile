@@ -25,16 +25,11 @@ FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o #array.o
 BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o
 ASM_FILES :=$(ASM_FILES) eval.c
-<<<<<<< HEAD
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
-LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAGS)
 .PHONY: clean all quiet asm optimized set_quiet set_optimized
-=======
-CFLAGS:=$(CFLAGS) $(XCFLAGS)
 LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
 CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb
 .PHONY: clean all quiet asm
->>>>>>> 5de6271bf0c87825c92c999a2702748234d4186c
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fwhole-program -o $@
@@ -74,10 +69,5 @@ asm: $(ASM_FILES)
 	for i in $(ASM_FILES);do \
 	$(CC) -std=gnu99 $(OPT_FLAGS) -fverbose-asm ../$$i -S;done)
 llvm_ir: $(ASM_FILES)
-<<<<<<< HEAD
-	$(eval $CC := clang -emit-llvm)
-	$(eval $OPT_FLAGS := -O2)
-=======
 	$(eval CC := clang -emit-llvm)
 	$(eval OPT_FLAG := -O2)
->>>>>>> 5de6271bf0c87825c92c999a2702748234d4186c
