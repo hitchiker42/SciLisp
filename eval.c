@@ -58,9 +58,11 @@ sexp eval(sexp expr,env cur_env){
       }
     case _fun:
       return expr;
-
-  default:
-    return expr;
+    case _array:
+      PRINT_FMT("array length = %d",expr.len);
+      return expr;
+    default:
+      return expr;
   }
   ERROR:
   return handle_error();

@@ -71,7 +71,7 @@ CORD print(sexp obj){
       //PRINT_MSG(obj.val.var->name);
       break;
     case _char:
-      CORD_sprintf(&retval,"%lc",obj.val.utf8_char);
+      CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.utf8_char);
       return retval;
     case _nil:
       return "()";
@@ -90,11 +90,13 @@ CORD print(sexp obj){
       }
       return CORD_balance(retval);
     case _uninterned:
-      if(obj.val.meta==11){
-        return "t";
-      } else {
-        return "uninterned symbol";
+      switch(obj.val.meta){
+        case 11:
+          return "t";
+        default:
+          return "uninterned symbol";
       }
+    case _error:
     case _str:
       return obj.val.cord;
     case _lenv:{
@@ -121,7 +123,7 @@ CORD print(sexp obj){
       CORD format=0;
       data* arr=obj.val.array;
       PRINT_FMT("len = %d",obj.len);
-      if(obj.meta==1){
+      if(obj.meta==_double_array){
         for(i=0;i<obj.len;i++){
           CORD_sprintf(&format,"%f",arr[i].real64);
           acc=CORD_cat(acc,format);
@@ -129,7 +131,7 @@ CORD print(sexp obj){
             acc=CORD_cat_char(acc,' ');
           }
         }
-      } else {;
+      } else if (obj.meta == _long_array){
         for(i=0;i<obj.len;i++){
           CORD_sprintf(&format,"%d",arr[i].int64);
           acc=CORD_cat(acc,format);

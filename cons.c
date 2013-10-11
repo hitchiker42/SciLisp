@@ -92,3 +92,18 @@ sexp mapcar(sexp ls,sexp map_fn){
   cur_cell->cdr=NIL;
   return result;
 }
+static sexp len_acc(sexp ls,long n) __attribute__((pure));
+static sexp len_acc(sexp ls,long n){
+  if(!CONSP(ls)){
+    return (sexp){.tag=_long,.val={.int64=n}};
+  } else {
+    return len_acc(XCDR(ls),n++);
+  }
+}
+sexp cons_length(sexp ls) {
+  if(ls.len > 0){
+    return (sexp){.tag=_long,.val={.int64=ls.len}};
+  } else {
+    return len_acc(ls,0);
+  }
+}

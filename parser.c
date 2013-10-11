@@ -59,6 +59,7 @@ static inline sexp parse_arg_list(){
 sexp yyparse(FILE* input){
   if(setjmp(ERROR)){
     PRINT_MSG("Jumped to error");
+    evalError=1;
     if(error_str){
       CORD_fprintf(stderr,error_str);
     }
@@ -153,18 +154,6 @@ sexp parse_cons(){
     return retval;
   } else {
     return parse_list();
-      /*    sexp retval;
-    retval.tag=_list;
-    cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
-    cons* prev_loc=cur_loc;
-    while(nextTok() != TOK_RPAREN){
-      cur_loc->car=parse_sexp();
-      cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
-      prev_loc=cur_loc;
-      cur_loc=cur_loc->cdr.val.cons;
-    }
-    prev_loc->cdr=NIL;
-    return retval;*/
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
@@ -175,8 +164,7 @@ sexp parse_cons(){
       cons_pos->car=parse_cons();
     } else {
       temp=parse_atom();
-      cons_pos->car.val=temp.val;
-      cons_pos->car.tag=temp.tag;
+      cons_pos->car=temp;
     }
     cons_pos->cdr.val.cons=xmalloc(sizeof(cons));
     old_pos=cons_pos;
@@ -227,6 +215,10 @@ sexp parse_atom(){
         tmpsym->val=UNBOUND;
         return (sexp){.tag=_sym,.val={.var = tmpsym}};
       }
+      /*parse arrays
+        TODO: add per element checks(as of now I only check the first)
+        TODO: allow expressions in arrays (eval them to a # before use)
+      */
     case TOK_LBRACE:
       HERE();
       nextTok();
@@ -237,29 +229,44 @@ sexp parse_atom(){
       HERE();
       _tag arrType=yylval->tag;
       PRINT_MSG(tag_name(arrType));
-      if (arrType != _double && arrType!=_long){
+      if (arrType != _double && arrType!=_long && arrType !=_char){
         HERE();
         CORD_sprintf(&error_str,
                      "Arrays of type %s are unimplemented\n",arrType);
         handle_error();
       }
-      retval.meta=(arrType == _double?1:2);
+      retval.meta=(arrType == _double? 1 :
+                   (arrType == _long ? 2 :
+                    //THIS DOESN'T WORK FOR MAKING UTF8 STRINGS
+                    (arrType == _char? 3 : assert(0),0)));
       do{
         if(i++>=size){
           HERE();
           arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(data));
         }
+        if(yytag !=TOK_REAL && yytag !=TOK_INT && yytag !=TOK_CHAR){
+          handle_error();
+        }
         switch (arrType){
           case _double:
-            arr[i].real64=yylval->val.real64;break;
+            arr[i].real64=getDoubleVal(*yylval);break;
           case _long:
             arr[i].int64=yylval->val.int64;break;
+          case _char:
+            arr[i].utf8_char=yylval->val.utf8_char;break;
           default:
             my_abort("How'd you get here?");
         }
       } while(nextTok() != TOK_RBRACE);
-      retval.len=i+1;
-      PRINT_FMT("len = %d",i+1);
+      i++;//inc i so that i == len of array
+      if(arrType == _char){
+        if(i>=size){
+          arr=retval.val.array=xrealloc(arr,(size+=1)*sizeof(data));
+        }
+        arr[i].utf8_char=L'\0';
+      }
+      retval.len=i;
+      PRINT_FMT("len = %d",i);
       PRINT_MSG(print(retval));
       return retval;
     case TOK_STRING:

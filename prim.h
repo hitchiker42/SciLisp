@@ -6,40 +6,41 @@
 #define __PRIM_H_
 #include "common.h"
 #include "cons.h"
+#include "array.h"
 #include "print.h"
-#define binop_to_fun(op,fun_name)                       \
-  static inline sexp fun_name(sexp x,sexp y){           \
+#define binop_to_fun(op,fun_name)                                       \
+  static inline sexp fun_name(sexp x,sexp y){                           \
     if((x.tag==y.tag)==_long){return                                    \
         (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}};} \
-    else {                                              \
-      register double xx=getDoubleVal(x);               \
-      register double yy=getDoubleVal(y);               \
-      return (sexp){.tag=_double,.val={.real64=(xx op yy)}};}     \
+    else {                                                              \
+      register double xx=getDoubleVal(x);                               \
+      register double yy=getDoubleVal(y);                               \
+      return (sexp){.tag=_double,.val={.real64=(xx op yy)}};}           \
   }
 #define mkLisp_cmp(op,cname)                                    \
-  static inline sexp cname(sexp x,sexp y){                           \
-    if((x.tag == y.tag)==_long){                                     \
+  static inline sexp cname(sexp x,sexp y){                      \
+    if((x.tag == y.tag)==_long){                                \
       return (x.val.int64 op y.val.int64 ? LISP_TRUE : NIL);    \
-        } else {                                                \
+    } else {                                                    \
       register double xx=getDoubleVal(x);                       \
       register double yy=getDoubleVal(y);                       \
       return (xx op yy ? LISP_TRUE : NIL);}                     \
   }
 //ignore tags, allow logical operations on doubles
 //be careful about this
-#define lop_to_fun(op,fun_name)                         \
-  static inline sexp fun_name(sexp x,sexp y){           \
-  return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
+#define lop_to_fun(op,fun_name)                                         \
+  static inline sexp fun_name(sexp x,sexp y){                           \
+    return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
 /*  global_symbol c_name ## _sym=(global_symbol){lisp_name,(sexp){.tag=_fun,.val={.fun = &c_name##call}},0}; \
     global_symref c_name ## _ptr=&c_name##_sym;                                  */
-#define DEFUN_INTERN(lname,cname)                                  \
+#define DEFUN_INTERN(lname,cname)                                       \
   global_symbol cname ## _sym=(global_symbol){.name = lname,.val = {.tag=_fun,.val={.fun = &cname##call}}}; \
   global_symref cname ## _ptr=&cname##_sym;                             \
   addGlobalSymMacro(cname##_ptr)
-#define DEFCONST(lisp_name,c_name)              \
-  global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};   \
-  global_symref c_name ## _ptr=&c_name##_sym;          \
+#define DEFCONST(lisp_name,c_name)                                      \
+  global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};       \
+  global_symref c_name ## _ptr=&c_name##_sym;                           \
   addGlobalSymMacro(c_name##_ptr);
 #define MK_PREDICATE(lname,cname,tag)           \
   sexp cname(sexp obj){                         \
@@ -47,7 +48,10 @@
   return LISP_TRUE;
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   static fxn_proto cname##call=                                 \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};    
+    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
+#define DEFUN_MANY(lname,cname,minargs)                 \
+  static fxn_proto cname##call=                         \
+    { #cname, lname, minargs, -1, {.fmany=cname}};
 #define DEFUN_ARGS_0	(void)
 #define DEFUN_ARGS_1	(sexp)
 #define DEFUN_ARGS_2	(sexp, sexp)
@@ -64,14 +68,14 @@
 #define DEFUN_ARGS_MANY (...)
 #define mkMathFun1(cname,lispname)                                      \
   static sexp lispname (sexp obj){                                      \
-    return (sexp){.tag=_double,.val={.real64 = cname(getDoubleVal(obj))}};        \
+    return (sexp){.tag=_double,.val={.real64 = cname(getDoubleVal(obj))}}; \
   }
 #define mkMathFun2(cname,lispname)                              \
   static sexp lispname(sexp x,sexp y){                          \
-  register double xx=getDoubleVal(x);                           \
-  register double yy=getDoubleVal(y);                           \
-  return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};              \
-}
+    register double xx=getDoubleVal(x);                         \
+    register double yy=getDoubleVal(y);                         \
+    return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
+  }
 //create c functions for primitives
 //arithmatic primitives
 binop_to_fun(+,lisp_add);
@@ -100,17 +104,17 @@ mkMathFun1(tan,lisp_tan);
 mkMathFun1(exp,lisp_exp);
 mkMathFun1(log,lisp_log);
 static inline sexp lisp_abs(sexp x){
-    if(x.tag==_long){return
-        (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};}
-    else {
-      return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};}
+  if(x.tag==_long){return
+      (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};}
+  else {
+    return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};}
 }
 static inline sexp lisp_mod(sexp x,sexp y){
   if((x.tag==y.tag)==_long){
     return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};
   } else {
-    register double xx=getDoubleVal(x);               
-    register double yy=getDoubleVal(y);               
+    register double xx=getDoubleVal(x);
+    register double yy=getDoubleVal(y);
     return (sexp){.tag=_double,.val={.real64=fmod(xx,yy)}};
   }
 }
@@ -127,7 +131,7 @@ static inline sexp ash(sexp x,sexp y){
 /*static sexp funcall(sexp fn,sexp args){
   local_symbol* cur_arg = fn.val.lam->env.head;
   while(CONSP(args) && cur_arg){
-    cur_arg.val = eval(car(args));
+  cur_arg.val = eval(car(args));
   }
   eval_in_env(fn.val.lam->body,fn.val.lam->env);
   }*/
@@ -175,62 +179,80 @@ DEFUN("log",lisp_log,1,1);
 DEFUN("abs",lisp_abs,1,1);
 DEFUN("ash",ash,2,2);
 DEFUN("mod",lisp_mod,2,2);
+DEFUN("aref",aref,2,2);
+DEFUN("array->list",array_to_list,1,1);
+static sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
+DEFUN("eval",lisp_eval,1,1);//welp this is going to fail horribly
+static sexp lisp_length(sexp obj){
+  if(obj.len){
+    return (sexp){.tag=_long,.val={.int64 = obj.len}};
+  } else if (CONSP(obj)){
+    return cons_length(obj);
+  } else {
+    return error_sexp("object does not have a meaningful length field");
+  }
+}
+DEFUN("length",lisp_length,1,1);
 /*
   (defun SciLisp-mkIntern ()
-    (interactive)
-    (let ((start (point)))
-    (save-excursion
-    (replace-regexp-lisp ",[0-9],[0-9]);" ");\\\\")
-    (goto-char start)
-    (replace-regexp-lisp "DEFUN(" "DEFUN_INTERN("))))*/
-#define initPrims()                             \
+  (interactive)
+  (let ((start (point)))
+  (save-excursion
+  (replace-regexp-lisp ",[0-9],[0-9]);" ");\\\\")
+  (goto-char start)
+  (replace-regexp-lisp "DEFUN(" "DEFUN_INTERN("))))*/
+#define initPrims()                                                     \
   globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
   topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
-  DEFUN_INTERN("+",lisp_add);                   \
-  DEFUN_INTERN("-",lisp_sub);                   \
-  DEFUN_INTERN("*",lisp_mul);                   \
-  DEFUN_INTERN("/",lisp_div);                   \
-  DEFUN_INTERN("logxor",lisp_xor);              \
-  DEFUN_INTERN("logand",lisp_logand);           \
-  DEFUN_INTERN("logor",lisp_logor);             \
-  DEFUN_INTERN("car",car);                      \
-  DEFUN_INTERN("cdr",cdr);                      \
-  DEFUN_INTERN("<",lisp_lt);                    \
-  DEFUN_INTERN(">",lisp_gt);                    \
-  DEFUN_INTERN(">=",lisp_gte);                  \
-  DEFUN_INTERN("<=",lisp_lte);                  \
-  DEFUN_INTERN("!=",lisp_ne);                   \
-  DEFUN_INTERN("=",lisp_equals);                \
-  DEFUN_INTERN("expt",lisp_pow);                \
-  DEFUN_INTERN("sqrt",lisp_sqrt);               \
-  DEFUN_INTERN("cos",lisp_cos);                 \
-  DEFUN_INTERN("sin",lisp_sin);                 \
-  DEFUN_INTERN("tan",lisp_tan);                 \
-  DEFUN_INTERN("exp",lisp_exp);                 \
-  DEFUN_INTERN("log",lisp_log);                 \
-  DEFUN_INTERN("caar",caar);                    \
-  DEFUN_INTERN("cadr",cadr);                    \
-  DEFUN_INTERN("cddr",cddr);                    \
-  DEFUN_INTERN("cdar",cdar);                    \
-  DEFUN_INTERN("caaar",caaar);                  \
-  DEFUN_INTERN("caadr",caadr);                  \
-  DEFUN_INTERN("caddr",caddr);                  \
-  DEFUN_INTERN("cdddr",cdddr);                  \
-  DEFUN_INTERN("cddar",cddar);                  \
-  DEFUN_INTERN("cdaar",cdaar);                  \
-  DEFUN_INTERN("cadar",cadar);                  \
-  DEFUN_INTERN("cdadr",cdadr);                  \
-  DEFUN_INTERN("cons",Cons);                    \
-  DEFUN_INTERN("typeName",lisp_typeName);       \
-  DEFUN_INTERN("print",lisp_print);             \
-  DEFUN_INTERN("reduce",reduce);                \
-  DEFUN_INTERN("abs",lisp_abs);                 \
-  DEFUN_INTERN("ash",ash);                      \
-  DEFUN_INTERN("mod",lisp_mod);                 \
-  DEFCONST("Meps",lisp_mach_eps);               \
-  DEFCONST("pi",lisp_pi);                       \
-  DEFCONST("e",lisp_euler);                     \
-  DEFCONST("nil",NIL);                          \
-  DEFCONST("t",LISP_TRUE);                      \
+  DEFUN_INTERN("+",lisp_add);                                           \
+  DEFUN_INTERN("-",lisp_sub);                                           \
+  DEFUN_INTERN("*",lisp_mul);                                           \
+  DEFUN_INTERN("/",lisp_div);                                           \
+  DEFUN_INTERN("logxor",lisp_xor);                                      \
+  DEFUN_INTERN("logand",lisp_logand);                                   \
+  DEFUN_INTERN("logor",lisp_logor);                                     \
+  DEFUN_INTERN("car",car);                                              \
+  DEFUN_INTERN("cdr",cdr);                                              \
+  DEFUN_INTERN("<",lisp_lt);                                            \
+  DEFUN_INTERN(">",lisp_gt);                                            \
+  DEFUN_INTERN(">=",lisp_gte);                                          \
+  DEFUN_INTERN("<=",lisp_lte);                                          \
+  DEFUN_INTERN("!=",lisp_ne);                                           \
+  DEFUN_INTERN("=",lisp_equals);                                        \
+  DEFUN_INTERN("expt",lisp_pow);                                        \
+  DEFUN_INTERN("sqrt",lisp_sqrt);                                       \
+  DEFUN_INTERN("cos",lisp_cos);                                         \
+  DEFUN_INTERN("sin",lisp_sin);                                         \
+  DEFUN_INTERN("tan",lisp_tan);                                         \
+  DEFUN_INTERN("exp",lisp_exp);                                         \
+  DEFUN_INTERN("log",lisp_log);                                         \
+  DEFUN_INTERN("caar",caar);                                            \
+  DEFUN_INTERN("cadr",cadr);                                            \
+  DEFUN_INTERN("cddr",cddr);                                            \
+  DEFUN_INTERN("cdar",cdar);                                            \
+  DEFUN_INTERN("caaar",caaar);                                          \
+  DEFUN_INTERN("caadr",caadr);                                          \
+  DEFUN_INTERN("caddr",caddr);                                          \
+  DEFUN_INTERN("cdddr",cdddr);                                          \
+  DEFUN_INTERN("cddar",cddar);                                          \
+  DEFUN_INTERN("cdaar",cdaar);                                          \
+  DEFUN_INTERN("cadar",cadar);                                          \
+  DEFUN_INTERN("cdadr",cdadr);                                          \
+  DEFUN_INTERN("cons",Cons);                                            \
+  DEFUN_INTERN("typeName",lisp_typeName);                               \
+  DEFUN_INTERN("print",lisp_print);                                     \
+  DEFUN_INTERN("reduce",reduce);                                        \
+  DEFUN_INTERN("abs",lisp_abs);                                         \
+  DEFUN_INTERN("ash",ash);                                              \
+  DEFUN_INTERN("mod",lisp_mod);                                         \
+  DEFUN_INTERN("aref",aref);                                            \
+  DEFUN_INTERN("array->list",array_to_list);                            \
+  DEFUN_INTERN("eval",lisp_eval);                                       \
+  DEFUN_INTERN("length",lisp_length);                                   \
+  DEFCONST("Meps",lisp_mach_eps);                                       \
+  DEFCONST("pi",lisp_pi);                                               \
+  DEFCONST("e",lisp_euler);                                             \
+  DEFCONST("nil",NIL);                                                  \
+  DEFCONST("t",LISP_TRUE);                                              \
   DEFCONST("#f",LISP_FALSE);
 #endif

@@ -41,8 +41,11 @@ union data {
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
 "\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
-"#"("\\|"|"\\#"|"\\\""|[^|#]) {LEX_MSG("lexing char");yylval->tag=_char;
-    yylval->val.utf8_char=(wchar_t)(yytext[1]);return TOK_CHAR;}
+"#\u"{HEX_DIGIT}{4} {fprintf(stderr,
+                             "unicode escapes unimplemented, ignoring input");}
+"#"("\\|"|"\\#"|"\\\""|[^|#]) {LEX_MSG("lexing char");
+  yylval->tag=_char;yylval->val.utf8_char=(wchar_t)(yytext[1]);
+  return TOK_CHAR;}
  /*Special forms, generating function at end of file*/
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}

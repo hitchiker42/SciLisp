@@ -22,15 +22,22 @@ sexp reduce(sexp ls,sexp reduce_fn);
 //create a new list formed by applying map_fn(f(sexp)->sexp) to
 //each element of ls in turn
 sexp mapcar(sexp ls,sexp map_fn);
+//check len field of sexp for length
+//if len==0 compute length using tail recursion
+sexp cons_length(sexp ls)__attribute__((pure));
 //typechecked car function
+static sexp car(sexp cell) __attribute__((pure,hot));
+static sexp cdr(sexp cell) __attribute__((pure,hot));
 static inline sexp car(sexp cell){
   if(NILP(cell)){return NIL;}
-  if(!CONSP(cell)){my_err("Argument not a cons cell\n");}
+  if(!CONSP(cell)){//my_err("Argument not a cons cell\n");}
+    return error_sexp("car error");}
   else return cell.val.cons->car;
 }
 //typechecked cdr function
 static inline sexp cdr(sexp cell){
-  if(!(CONSP(cell))){my_err("Argument not a cons cell\n");}
+  if(!(CONSP(cell))){//my_err("Argument not a cons cell\n");}
+    return error_sexp("cdr error");}
   else return cell.val.cons->cdr;
 }
 //get nth member of a list using typechecked car

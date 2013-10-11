@@ -17,11 +17,11 @@ XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
 XCFLAGS:=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) 
 XCFLAGS_NOWARN=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
 LEX:=flex
-SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h
+SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h
-FRONTEND_SRC:=lex.yy.o parser.o cons.o print.o frontend.o env.o
-FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o
-BACKEND_SRC:=eval.o codegen.o
+FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c #array.c
+FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o #array.o
+BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o
 ASM_FILES :=$(ASM_FILES) eval.c
 CFLAGS:=$(CFLAGS) $(XCFLAGS)
@@ -44,13 +44,14 @@ parser.o: parser.c $(COMMON_HEADERS) cons.h
 cons.o: cons.c $(COMMON_HEADERS) cons.h
 print.o: print.c $(COMMON_HEADERS) cons.h
 frontend.o: frontend.c $(COMMON_HEADERS) prim.h
-eval.o: eval.c $(COMMON_HEADERS) cons.h
+eval.o: eval.c $(COMMON_HEADERS) cons.h array.h
 codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.c cons.h
 env.o: env.c $(COMMON_HEADERS)
+#array.o: array.c $(COMMON_HEADERS)
 clean:
 	rm *.o
 asm: $(ASM_FILES)
@@ -59,5 +60,5 @@ asm: $(ASM_FILES)
 	for i in $(ASM_FILES);do \
 	$(CC) -std=gnu99 $(OPT_FLAG) -fverbose-asm ../$$i -S;done)
 llvm_ir: $(ASM_FILES)
-	$(eval $CC := clang -emit-llvm)
-	$(eval $OPT_FLAG := -O2)
+	$(eval CC := clang -emit-llvm)
+	$(eval OPT_FLAG := -O2)
