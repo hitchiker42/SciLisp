@@ -63,7 +63,6 @@ sexp eval(sexp expr,env cur_env){
       }
     case _fun:
       return expr;
-
     default:
       return expr;
   }

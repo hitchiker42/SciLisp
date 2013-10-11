@@ -15,6 +15,7 @@ int quiet_signals=1;
 #else
 int quiet_signals=0;
 #endif
+int evalError=0;
 static char *line_read;
 void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
@@ -173,7 +174,10 @@ int main(int argc,char* argv[]){
  REPL:while(1){
     fastforward(my_pipe);
     if(setjmp(ERROR)){printf(error_str);}
-    if(evalError){truncate_and_rewind(my_pipe,tmpFile);evalError=0;}
+    if(evalError){
+      truncate_and_rewind(my_pipe,tmpFile);evalError=0;
+      yyrestart(yyin);
+    }
     //read
     start_pos=lispReadLine(my_pipe,tmpFile);
     fseeko(my_pipe,start_pos,SEEK_SET);

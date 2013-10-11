@@ -11,6 +11,7 @@
 typedef enum _tag _tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum special_form special_form;//different types of special forms
+typedef enum sexp_meta sexp_meta;
 typedef union data data;//core representation of a lisp object
 typedef union env_type env_type;//generic environment
 typedef union symbol_type symbol_type;//generic symbol
@@ -45,9 +46,11 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define STRINGP(obj) (obj.tag == _str)
 #define CHARP(obj) (obj.tag == _char)
 #define FUNP(obj) (obj.tag == _fun)
+#define ARRAYP(obj) (obj.tag == _array)
 #define LAMBDAP(obj) (obj.tag == _lam)
 #define NUM_TYPES 16
 enum _tag {
+  _error = -4,
   _false = -3,
   _uninterned = -2,
   _nil = -1,
@@ -94,6 +97,20 @@ enum special_form{
   _while=22,
   _prog1=23,
 };
+//sign bit determines quoting
+#define quote_mask  0x7fff
+#define stripQuote(meta) quote_mask & meta
+#define isQuoted(meta)  0x8000 & meta
+#define MakeQuoted(meta)  _quoted_value | meta
+enum sexp_meta{
+  _quoted_utf8_string=(short)0x8003,
+  _quoted_long_array=(short)0x8002,
+  _quoted_double_array=(short)0x8001,
+  _quoted_value = (short)0x8001,
+  _double_array=1,
+  _long_array=2,
+  _utf8_string=3,
+};
 union data {
   double real64;
   long int64;
@@ -111,9 +128,9 @@ union data {
   local_symref lenv;
 };
 struct sexp{
-  _tag tag;
-  short len;//length of a list, array or string
-  short meta;//random meta data, needs to be an enum at some point
+  _tag tag;//could be shorter if need be
+  unsigned short len;//length of a list, array or string
+  sexp_meta meta : 16;//random meta data(sign bit determines quoting)
   data val;
 };
 struct cons{
