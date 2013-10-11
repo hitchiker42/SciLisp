@@ -7,6 +7,7 @@
 #include "include/uthash.h"
 #include <wchar.h>
 #include <getopt.h>
+#include <limits.h>
 typedef enum _tag _tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum special_form special_form;//different types of special forms
@@ -26,6 +27,7 @@ typedef struct env env;//generic symbol namespace
 typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
 typedef struct lambda lambda;//type of lambda expressions
+typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
@@ -90,6 +92,7 @@ enum special_form{
   _or=20,
   _main=21,
   _while=22,
+  _prog1=23,
 };
 union data {
   double real64;
@@ -152,8 +155,20 @@ union funcall{
   sexp(*f4)(sexp,sexp,sexp,sexp);
   sexp(*fmany)(sexp,...);
 };
+struct function{
+  short min_args;
+  short max_args;
+  union {
+    fxn_proto* prim;
+    lambda* lam;
+  } fun;
+  enum {
+    _primFun=0,
+    _lambdaFun=1,
+  } fxn_type;
+};
 struct fxn_proto{
-  CORD cname;//non-prim sets cname to 0
+  CORD cname;//non-prim sets cname to 0...yeah no
   CORD lispname;
   //max_args == -1 means remaining args as a list
   short min_args,max_args;
@@ -271,3 +286,7 @@ enum backend{
   llvm=1,
   as=2,
 };
+static function prim_to_fun(fxn_proto *prim){
+  return (function){.min_args=prim->min_args,
+      .max_args=prim->max_args,.fun={.prim = prim},0};
+}

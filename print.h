@@ -25,4 +25,5 @@ CORD print_num(sexp obj);
 CORD print(sexp obj);
 /* return a lisp object contating the printed representation of obj*/
 sexp lisp_print(sexp obj);
-
+//return lambda for a lambda function or the lisp name of a primitive function
+CORD function_name(function fun);

@@ -66,6 +66,8 @@ lambda {LEX_MSG("lexing lambda");
   yylval->tag=_special;yylval->val.special=_lambda;return TOK_LAMBDA;}
 progn {LEX_MSG("lexing progn");
   yylval->tag=_special;yylval->val.special=_progn;return TOK_SPECIAL;}
+prog1 {LEX_MSG("lexing prog1");
+  yylval->tag=_special;yylval->val.special=_prog1;return TOK_SPECIAL;}
 if {LEX_MSG("lexing if");
   yylval->tag=_special;yylval->val.special=_if;return TOK_SPECIAL;}
 let {LEX_MSG("lexing let");

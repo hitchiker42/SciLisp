@@ -25,12 +25,14 @@ sexp mapcar(sexp ls,sexp map_fn);
 //typechecked car function
 static inline sexp car(sexp cell){
   if(NILP(cell)){return NIL;}
-  if(!CONSP(cell)){my_err("Argument not a cons cell\n");}
+  if(!CONSP(cell)){
+    my_err("Argument not a cons cell\n");}
   else return cell.val.cons->car;
 }
 //typechecked cdr function
 static inline sexp cdr(sexp cell){
-  if(!(CONSP(cell))){my_err("Argument not a cons cell\n");}
+  if(!(CONSP(cell))){
+    my_err("Argument not a cons cell\n");}
   else return cell.val.cons->cdr;
 }
 //get nth member of a list using typechecked car

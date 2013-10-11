@@ -10,7 +10,11 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 jmp_buf main_loop,ERROR;
+#ifdef NDEBUG
+int quiet_signals=1;
+#else
 int quiet_signals=0;
+#endif
 static char *line_read;
 void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
@@ -51,7 +55,7 @@ int parens_matched(const char* line,int parens){
     else if(cur_char==')'){
       if(parens>0){parens--;}
       else{return -1;}
-    }    
+    }
     else{continue;}
   }
   return parens;
@@ -61,15 +65,15 @@ int parens_matched(const char* line,int parens){
  *and compile the c file with gcc to output file output*/
 int compile(FILE* input,const char *output,FILE* c_code) __attribute__((noreturn));
 int compile(FILE* input,const char *output,FILE* c_code){
-    HERE();
-    sexp ast=yyparse(input);
-    if(NILP(ast)){
-      CORD_printf("parsing failed exiting compiler\n");
-      exit(1);
-    }      
-    CORD_printf("%r\n",print(XCAR(ast)));
-    //codegen(output,c_code,ast);
-    exit(0);
+  HERE();
+  sexp ast=yyparse(input);
+  if(NILP(ast)){
+    CORD_printf("parsing failed exiting compiler\n");
+    exit(1);
+  }
+  CORD_printf("%r\n",print(XCAR(ast)));
+  //codegen(output,c_code,ast);
+  exit(0);
 }
 /* Read interactive input using readline.
  * outfile is a temporary file essentally used as a pipe. read scans a line
@@ -77,56 +81,56 @@ int compile(FILE* input,const char *output,FILE* c_code){
  * will continue to scan lines unitl all parentese are matched, or it finds
  * a syntax error(really just an extra close paren).
  * input is written to outfile as a place to hold the current input. It is
- * assumed that code will be read from outfile and evaluated. Read returns 
+ * assumed that code will be read from outfile and evaluated. Read returns
  * the position in outfile where it started scanning*/
 int lispReadLine(FILE* outfile,char* filename){
-    FILE* my_pipe=outfile;
-    char* tmpFile=filename;
-    int parens,start_pos=ftello(my_pipe);
-  MAIN_LOOP:while(1){
-      parens=0;
-      //makesure readline buffer is NULL
-      if (line_read){
-        free (line_read);
-        line_read = (char *)NULL;
+  FILE* my_pipe=outfile;
+  char* tmpFile=filename;
+  int parens,start_pos=ftello(my_pipe);
+ MAIN_LOOP:while(1){
+    parens=0;
+    //makesure readline buffer is NULL
+    if (line_read){
+      free (line_read);
+      line_read = (char *)NULL;
+    }
+    line_read = readline("SciLisp>");
+    if (line_read){
+      if (*line_read){
+        add_history (line_read);
+      } else {goto MAIN_LOOP;}
+    } else {puts("\n");exit(0);}
+    parens=parens_matched(line_read,0);
+    fputs(line_read,my_pipe);
+    fputc(' ',my_pipe);
+    while(parens){
+      if(parens<0){
+        fprintf(stderr,"Extra close parentheses\n");
+        truncate(tmpFile,0);
+        goto MAIN_LOOP;
       }
-      line_read = readline("SciLisp>");
-      if (line_read){
-        if (*line_read){
-          add_history (line_read);
-        } else {goto MAIN_LOOP;}
-      } else {puts("\n");exit(0);}
-      parens=parens_matched(line_read,0);
+      line_read=readline(">");
+      if(line_read == NULL){
+        HERE();
+        exit(0);
+      }
+      if (line_read && *line_read){
+        add_history (line_read);
+      }
+      puts(line_read);
+      parens=parens_matched(line_read,parens);
       fputs(line_read,my_pipe);
       fputc(' ',my_pipe);
-      while(parens){
-        if(parens<0){
-          fprintf(stderr,"Extra close parentheses\n");
-          truncate(tmpFile,0);
-          goto MAIN_LOOP;
-        }    
-        line_read=readline(">");
-        if(line_read == NULL){
-          HERE();
-          exit(0);
-        }
-        if (line_read && *line_read){
-          add_history (line_read);
-        }
-        puts(line_read);
-        parens=parens_matched(line_read,parens);
-        fputs(line_read,my_pipe);
-        fputc(' ',my_pipe);
-      }
-      fflush(my_pipe);
-      break;
     }
-    return start_pos;
+    fflush(my_pipe);
+    break;
   }
+  return start_pos;
+}
 int main(int argc,char* argv[]){
   //setup handler for sigsegv, so we can exit gracefully on a segfault
   sigaction(SIGSEGV,sigsegv_action,NULL);
-  initPrims(); //read primitives into syntax table, this really should just 
+  initPrims(); //read primitives into syntax table, this really should just
   // read a binary file containing a prepopulaed syntax table;
   int c;
   while(1){
@@ -167,8 +171,9 @@ int main(int argc,char* argv[]){
   puts("SciLisp  Copyright (C) 2013  Tucker DiNapoli");
   sexp ast,result;
  REPL:while(1){
+    fastforward(my_pipe);
     if(setjmp(ERROR)){printf(error_str);}
-    if(evalError){truncate_and_rewind(my_pipe,tmpFile);evalError=0;}      
+    if(evalError){truncate_and_rewind(my_pipe,tmpFile);evalError=0;}
     //read
     start_pos=lispReadLine(my_pipe,tmpFile);
     fseeko(my_pipe,start_pos,SEEK_SET);
