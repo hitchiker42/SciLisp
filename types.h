@@ -95,9 +95,10 @@ enum special_form{
   _while=22,
 };
 //sign bit determines quoting
-#define quote_mask = 0x7fff
+#define quote_mask  0x7fff
 #define stripQuote(meta) quote_mask & meta
-#define isQuoted(meta) = 0x8000 & meta
+#define isQuoted(meta)  0x8000 & meta
+#define MakeQuoted(meta)  _quoted_value | meta
 enum sexp_meta{
   _quoted_utf8_string=(short)0x8003,
   _quoted_long_array=(short)0x8002,
@@ -124,9 +125,9 @@ union data {
   local_symref lenv;
 };
 struct sexp{
-  _tag tag;
+  _tag tag;//could be shorter if need be
   unsigned short len;//length of a list, array or string
-  sexp_meta meta : 16;//random meta data
+  sexp_meta meta : 16;//random meta data(sign bit determines quoting)
   data val;
 };
 struct cons{

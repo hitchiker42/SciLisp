@@ -279,6 +279,12 @@ sexp parse_atom(){
   }
 }
 sexp parse_sexp(){
+  if(yytag == TOK_QUOTE){
+    nextTok();
+    sexp retval = parse_sexp();
+    retval.meta=MakeQuoted(retval.meta);
+    return retval;
+  }
   if(yytag == TOK_LPAREN){return parse_cons();}
   else{return parse_atom();}
 }

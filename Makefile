@@ -26,6 +26,7 @@ BACKEND:=eval.o codegen.o
 ASM_FILES :=$(ASM_FILES) eval.c
 CFLAGS:=$(CFLAGS) $(XCFLAGS)
 LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
+CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb
 .PHONY: clean all quiet asm
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
@@ -49,8 +50,11 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
-llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.c cons.h
+llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.cpp cons.h
 env.o: env.c $(COMMON_HEADERS)
+#make object file of primitives, no debugging, and optimize
+prim.o: prim.c
+	gcc -o prim.o -c -std=gnu99 -O3 $^
 #array.o: array.c $(COMMON_HEADERS)
 clean:
 	rm *.o
