@@ -10,7 +10,11 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 jmp_buf main_loop,ERROR;
+#ifdef NDEBUG
+int quiet_signals=1;
+#else
 int quiet_signals=0;
+#endif
 int evalError=0;
 static char *line_read;
 void handle_sigsegv(int signal) __attribute__((noreturn));

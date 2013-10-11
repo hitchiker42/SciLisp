@@ -1,21 +1,22 @@
 ifeq ($(CC),clang)
-OPT_FLAG:=-O2
+OPT_FLAGS:=-O2
 WARNING_FLAGS:=-w
 else ifeq ($(CXX),clang++)
-OPT_FLAG:=-O1
+OPT_FLAGS:=-O1
 WARNING_FLAGS:=-w
 else
 CC:=gcc
 CXX:=g++
-OPT_FLAG:=-Og
+OPT_FLAGS:=-Og
 endif
-QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING
+OPT_FLAGS:=$(OPT_FLAGS) -ggdb
+QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 # -Wsuggest-attribute=pure|const|noreturn maybe add this warning for looking for optimizations
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
-COMMON_CFLAGS=-ggdb $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto 
+COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto
 XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
-XCFLAGS:=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) 
-XCFLAGS_NOWARN=-g $(OPT_FLAG) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
+XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS)
+XCFLAGS_NOWARN=-g $(OPT_FLAGS) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h
@@ -24,23 +25,32 @@ FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o #array.o
 BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o
 ASM_FILES :=$(ASM_FILES) eval.c
+<<<<<<< HEAD
+CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
+LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAGS)
+.PHONY: clean all quiet asm optimized set_quiet set_optimized
+=======
 CFLAGS:=$(CFLAGS) $(XCFLAGS)
 LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
 CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb
 .PHONY: clean all quiet asm
+>>>>>>> 5de6271bf0c87825c92c999a2702748234d4186c
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
-	$(CC) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fwhole-program -o $@
+	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fwhole-program -o $@
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
 	$(CC) $(XCFLAGS_NOWARN) -w -c lex.yy.c -o lex.yy.o
-quiet: 
-	CFLAGS="$(CFLAGS)$(QUIET_FLAGS)" $(MAKE) all
+set_quiet:
+	$(eval CFLAGS=$(CFLAGS) $(QUIET_FLAGS) )
+quiet:set_quiet all
 force:
 	$(MAKE) -B all
-optimized:
-	CFLAGS="$(CFLAGS) -O3 -march=native" $(MAKE) -B all
+set_optimized:
+	$(eval OPT_FLAGS:=-O3 -march=native)
+	$(eval CFLAGS:=$(COMMON_CFLAGS) $(QUIET_FLAGS) $(OPT_FLAGS))
+optimized:set_optimized all
 parser.o: parser.c $(COMMON_HEADERS) cons.h
 cons.o: cons.c $(COMMON_HEADERS) cons.h
 print.o: print.c $(COMMON_HEADERS) cons.h
@@ -62,7 +72,12 @@ asm: $(ASM_FILES)
 	mkdir -p SciLisp_asm
 	(cd SciLisp_asm; \
 	for i in $(ASM_FILES);do \
-	$(CC) -std=gnu99 $(OPT_FLAG) -fverbose-asm ../$$i -S;done)
+	$(CC) -std=gnu99 $(OPT_FLAGS) -fverbose-asm ../$$i -S;done)
 llvm_ir: $(ASM_FILES)
+<<<<<<< HEAD
+	$(eval $CC := clang -emit-llvm)
+	$(eval $OPT_FLAGS := -O2)
+=======
 	$(eval CC := clang -emit-llvm)
 	$(eval OPT_FLAG := -O2)
+>>>>>>> 5de6271bf0c87825c92c999a2702748234d4186c

@@ -90,6 +90,7 @@ sexp yyparse(FILE* input){
     prev_pos->cdr=NIL;
     return ast;
   }
+  handle_error();
 }
 sexp parse_cons(){
   //sexp* result=xmalloc(sizeof(sexp));
@@ -124,10 +125,13 @@ sexp parse_cons(){
   TEST_ARG_LIST:if(nextTok() != TOK_LPAREN){
       if(retval.val.cons->car.val.special == _defun){
         retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
-        fake_retval=XCDR(retval);
-        XCAR(fake_retval)=*yylval;
+        fake_retval=XCDR(retval);*yylval;
+        symref tempSym=xmalloc(sizeof(symbol));
+        tempSym->name=yylval->val.string;
+        tempSym->val=UNBOUND;
+        XCAR(fake_retval)=(sexp){.tag=_sym,.val={.var=tempSym}};
         goto TEST_ARG_LIST;
-      }  else{
+      }  else {
       format_error_str("expected argument list following lambda or defun");
       handle_error();
       }
@@ -150,14 +154,14 @@ sexp parse_cons(){
       format_error_str("error, missing closing parentheses");
       handle_error();
     }
-    PRINT_MSG(print(cdr(retval)));
+    //PRINT_MSG(print(cdr(retval)));
     return retval;
   } else {
     return parse_list();
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
-  cons* old_pos;
+  cons* old_pos=result.val.cons;
   while((nextTok())!=TOK_RPAREN){
     //PRINT_FMT("%d",yytag);
     if(yytag == TOK_LPAREN){
@@ -209,7 +213,7 @@ sexp parse_atom(){
       tmpsym=(symref)getGlobalSym(yylval->val.string);
       if(tmpsym){
         return (sexp){.tag=_sym,.val={.var = tmpsym}};
-      } else {
+      } else { 
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
         tmpsym->val=UNBOUND;
@@ -273,6 +277,8 @@ sexp parse_atom(){
       return *yylval;
     case TOK_CHAR:
       return *yylval;
+    case TOK_SPECIAL:
+      return *yylval;//I dont' know how well this'll work
     default:
       CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n",print(*yylval));
       handle_error();

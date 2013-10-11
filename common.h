@@ -45,6 +45,9 @@ static const sexp NIL={.tag = -1,.val={.int64 = 0}};
 static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
+static cons EmptyList={.car={.tag = -1,.val={.int64 = 0}},
+                             .cdr={.tag = -1,.val={.int64 = 0}}};
+static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
 sexp* yylval;
 FILE* yyin;
 extern int evalError;
@@ -62,6 +65,8 @@ static inline double getDoubleVal(sexp x){
       return x.val.real64;
     case _long:
       return (double)x.val.int64;
+    default:
+      return NAN;
   }
 }
 #endif

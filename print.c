@@ -27,6 +27,36 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_lenv,local environment);
   }
 }
+#define spec_to_string(spec)                    \
+  case _##spec: return #spec
+c_string specialForm_name(sexp obj){
+  special_form spec=obj.val.special;
+  switch(spec){
+    spec_to_string(def);
+    spec_to_string(defun);
+    spec_to_string(setq);
+    spec_to_string(if);
+    spec_to_string(let);
+    spec_to_string(do);
+    spec_to_string(lambda);
+    spec_to_string(progn);
+    spec_to_string(go);
+    spec_to_string(tagbody);
+    spec_to_string(struct);
+    spec_to_string(union);
+    spec_to_string(datatype);
+    spec_to_string(enum);
+    spec_to_string(eval);
+    spec_to_string(defmacro);
+    spec_to_string(quasi);
+    spec_to_string(quote);
+    spec_to_string(comma);
+    spec_to_string(and);
+    spec_to_string(or);
+    spec_to_string(main);
+    spec_to_string(while);
+  }
+}
 c_string typeName(sexp obj){
   return tag_name(obj.tag);
 }
@@ -142,15 +172,23 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,"]"));
     case _special:
-      return "Got special form";
+      return specialForm_name(obj);
+    case _false:
+      return "#f";
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;
   }
 }
 sexp lisp_print(sexp obj){
-  CORD print_string = print(obj);
-  CORD_printf("%r\n",print_string);
+  CORD print_string = print(eval(obj,topLevelEnv));
+  CORD_fprintf(stderr,"%r\n",print_string);
   return (sexp){.tag=_str,.val={.cord=print_string}};
 }
-
+CORD function_name(function fun){
+  if(fun.fxn_type==1){
+    return "lambda";
+  } else if(fun.fxn_type == 0){
+    return fun.fun.prim->lispname;
+  }
+}
