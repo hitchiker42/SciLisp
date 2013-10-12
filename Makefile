@@ -13,7 +13,7 @@ OPT_FLAGS:=$(OPT_FLAGS) -ggdb
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 # -Wsuggest-attribute=pure|const|noreturn maybe add this warning for looking for optimizations
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
-COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto
+COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto -rdynamic
 XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS)
 XCFLAGS_NOWARN=-g $(OPT_FLAGS) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
@@ -23,7 +23,7 @@ COMMON_HEADERS:=common.h debug.h types.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c #array.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o #array.o
 BACKEND_SRC:=eval.c codegen.c
-BACKEND:=eval.o codegen.o
+BACKEND:=eval.o codegen.o prim.o
 ASM_FILES :=$(ASM_FILES) eval.c
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 .PHONY: clean all quiet asm optimized set_quiet set_optimized
@@ -32,7 +32,7 @@ CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb
 .PHONY: clean all quiet asm
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
-	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fwhole-program -o $@
+	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
@@ -60,6 +60,11 @@ env.o: env.c $(COMMON_HEADERS)
 #make object file of primitives, no debugging, and optimize
 prim.o: prim.c
 	gcc -o prim.o -c -std=gnu99 -O3 $^
+libSciLisp_prim.a: prim.o
+	ar rcs $@ $^
+LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=Scilisp_prim.so
+libSciLisp_prim.so: prim.o
+	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $^ -o $@
 #array.o: array.c $(COMMON_HEADERS)
 clean:
 	rm *.o

@@ -10,6 +10,10 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 jmp_buf main_loop,ERROR;
+static c_string current_version="0.01";
+static c_string banner=
+  "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
+  "SciLisp is free software licensed under the GNU GPL V3+";
 #ifdef NDEBUG
 int quiet_signals=1;
 #else
@@ -33,6 +37,8 @@ static void truncate_and_rewind(FILE* stream,c_string name){
   truncate(name,0);
   rewind(stream);
 }
+static void SciLisp_help(int exitCode) __attribute__((noreturn));
+static void SciLisp_version(int exitCode) __attribute__((noreturn));
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
 const struct sigaction* restrict sigsegv_action=&action_object;
 #define reset_line()       free (line_read);    \
@@ -85,6 +91,7 @@ int compile(FILE* input,const char *output,FILE* c_code){
  * assumed that code will be read from outfile and evaluated. Read returns
  * the position in outfile where it started scanning*/
 int lispReadLine(FILE* outfile,char* filename){
+  HERE();
   FILE* my_pipe=outfile;
   char* tmpFile=filename;
   int parens,start_pos=ftello(my_pipe);
@@ -135,19 +142,30 @@ int main(int argc,char* argv[]){
   // read a binary file containing a prepopulaed syntax table;
   int c;
   while(1){
-    c=getopt_long(argc,argv,"o:e:",long_options,NULL);
+    c=getopt_long(argc,argv,"e:hl:o:qv",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
         output_file=optarg;
+      case 'v':
+        SciLisp_version(0);
+      case 'h':
+        SciLisp_help(0);
       case 'e':{
-        sexp ast ;
-        FILE* file=fopen(optarg,"r");
-        if(!file){
-          ast=lispRead(optarg);
+        sexp ast;
+        PRINT_FMT("optarg[0] = %c",optarg[0]);
+        FILE* file;
+        if(optarg[0]=='('){
+          file=tmpfile();
+          CORD_fprintf(file,optarg);
+          fflush(file);
+          //lispRead(CORD_from_char_star(optarg));
         } else {
-          ast = yyparse(file);
+          file=fopen(optarg,"r");
         }
+        ast=yyparse(file);
+        HERE();
+        HERE();
         while (CONSP(ast)){
           sexp result=eval(XCAR(ast),topLevelEnv);
           CORD_printf(print(result));puts("");
@@ -155,27 +173,48 @@ int main(int argc,char* argv[]){
         }
         exit(0);
       }
+      case 'l':{
+        sexp ast;
+        FILE* file=fopen(optarg,"r");
+        while (CONSP(ast)){
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          CORD_printf(print(result));puts("");
+          ast=XCDR(ast);
+        };
+        break;
+      }
+        /*      case 'q':{
+        FILE* devnull = fopen("/dev/null","w");
+        debug_stream=devnull;
+        break;
+        }*/
+      default:
+        printf("invalid option %c\n",c);
+        SciLisp_help(1);
     }
   }
   if(optind < argc){
+    output_file = (output_file == NULL?"a.out":output_file);
     FILE* file=fopen(argv[optind],"r");
     compile(file,output_file,NULL);
+  } else if (output_file){
+    printf("error: -o|--output requires a file of SciLisp code to compile\n");
+    exit(2);
   }
   static char *line_read =(char *)NULL;
   int parens,start_pos;
   char tmpFile[L_tmpnam];
   tmpnam_r(tmpFile);
-  char test[100];
   FILE* my_pipe=fopen(tmpFile,"w+");
   yyin=my_pipe;
   rl_set_signals();
-  puts("SciLisp  Copyright (C) 2013  Tucker DiNapoli");
+  puts(banner);
   sexp ast,result;
  REPL:while(1){
-    fastforward(my_pipe);
     if(setjmp(ERROR)){printf(error_str);}
     if(evalError){
-      truncate_and_rewind(my_pipe,tmpFile);evalError=0;
+      truncate_and_rewind(my_pipe,tmpFile);
+      evalError=0;
       yyrestart(yyin);
     }
     //read
@@ -191,4 +230,42 @@ int main(int argc,char* argv[]){
     //print
     CORD_printf(print(result));puts("\n");
   }
+}
+
+
+static CORD Make_SciLisp_verson_string(c_string Version_no){
+  CORD version_string;
+  CORD_sprintf(&version_string,"SciLisp %s",Version_no);
+  return version_string;
+}
+static CORD Make_SciLisp_Copyright_string(){
+  CORD retval;
+  CORD_sprintf(&retval,"Copyright %lc 2013 Tucker DiNapoli\n"
+               "License GPLv3+: GNU GPL version 3 or"
+               "later <http://gnu.org/licenses/gpl.html>.",0x00A9);
+  return retval;
+}
+static CORD Make_SciLisp_help_string(){
+  CORD copyright_string=Make_SciLisp_Copyright_string();
+  CORD version_string=Make_SciLisp_verson_string(current_version);
+  CORD help_string=CORD_catn(3,version_string,copyright_string,"\n");
+  CORD_cat
+    (help_string,
+     "SciLisp [-hqv] [-e|--eval] [-f|--file] [-l|--load] [-o|--output] [file]\n"
+     "Options:\n"
+     "eval|e [file|string], evaluate code in file or double quote delimited string\n"
+     "help|h, print this help and exit\n"
+     "load|l [file], eval code from file and start interpreter\n"
+     "output|o [file], output compiled code to file, requires a file to compile\n"
+     "version|v, print version number and exit\n");
+     // "quiet|q, insure debug messages are not printed (redirect to /dev/null)\n");
+  return help_string;
+}
+static void SciLisp_help(int exitCode){
+  CORD_printf(Make_SciLisp_help_string());
+  exit(exitCode);
+}
+static void SciLisp_version(int exitCode){
+  puts(Make_SciLisp_verson_string(current_version));
+  exit(exitCode);
 }

@@ -288,7 +288,7 @@ sexp parse_sexp(){
   if(yytag == TOK_QUOTE){
     nextTok();
     sexp retval = parse_sexp();
-    retval.meta=MakeQuoted(retval.meta);
+    //retval.meta=MakeQuoted(retval.meta);
     return retval;
   }
   if(yytag == TOK_LPAREN){return parse_cons();}
@@ -296,12 +296,11 @@ sexp parse_sexp(){
 }
 
 sexp lispRead(CORD code) {
-  char* stringBuf = CORD_to_char_star(code);
-  FILE* stringStream = fmemopen(stringBuf,CORD_len(code),"r");
+  PRINT_MSG(code);
+  FILE* stringStream=tmpfile();
+  CORD_fprintf(stringStream,code);
+  fflush(stringStream);
   yyin=stringStream;
   nextTok();
   return parse_sexp();
 }
-
-
-

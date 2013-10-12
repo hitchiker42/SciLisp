@@ -40,6 +40,9 @@
 #define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
+#define CORD_append(val,ext) val=CORD_cat(val,ext)
+#define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
+#define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.int64 = 0}};
 static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
@@ -54,11 +57,11 @@ extern int evalError;
 extern sexp yyparse(FILE* input);
 //only function externed from eval, so I just put it here
 sexp eval(sexp expr,env cur_env);
-sexp lispRead(CORD code) __attribute__((pure));
+sexp lispRead(CORD code);// __attribute__((pure));
 //global localtion of error messages
 CORD error_str;
 //jmp_buf error_buf;
-static c_string output_file="a.out";
+static c_string output_file=NULL;
 static inline double getDoubleVal(sexp x){
   switch(x.tag){
     case _double:

@@ -75,15 +75,26 @@ sexp reduce(sexp ls,sexp reduce_fn){
   return result;
 }
 sexp mapcar(sexp ls,sexp map_fn){
-  if(!CONSP(ls) || !FUNP(map_fn)){
-    //error;
+  if(!CONSP(ls) || !FUNCTIONP(map_fn)){
+    return error_sexp("mapcar map_fn type error");
   }
   sexp result;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
   result.tag=_cons;
-  sexp(*f)(sexp)=map_fn.val.fun->fxn_call.f1;
+  sexp(*f)(sexp);
+  env lambda_env;
+  if(FUNP(map_fn)){
+    f=map_fn.val.fun->fxn_call.f1;  
+  } else {
+    lambda_env=(env){.enclosing = (env*)&map_fn.val.lam->env,
+                .head={.local=map_fn.val.lam->env.head},.tag=0};
+  }
   while(!NILP(XCDR(ls))){
-    cur_cell->car=f(car(ls));
+    if(FUNP(map_fn)){
+      cur_cell->car=f(car(ls));
+    } else {
+      cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),lambda_env);
+    }
     cur_cell->cdr.val.cons=xmalloc(sizeof(cons));
     cur_cell=cur_cell->cdr.val.cons;
     ls=XCDR(ls);

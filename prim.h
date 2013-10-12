@@ -54,12 +54,14 @@
   global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};       \
   global_symref c_name ## _ptr=&c_name##_sym;                           \
   addGlobalSymMacro(c_name##_ptr);
-#define DEFUN(lname,cname,minargs,maxargs)                      \
+/*#define DEFUN(lname,cname,minargs,maxargs)                    \
   static fxn_proto cname##call=                                 \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
+  { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
 #define DEFUN_MANY(lname,cname,minargs)                 \
   static fxn_proto cname##call=                         \
     { #cname, lname, minargs, -1, {.fmany=cname}};
+#define DEFUN(a,cname,b,c)                    \
+  extern fxn_proto cname ## call
 #define DEFUN_ARGS_0	(void)
 #define DEFUN_ARGS_1	(sexp)
 #define DEFUN_ARGS_2	(sexp, sexp)
@@ -84,7 +86,7 @@
   }                                             \
   DEFUN(#lname,lisp_##lname,1,1)
 #define MK_PREDICATE2(lname,test,test2)         \
-  static sexp lisp_##lname (sexp obj){                 \
+  static sexp lisp_##lname (sexp obj){          \
     if(obj.tag == test || obj.tag == test2){    \
       return LISP_TRUE;                         \
     } else {                                    \
@@ -159,7 +161,7 @@ static inline sexp ash(sexp x,sexp y){
     return lisp_lshift(x,(sexp){.tag=_long,.val={.int64 = (labs(y.val.int64))}});
   }
 }
-static inline sexp lisp_iota(sexp start,sexp stop,sexp step){
+/*static inline sexp lisp_iota(sexp start,sexp stop,sexp step){
   int i;
   double dstep;
   if(NILP(stop)){
@@ -187,7 +189,7 @@ static inline sexp lisp_iota(sexp start,sexp stop,sexp step){
   }
   newlist[i-1].cdr=NIL;
   return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
-}
+  }*/
 static inline sexp simple_iota(sexp stop){
   int i,imax;
   imax=stop.val.int64;
@@ -249,6 +251,7 @@ DEFUN("cdaar",cdaar,1,1);
 DEFUN("cadar",cadar,1,1);
 DEFUN("cdadr",cdadr,1,1);
 DEFUN("cons",Cons,2,2);
+DEFUN("mapcar",mapcar,2,2);
 DEFUN("typeName",lisp_typeName,1,1);
 DEFUN("print",lisp_print,1,1);
 DEFUN("reduce",reduce,2,2);
@@ -346,6 +349,7 @@ DEFUN("length",lisp_length,1,1);
   DEFUN_INTERN("length",lisp_length);                                   \
   DEFUN_INTERN("arrayp",lisp_arrayp);                                   \
   DEFUN_INTERN("consp",lisp_consp);                                     \
+  DEFUN_INTERN("mapcar",mapcar);                                        \
   INTERN_ALIAS("cons?",lisp_consp,17);                                  \
   INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFUN_INTERN("numberp",lisp_numberp);                                 \

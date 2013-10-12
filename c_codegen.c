@@ -36,7 +36,6 @@ static inline CORD c_header(){
   return retval;
 }
 /* This is complicated, unsuprisingly */
-#define CORD_append(val,ext) val=CORD_cat(val,ext)
 CORD c_codegen_specials(sexp expr,CORD code);
 CORD c_codegen_functions(sexp expr,CORD code);
 CORD c_codegen_sub(sexp expr);

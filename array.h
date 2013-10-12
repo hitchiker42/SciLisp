@@ -2,7 +2,7 @@
 #include "cons.h"
 //unsafe array access in C
 #define XAREF(obj,ind)\
-  (sexp){.tag = obj.meta,.val = (data)obj.val.array[ind]}
+  (sexp){.tag = (_tag)obj.meta,.val = (data)obj.val.array[ind]}
 static sexp aref(sexp obj,sexp ind)__attribute__((pure,hot));
 static sexp array_to_list(sexp obj)__attribute__((pure));
 static sexp aref(sexp obj,sexp ind){

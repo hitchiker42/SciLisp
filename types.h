@@ -48,6 +48,7 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define FUNP(obj) (obj.tag == _fun)
 #define ARRAYP(obj) (obj.tag == _array)
 #define LAMBDAP(obj) (obj.tag == _lam)
+#define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
 #define NUM_TYPES 16
 enum _tag {
   _error = -4,
@@ -239,11 +240,20 @@ struct lambda{
   short minargs,maxargs;
   sexp body;
 };
-//aviable command line options
+//aviable command line options, struct args: 1st arg option name
+//2nd arg=enum{no_argument=0,required_argument=1,optional_argument=2}
+//3rd arg can be set to a variable adress to allow that argument to set it
+//for any long argument with a corrsponding short option this must be 0
+//4th arg is the value to load into 3rd arg if it is not null otherwise
+//it should be set to the equivlant short option
 static struct option long_options[] = {
-  {"output",required_argument,0,'o'},
-  {"eval",  required_argument,0,'e'},
-  {0       ,0                ,0,0  }
+  {"eval"   ,1,0,'e'},
+  {"help"   ,0,0,'h'},
+  {"load"   ,1,0,'l'},
+  {"output" ,1,0,'o'},
+  {"quiet"  ,0,0,'q'},
+  {"version",0,0,'v'},
+  {0,0,0,0}
 };
 global_env globalSymbolTable;
 env topLevelEnv;
@@ -307,3 +317,4 @@ static function prim_to_fun(fxn_proto *prim){
   return (function){.min_args=prim->min_args,
       .max_args=prim->max_args,.fun={.prim = prim},0};
 }
+  
