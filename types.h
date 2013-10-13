@@ -252,6 +252,7 @@ static struct option long_options[] = {
   {"load"   ,1,0,'l'},
   {"output" ,1,0,'o'},
   {"quiet"  ,0,0,'q'},
+  {"test"   ,0,0,'t'},
   {"version",0,0,'v'},
   {0,0,0,0}
 };

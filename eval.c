@@ -26,6 +26,7 @@ static sexp eval_let(sexp expr,env cur_env);
 //standard error handling function
 static sexp handle_error(void){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
+  //  return error_sexp(error_str); would need to copy error_str to do this
   return NIL;
 }
 //evaluate the lisp expression expr in the environment cur_env
@@ -150,33 +151,26 @@ static sexp* get_args(sexp arglist,function fun,env cur_env){
 }
 static inline sexp call_builtin(sexp expr,env cur_env){
   sexp curFun=car(expr).val.var->val;
-  PRINT_MSG(print(expr));
+  //PRINT_MSG(print(expr));
   int i;
   sexp cur_arg,*args;
   switch (FMAX_ARGS(curFun)){
     case 0:
-      HERE();
       if(!NILP(XCDR(expr))){
-        HERE();
         CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
                      FLNAME(curFun));
         PRINT_MSG(print(expr));
-        HERE();
         return handle_error();
       } else {
-        HERE();
         return F_CALL(curFun).f0();
       }
     case 1:
-      HERE();
-      if(!NILP(cddr(expr))){
+      if(!NILP(cdr(expr)) && !NILP(cddr(expr))){
         CORD_sprintf(&error_str,"Excess Arguments given to %r",
                      FLNAME(curFun));
-        HERE();
         PRINT_MSG(print(expr));
         return handle_error();
       } else {
-        HERE();
         return F_CALL(curFun).f1((eval(cadr(expr),cur_env)));
       }
     case 2:
@@ -230,7 +224,7 @@ sexp eval_lambda(sexp expr,env cur_env){
   } else {
     cur_env_loc=&topLevelEnv;
   }
-  PRINT_MSG(tag_name(cadr(expr).tag));
+  //PRINT_MSG(tag_name(cadr(expr).tag));
   local_env closure={.enclosing = cur_env_loc,.head=cadr(expr).val.lenv};
   int numargs=cadr(expr).len;
   body=caddr(expr);
@@ -315,7 +309,7 @@ static inline sexp call_lambda(sexp expr,env cur_env){
   local_symref cur_param=cur_fun->env.head;
   assert(cur_param != 0);
   assert(cur_param == cur_fun->env.head);
-  PRINT_FMT("cur_param = %#0x",cur_param);
+  //PRINT_FMT("cur_param = %#0x",cur_param);
   sexp args=cdr(expr);
   int minargs=cur_fun->minargs;
   int maxargs=cur_fun->maxargs;
@@ -325,7 +319,7 @@ static inline sexp call_lambda(sexp expr,env cur_env){
       format_error_str("not enough arguments passed to function");
       return handle_error();
     }
-    PRINT_MSG(print(args));
+    //PRINT_MSG(print(args));
     cur_param->val=NIL;
     cur_param->val=eval(XCAR(args),cur_env);//set curent formal parameter
     i++;
@@ -336,7 +330,7 @@ static inline sexp call_lambda(sexp expr,env cur_env){
   env closure={.enclosing=cur_fun->env.enclosing,
                .head={.local=cur_param},.tag=_local};
   sexp retval=eval(cur_fun->body,closure);
-  PRINT_MSG(print(retval));
+  //PRINT_MSG(print(retval));
   //clear parameters(I think this is necessary)
   while(cur_param!=0){
     cur_param->val=NIL;

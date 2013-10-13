@@ -25,6 +25,8 @@ sexp mapcar(sexp ls,sexp map_fn);
 //check len field of sexp for length
 //if len==0 compute length using tail recursion
 sexp cons_length(sexp ls)__attribute__((pure));
+//list based equivlant to apl iota function
+sexp list_iota(sexp start,sexp stop,sexp step);
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
@@ -51,7 +53,7 @@ static inline sexp nth(sexp cell,int n){
 //create a cons cell from 2 sexps, result may or may not be a list
 static sexp Cons(sexp car_cell,sexp cdr_cell){
   sexp retval;
-  retval.tag=_cons;
+  retval.tag=_list;//This needs looking at,the cons/list issue needs to be fixed
   retval.val.cons=GC_malloc(sizeof(cons));
   retval.val.cons->car=car_cell;
   retval.val.cons->cdr=cdr_cell;

@@ -4,6 +4,7 @@
  ****************************************************************/
 #include "common.h"
 #include "cons.h"
+#include "prim.h"
 sexp mklist(sexp head,...){
   PRINT_MSG("Making a list");
   va_list ap;
@@ -117,4 +118,34 @@ sexp cons_length(sexp ls) {
   } else {
     return len_acc(ls,0);
   }
+}
+sexp list_iota(sexp start,sexp stop,sexp step){
+  int i;
+  double dstep;
+  if(NILP(stop)){
+    int imax=ceil(getDoubleVal(start));
+    cons* newlist=xmalloc(sizeof(cons)*imax);
+    for(i=0;i<imax;i++){
+      newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
+      newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
+    }
+    newlist[i-1].cdr=NIL;
+    HERE();
+    return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
+  } else if(NILP(step)){
+    dstep=1;
+  } else {
+    dstep=getDoubleVal(step);
+    if(dstep == 0) return NIL;
+  }
+  int imax=ceil(fabs(getDoubleVal(lisp_sub(stop,start))/dstep));
+  cons* newlist=xmalloc(sizeof(cons)*imax);
+  double j=getDoubleVal(start);
+  for(i=0;i<imax;i++){
+    newlist[i].car=(sexp){.tag=_double,.val={.real64=j}};
+    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};    
+    j+=dstep;
+  }
+  newlist[i-1].cdr=NIL;
+  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
 }

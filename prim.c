@@ -2,12 +2,18 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+/*"standard library" of SciLisp as it were.
+ * used to all be in prim.h, split into prim.h as declarations and
+ * the initPrims macro (which actually reads all these funcitons into
+ * the global symbol table)
+ * this file mostly defines basic binary operations, for more list functions
+ * see cons.c/h and for array functions see array.c/h*/
 #include "common.h"
 #include "cons.h"
 #include "array.h"
 #include "print.h"
 #define binop_to_fun(op,fun_name)                                       \
-  static inline sexp fun_name(sexp x,sexp y){                           \
+  sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){return                                    \
         (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}};} \
     else {                                                              \
@@ -16,7 +22,7 @@
       return (sexp){.tag=_double,.val={.real64=(xx op yy)}};}           \
   }
 #define mkLisp_cmp(op,cname)                                    \
-  static inline sexp cname(sexp x,sexp y){                      \
+  sexp cname(sexp x,sexp y){                                    \
     if((x.tag == y.tag)==_long){                                \
       return (x.val.int64 op y.val.int64 ? LISP_TRUE : NIL);    \
     } else {                                                    \
@@ -27,33 +33,17 @@
 //ignore tags, allow logical operations on doubles
 //be careful about this
 #define lop_to_fun(op,fun_name)                                         \
-  static inline sexp fun_name(sexp x,sexp y){                           \
+  sexp fun_name(sexp x,sexp y){                                         \
     return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
-/*  global_symbol c_name ## _sym=(global_symbol){lisp_name,(sexp){.tag=_fun,.val={.fun = &c_name##call}},0}; \
-    global_symref c_name ## _ptr=&c_name##_sym;                                  */
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   fxn_proto cname##call=                                        \
     { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
 #define DEFUN_MANY(lname,cname,minargs)                 \
   fxn_proto cname##call=                                \
     { #cname, lname, minargs, -1, {.fmany=cname}};
-#define DEFUN_ARGS_0	(void)
-#define DEFUN_ARGS_1	(sexp)
-#define DEFUN_ARGS_2	(sexp, sexp)
-#define DEFUN_ARGS_3	(sexp, sexp, sexp)
-#define DEFUN_ARGS_4	(sexp, sexp, sexp, sexp)
-#define DEFUN_ARGS_5	(sexp, sexp, sexp, sexp,        \
-                         sexp)
-#define DEFUN_ARGS_6	(sexp, sexp, sexp, sexp,        \
-                         sexp, sexp)
-#define DEFUN_ARGS_7	(sexp, sexp, sexp, sexp,        \
-                         sexp, sexp, sexp)
-#define DEFUN_ARGS_8	(sexp, sexp, sexp, sexp,        \
-                         sexp, sexp, sexp, sexp)
-#define DEFUN_ARGS_MANY (...)
 #define MK_PREDICATE(lname,test)                \
-  static sexp lisp_##lname (sexp obj){                 \
+  sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
       return LISP_TRUE;                         \
     } else {                                    \
@@ -62,7 +52,7 @@
   }                                             \
   DEFUN(#lname,lisp_##lname,1,1)
 #define MK_PREDICATE2(lname,test,test2)         \
-  static sexp lisp_##lname (sexp obj){          \
+  sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test || obj.tag == test2){    \
       return LISP_TRUE;                         \
     } else {                                    \
@@ -72,11 +62,11 @@
   DEFUN(#lname,lisp_##lname,1,1)
 
 #define mkMathFun1(cname,lispname)                                      \
-  static sexp lispname (sexp obj){                                      \
+  sexp lispname (sexp obj){                                             \
     return (sexp){.tag=_double,.val={.real64 = cname(getDoubleVal(obj))}}; \
   }
 #define mkMathFun2(cname,lispname)                              \
-  static sexp lispname(sexp x,sexp y){                          \
+  sexp lispname(sexp x,sexp y){                                 \
     register double xx=getDoubleVal(x);                         \
     register double yy=getDoubleVal(y);                         \
     return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
@@ -108,14 +98,14 @@ mkMathFun1(sin,lisp_sin);
 mkMathFun1(tan,lisp_tan);
 mkMathFun1(exp,lisp_exp);
 mkMathFun1(log,lisp_log);
-static inline sexp lisp_abs(sexp x){
+sexp lisp_abs(sexp x){
   if(x.tag==_long){return
       (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};
   } else if(x.tag == _double){
     return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};
   } else {return NIL;}
 }
-static inline sexp lisp_mod(sexp x,sexp y){
+sexp lisp_mod(sexp x,sexp y){
   if((x.tag==y.tag)==_long){
     return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};
   } else {
@@ -124,7 +114,7 @@ static inline sexp lisp_mod(sexp x,sexp y){
     return (sexp){.tag=_double,.val={.real64=fmod(xx,yy)}};
   }
 }
-static inline sexp ash(sexp x,sexp y){
+sexp ash(sexp x,sexp y){
   if(y.tag != _long || x.tag != _long){
     fprintf(stderr,"arguments to ash must be integers");
     return NIL;
@@ -134,51 +124,10 @@ static inline sexp ash(sexp x,sexp y){
     return lisp_lshift(x,(sexp){.tag=_long,.val={.int64 = (labs(y.val.int64))}});
   }
 }
-sexp lisp_iota(sexp start,sexp stop,sexp step){
-  int i;
-  double dstep;
-  if(NILP(stop)){
-    int imax=ceil(getDoubleVal(start));
-    cons* newlist=xmalloc(sizeof(cons)*imax);
-    for(i=0;i<imax;i++){
-      newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
-      newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
-    }
-    newlist[i-1].cdr=NIL;
-    HERE();
-    return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
-  } else if(NILP(step)){
-    dstep=1;
-  } else {
-    dstep=getDoubleVal(step);
-  }
-  int imax=ceil(fabs(getDoubleVal(lisp_sub(stop,start))/dstep));
-  cons* newlist=xmalloc(sizeof(cons)*imax);
-  double j=getDoubleVal(start);
-  for(i=0;i<imax;i++){
-    newlist[i].car=(sexp){.tag=_double,.val={.real64=j}};
-    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};    
-    j+=dstep;
-  }
-  newlist[i-1].cdr=NIL;
-  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
-}
-static inline sexp simple_iota(sexp stop){
-  int i,imax;
-  imax=stop.val.int64;
-  cons* newlist=xmalloc(sizeof(cons)*imax);
-  HERE();
-  for(i=0;i<imax;i++){
-    newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
-    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
-  }
-  newlist[i-1].cdr=NIL;
-  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
-}
-static inline sexp lisp_randint(){
+sexp lisp_randint(){
   return (sexp){.tag=_long,.val={.int64=mrand48()}};
 }
-static inline sexp lisp_randfloat(sexp scale){
+sexp lisp_randfloat(sexp scale){
   double retval;
   if(scale.tag != _nil){
     retval=drand48()*getDoubleVal(scale);
@@ -187,8 +136,8 @@ static inline sexp lisp_randfloat(sexp scale){
   }
   return (sexp){.tag=_double,.val={.real64=retval}};
 }
-static sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
-static sexp lisp_length(sexp obj){
+sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
+sexp lisp_length(sexp obj){
   if(obj.len){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
   } else if (CONSP(obj)){
@@ -197,16 +146,15 @@ static sexp lisp_length(sexp obj){
     return error_sexp("object does not have a meaningful length field");
   }
 }
-/*static sexp funcall(sexp fn,sexp args){
-  local_symbol* cur_arg = fn.val.lam->env.head;
-  while(CONSP(args) && cur_arg){
-  cur_arg.val = eval(car(args));
-  }
-  eval_in_env(fn.val.lam->body,fn.val.lam->env);
-  }*/
-static const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
-static const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
-static const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
+//should make this lisp_iota(a,b,c,d)
+//where d is a switch to decide between a list or an array
+sexp lisp_iota(sexp start,sexp stop,sexp step){
+  return list_iota(start, stop, step);
+}
+const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
+const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
+const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
+const sexp lisp_max_long = {.tag = _long,.val={.int64 = LONG_MAX}};
 MK_PREDICATE2(consp,_cons,_list);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
@@ -260,3 +208,18 @@ DEFUN("aref",aref,2,2);
 DEFUN("array->list",array_to_list,1,1);
 DEFUN("eval",lisp_eval,1,1);//welp this is going to fail horribly
 DEFUN("length",lisp_length,1,1);
+#undef DEFUN
+/*
+sexp simple_iota(sexp stop){
+  int i,imax;
+  imax=stop.val.int64;
+  cons* newlist=xmalloc(sizeof(cons)*imax);
+  HERE();
+  for(i=0;i<imax;i++){
+    newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
+    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
+  }
+  newlist[i-1].cdr=NIL;
+  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
+}
+*/

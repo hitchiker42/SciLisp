@@ -125,7 +125,7 @@ int lispReadLine(FILE* outfile,char* filename){
       if (line_read && *line_read){
         add_history (line_read);
       }
-      puts(line_read);
+      //puts(line_read);
       parens=parens_matched(line_read,parens);
       fputs(line_read,my_pipe);
       fputc(' ',my_pipe);
@@ -142,7 +142,7 @@ int main(int argc,char* argv[]){
   // read a binary file containing a prepopulaed syntax table;
   int c;
   while(1){
-    c=getopt_long(argc,argv,"e:hl:o:qv",long_options,NULL);
+    c=getopt_long(argc,argv,"e:hl:o:qvt",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
@@ -153,7 +153,7 @@ int main(int argc,char* argv[]){
         SciLisp_help(0);
       case 'e':{
         sexp ast;
-        PRINT_FMT("optarg[0] = %c",optarg[0]);
+        //PRINT_FMT("optarg[0] = %c",optarg[0]);
         FILE* file;
         if(optarg[0]=='('){
           file=tmpfile();
@@ -164,8 +164,6 @@ int main(int argc,char* argv[]){
           file=fopen(optarg,"r");
         }
         ast=yyparse(file);
-        HERE();
-        HERE();
         while (CONSP(ast)){
           sexp result=eval(XCAR(ast),topLevelEnv);
           CORD_printf(print(result));puts("");
@@ -188,6 +186,18 @@ int main(int argc,char* argv[]){
         debug_stream=devnull;
         break;
         }*/
+      case 't':{
+        FILE* file=fopen("test.lisp","r");
+        sexp ast=yyparse(file);
+        puts("Testing:");
+        while (CONSP(ast)){
+          CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));puts("");
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          CORD_printf(CORD_cat("result: ",print(result)));puts("");
+          ast=XCDR(ast);
+        }
+        exit(0);
+      }
       default:
         printf("invalid option %c\n",c);
         SciLisp_help(1);
@@ -248,7 +258,7 @@ static CORD Make_SciLisp_Copyright_string(){
 static CORD Make_SciLisp_help_string(){
   CORD copyright_string=Make_SciLisp_Copyright_string();
   CORD version_string=Make_SciLisp_verson_string(current_version);
-  CORD help_string=CORD_catn(3,version_string,copyright_string,"\n");
+  CORD help_string=CORD_catn(4,version_string," ",copyright_string,"\n");
   CORD_cat
     (help_string,
      "SciLisp [-hqv] [-e|--eval] [-f|--file] [-l|--load] [-o|--output] [file]\n"
@@ -257,6 +267,7 @@ static CORD Make_SciLisp_help_string(){
      "help|h, print this help and exit\n"
      "load|l [file], eval code from file and start interpreter\n"
      "output|o [file], output compiled code to file, requires a file to compile\n"
+     "test|t, run tests contatined in test.lisp and print results\n"
      "version|v, print version number and exit\n");
      // "quiet|q, insure debug messages are not printed (redirect to /dev/null)\n");
   return help_string;

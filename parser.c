@@ -58,7 +58,7 @@ static inline sexp parse_arg_list(){
 }
 sexp yyparse(FILE* input){
   if(setjmp(ERROR)){
-    PRINT_MSG("Jumped to error");
+    fprintf(stderr,"Parse error\n");
     evalError=1;
     if(error_str){
       CORD_fprintf(stderr,error_str);
