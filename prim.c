@@ -146,10 +146,41 @@ sexp lisp_length(sexp obj){
     return error_sexp("object does not have a meaningful length field");
   }
 }
+sexp lisp_round(sexp float_num,sexp mode){
+  double double_val=getDoubleVal(float_num);
+  if(double_val == NAN){
+    return error_sexp("round argument is not a number");
+  } else if(NILP(mode)){
+    return long_sexp(lround(double_val));
+  } else if(!(INTP(mode))){
+        return error_sexp("rounding mode type error");
+  } else {
+    switch (mode.val.int64){
+    //ceil,floor & trunc return doubles, there is a function
+    //lrint which rounds to integers based on the current rounding mode
+    //but because rounding modes are tricky we use a bit of a hack by
+    //using lround to get an integer from the specified rounding function
+      case -1:
+        return long_sexp(lround(floor(double_val)));
+      case 0:
+        return long_sexp(lround(double_val));
+      case 1:
+        return long_sexp(lround(ceil(double_val)));
+      case 2:
+        return long_sexp(lround(trunc(double_val)));
+      default:
+        return error_sexp("round error,undefined rounding mode");
+    }
+  }
+}
 //should make this lisp_iota(a,b,c,d)
 //where d is a switch to decide between a list or an array
-sexp lisp_iota(sexp start,sexp stop,sexp step){
-  return list_iota(start, stop, step);
+sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
+  if(NILP(arrayorlist)){
+    return list_iota(start, stop, step);
+  } else {
+    return array_iota(start,stop,step);
+  }
 }
 const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
 const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
@@ -203,7 +234,7 @@ DEFUN("ash",ash,2,2);
 DEFUN("mod",lisp_mod,2,2);
 DEFUN("drand",lisp_randfloat,0,1);
 DEFUN("lrand",lisp_randint,0,0);
-DEFUN("iota",lisp_iota,1,3);
+DEFUN("iota",lisp_iota,1,4);
 DEFUN("aref",aref,2,2);
 DEFUN("array->list",array_to_list,1,1);
 DEFUN("eval",lisp_eval,1,1);//welp this is going to fail horribly

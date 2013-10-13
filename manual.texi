@@ -1,0 +1,52 @@
+\input texinfo @c -*-texinfo-*-
+@c %**start of header
+@setfilename SciLisp.info
+@settitle SciLisp Manual
+@c %**end of header
+@copying
+This manual is for SciLisp (version 0.01, updated 
+use
+Copyright @copyright{} 2013 Tucker DiNapoli
+@end copying
+@titlepage
+@title SciLisp Manual
+@author Tucker DiNapoli
+@page
+@vskip Opt plus 1filll @c presumably some kind of vertical break
+@insertcopying
+@end titlepage
+@contends
+@ifnottex
+@node top
+@top SciLisp
+This is the SciLisp manual
+@end ifnottex
+@menu
+* Introduction:: Introduction to SciLisp and reasons for it's creation
+* Usage:: How to call SciLisp and what the command line options do
+* Grammar:: Informal introduction to SciLisp grammar
+* Standard Libary:: The standard library of SciLisp (not much to it
+                     though)
+* Internals:: An attempt to describe the internals of SciLisp
+* Index:: 
+
+@end menu
+
+@node Introduction, Index, top, top
+@chapter Introduction
+@node Usage, Index, Introduction, top
+@comment  node-name,  next,  previous,  up
+@chapter Usage
+@node Grammar, Index, Usage, top
+@chapter Grammar
+This file attempts to describe the grammer and syntax of the SciLisp
+language. The language itself is a work in process and as such the grammer
+itself is as well. Hopefully the basic framework is stable and so most of this
+will hold even if some things change. This document is written
+@node Standard Library,  , Grammar, top
+@chapter Standard Library
+
+@node Index,  , Introduction, top
+@unnumbered Index
+@printindex cp
+@bye

@@ -40,37 +40,43 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define CONSP(obj) (obj.tag == _cons || obj.tag == _list)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
 #define FLOATP(obj) (obj.tag == _double)
+#define AS_DOUBLE(obj) (obj.val.real64)
 #define INTP(obj) (obj.tag == _long)
+#define AS_LONG(obj) (obj.val.int64)
 #define SYMBOLP(obj) (obj.tag == _sym)
+#define AS_SYMBOL(obj) (obj.val.var)
 #define SPECP(obj) (obj.tag== _special)
 #define STRINGP(obj) (obj.tag == _str)
+#define AS_STRING(obj) (obj.val.cord)
 #define CHARP(obj) (obj.tag == _char)
+#define AS_CHAR(obj) (obj.val.utf8_char)
 #define FUNP(obj) (obj.tag == _fun)
 #define ARRAYP(obj) (obj.tag == _array)
+#define AS_ARRAY(obj) (obj.val.array)
 #define LAMBDAP(obj) (obj.tag == _lam)
 #define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
-#define NUM_TYPES 16
 enum _tag {
-  _error = -4,
-  _false = -3,
-  _uninterned = -2,
-  _nil = -1,
-  _cons = 0,
-  _double = 1,
-  _long = 2,
-  _char = 3,
-  _str = 4,
-  _fun = 5,
-  _sym = 6,
-  _special = 7,
-  _macro = 8,
-  _type = 9,
-  _array = 10,
-  _true = 11,
-  _list = 12,
-  _quoted = 13,
-  _lam = 14,
-  _lenv = 15,
+  _error = -4,//type of errors, value is a string
+  _false = -3,//type of #f, actual value is undefined
+  _uninterned = -2,//type of uninterned symbols, value is symbol(var)
+  _nil = -1,//type of nil, singular object,vaule is undefined
+  _cons = 0,//type of cons cells(aka lisp programs), value is cons
+  _double = 1,//type of floating point numbers, value is real64
+  _long = 2,//type of integers, vaule is int64
+  _char = 3,//type of chars(c type wchar_t),value is utf8_char
+  _str = 4,//type of strings, value is cord
+  _fun = 5,//type of builtin functions,value is function pointer,fun
+  _sym = 6,//type of symbols,value is var
+  _special = 7,//type of special form,value is meta(a _tag value)
+  _macro = 8,//type of macros, unimplemented
+  _type = 9,//type of types, unimplemened
+  _array = 10,//type of arrays, element type in meta, vaule is array
+  _true = 11,//type of #t, singular value
+  _list = 12,//type of lists,value is cons
+  _lam = 13,//type of lambda, value is lam
+  _lenv = 14,//type of local environments,value is lenv
+  _dpair = 15,
+  _ustr = 16,//utf8 string
 };
 enum special_form{
   _def=0,
@@ -107,7 +113,7 @@ enum sexp_meta{
   _quoted_utf8_string=(short)0x8003,
   _quoted_long_array=(short)0x8002,
   _quoted_double_array=(short)0x8001,
-  _quoted_value = (short)0x8001,
+  _quoted_value = (short)0x8,
   _double_array=1,
   _long_array=2,
   _utf8_string=3,
@@ -116,6 +122,7 @@ union data {
   double real64;
   long int64;
   wchar_t utf8_char;
+  wchar_t utf8_str;
   c_string string;
   CORD cord;
   cons* cons;
@@ -145,7 +152,9 @@ enum TOKEN{
   TOK_REAL=2,
   TOK_CHAR=3,
   TOK_STRING=4,
-  TOK_ID=5,  
+  TOK_ID=5,
+  TOK_LISP_TRUE=6,
+  TOK_LISP_FALSE=7,
   //reserved words/characters 20-30
   TOK_SPECIAL=20,
   TOK_QUOTE=19,
@@ -284,6 +293,8 @@ static inline size_t symbolSize(env cur_env){
 //literal objects for each type
 #define mkTypeSym(name,mval)                                    \
   static const sexp name = {.tag=-2, .val={.meta = mval}}
+mkTypeSym(Qerror,-4);
+mkTypeSym(Qfalse,-3);
 mkTypeSym(Quninterned,-2);
 mkTypeSym(Qnil,-1);
 mkTypeSym(Qcons,0);
@@ -298,6 +309,9 @@ mkTypeSym(Qmacro,8);
 mkTypeSym(Qtype,9);
 mkTypeSym(Qarr,10);
 mkTypeSym(Qtrue,11);
+mkTypeSym(Qlist,12);
+mkTypeSym(Qlam,13);
+mkTypeSym(Qlenv,14);
 //static const sexp typeArray[NUM_TYPES-1] = {Quninterned,Qnil,Qcons,Qdouble,Qlong,Qchar,Qstr,Qfun,Qsym,Qspec,Qmacro,Qtype,Qarr,Qtrue};
 //static sexp typeOf(sexp obj){
 //  return typeArray[obj.tag+2];

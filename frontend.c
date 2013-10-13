@@ -91,7 +91,6 @@ int compile(FILE* input,const char *output,FILE* c_code){
  * assumed that code will be read from outfile and evaluated. Read returns
  * the position in outfile where it started scanning*/
 int lispReadLine(FILE* outfile,char* filename){
-  HERE();
   FILE* my_pipe=outfile;
   char* tmpFile=filename;
   int parens,start_pos=ftello(my_pipe);

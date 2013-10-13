@@ -143,7 +143,7 @@ sexp parse_cons(){
     temp->cdr.val.cons=xmalloc(sizeof(cons));
     temp=temp->cdr.val.cons;
     temp->cdr=NIL;
-    HERE();
+    //    HERE();
     if(nextTok() == TOK_LPAREN){
       temp->car=parse_list();
       temp->car.tag=_cons;
@@ -224,13 +224,13 @@ sexp parse_atom(){
         TODO: allow expressions in arrays (eval them to a # before use)
       */
     case TOK_LBRACE:
-      HERE();
+      //      HERE();
       nextTok();
       sexp retval;
       int size=8,i=-1;
       data* arr=retval.val.array=xmalloc_atomic(size*sizeof(data));      
       retval.tag=_array;
-      HERE();
+      //      HERE();
       _tag arrType=yylval->tag;
       PRINT_MSG(tag_name(arrType));
       if (arrType != _double && arrType!=_long && arrType !=_char){
@@ -245,7 +245,7 @@ sexp parse_atom(){
                     (arrType == _char? 3 : assert(0),0)));
       do{
         if(i++>=size){
-          HERE();
+          //  HERE();
           arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(data));
         }
         if(yytag !=TOK_REAL && yytag !=TOK_INT && yytag !=TOK_CHAR){

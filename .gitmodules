@@ -1,0 +1,6 @@
+[submodule "gc/libatomic_ops"]
+	path = gc/libatomic_ops
+	url = git://github.com/ivmai/libatomic_ops.git
+[submodule "gc/bdwgc"]
+	path = gc/bdwgc
+	url = git://github.com/ivmai/bdwgc.git

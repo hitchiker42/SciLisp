@@ -1,11 +1,13 @@
+#ifndef _ARRAY_H_
+#define _ARRAY_H_
 #include "common.h"
 #include "cons.h"
 //unsafe array access in C
 #define XAREF(obj,ind)\
   (sexp){.tag = (_tag)obj.meta,.val = (data)obj.val.array[ind]}
-static sexp aref(sexp obj,sexp ind)__attribute__((pure,hot));
+sexp aref(sexp obj,sexp ind)__attribute__((pure,hot));
 static sexp array_to_list(sexp obj)__attribute__((pure));
-static sexp aref(sexp obj,sexp ind){
+/*static sexp aref(sexp obj,sexp ind){
   if(!ARRAYP(obj)){
     return error_sexp("aref type error");
   } else if(ind.val.int64 > obj.len || ind.val.int64<0){
@@ -13,7 +15,7 @@ static sexp aref(sexp obj,sexp ind){
   } else {
     return XAREF(obj,ind.val.int64);
   }
-}
+  }*/
 static sexp aref_unsafe(sexp obj,sexp ind){
   if(!ARRAYP(obj)){
     return error_sexp("aref type error");
@@ -35,3 +37,5 @@ static sexp array_to_list(sexp obj){
     return retval;
   }
 }
+sexp array_iota(sexp start,sexp stop,sexp step);
+#endif

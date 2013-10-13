@@ -119,11 +119,16 @@ sexp cons_length(sexp ls) {
     return len_acc(ls,0);
   }
 }
+//lisp declaration would be
+//(defun iota (start &optional stop step))
 sexp list_iota(sexp start,sexp stop,sexp step){
   int i;
   double dstep;
+  if(!NUMBERP(start)){
+    return error_sexp("iota type error, arguments must be numbers");
+  }
   if(NILP(stop)){
-    int imax=ceil(getDoubleVal(start));
+    int imax=lrint(getDoubleVal(start));
     cons* newlist=xmalloc(sizeof(cons)*imax);
     for(i=0;i<imax;i++){
       newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};

@@ -5,13 +5,55 @@
  ****************************************************************/
 #include "common.h"
 #define YY_DECL TOKEN yylex(void)
+  //woo non portable
+union utf8_hack{
+  char bytes[2];
+  wchar_t wchar;
+};
+union utf8_hack utf8_escape={.wchar=L'\0'};
+static wchar_t lex_char(char* cur_yytext){
+  wchar_t result[1];
+  mbstate_t state;
+  size_t len,nbytes;
+  char* cvt_str;
+  memset(&state,'\0',sizeof(state));
+  /* this is so horrendously non portable it's kinda funny,
+     it relies on the size of chars,specific input and output encoding
+     and little endian byte ordering*/
+  if(cur_yytext[1]=='\\'){
+    if(cur_yytext[2]=='x'){
+      //without this if you gave \x0000 you'd segfault
+      char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
+      utf8_escape.bytes[1]=0x00;
+      utf8_escape.bytes[0]=(unsigned char)strtol(byte,NULL,16);
+    } else if(cur_yytext[2]=='u'){
+      char byte1[3]={cur_yytext[3],cur_yytext[4],'\0'};
+      char byte2[3]={cur_yytext[5],cur_yytext[6],'\0'};
+      utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
+      utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
+    }
+  } else {
+    utf8_escape.bytes[1]=0x00;
+    utf8_escape.bytes[0]=cur_yytext[1];
+  }
+    PRINT_FMT("%lc",utf8_escape.wchar);
+    return utf8_escape.wchar;
+  if(0<=mbrtowc(result,cvt_str,strlen(cvt_str),&state)){
+    return (wchar_t)result[0];
+  } else {
+    fprintf(stderr,"error lexing char, returning null\n");
+    return (wchar_t)L'\0';
+  }
+}
+
 %}
 DIGIT [0-9]
 HEX_DIGIT [0-9a-fA-f]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
-ID [A-Za-z%+*!?\-_^$/&<>=/][A-Za-z%+*!?\-_^$&<>0-9=/]*
+ID [A-Za-z%+*!\-_^$/&<>=/][A-Za-z%+*!?\-_^$&<>0-9=/]*
 TYPENAME "::"[A-z_a-z][A-Z_a-z0-9]*
 QUOTE "'"|quote
+UCHAR "?"("\\?"|"\\\\"|"\\x"([0-9a-fA-F]{2})|"\\u"([0-9a-fA-F]{4})|[^?\\])
 /*
 union data {
   double real64;
@@ -37,15 +79,12 @@ union data {
 [+\-]?{DIGIT}+"."?{DIGIT}*[eE][+-]?{DIGIT}+ {LEX_MSG("lexing real");
   yylval->tag=_double;yylval->val.real64=strtod(yytext,NULL);
   return TOK_REAL;}
-    /*String Literal a quote, followed by either a literal \" 
+    /*String Literal a quote, followed by either a literal \"
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
 "\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
-"#\u"{HEX_DIGIT}{4} {fprintf(stderr,
-                             "unicode escapes unimplemented, ignoring input");}
-"#"("\\|"|"\\#"|"\\\""|[^|#]) {LEX_MSG("lexing char");
-  yylval->tag=_char;yylval->val.utf8_char=(wchar_t)(yytext[1]);
-  return TOK_CHAR;}
+{UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
+  yylval->val.utf8_char=(wchar_t)lex_char(yytext);return TOK_CHAR;}
  /*Special forms, generating function at end of file*/
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
@@ -100,6 +139,8 @@ and {LEX_MSG("lexing and");
   return TOK_TYPEINFO;}
 "#|" {LEX_MSG("lexing open comment");return TOK_COMMENT_START;}
 "|#" {LEX_MSG("lexing close comment");return TOK_COMMENT_END;}
+"#t" {LEX_MSG("lexing true literal");return TOK_LISP_TRUE;}
+"#f" {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
 {ID} {LEX_MSG("lexing ID");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
