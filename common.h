@@ -43,6 +43,7 @@
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
+#define NIL_MACRO() {.tag = -1,.val={.int64 = 0}}
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.int64 = 0}};
 static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
@@ -72,4 +73,5 @@ static inline double getDoubleVal(sexp x){
       return NAN;
   }
 }
+extern/*C++*/ void initialize_llvm();
 #endif

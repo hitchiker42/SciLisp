@@ -255,6 +255,7 @@ struct lambda{
 //for any long argument with a corrsponding short option this must be 0
 //4th arg is the value to load into 3rd arg if it is not null otherwise
 //it should be set to the equivlant short option
+static struct option long_options[];
 static struct option long_options[] = {
   {"eval"   ,1,0,'e'},
   {"help"   ,0,0,'h'},

@@ -14,6 +14,7 @@ jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
+static sexp error_val=NIL_MACRO();
 static void handle_error() __attribute__((noreturn));
 static void handle_error(){
   evalError=1;
@@ -64,6 +65,11 @@ sexp yyparse(FILE* input){
       CORD_fprintf(stderr,error_str);
     }
     if(yylval){free(yylval);}
+    if(!NILP(error_val)){
+      sexp temp=error_val;
+      error_val=NIL;
+      return temp;
+    }
     return NIL;
   } else{
     yyin=input;
@@ -151,7 +157,7 @@ sexp parse_cons(){
       temp->car=parse_atom();
     }
     if(nextTok() != TOK_RPAREN){
-      format_error_str("error, missing closing parentheses");
+      error_val=error_sexp("error, missing closing parentheses");
       handle_error();
     }
     //PRINT_MSG(print(cdr(retval)));

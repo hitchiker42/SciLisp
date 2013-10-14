@@ -31,7 +31,7 @@ CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 .PHONY: clean all quiet asm optimized set_quiet set_optimized\
 	doc info pdf clean_doc
 LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
-CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb
+CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb -Wno-write-strings
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@

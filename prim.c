@@ -103,21 +103,24 @@ sexp lisp_abs(sexp x){
       (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};
   } else if(x.tag == _double){
     return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};
-  } else {return NIL;}
+  } else {
+    return error_sexp("Argument to Abs must be a number");
+  }
 }
 sexp lisp_mod(sexp x,sexp y){
   if((x.tag==y.tag)==_long){
     return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};
-  } else {
+  } else if(NUMBERP(x) && NUMBERP(y)){
     register double xx=getDoubleVal(x);
     register double yy=getDoubleVal(y);
     return (sexp){.tag=_double,.val={.real64=fmod(xx,yy)}};
+  } else {
+    return error_sexp("Arguments to mod must be numbers");
   }
 }
 sexp ash(sexp x,sexp y){
   if(y.tag != _long || x.tag != _long){
-    fprintf(stderr,"arguments to ash must be integers");
-    return NIL;
+    return error_sexp("arguments to ash must be integers");
   } else if(y.val.int64>=0){
     return lisp_rshift(x,y);
   } else{

@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/LLVMContext.h>
@@ -11,18 +13,41 @@
 #include <llvm/PassManager.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Analysis/Passes.h>
+#include <llvm-c/Core.h>
 #define GetDoubleVal(val) (ConstantFP*)ConstantFP::get(LispDouble,val)
 #define GetLongVal(val) (ConstantInt*)ConstantInt::get(LispLong,val)
+#define specifyDeclaredStruct(structType,types) structType::setBody(types),structType
+#define ArefArgs(numargs)  (ArrayRef<Type*>(LispArgs,numargs))
+#define mkFunType(numargs) (FunctionType::get(LispSexp,ArefArgs(numargs),false))
+#define voidFunction() (FunctionType::get(LispSexp,false))
+#ifdef DEFUN
+#undef DEFUN
+#endif
+typedef struct name_args_pair name_args_pair;
+struct name_args_pair{
+  char* name;
+  int args;
+};
+//"DEFUN(\\(\"[^\"]+\"\\),[^,]+,[[:digit:]]+,\\([[:digit:]]+\\));"
+static name_args_pair lisp_prims[]={{"+",2}, {"-",2}, {"*",2}, {"/",2},
+ {"logxor",2}, {"logand",2}, {"logor",2}, {"car",1}, {"cdr",1},
+{"caar",1}, {"cadr",1}, {"cddr",1}, {"cdar",1}, {"caaar",1},
+{"caadr",1}, {"caddr",1}, {"cdddr",1}, {"cddar",1}, {"cdaar",1},
+{"cadar",1}, {"cdadr",1}, {"cons",2}, {"mapcar",2}, {"typeName",1},
+{"print",1}, {"reduce",2}, {"<",2}, {">",2}, {">=",2}, {"<=",2},
+{"!=",2}, {"=",2}, {"expt",2}, {"sqrt",1}, {"cos",1}, {"sin",1},
+{"tan",1}, {"exp",1}, {"log",1}, {"abs",1}, {"ash",2}, {"mod",2},
+{"drand",1}, {"lrand",0}, {"iota",4}, {"aref",2}, {"array->list",1},
+                                    {"eval",1}, {"length",1}, {"round",2}};
+
 extern "C" {
   //#include "common.h"
   //#include "prim.h"
   //#include "cons.h"
   #include "include/cord.h"
   #include "include/uthash.h"
-  //typedef enum _tag _tag;//different types of a lisp object
-  //typedef enum TOKEN TOKEN;//type of values returned from yylex
-  //typedef enum special_form special_form;//different types of special forms
-  //typedef enum sexp_meta sexp_meta;
+  //because C++ can't deal with real code we need to cut and paste
+  //this from C to remove the difficult stuff
 typedef union data data;//core representation of a lisp object
 typedef union env_type env_type;//generic environment
 typedef union symbol_type symbol_type;//generic symbol
@@ -39,8 +64,9 @@ typedef struct env env;//generic symbol namespace
 typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
 typedef struct lambda lambda;//type of lambda expressions
+typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
-typedef const char* c_string;//type of \0 terminated c strings
+typedef const char*  c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
 typedef global_symbol* global_symref;//"" global ""
 typedef local_symbol* local_symref;//"" local ""
@@ -50,36 +76,43 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define CONSP(obj) (obj.tag == _cons || obj.tag == _list)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
 #define FLOATP(obj) (obj.tag == _double)
+#define AS_DOUBLE(obj) (obj.val.real64)
 #define INTP(obj) (obj.tag == _long)
+#define AS_LONG(obj) (obj.val.int64)
 #define SYMBOLP(obj) (obj.tag == _sym)
+#define AS_SYMBOL(obj) (obj.val.var)
 #define SPECP(obj) (obj.tag== _special)
 #define STRINGP(obj) (obj.tag == _str)
+#define AS_STRING(obj) (obj.val.cord)
 #define CHARP(obj) (obj.tag == _char)
+#define AS_CHAR(obj) (obj.val.utf8_char)
 #define FUNP(obj) (obj.tag == _fun)
 #define ARRAYP(obj) (obj.tag == _array)
+#define AS_ARRAY(obj) (obj.val.array)
 #define LAMBDAP(obj) (obj.tag == _lam)
-#define NUM_TYPES 16
+#define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
 enum _tag {
-  _error = -4,
-  _false = -3,
-  _uninterned = -2,
-  _nil = -1,
-  _cons = 0,
-  _double = 1,
-  _long = 2,
-  _char = 3,
-  _str = 4,
-  _fun = 5,
-  _sym = 6,
-  _special = 7,
-  _macro = 8,
-  _type = 9,
-  _array = 10,
-  _true = 11,
-  _list = 12,
-  _quoted = 13,
-  _lam = 14,
-  _lenv = 15,
+  _error = -4,//type of errors, value is a string
+  _false = -3,//type of #f, actual value is undefined
+  _uninterned = -2,//type of uninterned symbols, value is symbol(var)
+  _nil = -1,//type of nil, singular object,vaule is undefined
+  _cons = 0,//type of cons cells(aka lisp programs), value is cons
+  _double = 1,//type of floating point numbers, value is real64
+  _long = 2,//type of integers, vaule is int64
+  _char = 3,//type of chars(c type wchar_t),value is utf8_char
+  _str = 4,//type of strings, value is cord
+  _fun = 5,//type of builtin functions,value is function pointer,fun
+  _sym = 6,//type of symbols,value is var
+  _special = 7,//type of special form,value is meta(a _tag value)
+  _macro = 8,//type of macros, unimplemented
+  _type = 9,//type of types, unimplemened
+  _array = 10,//type of arrays, element type in meta, vaule is array
+  _true = 11,//type of #t, singular value
+  _list = 12,//type of lists,value is cons
+  _lam = 13,//type of lambda, value is lam
+  _lenv = 14,//type of local environments,value is lenv
+  _dpair = 15,
+  _ustr = 16,//utf8 string
 };
 enum special_form{
   _def=0,
@@ -105,6 +138,7 @@ enum special_form{
   _or=20,
   _main=21,
   _while=22,
+  _prog1=23,
 };
 //sign bit determines quoting
 #define quote_mask  0x7fff
@@ -115,7 +149,7 @@ enum sexp_meta{
   _quoted_utf8_string=(short)0x8003,
   _quoted_long_array=(short)0x8002,
   _quoted_double_array=(short)0x8001,
-  _quoted_value = (short)0x8001,
+  _quoted_value = (short)0x8,
   _double_array=1,
   _long_array=2,
   _utf8_string=3,
@@ -124,6 +158,7 @@ union data {
   double real64;
   long int64;
   wchar_t utf8_char;
+  wchar_t utf8_str;
   c_string string;
   CORD cord;
   cons* cons;
@@ -153,7 +188,9 @@ enum TOKEN{
   TOK_REAL=2,
   TOK_CHAR=3,
   TOK_STRING=4,
-  TOK_ID=5,  
+  TOK_ID=5,
+  TOK_LISP_TRUE=6,
+  TOK_LISP_FALSE=7,
   //reserved words/characters 20-30
   TOK_SPECIAL=20,
   TOK_QUOTE=19,
@@ -181,8 +218,20 @@ union funcall{
   sexp(*f4)(sexp,sexp,sexp,sexp);
   sexp(*fmany)(sexp,...);
 };
+struct function{
+  short min_args;
+  short max_args;
+  union {
+    fxn_proto* prim;
+    lambda* lam;
+  } fun;
+  enum {
+    _primFun=0,
+    _lambdaFun=1,
+  } fxn_type;
+};
 struct fxn_proto{
-  CORD cname;//non-prim sets cname to 0
+  CORD cname;//non-prim sets cname to 0...yeah no
   CORD lispname;
   //max_args == -1 means remaining args as a list
   short min_args,max_args;
