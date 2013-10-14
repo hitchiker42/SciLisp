@@ -1,0 +1,177 @@
+\input texinfo
+@c %**start of header
+@set UPDATED Time-stamp: <14 October 2013>
+@setfilename SciLisp.info
+@settitle SciLisp Manual
+@codequoteundirected on
+@codequotebacktick on
+@documentencoding UTF-8
+@set VERSION 0.01 alpha
+@c %**end of header
+@c @allowcodebreaks true/false; allow line breaking at _ or - in
+@c @code{}(et. all) blocks
+@copying
+This manual is for SciLisp (version @value{VERSION}, last updated on
+@value{UPDATED} @*
+SciLisp is free software licensed under the GNU GPL V3+
+Copyright @copyright{} 2013 Tucker DiNapoli
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts. A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+@end quotation
+@end copying
+@titlepage
+@title SciLisp Manual
+@subtitle for version @value{VERSION}, @value{UPDATED}
+@author Tucker DiNapoli (@email{SciLisp@@gmail.com})
+@page
+@vskip 0pt plus 1filll @c presumably some kind of vertical break
+@insertcopying
+@end titlepage
+@contents
+@c @ifnottex
+@node Top
+@top SciLisp
+@c @end ifnottex
+Manual for the SciLisp programming language
+@menu
+* Introduction:: Introduction to SciLisp and reasons for it's creation
+* Usage:: How to call SciLisp and what the command line options do
+* The SciLisp Language:: Informal introduction to the SciLisp language
+* Grammar:: Introduction to SciLisp grammar and formal grammar rules
+* Standard Library:: The standard library of SciLisp (not much to it
+                     though)
+* Internals:: An attempt to describe the internals of SciLisp
+* Differences from other lisps:: How SciLisp differs from other lisps,
+                                 specifically common lisp and scheme.
+* Development:: An overview of the development of SciLisp with emphasis
+                on the topics of compiler design and the structure of
+                the codebase 
+* Concept Index::
+* Function and Macro Index::
+* Variable and Type Index::
+* GNU Free Documentation License::
+@end menu
+
+@node Introduction
+@chapter Introduction
+@cindex Introduction
+@cindex General Introduction
+SciLisp is a programming language in the LISP family largely influenced
+by aspects of both Common Lisp and Scheme. The SciLisp compiler and
+interpreter are the first programs of their kind written by the author
+and are still a work in progress, the rest of this manual should be read
+with this in mind. That said SciLisp attempts to be a proper programming
+language usable for real world programming as opposed to a toy academic
+language, though this is not yet the case. Because the writing of
+SciLisp is and has been an exercise in learning compiler design and the
+challenges and requirements of actually implementing said compiler much
+of this manual is written with emphasis on the development and inner
+workings of the compiler more than the usage of the language. For those
+simply wishing to understand the usage of the SciLisp compiler or the
+SciLisp language itself @pxref{Usage}, or @ref{The SciLisp Language},
+respectively.
+@node Usage
+@chapter Usage
+@menu
+* The SciLisp Compiler:Invoking the Compiler
+* The SciLisp Interpreter:Invoking the Interpreter
+* Command Line Options::
+@end menu
+@node Invoking the Compiler
+@section The SciLisp Compiler
+@node Invoking the Interpreter
+@section The SciLisp Interpreter
+@node Command Line Options
+@section Command Line Options
+@node The SciLisp Language
+@chapter The SciLisp Language
+@node Grammar
+@menu
+* SciLisp Syntax and Semantics: Syntax and Semantics
+* Formal Grammar::
+@end menu
+@chapter Grammar
+@section Introduction
+This section describes the syntax and semantics of the SciLisp
+language. The grammar of the language is first described in an informal
+way, which is hopefully easy to understand. Following this is a more
+formal definition of the language using a version of EBNF.@footnote{EBNF or
+Extended Backus-Naur Form is a way of describing a context free
+grammar (usually a programming language) in terms of terminal and
+non-terminal symbols. Briefly terminal symbols are some form of literal
+text and non-terminals are rules describing how other symbols interact.}
+SciLisp is very much a work in progress and while it is hoped that much
+of the grammar is fairly stable it should be noted that any of this
+information is subject to change. That said any changes will likely be
+minor and the high level grammar will remain the same.
+@node Syntax and Semantics
+@section SciLisp Syntax and Semantics
+@node Formal Grammar
+@section Formal Grammar
+The SciLisp grammar in EBNF form.
+
+@table @code
+@item program :=
+%nothing | @code{program},@code{sexp}
+@item sexp :=
+@code{atom} | @code{cons}
+@item atom :=
+@code{literal} | @code{special form} | @code{symbol}
+@item cons :=
+'(',@code{sexp},@{@code{sexp}@},['.',@code{sexp}]')' | '('')'
+@end table
+
+@node Standard Library
+@chapter Standard Library
+@c defination example
+@defun car cons-cell
+@defunx cdr cons-cell
+return the car or cdr of @var{cons-cell} or @code{nil} if @var{cons-cell} is
+@code{nil}. @code{car} and @code{cdr} return an error if @var{cons-cell} is
+not a cons cell.
+@end defun
+@defun safe-car cons-cell
+@defunx safe-cdr cons-cell
+@var{safe-car} and @var{safe-cdr} behave exactly like @code{car} and
+@code{cdr} is @var{cons-cell} is a cons cell or @code{nil} however they
+simply return @code{nil} if @var{cons-cell} is some other type.
+@end defun
+@defspec do (@var{var} [@var{from} @var{to} @
+         [@var{inc}]]) @var{body}@dots{}
+repeat body @math{@var{to}-@var{from}/@var{inc}} times with @var{var} bound
+initially to @var{from} and incremented by @var{inc} each iteration
+until @var{var} equals @var{to}. if [@var{from} @var{to}] is omitted
+loop indefinitely, unless a @code{break} or @code{return} statement is
+reached in @var{body}. If @var{inc} is omitted it defaults to
+@math{@var{to}-@var{from}/|@var{to}-@var{from}|}.
+@end defspec
+@node Internals
+@chapter Internals
+@node Differences from other lisps
+@chapter Differences from other lisps
+@node Development
+@chapter Development
+@node Concept Index
+@unnumbered Concept Index
+@printindex cp
+@node Function and Macro Index
+@unnumbered Function and Macro index
+@printindex fn
+@node Variable and Type Index
+@unnumbered Variable and Type Index
+@printindex vr @c also tp
+@node GNU Free Documentation License
+@appendix GNU Free Documentation License
+@include fdl.texi
+@bye
+
+@c Local Variables:
+@c mode: texinfo
+@c eval: (flyspell-mode)
+@c time-stamp-format: "%02d %:b %:y"
+@c End:
