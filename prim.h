@@ -92,11 +92,12 @@ DEFUN(ash,2);
 DEFUN(lisp_mod,2);
 DEFUN(lisp_randfloat,1);
 DEFUN(lisp_randint,0);
-DEFUN(lisp_iota,3);
+DEFUN(lisp_iota,4);
 DEFUN(aref,2);
 DEFUN(array_to_list,1);
 DEFUN(lisp_eval,1);//welp this is going to fail horribly
 DEFUN(lisp_length,1);
+DEFUN(lisp_round,2);
 /*
   (defun SciLisp-mkIntern ()
   (interactive)
@@ -159,6 +160,7 @@ DEFUN(lisp_length,1);
   DEFUN_INTERN("arrayp",lisp_arrayp);                                   \
   DEFUN_INTERN("consp",lisp_consp);                                     \
   DEFUN_INTERN("mapcar",mapcar);                                        \
+  DEFUN_INTERN("round",lisp_round);                                     \
   INTERN_ALIAS("cons?",lisp_consp,17);                                  \
   INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFUN_INTERN("numberp",lisp_numberp);                                 \

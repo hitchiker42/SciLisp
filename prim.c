@@ -239,6 +239,7 @@ DEFUN("aref",aref,2,2);
 DEFUN("array->list",array_to_list,1,1);
 DEFUN("eval",lisp_eval,1,1);//welp this is going to fail horribly
 DEFUN("length",lisp_length,1,1);
+DEFUN("round",lisp_round,1,2);
 #undef DEFUN
 /*
 sexp simple_iota(sexp stop){

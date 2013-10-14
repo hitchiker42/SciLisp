@@ -612,12 +612,15 @@ static wchar_t lex_char(char* cur_yytext){
       utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
       utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
     }
-  } else {
+    /*} else {
     utf8_escape.bytes[1]=0x00;
     utf8_escape.bytes[0]=cur_yytext[1];
-  }
+    }*/
     PRINT_FMT("%lc",utf8_escape.wchar);
     return utf8_escape.wchar;
+  } else {
+      cvt_str=cur_yytext+1;
+  } 
   if(0<=mbrtowc(result,cvt_str,strlen(cvt_str),&state)){
     return (wchar_t)result[0];
   } else {
@@ -638,7 +641,7 @@ union data {
 };
 */
 /*%option bison-bridge*/
-#line 642 "lex.yy.c"
+#line 645 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -820,10 +823,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 70 "lisp.lex"
+#line 73 "lisp.lex"
 
    /*Literals*/
-#line 827 "lex.yy.c"
+#line 830 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -908,26 +911,26 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 72 "lisp.lex"
+#line 75 "lisp.lex"
 {LEX_MSG("lexing int");yylval->tag=_long;
   yylval->val.int64 = (long)strtol(yytext,NULL,10);return TOK_INT;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 74 "lisp.lex"
+#line 77 "lisp.lex"
 {LEX_MSG("lexing hex int");yylval->tag=_long;
   yylval->val.int64=(long)strtol(yytext,NULL,16);return TOK_INT;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 76 "lisp.lex"
+#line 79 "lisp.lex"
 {LEX_MSG("lexing real");yylval->tag=_double;
   yylval->val.real64 = strtod(yytext,NULL);
   return TOK_REAL;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 79 "lisp.lex"
+#line 82 "lisp.lex"
 {LEX_MSG("lexing real");
   yylval->tag=_double;yylval->val.real64=strtod(yytext,NULL);
   return TOK_REAL;}
@@ -937,248 +940,248 @@ YY_RULE_SETUP
 case 5:
 /* rule 5 can match eol */
 YY_RULE_SETUP
-#line 84 "lisp.lex"
+#line 87 "lisp.lex"
 {LEX_MSG("Lexing string");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
 	YY_BREAK
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 86 "lisp.lex"
+#line 89 "lisp.lex"
 {LEX_MSG("lexing char");yylval->tag=_char;
   yylval->val.utf8_char=(wchar_t)lex_char(yytext);return TOK_CHAR;}
 	YY_BREAK
 /*Special forms, generating function at end of file*/
 case 7:
 YY_RULE_SETUP
-#line 89 "lisp.lex"
+#line 92 "lisp.lex"
 {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 91 "lisp.lex"
+#line 94 "lisp.lex"
 {LEX_MSG("lexing defun");
   yylval->tag=_special;yylval->val.special=_defun;return TOK_LAMBDA;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 93 "lisp.lex"
+#line 96 "lisp.lex"
 {LEX_MSG("lexing setq");
   yylval->tag=_special;yylval->val.special=_setq;return TOK_SPECIAL;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 95 "lisp.lex"
+#line 98 "lisp.lex"
 {LEX_MSG("lexing datatype");
   yylval->tag=_special;yylval->val.special=_datatype;return TOK_SPECIAL;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 97 "lisp.lex"
+#line 100 "lisp.lex"
 {LEX_MSG("lexing union");
   yylval->tag=_special;yylval->val.special=_union;return TOK_SPECIAL;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 99 "lisp.lex"
+#line 102 "lisp.lex"
 {LEX_MSG("lexing enum");
       yylval->tag=_special;yylval->val.special=_enum;return TOK_SPECIAL;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 101 "lisp.lex"
+#line 104 "lisp.lex"
 {LEX_MSG("lexing struct");
   yylval->tag=_special;yylval->val.special=_struct;return TOK_SPECIAL;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 103 "lisp.lex"
+#line 106 "lisp.lex"
 {LEX_MSG("lexing go");
   yylval->tag=_special;yylval->val.special=_go;return TOK_SPECIAL;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 105 "lisp.lex"
+#line 108 "lisp.lex"
 {LEX_MSG("lexing tagbody");
   yylval->tag=_special;yylval->val.special=_tagbody;return TOK_SPECIAL;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 107 "lisp.lex"
+#line 110 "lisp.lex"
 {LEX_MSG("lexing lambda");
   yylval->tag=_special;yylval->val.special=_lambda;return TOK_LAMBDA;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 109 "lisp.lex"
+#line 112 "lisp.lex"
 {LEX_MSG("lexing progn");
   yylval->tag=_special;yylval->val.special=_progn;return TOK_SPECIAL;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 111 "lisp.lex"
+#line 114 "lisp.lex"
 {LEX_MSG("lexing prog1");
   yylval->tag=_special;yylval->val.special=_prog1;return TOK_SPECIAL;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 113 "lisp.lex"
+#line 116 "lisp.lex"
 {LEX_MSG("lexing if");
   yylval->tag=_special;yylval->val.special=_if;return TOK_SPECIAL;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 115 "lisp.lex"
+#line 118 "lisp.lex"
 {LEX_MSG("lexing let");
   yylval->tag=_special;yylval->val.special=_let;return TOK_SPECIAL;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 117 "lisp.lex"
+#line 120 "lisp.lex"
 {LEX_MSG("lexing do");
   yylval->tag=_special;yylval->val.special=_do;return TOK_SPECIAL;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 119 "lisp.lex"
+#line 122 "lisp.lex"
 {LEX_MSG("lexing while");
   yylval->tag=_special;yylval->val.special=_while;return TOK_SPECIAL;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 121 "lisp.lex"
+#line 124 "lisp.lex"
 {LEX_MSG("lexing quasiquote");
   yylval->tag=_special;yylval->val.special=_quasi;return TOK_SPECIAL;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 123 "lisp.lex"
+#line 126 "lisp.lex"
 {LEX_MSG("lexing eval");
   yylval->tag=_special;yylval->val.special=_eval;return TOK_SPECIAL;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 125 "lisp.lex"
+#line 128 "lisp.lex"
 {LEX_MSG("lexing mainl");
   yylval->tag=_special;yylval->val.special=_main;return TOK_SPECIAL;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 127 "lisp.lex"
+#line 130 "lisp.lex"
 {LEX_MSG("lexing defmacro");
   yylval->tag=_special;yylval->val.special=_defmacro;return TOK_SPECIAL;}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 129 "lisp.lex"
+#line 132 "lisp.lex"
 {LEX_MSG("lexing or");
   yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 131 "lisp.lex"
+#line 134 "lisp.lex"
 {LEX_MSG("lexing and");
   yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 133 "lisp.lex"
+#line 136 "lisp.lex"
 {LEX_MSG("Lexing quote");
   yylval->tag=_special;yylval->val.special=_quote;return TOK_QUOTE;}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 135 "lisp.lex"
+#line 138 "lisp.lex"
 {LEX_MSG("Lexing comma");
   yylval->tag=_special;yylval->val.special=_comma;return TOK_SPECIAL;}
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 137 "lisp.lex"
+#line 140 "lisp.lex"
 {LEX_MSG("lexing typename");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(&yytext[2]);
   return TOK_TYPEINFO;}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 140 "lisp.lex"
+#line 143 "lisp.lex"
 {LEX_MSG("lexing open comment");return TOK_COMMENT_START;}
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 141 "lisp.lex"
+#line 144 "lisp.lex"
 {LEX_MSG("lexing close comment");return TOK_COMMENT_END;}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 142 "lisp.lex"
+#line 145 "lisp.lex"
 {LEX_MSG("lexing true literal");return TOK_LISP_TRUE;}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 143 "lisp.lex"
+#line 146 "lisp.lex"
 {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 144 "lisp.lex"
+#line 147 "lisp.lex"
 {LEX_MSG("lexing ID");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 146 "lisp.lex"
+#line 149 "lisp.lex"
 {LEX_MSG("lexing (");return TOK_LPAREN;}
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 147 "lisp.lex"
+#line 150 "lisp.lex"
 {LEX_MSG("lexing )");return TOK_RPAREN;}
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 148 "lisp.lex"
+#line 151 "lisp.lex"
 {LEX_MSG("lexing [");return TOK_LBRACE;}
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 149 "lisp.lex"
+#line 152 "lisp.lex"
 {LEX_MSG("lexing ]");return TOK_RBRACE;}
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 150 "lisp.lex"
+#line 153 "lisp.lex"
 {LEX_MSG("lexing {");return TOK_LCBRACE;}
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 151 "lisp.lex"
+#line 154 "lisp.lex"
 {LEX_MSG("lexing }");return TOK_RCBRACE;}
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 152 "lisp.lex"
+#line 155 "lisp.lex"
 {LEX_MSG("lexing .");return TOK_DOT;}
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 153 "lisp.lex"
+#line 156 "lisp.lex"
 {LEX_MSG("lexing :");return TOK_COLON;}
 	YY_BREAK
 case 45:
 /* rule 45 can match eol */
 YY_RULE_SETUP
-#line 154 "lisp.lex"
+#line 157 "lisp.lex"
 /*whitespace*/
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 155 "lisp.lex"
+#line 158 "lisp.lex"
 /*one line comments*/
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 156 "lisp.lex"
+#line 159 "lisp.lex"
 return -1;
 	YY_BREAK
 /*(defun special (name) (insert (format "\n%s {LEX_MSG(\"lexing %s\");
@@ -1187,10 +1190,10 @@ return -1;
 (dolist (name '("define" "defun" "setq" "datatype" "union" "enum" "struct" "go" "tagbody" "lamdba" "progn" "if" "let" "do" "quasiquote" "eval" "defmacro")) (special name))*/
 case 47:
 YY_RULE_SETUP
-#line 162 "lisp.lex"
+#line 165 "lisp.lex"
 ECHO;
 	YY_BREAK
-#line 1194 "lex.yy.c"
+#line 1197 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2182,4 +2185,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 162 "lisp.lex"
+#line 165 "lisp.lex"

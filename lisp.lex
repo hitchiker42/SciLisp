@@ -32,12 +32,15 @@ static wchar_t lex_char(char* cur_yytext){
       utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
       utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
     }
-  } else {
+    /*} else {
     utf8_escape.bytes[1]=0x00;
     utf8_escape.bytes[0]=cur_yytext[1];
-  }
+    }*/
     PRINT_FMT("%lc",utf8_escape.wchar);
     return utf8_escape.wchar;
+  } else {
+      cvt_str=cur_yytext+1;
+  } 
   if(0<=mbrtowc(result,cvt_str,strlen(cvt_str),&state)){
     return (wchar_t)result[0];
   } else {

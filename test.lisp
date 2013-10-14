@@ -1,3 +1,4 @@
+;-*- mode: SciLisp; -*-
 (def ls '(1 23 34 56 78))
 (def ls2 (iota 10))
 (def ls3 (iota -1 1 0.1))
@@ -65,3 +66,13 @@
     (prog1
         88
       (+ 2 8)))
+(setq copyright-literal ?©)
+(setq utf8-copyright ?\u00a9)
+(print ?\?)
+(print ?\x3f)
+(print copyright-literal)
+(print utf8-copyright)
+
+;; Local Variables:
+;; mode: SciLisp
+;; End:
