@@ -18,7 +18,6 @@ static sexp eval_defun(sexp expr,env cur_env);
 static sexp eval_if(sexp expr,env cur_env);
 static sexp eval_while(sexp expr,env cur_env);
 static sexp eval_lambda(sexp expr,env cur_env);
-static sexp eval_let(sexp expr,env cur_env);
 static sexp eval_progn(sexp expr,env cur_env);
 static sexp eval_prog1(sexp expr,env cur_env);
 static sexp eval_do(sexp expr,env cur_env);

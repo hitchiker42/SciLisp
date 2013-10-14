@@ -14,11 +14,10 @@
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm-c/Core.h>
-#define GetDoubleVal(val) (ConstantFP*)ConstantFP::get(LispDouble,val)
-#define GetLongVal(val) (ConstantInt*)ConstantInt::get(LispLong,val)
 #define specifyDeclaredStruct(structType,types) structType::setBody(types),structType
 #define ArefArgs(numargs)  (ArrayRef<Type*>(LispArgs,numargs))
 #define mkFunType(numargs) (FunctionType::get(LispSexp,ArefArgs(numargs),false))
+#define SexpToAref(type,obj) (ArrayRef<type>((type*)obj.val.array,obj.len))
 #define voidFunction() (FunctionType::get(LispSexp,false))
 #ifdef DEFUN
 #undef DEFUN
@@ -28,7 +27,8 @@ struct name_args_pair{
   char* name;
   int args;
 };
-//"DEFUN(\\(\"[^\"]+\"\\),[^,]+,[[:digit:]]+,\\([[:digit:]]+\\));"
+//THIS IS BROKEN, THESE NEED TO BE THE C NAMES
+//"DEFUN(\"[^\"]+\",\\([^,]+\\),[[:digit:]]+,\\([[:digit:]]+\\));" -> {\1,\2},
 static name_args_pair lisp_prims[]={{"+",2}, {"-",2}, {"*",2}, {"/",2},
  {"logxor",2}, {"logand",2}, {"logor",2}, {"car",1}, {"cdr",1},
 {"caar",1}, {"cadr",1}, {"cddr",1}, {"cdar",1}, {"caaar",1},
@@ -65,6 +65,7 @@ typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
 typedef struct lambda lambda;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
+typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char*  c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
@@ -285,4 +286,17 @@ struct lambda{
   short minargs,maxargs;
   sexp body;
 };
+struct scoped_sexp{
+  sexp sexp;
+  env* env;
+};
+global_env globalSymbolTable;
+env topLevelEnv;
+//basically env.h(move to seperate file?)
+local_symref getLocalSym(local_env cur_env,CORD name);
+global_symref getGlobalSym(CORD name);
+symref getSym(env cur_env,CORD name);
+symref addSym(env cur_env,symref Var);
+symref addGlobalSym(symref Var);
+symref addLocalSym(local_env cur_env,symref Var);
 }

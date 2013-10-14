@@ -19,6 +19,16 @@ static Type* LispCons;
 static Type* LispArray;
 static Type** LispArgs;
 static FunctionType** LispFxnTypes;
+static Value* Codegen_special(scoped_sexp scoped_obj);
+static Value* Codegen_def(scoped_sexp scoped_obj);
+static Value* Codegen_defun(scoped_sexp scoped_obj);
+static Value* Codegen_if(scoped_sexp scoped_obj);
+static Value* Codegen_while(scoped_sexp scoped_obj);
+static Value* Codegen_lambda(scoped_sexp scoped_obj);
+static Value* Codegen_let(scoped_sexp scoped_obj);
+static Value* Codegen_progn(scoped_sexp scoped_obj);
+static Value* Codegen_prog1(scoped_sexp scoped_obj);
+static Value* Codegen_do(scoped_sexp scoped_obj); 
 //perhaps use AvailableExternallyLinkage for prims
 //I don't actually need this
 static llvm::Function* defun_prim(char* name,int maxargs){
@@ -59,20 +69,45 @@ void initialize_llvm(){
   }
 }
 extern "C"{
-  LLVMValueRef LLVM_Codegen(sexp obj);
+  LLVMValueRef LLVM_Codegen(scoped_sexp scoped_obj);
 }
-Value* Codegen(sexp obj);
-LLVMValueRef LLVM_Codegen(sexp obj){
+Value* Codegen(scoped_sexp scoped_obj);
+LLVMValueRef LLVM_Codegen(scoped_sexp scoped_obj){
   return wrap(Codegen(obj));
 }
-Value* Codegen(sexp obj){
+/* Error handling not yet added, but to prevend horrible crashes
+   any conditional has a default case which goes to FAILSAFE*/
+Value* Codegen(scoped_sexp scoped_obj){
+  sexp obj=scoped_obj.sexp;
+  env scope=*scoped_obj.env;
   switch(obj.tag){
     case _long:
-      return GetLongVal(obj.val.int64);
+      return ConstantInt::get(LispLong,obj.val.int64);
     case _double:
-      return GetDoubleVal(obj.val.real64);
+      return ConstantFP::get(LispDouble,obj.val.real64);
+    case _char:
+      return ConstantInt::get(LispWChar,obj.val.utf8_char);
+    case _array:
+      switch(obj.meta){
+        case _double_array:
+          return ConstantDataVector(SL_Context,SexpToAref(double,obj));
+        case _long_array:
+          return ConstantDataVector(SL_Context,SexpToAref(long,obj));
+        default:
+          goto FAILSAFE;
+      }
+    case _var:
+      symref tmpSym=getSym(env,obj.val.var->name);
+      if(symref){
+        return Codegen((scoped_sexp){tmpSym->val,&env});
+      } else {
+        goto FAILSAFE;
+      }
     case _fun:
     default:
-      return ConstantPointerNull::get((PointerType*)LispArray);
+      goto FAILSAFE;
   }
+ FAILSAFE:
+  return ConstantPointerNull::get((PointerType*)LispArray);
+ ERROR:
 }

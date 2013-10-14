@@ -29,6 +29,7 @@ typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
 typedef struct lambda lambda;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
+typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
@@ -248,6 +249,10 @@ struct lambda{
   local_env env;
   short minargs,maxargs;
   sexp body;
+};
+struct scoped_sexp{
+  sexp sexp;
+  env* env;
 };
 //aviable command line options, struct args: 1st arg option name
 //2nd arg=enum{no_argument=0,required_argument=1,optional_argument=2}
