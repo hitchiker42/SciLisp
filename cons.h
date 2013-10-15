@@ -15,6 +15,10 @@ sexp mklist(sexp head,...);
 sexp mkImproper(sexp head,...);
 //destructively reverse a list
 sexp nreverse(sexp ls);
+//destructively append lists, argument is itself a list of lists to append
+//need to change some stuff with function args(or at least check some stuff)
+//before this can be added to lisp
+sexp nappend(sexp conses);
 //apply reduce_fn(a functon of the form f(sexp,sexp)-> sexp to
 //the members of ls iteratively to produce a single sexp result
 //ls must be at least 2 elements long
@@ -42,6 +46,8 @@ static inline sexp cdr(sexp cell){
     return error_sexp("cdr error");}
   else return cell.val.cons->cdr;
 }
+#define XCAR(cell) cell.val.cons->car
+#define XCDR(cell) cell.val.cons->cdr
 //get nth member of a list using typechecked car
 static inline sexp nth(sexp cell,int n){
   while(n>0){
@@ -50,15 +56,14 @@ static inline sexp nth(sexp cell,int n){
   }
   return cell;
 }
-//create a cons cell from 2 sexps, result may or may not be a list
-static sexp Cons(sexp car_cell,sexp cdr_cell){
-  sexp retval;
-  retval.tag=_list;//This needs looking at,the cons/list issue needs to be fixed
-  retval.val.cons=GC_malloc(sizeof(cons));
-  retval.val.cons->car=car_cell;
-  retval.val.cons->cdr=cdr_cell;
-  return retval;
+static inline sexp last(sexp cell){
+  while(!NILP(cdr(cell))){
+    cell=XCDR(cell);
+  }
+  return cell;
 }
+//create a cons cell from 2 sexps, result may or may not be a list
+sexp Cons(sexp car_cell,sexp cdr_cell);
 //set car af a cons cell,non type checked (probably should be)
 static inline sexp set_car(sexp cell,sexp new_val){
   if(!(CONSP(cell))){
@@ -88,8 +93,6 @@ static inline sexp cdadr(sexp cell){return cdr(car(cdr(cell)));}
 //non typechecked car/cdr/etc macros, for use when type checking has been
 //done in some other way. Don't use these if you don't know than the argument
 //has to be a cons cell
-#define XCAR(cell) cell.val.cons->car
-#define XCDR(cell) cell.val.cons->cdr
 #define XCAAR(cell) XCAR(XCAR(cell))
 #define XCADR(cell) XCAR(XCDR(cell))
 #define XCDAR(cell) XCDR(XCAR(cell))

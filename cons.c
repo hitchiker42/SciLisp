@@ -5,6 +5,14 @@
 #include "common.h"
 #include "cons.h"
 #include "prim.h"
+sexp Cons(sexp car_cell,sexp cdr_cell){
+  sexp retval;
+  retval.tag=_list;//This needs looking at,the cons/list issue needs to be fixed
+  retval.val.cons=GC_malloc(sizeof(cons));
+  retval.val.cons->car=car_cell;
+  retval.val.cons->cdr=cdr_cell;
+  return retval;
+}
 sexp mklist(sexp head,...){
   PRINT_MSG("Making a list");
   va_list ap;
@@ -53,6 +61,18 @@ sexp nreverse(sexp ls){
   }
   cur_cell->cdr=last_val;
   return cons_sexp(cur_cell);
+}
+sexp nappend(sexp conses){
+  cans* retval=XCAR(conses);
+  cons* cur_cell=retval;
+  while(CONSP(XCDR(conses))){
+    if(!CONSP(XCAR(conses))){
+      return error_sexp("append! requires arguments to be cons cells or lists");
+    }
+    XCDR(last(XCAR(conses)))=XCAR(XCDR(conses));
+    conses=(sexp)XCDR(conses);
+  }
+  return (sexp){.tag = _list,.val={.cons=retval}};
 }
 
 

@@ -120,7 +120,7 @@ static sexp* get_args(sexp arglist,function fun,env cur_env){
   int minargs=fun.min_args;int maxargs=fun.max_args;
   int i=0;
   sexp *args;
-  if(maxargs < 0){
+  if(maxargs < 0){//varargs function
     args=xmalloc(sizeof(sexp)*(minargs+1));
     while(i<minargs && CONSP(arglist)){
       args[i++]=eval(XCAR(arglist),cur_env);

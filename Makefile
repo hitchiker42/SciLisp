@@ -35,6 +35,8 @@ CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb -Wno-write-strin
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
+SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
+	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) llvm_codegen.o -o $@
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
@@ -61,8 +63,18 @@ llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.cpp cons.h
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 #make object file of primitives, no debugging, and optimize
-prim.o: prim.c
-	gcc -o prim.o -c -std=gnu99 -O3 $^
+LIBPRIM_FLAGS:=-std=gnu99 -flto -O3 -fno-strict-aliasing -rdynamic -D_GNU_SOURCE
+prim.o: prim.c cons.c array.c eval.c
+	$(eval CC:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
+	TMP_PRIM=$$(mktemp prim.XXX --suffix=.o --tmpdir);\
+	TMP_CONS=$$(mktemp cons.XXX --suffix=.o --tmpdir);\
+	TMP_ARRAY=$$(mktemp array.XXX --suffix=.o --tmpdir);\
+	TMP_EVAL=$$(mktemp eval.XXX --suffix=.o --tmpdir);\
+	$(CC) -o TMP_PRIM -c prim.c
+	$(CC) -o TMP_CONS -c  cons.c
+	$(CC) -o TMP_ARRAY -c array.c
+	$(CC) -o TMP_EVAL -c eval.c
+	$(CC) -lm -lgc -lcord -o prim.o TMP_PRIM TMP_CONS TMP_ARRAY TMP_EVAL
 libSciLisp_prim.a: prim.o
 	ar rcs $@ $^
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=Scilisp_prim.so

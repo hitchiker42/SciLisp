@@ -186,12 +186,14 @@ int main(int argc,char* argv[]){
   initPrims(); //read primitives into syntax table, this really should just
   // read a binary file containing a prepopulaed syntax table;
   int c;
+  sexp(*evalFun)(sexp,env)=eval;
   while(1){
-    c=getopt_long(argc,argv,"e:hl:o:qvt",long_options,NULL);
+    c=getopt_long(argc,argv,"e:hl:o:qvtb:",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
         output_file=optarg;
+        break;
       case 'v':
         SciLisp_version(0);
       case 'h':
@@ -243,6 +245,14 @@ int main(int argc,char* argv[]){
         }
         exit(0);
       }
+      case 'b':
+        switch(optarg[0]){
+          case 'l':
+            evalFun=llvmEvalJIT;
+            initialize_llvm();
+          default:
+            break;
+        }
       default:
         printf("invalid option %c\n",c);
         SciLisp_help(1);
@@ -278,7 +288,7 @@ int main(int argc,char* argv[]){
     //eval;
     ast=yyparse(my_pipe);
     if(!NILP(ast)){
-      result=eval(XCAR(ast),topLevelEnv);
+      result=evalFun(XCAR(ast),topLevelEnv);
     } else {
       result=NIL;
     }

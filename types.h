@@ -262,6 +262,7 @@ struct scoped_sexp{
 //it should be set to the equivlant short option
 static struct option long_options[];
 static struct option long_options[] = {
+  {"backend",1,0,'b'},
   {"eval"   ,1,0,'e'},
   {"help"   ,0,0,'h'},
   {"load"   ,1,0,'l'},

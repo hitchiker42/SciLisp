@@ -1,4 +1,5 @@
 #include "llvm.h"
+//I can't do this C++ thing
 using namespace llvm;
 static LLVMContext &SL_Context = getGlobalContext();
 static IRBuilder<> builder(getGlobalContext());
@@ -33,7 +34,7 @@ static Value* Codegen_do(scoped_sexp scoped_obj);
 //I don't actually need this
 static llvm::Function* defun_prim(char* name,int maxargs){
   return  Function::Create(LispFxnTypes[maxargs],
-                           GlobalValue::ExternalLinkage,Twine(name));
+                           GlobalValue::AvailableExternallyLinkage,Twine(name));
 }
 //Need to deal with scoping issues back in C
 static Constant* Module_getOrInsertFunction(Module* mod,char* name,Type* type){
@@ -41,6 +42,7 @@ static Constant* Module_getOrInsertFunction(Module* mod,char* name,Type* type){
 }
 extern "C"{
   void initialize_llvm();
+  sexp llvmEvalJIT(sexp expr,env cur_env);
 }
 void initialize_llvm(){
   LispDouble=Type::getDoubleTy(SL_Context);
