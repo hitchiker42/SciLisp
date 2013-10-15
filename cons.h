@@ -61,7 +61,16 @@ static sexp Cons(sexp car_cell,sexp cdr_cell){
 }
 //set car af a cons cell,non type checked (probably should be)
 static inline sexp set_car(sexp cell,sexp new_val){
+  if(!(CONSP(cell))){
+    return error_sexp("set_car type error, expected cons cell or list");
+  }
   return (cell.val.cons->car=new_val);
+}
+static inline sexp set_cdr(sexp cell,sexp new_val){
+  if(!(CONSP(cell))){
+    return error_sexp("set_cdr type error, expected cons cell or list");
+  }
+  return (cell.val.cons->cdr=new_val);
 }
 //type checked car/cdr extensions
 static inline sexp caar(sexp cell){return car(car(cell));}

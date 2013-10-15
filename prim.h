@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+/* TODO write a script/elisp program to write the code for all the DEFUN
+   type functions*/
 #ifndef __PRIM_H_
 #define __PRIM_H_
 #include "common.h"
@@ -44,6 +46,8 @@ extern sexp lisp_pi;
 extern sexp lisp_euler;
 extern sexp lisp_max_long;
 extern sexp lisp_mach_eps;
+//create prototypes for functions in prim.c 
+//so primitives can be used in the c source
 DEFUN(lisp_consp,2);
 DEFUN(lisp_numberp,1);
 DEFUN(lisp_arrayp,1);
@@ -71,6 +75,8 @@ DEFUN(cadar,1);
 DEFUN(cdadr,1);
 DEFUN(Cons,2);
 DEFUN(mapcar,2);
+DEFUN(set_car,2);
+DEFUN(set_cdr,2);
 DEFUN(lisp_typeName,1);
 DEFUN(lisp_print,1);
 DEFUN(reduce,2);
@@ -106,6 +112,8 @@ DEFUN(lisp_round,2);
   (replace-regexp-lisp ",[0-9],[0-9]);" ");\\\\")
   (goto-char start)
   (replace-regexp-lisp "DEFUN(" "DEFUN_INTERN("))))*/
+//insert code to initialize the global symbol table
+//with all the primitive functions
 #define initPrims()                                                     \
   globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
   topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
@@ -160,11 +168,13 @@ DEFUN(lisp_round,2);
   DEFUN_INTERN("arrayp",lisp_arrayp);                                   \
   DEFUN_INTERN("consp",lisp_consp);                                     \
   DEFUN_INTERN("mapcar",mapcar);                                        \
+  DEFUN_INTERN("set-car!",set_car);                                     \
+  DEFUN_INTERN("set-cdr!",set_cdr);                                     \
   DEFUN_INTERN("round",lisp_round);                                     \
-  INTERN_ALIAS("cons?",lisp_consp,17);                                  \
-  INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFUN_INTERN("numberp",lisp_numberp);                                 \
   DEFUN_INTERN("nilp",lisp_nilp);                                       \
+  INTERN_ALIAS("cons?",lisp_consp,17);                                  \
+  INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFCONST("Meps",lisp_mach_eps);                                       \
   DEFCONST("pi",lisp_pi);                                               \
   DEFCONST("e",lisp_euler);                                             \

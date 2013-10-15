@@ -298,7 +298,7 @@ static inline size_t symbolSize(env cur_env){
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
 //literal objects for each type
 #define mkTypeSym(name,mval)                                    \
-  static const sexp name = {.tag=-2, .val={.meta = mval}}
+  static const sexp name = {.tag=_type, .val={.meta = mval}}
 mkTypeSym(Qerror,-4);
 mkTypeSym(Qfalse,-3);
 mkTypeSym(Quninterned,-2);
@@ -338,4 +338,27 @@ static function prim_to_fun(fxn_proto *prim){
   return (function){.min_args=prim->min_args,
       .max_args=prim->max_args,.fun={.prim = prim},0};
 }
-  
+#define mkTypeCase(type,tag) case tag: return type  
+static sexp typeOf(sexp obj){
+  switch (obj.tag){
+    mkTypeCase(Qerror,-4);
+    mkTypeCase(Qfalse,-3);
+    mkTypeCase(Quninterned,-2);
+    mkTypeCase(Qnil,-1);
+    mkTypeCase(Qcons,0);
+    mkTypeCase(Qdouble,1);
+    mkTypeCase(Qlong,2);
+    mkTypeCase(Qchar,3);
+    mkTypeCase(Qstr,4);
+    mkTypeCase(Qfun,5);
+    mkTypeCase(Qsym,6);
+    mkTypeCase(Qspec,7);
+    mkTypeCase(Qmacro,8);
+    mkTypeCase(Qtype,9);
+    mkTypeCase(Qarr,10);
+    mkTypeCase(Qtrue,11);
+    mkTypeCase(Qlist,12);
+    mkTypeCase(Qlam,13);
+    mkTypeCase(Qlenv,14);
+  }
+}

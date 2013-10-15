@@ -176,6 +176,8 @@ CORD print(sexp obj){
       return specialForm_name(obj);
     case _false:
       return "#f";
+    case _type:
+      return tag_name(obj.val.meta);
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;

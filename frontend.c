@@ -134,6 +134,52 @@ int lispReadLine(FILE* outfile,char* filename){
   }
   return start_pos;
 }
+//input w/o readline
+int lispGetLine(FILE* outfile,char* filename){
+  FILE* my_pipe=outfile;
+  char* tmpFile=filename;
+  int parens,start_pos=ftello(my_pipe);
+  size_t len;
+ MAIN_LOOP:while(1){
+    parens=0;
+    //makesure readline buffer is NULL
+    if (line_read){
+      free (line_read);
+      line_read = (char *)NULL;
+    }
+    fputs("SciLisp>",stdout);
+    len = getline(&line_read,NULL,stdin);
+    if (line_read){
+      goto MAIN_LOOP;
+    } else {puts("\n");exit(0);}
+    parens=parens_matched(line_read,0);
+    if(line_read[len-1] == '\n'){
+      line_read[len-1] = ' ';
+    }
+    fputs(line_read,my_pipe);
+    while(parens){
+      if(parens<0){
+        fprintf(stderr,"Extra close parentheses\n");
+        truncate(tmpFile,0);
+        goto MAIN_LOOP;
+      }
+      fputs(">",stdout);
+      len=getline(&line_read,NULL,stdin);
+      if(line_read == NULL){
+        HERE();
+        exit(0);
+      }
+      parens=parens_matched(line_read,parens);
+      if(line_read[len-1] == '\n'){
+        line_read[len-1] = ' ';
+      }
+      fputs(line_read,my_pipe);
+    }
+    fflush(my_pipe);
+    break;
+  }
+  return start_pos;
+}
 int main(int argc,char* argv[]){
   //setup handler for sigsegv, so we can exit gracefully on a segfault
   sigaction(SIGSEGV,sigsegv_action,NULL);

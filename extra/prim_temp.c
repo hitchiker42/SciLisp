@@ -203,6 +203,7 @@ MK_PREDICATE2(consp,_cons,_list);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
 MK_PREDICATE(nilp,_nil);
+DEFUN("car",cdr,2,2);
 DEFUN("+",lisp_add,2,2);
 DEFUN("-",lisp_sub,2,2);
 DEFUN("*",lisp_mul,2,2);
@@ -255,18 +256,3 @@ DEFUN("array->list",array_to_list,1,1);
 DEFUN("eval",lisp_eval,1,1);
 DEFUN("length",lisp_length,1,1);
 DEFUN("round",lisp_round,1,2);
-#undef DEFUN
-/*
-sexp simple_iota(sexp stop){
-  int i,imax;
-  imax=stop.val.int64;
-  cons* newlist=xmalloc(sizeof(cons)*imax);
-  HERE();
-  for(i=0;i<imax;i++){
-    newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
-    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
-  }
-  newlist[i-1].cdr=NIL;
-  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
-}
-*/

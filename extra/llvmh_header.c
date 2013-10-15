@@ -27,39 +27,6 @@ struct name_args_pair{
   char* name;
   int args;
 };
-//THIS IS BROKEN, THESE NEED TO BE THE C NAMES
-//"DEFUN(\"[^\"]+\",\\([^,]+\\),[[:digit:]]+,\\([[:digit:]]+\\));" -> {\1,\2},
-
-static name_args_pair lisp_prims[]={
-  {"lisp_conspcall",2}, {"lisp_numberpcall",1}, {"lisp_arraypcall",1},
-  {"lisp_nilpcall",1}, {"lisp_addcall",2}, {"lisp_subcall",2},
-  {"lisp_mulcall",2}, {"lisp_divcall",2}, {"lisp_xorcall",2},
-  {"lisp_logandcall",2}, {"lisp_logorcall",2}, {"carcall",1},
-  {"cdrcall",1}, {"caarcall",1}, {"cadrcall",1}, {"cddrcall",1},
-  {"cdarcall",1}, {"caaarcall",1}, {"caadrcall",1}, {"caddrcall",1},
-  {"cdddrcall",1}, {"cddarcall",1}, {"cdaarcall",1}, {"cadarcall",1},
-  {"cdadrcall",1}, {"Conscall",2}, {"mapcarcall",2},
-  {"lisp_typeNamecall",1}, {"lisp_printcall",1}, {"reducecall",2},
-  {"lisp_ltcall",2}, {"lisp_gtcall",2}, {"lisp_gtecall",2},
-  {"lisp_ltecall",2}, {"lisp_necall",2}, {"lisp_equalscall",2},
-  {"lisp_powcall",2}, {"lisp_sqrtcall",1}, {"lisp_coscall",1},
-  {"lisp_sincall",1}, {"lisp_tancall",1}, {"lisp_expcall",1},
-  {"lisp_logcall",1}, {"lisp_abscall",1}, {"ashcall",2},
-  {"lisp_modcall",2}, {"lisp_randfloatcall",1}, {"lisp_randintcall",0},
-  {"lisp_iotacall",4}, {"arefcall",2}, {"array_to_listcall",1},
-  {"lisp_evalcall",1}, {"lisp_lengthcall",1}, {"lisp_roundcall",2}}
-/*
-{"+",2}, {"-",2}, {"*",2}, {"/",2},
- {"logxor",2}, {"logand",2}, {"logor",2}, {"car",1}, {"cdr",1},
-{"caar",1}, {"cadr",1}, {"cddr",1}, {"cdar",1}, {"caaar",1},
-{"caadr",1}, {"caddr",1}, {"cdddr",1}, {"cddar",1}, {"cdaar",1},
-{"cadar",1}, {"cdadr",1}, {"cons",2}, {"mapcar",2}, {"typeName",1},
-{"print",1}, {"reduce",2}, {"<",2}, {">",2}, {">=",2}, {"<=",2},
-{"!=",2}, {"=",2}, {"expt",2}, {"sqrt",1}, {"cos",1}, {"sin",1},
-{"tan",1}, {"exp",1}, {"log",1}, {"abs",1}, {"ash",2}, {"mod",2},
-{"drand",1}, {"lrand",0}, {"iota",4}, {"aref",2}, {"array->list",1},
-{"eval",1}, {"length",1}, {"round",2}};*/
-
 extern "C" {
   //#include "common.h"
   //#include "prim.h"
