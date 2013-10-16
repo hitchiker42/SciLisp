@@ -31,6 +31,10 @@ sexp mapcar(sexp ls,sexp map_fn);
 sexp cons_length(sexp ls)__attribute__((pure));
 //list based equivlant to apl iota function
 sexp list_iota(sexp start,sexp stop,sexp step);
+//create a cons cell from 2 sexps, result may or may not be a list
+sexp Cons(sexp car_cell,sexp cdr_cell);
+//sort ls (mostly in place) using sort_fn to compair elements
+sexp qsort_cons(sexp ls,sexp sort_fn);
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
@@ -62,8 +66,33 @@ static inline sexp last(sexp cell){
   }
   return cell;
 }
-//create a cons cell from 2 sexps, result may or may not be a list
-sexp Cons(sexp car_cell,sexp cdr_cell);
+static inline sexp pop_cons(sexp ls){
+  if(!(CONSP(ls))){
+    return error_sexp("pop! type error, expected cons cell or list");
+  } else {
+    sexp retval=car(ls);
+    //why do I need to do this
+    ls.val.cons->car=cdr(ls).val.cons->car;
+    ls.val.cons->cdr=cdr(ls).val.cons->cdr;
+    return retval;
+  }
+}
+static inline sexp push_cons(sexp obj,sexp ls){
+  if(!(CONSP(ls))){
+    return error_sexp("push! type error, expected cons cell or list");
+  } else {
+    HERE();
+    XCDR(ls)=ls;
+    HERE();
+    XCAR(ls)=obj;
+    HERE();
+    sexp retval = ls;
+    HERE();
+    PRINT_MSG(print(ls));
+    return retval;
+    HERE();
+  }
+}
 //set car af a cons cell,non type checked (probably should be)
 static inline sexp set_car(sexp cell,sexp new_val){
   if(!(CONSP(cell))){

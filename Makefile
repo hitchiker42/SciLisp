@@ -10,11 +10,13 @@ CC:=gcc
 CXX:=g++
 OPT_FLAGS:=-Og
 endif
+CC:=$(CC) -fPIC
 OPT_FLAGS:=$(OPT_FLAGS) -ggdb
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 # -Wsuggest-attribute=pure|const|noreturn maybe add this warning for looking for optimizations
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto -rdynamic -fno-strict-aliasing
+COMMON_CXXFLAGS= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings
 #pretty sure I violate strict-aliasing, even if not, better safe than sorry
 XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS)
@@ -29,14 +31,21 @@ BACKEND:=eval.o codegen.o prim.o
 ASM_FILES :=$(ASM_FILES) eval.c
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 .PHONY: clean all quiet asm optimized set_quiet set_optimized\
-	doc info pdf clean_doc
+	doc info pdf clean_doc libprim_reqs
 LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
-CXXFLAGS:=$(CXXFLAGS)$(shell llvm-config --cppflags) -lto -ggdb -Wno-write-strings
+CXXFLAGS:=$(CXXFLAGS) $(shell llvm-config --cppflags) -flto -ggdb 
 all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
 	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) llvm_codegen.o -o $@
+llvm_test.o: llvm_codegen.c libSciLisp_prim.a
+	$(CC) -o llvm_temp.o $(COMMON_CFLAGS) \
+	`llvm-config --cppflags --cflags` -D_LLVM_TEST_ llvm_codegen.c -c -O2
+	$(CXX) -flto llvm_temp.o -ggdb\
+	 `llvm-config --cflags --ldflags --libs all engine bitreader` \
+	 -lcord -lgc -lm -o llvm-test.o $(COMMON_CFLAGS) -L$(shell pwd) \
+	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
@@ -59,27 +68,41 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
-llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.cpp cons.h
+llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.c cons.h
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
+prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 #make object file of primitives, no debugging, and optimize
-LIBPRIM_FLAGS:=-std=gnu99 -flto -O3 -fno-strict-aliasing -rdynamic -D_GNU_SOURCE
-prim.o: prim.c cons.c array.c eval.c
-	$(eval CC:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
-	TMP_PRIM=$$(mktemp prim.XXX --suffix=.o --tmpdir);\
-	TMP_CONS=$$(mktemp cons.XXX --suffix=.o --tmpdir);\
-	TMP_ARRAY=$$(mktemp array.XXX --suffix=.o --tmpdir);\
-	TMP_EVAL=$$(mktemp eval.XXX --suffix=.o --tmpdir);\
-	$(CC) -o TMP_PRIM -c prim.c
-	$(CC) -o TMP_CONS -c  cons.c
-	$(CC) -o TMP_ARRAY -c array.c
-	$(CC) -o TMP_EVAL -c eval.c
-	$(CC) -lm -lgc -lcord -o prim.o TMP_PRIM TMP_CONS TMP_ARRAY TMP_EVAL
-libSciLisp_prim.a: prim.o
-	ar rcs $@ $^
-LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=Scilisp_prim.so
-libSciLisp_prim.so: prim.o
-	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $^ -o $@
+LIBPRIM_FLAGS:=-std=gnu99 -flto -O3 -fno-strict-aliasing -D_GNU_SOURCE -rdynamic -g
+define start_libprim =
+	$(eval CC_TEMP:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
+	$(CC_TEMP) -o libprim_prim.o -c prim.c
+	$(CC_TEMP) -o libprim_cons.o -c  cons.c
+	$(CC_TEMP) -o libprim_array.o -c array.c
+	$(CC_TEMP) -o libprim_eval.o -c eval.c
+	$(CC_TEMP) -o libprim_print.o -c print.c
+	$(CC_TEMP) -o libprim_env.o -c env.c
+endef
+libprim_reqs: prim.c eval.c print.c env.c cons.c array.c
+define libprim_files :=
+libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o libprim_print.o
+endef
+libprim.o: libprim_reqs
+	$(start_libprim)
+	$(CC) -o prim.o $(LIBPRIM_FLAGS) -lm -lgc -lcord	
+libSciLisp.a: libprim_reqs
+	$(start_libprim)
+	ar rcs $@ $(libprim_files)
+	rm $(libprim_files)
+LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
+libSciLisp.so: libprim_reqs
+	$(start_libprim)
+	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $(libprim_files) -o $@
+prim.bc: prim.c eval.c print.c env.c cons.c array.c
+	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
+	$(CC) -S $^;\
+	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\
+	rm prim.s cons.s eval.s array.s env.s print.s
 clean:
 	rm *.o
 asm: $(ASM_FILES)
@@ -87,9 +110,6 @@ asm: $(ASM_FILES)
 	(cd SciLisp_asm; \
 	for i in $(ASM_FILES);do \
 	$(CC) -std=gnu99 $(OPT_FLAGS) -fverbose-asm ../$$i -S;done)
-llvm_ir: $(ASM_FILES)
-	$(eval CC := clang -emit-llvm)
-	$(eval OPT_FLAG := -O2)
 doc: info pdf
 info: doc/manual.texi
 	(cd doc && makeinfo manual.texi)

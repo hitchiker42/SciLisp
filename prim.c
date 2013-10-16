@@ -14,7 +14,7 @@
 #include "print.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
-    if((x.tag==y.tag)==_long){                                          \
+    if((x.tag==y.tag)==(long)_long){                                    \
       return                                                            \
         (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}}; \
     } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
@@ -255,18 +255,7 @@ DEFUN("array->list",array_to_list,1,1);
 DEFUN("eval",lisp_eval,1,1);
 DEFUN("length",lisp_length,1,1);
 DEFUN("round",lisp_round,1,2);
+DEFUN("push!",push_cons,2,2);
+DEFUN("pop!",pop_cons,1,1);
+DEFUN("qsort!",qsort_cons,2,2);
 #undef DEFUN
-/*
-sexp simple_iota(sexp stop){
-  int i,imax;
-  imax=stop.val.int64;
-  cons* newlist=xmalloc(sizeof(cons)*imax);
-  HERE();
-  for(i=0;i<imax;i++){
-    newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
-    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
-  }
-  newlist[i-1].cdr=NIL;
-  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
-}
-*/

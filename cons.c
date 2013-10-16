@@ -63,7 +63,7 @@ sexp nreverse(sexp ls){
   return cons_sexp(cur_cell);
 }
 sexp nappend(sexp conses){
-  cans* retval=XCAR(conses);
+  cons* retval=XCAR(conses).val.cons;
   cons* cur_cell=retval;
   while(CONSP(XCDR(conses))){
     if(!CONSP(XCAR(conses))){
@@ -105,7 +105,7 @@ sexp mapcar(sexp ls,sexp map_fn){
   sexp(*f)(sexp);
   env lambda_env;
   if(FUNP(map_fn)){
-    f=map_fn.val.fun->fxn_call.f1;  
+    f=map_fn.val.fun->fxn_call.f1;
   } else {
     lambda_env=(env){.enclosing = (env*)&map_fn.val.lam->env,
                 .head={.local=map_fn.val.lam->env.head},.tag=0};
@@ -168,9 +168,44 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   double j=getDoubleVal(start);
   for(i=0;i<imax;i++){
     newlist[i].car=(sexp){.tag=_double,.val={.real64=j}};
-    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};    
+    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
     j+=dstep;
   }
   newlist[i-1].cdr=NIL;
   return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
+}
+static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
+  //find a way to use length somehow
+  if(!CONSP(cdr(ls))){
+    return ls;//maybe sort if ls is a cons cell
+  } else {
+    sexp rhs,lhs,pivot,cur_cell;
+    rhs.val.cons=xmalloc(sizeof(cons));
+    lhs.val.cons=xmalloc(sizeof(cons));
+    XCDR(lhs)=XCDR(rhs)=NIL;
+    pivot=pop_cons(ls);//cost of finding a better pivot outweights the benifits
+    while(CONSP(ls)){
+      cur_cell=pop_cons(ls);
+      if(f(cur_cell,pivot).tag!=-3){
+        push_cons(cur_cell,lhs);
+      } else {
+        push_cons(cur_cell,rhs);
+      }
+    }
+    lhs=qsort_acc(lhs,f);
+    rhs=qsort_acc(rhs,f);
+    //find a better way to do this
+    XCDR(last(lhs))=pivot;
+    XCDR(pivot)=rhs;
+    return lhs;
+  }
+}
+sexp qsort_cons(sexp ls,sexp sort_fn){
+  if(!CONSP(ls) || !FUNP(sort_fn)){
+    return error_sexp("qsort sort_fn type error");
+  }
+  sexp(*f)(sexp,sexp);
+  env lambda_env;
+  f=sort_fn.val.fun->fxn_call.f2;
+  return qsort_acc(ls,f);
 }

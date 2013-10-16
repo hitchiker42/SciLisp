@@ -353,8 +353,10 @@ static inline sexp eval_let(sexp expr,env cur_env){
   }
   local_env scope = {.enclosing = cur_env_loc,.head = cur_var};
   while(0){}
+  return error_sexp("let unimplemented");
 }
 static inline sexp eval_do(sexp expr,env cur_env){
+  return error_sexp("do unimplemented");
   /*syntax (do (var init step end)*/}
    
 /*#define getArgs(numargs)                                                \

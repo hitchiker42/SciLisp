@@ -248,8 +248,8 @@ int main(int argc,char* argv[]){
       case 'b':
         switch(optarg[0]){
           case 'l':
-            evalFun=llvmEvalJIT;
-            initialize_llvm();
+            //            evalFun=llvmEvalJIT;
+            //initialize_llvm();
           default:
             break;
         }

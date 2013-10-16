@@ -46,7 +46,7 @@ extern sexp lisp_pi;
 extern sexp lisp_euler;
 extern sexp lisp_max_long;
 extern sexp lisp_mach_eps;
-//create prototypes for functions in prim.c 
+//create prototypes for functions in prim.c
 //so primitives can be used in the c source
 DEFUN(lisp_consp,2);
 DEFUN(lisp_numberp,1);
@@ -104,6 +104,9 @@ DEFUN(array_to_list,1);
 DEFUN(lisp_eval,1);//welp this is going to fail horribly
 DEFUN(lisp_length,1);
 DEFUN(lisp_round,2);
+DEFUN(pop_cons,1);
+DEFUN(push_cons,2);
+DEFUN(qsort_cons,2);
 /*
   (defun SciLisp-mkIntern ()
   (interactive)
@@ -173,6 +176,9 @@ DEFUN(lisp_round,2);
   DEFUN_INTERN("round",lisp_round);                                     \
   DEFUN_INTERN("numberp",lisp_numberp);                                 \
   DEFUN_INTERN("nilp",lisp_nilp);                                       \
+  DEFUN_INTERN("pop!",pop_cons);                                        \
+  DEFUN_INTERN("push!",push_cons);                                      \
+  DEFUN_INTERN("qsort!",qsort_cons);                                    \
   INTERN_ALIAS("cons?",lisp_consp,17);                                  \
   INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFCONST("Meps",lisp_mach_eps);                                       \
