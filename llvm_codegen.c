@@ -18,9 +18,22 @@ LLVMValueRef LispFALSE;
 LLVMTypeRef LispArgs[8];
 LLVMTypeRef LispFxnTypes[9];
 LLVMExecutionEngineRef SL_Engine;//I suppose this could be jit or an interpreter
+char *error;
+#define PRIM_BC_SIZE 24480//update this whenever prim.bc is recompiled
 static handle_error(){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
   return LispNIL;
+}
+LLVMModuleRef* Parse_Prim_bc(const char* name){
+  /*  int bitcode_file=fopen(name,O_RDONLY);
+  int pgsize=getpagesize();
+  char* bc_data=(char *)mmap(NULL,PRIM_BC_SIZE,PROT_READ,MAP_PRIVATE,
+  bitcode_file,0);*/
+  LLVMMemoryBufferRef *memBuff;
+  LLVMCreateMemoryBufferWithContentsOfFile(name,retval,&error);
+  LLVMModuleRef* retval;
+  LLVMGetBicodeModule(memBuff,retval,&error);
+  return retval;
 }
 void initialize_llvm(int engine){
   int i;
