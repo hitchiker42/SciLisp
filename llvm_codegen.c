@@ -85,20 +85,18 @@ void initialize_llvm(int engine){
     LispFxnTypes[i]=LLVMFunctionType(LispSexp,LispArgs,i,0);
   }
   SL_Engine=xmalloc(sizeof(LLVMExecutionEngineRef)); 
+  LLVMInitializeNativeTarget();
   switch(engine){
     case 1:
       LLVMLinkInJIT();
-      LLVMInitializeNativeTarget();
       LLVMCreateJITCompilerForModule(&SL_Engine,SL_Module,2,&error);
       break;
     case 2:
       LLVMLinkInMCJIT();
-      LLVMInitializeNativeTarget();
       LLVMCreateMCJITCompilerForModule(&SL_Engine,SL_Module,0,0,&error);
       break;
     case 3:
       LLVMLinkInInterpreter();
-      LLVMInitializeNativeTarget();
       LLVMCreateInterpreterForModule(&SL_Engine,SL_Module,&error);
       break;
   }
@@ -321,8 +319,15 @@ union hack{
 };
 #ifdef _LLVM_TEST_
  int main(){
-  initialize_llvm(1);
-  LLVMValueRef hello_world_fn=LLVMGetNamedFunction(SL_Module,"hello_world");
+   initialize_llvm(1);
+   //not sure if there's a point to this
+   LLVMPassManagerRef SL_Pass = LLVMCreatePassManager();
+   LLVMAddTargetData(LLVMGetExecutionEngineTargetData(SL_Engine),SL_Pass);
+   LLVMAddConstantPropagationPass(SL_Pass);
+   LLVMAddInstructionCombiningPass(SL_Pass);
+   LLVMAddPromoteMemoryToRegisterPass(SL_Pass);
+   LLVMRunPassManager(SL_Pass,SL_Module);
+   LLVMValueRef hello_world_fn=LLVMGetNamedFunction(SL_Module,"hello_world");
   if(!hello_world_fn){
     HERE();
     return 0;
@@ -330,19 +335,35 @@ union hack{
   LLVMValueRef* hello_world_2=xmalloc(sizeof(LLVMValueRef));
   HERE();
   if(!LLVMFindFunction(SL_Engine,"hello_world",hello_world_2)){
-    HERE();
     PRINT_FMT("%#0x",hello_world_2);
-    HERE();
     LLVMRunFunction(SL_Engine,*hello_world_2,0,0);
-    HERE();
     void(*f)()=LLVMGetPointerToGlobal(SL_Engine,*hello_world_2);
-    HERE();
     f();
-    HERE();
-
   }
   HERE();
+  LLVMValueRef* lispadd_fn2 = xmalloc(sizeof(LLVMValueRef));
+  if(!LLVMFindFunction(SL_Engine,"lisp_add",lispadd_fn2)){
+    LLVMVerifyFunction(*lispadd_fn2,LLVMPrintMessageAction);
+    HERE();
+    sexp(*lispadd)(sexp,sexp)=LLVMGetPointerToGlobal(SL_Engine,*lispadd_fn2);
+    HERE();
+    if(lispadd){
+      HERE();
+      PRINT_MSG(print(lispadd(long_sexp(2),long_sexp(2))));
+    } else {
+      return 1;
+    }
+  } else { 
+    return 1;
+  }
   LLVMValueRef lispadd_fn=LLVMGetNamedFunction(SL_Module,"lisp_add");
+  sexp(*lispadd)(sexp,sexp)=LLVMGetPointerToGlobal(SL_Engine,lispadd_fn);
+  HERE();
+  if(lispadd){
+    PRINT_MSG(print(lispadd(long_sexp(2),long_sexp(2))));
+  } else {
+    return 1;
+  }
   union hack two_sexp = {.as_sexp = {.tag=_long,.len=0,.meta=0,.val={.int64=2}}};
   LLVMGenericValueRef argval[2]={LLVMCreateGenericValueOfInt(LispLong,two_sexp.as_longs[0],0),
                                LLVMCreateGenericValueOfInt(LispLong,two_sexp.as_longs[1],0)};

@@ -74,7 +74,7 @@ env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 #make object file of primitives, no debugging, and optimize
-LIBPRIM_FLAGS:=-std=gnu99 -flto -O3 -fno-strict-aliasing -D_GNU_SOURCE -rdynamic -g
+LIBPRIM_FLAGS:=-std=gnu99 -flto -O3 -fno-strict-aliasing -D_GNU_SOURCE -rdynamic
 define start_libprim =
 	$(eval CC_TEMP:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
 	$(CC_TEMP) -o libprim_prim.o -c prim.c
@@ -104,6 +104,7 @@ prim.bc: prim.c eval.c print.c env.c cons.c array.c
 	$(CC) -S $^;\
 	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\
 	rm prim.s cons.s eval.s array.s env.s print.s
+	llvm-dis prim.bc -o prim.ll
 clean:
 	rm *.o
 asm: $(ASM_FILES)

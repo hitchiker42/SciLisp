@@ -2,10 +2,19 @@
 #define _LLVM_C_
 #include "common.h"
 #include "cons.h"
+//include fucking everything, because why not
 #include <llvm-c/Core.h>
 #include <llvm-c/BitReader.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Initialization.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/Transforms/Scalar.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/Transforms/Vectorize.h>
+#include <llvm-c/Transforms/IPO.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Object.h>
+#include <llvm-c/TargetMachine.h>
 //types are named Lisp##Typename
 //llvm structures are named SL_##llvm struct name
 //constant values are named Lisp##(upcase valuename)
