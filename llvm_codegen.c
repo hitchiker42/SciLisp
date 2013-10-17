@@ -2,7 +2,7 @@
 LLVMModuleRef SL_Module;
 LLVMContextRef SL_Context;
 LLVMBuilderRef SL_Builder;
-
+LLVMPassRegistryRef SL_Registry;
 LLVMValueRef LispNIL;
 LLVMValueRef LispTRUE;
 LLVMValueRef LispFALSE;
@@ -41,6 +41,21 @@ void dump_bc_mod(){
 //um, well I don't really need most of this now
 void initialize_llvm(int engine){
   int i;
+    SL_Registry=LLVMGetGlobalPassRegistry();
+  //not sure which or how many of these routiens I need to call
+  //so call fucking all of them
+  LLVMInitializeCore(SL_Registry);
+  LLVMInitializeTransformUtils(SL_Registry);
+  LLVMInitializeScalarOpts(SL_Registry);
+  LLVMInitializeObjCARCOpts(SL_Registry);
+  LLVMInitializeInstCombine(SL_Registry);
+  LLVMInitializeIPO(SL_Registry);
+  LLVMInitializeInstrumentation(SL_Registry);
+  LLVMInitializeAnalysis(SL_Registry);
+  LLVMInitializeIPA(SL_Registry);
+  LLVMInitializeCodeGen(SL_Registry);
+  LLVMInitializeTarget(SL_Registry);
+
   SL_Module=*(Parse_Prim_bc("prim.bc"));
   SL_Context=LLVMGetModuleContext(SL_Module);
   SL_Builder=LLVMCreateBuilderInContext(SL_Context);
@@ -72,12 +87,18 @@ void initialize_llvm(int engine){
   SL_Engine=xmalloc(sizeof(LLVMExecutionEngineRef)); 
   switch(engine){
     case 1:
+      LLVMLinkInJIT();
+      LLVMInitializeNativeTarget();
       LLVMCreateJITCompilerForModule(&SL_Engine,SL_Module,2,&error);
       break;
     case 2:
+      LLVMLinkInMCJIT();
+      LLVMInitializeNativeTarget();
       LLVMCreateMCJITCompilerForModule(&SL_Engine,SL_Module,0,0,&error);
       break;
     case 3:
+      LLVMLinkInInterpreter();
+      LLVMInitializeNativeTarget();
       LLVMCreateInterpreterForModule(&SL_Engine,SL_Module,&error);
       break;
   }
@@ -300,7 +321,7 @@ union hack{
 };
 #ifdef _LLVM_TEST_
  int main(){
-  initialize_llvm(3);
+  initialize_llvm(1);
   LLVMValueRef hello_world_fn=LLVMGetNamedFunction(SL_Module,"hello_world");
   if(!hello_world_fn){
     HERE();
@@ -308,18 +329,21 @@ union hack{
   }
   LLVMValueRef* hello_world_2=xmalloc(sizeof(LLVMValueRef));
   HERE();
-  if(LLVMFindFunction(SL_Engine,"hello_world",hello_world_2)){
+  if(!LLVMFindFunction(SL_Engine,"hello_world",hello_world_2)){
     HERE();
     PRINT_FMT("%#0x",hello_world_2);
+    HERE();
+    LLVMRunFunction(SL_Engine,*hello_world_2,0,0);
     HERE();
     void(*f)()=LLVMGetPointerToGlobal(SL_Engine,*hello_world_2);
     HERE();
     f();
     HERE();
-    LLVMRunFunction(SL_Engine,*hello_world_2,0,0);
+
   }
   HERE();
-  /*  union hack two_sexp = {.as_sexp = {.tag=_long,.len=0,.meta=0,.val={.int64=2}}};
+  LLVMValueRef lispadd_fn=LLVMGetNamedFunction(SL_Module,"lisp_add");
+  union hack two_sexp = {.as_sexp = {.tag=_long,.len=0,.meta=0,.val={.int64=2}}};
   LLVMGenericValueRef argval[2]={LLVMCreateGenericValueOfInt(LispLong,two_sexp.as_longs[0],0),
                                LLVMCreateGenericValueOfInt(LispLong,two_sexp.as_longs[1],0)};
   LLVMGenericValueRef args[4]={argval[0],argval[1],argval[0],argval[1]};
@@ -329,7 +353,7 @@ union hack{
   long result=LLVMGenericValueToInt(four_sexp,0);
   void* ptr_result=LLVMGenericValueToPointer(four_sexp);
   printf("LLVMGenericValueRef = %#0x\nlong result = %#0x\npointer result = %#0x\n",
-  four_sexp,result,ptr_result);*/
+  four_sexp,result,ptr_result);
   return 0;
 }
 #endif

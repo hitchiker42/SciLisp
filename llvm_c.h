@@ -5,6 +5,10 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/BitReader.h>
 #include <llvm-c/ExecutionEngine.h>
+#include <llvm-c/Initialization.h>
+//types are named Lisp##Typename
+//llvm structures are named SL_##llvm struct name
+//constant values are named Lisp##(upcase valuename)
 LLVMTypeRef LispDouble;
 LLVMTypeRef LispLong;
 LLVMTypeRef LispInt;

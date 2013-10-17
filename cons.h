@@ -72,8 +72,21 @@ static inline sexp pop_cons(sexp ls){
   } else {
     sexp retval=car(ls);
     //why do I need to do this
-    ls.val.cons->car=cdr(ls).val.cons->car;
-    ls.val.cons->cdr=cdr(ls).val.cons->cdr;
+    /*    ls.val.cons->car=cdr(ls).val.cons->car;
+          ls.val.cons->cdr=cdr(ls).val.cons->cdr;*/
+    *(ls.val.cons)=*(cdr(ls).val.cons);
+    return retval;
+  }
+}
+static sexp as_list(sexp obj){
+  if(CONSP(obj)){
+    return obj;
+  } else {
+    sexp retval;
+    retval.val.cons=xmalloc(sizeof(cons));
+    XCAR(retval)=obj;
+    XCDR(retval)=NIL;
+    retval.tag=_list;
     return retval;
   }
 }
@@ -81,16 +94,16 @@ static inline sexp push_cons(sexp obj,sexp ls){
   if(!(CONSP(ls))){
     return error_sexp("push! type error, expected cons cell or list");
   } else {
-    HERE();
-    XCDR(ls)=ls;
-    HERE();
-    XCAR(ls)=obj;
-    HERE();
-    sexp retval = ls;
-    HERE();
-    PRINT_MSG(print(ls));
-    return retval;
-    HERE();
+    sexp new_cons;
+    new_cons.val.cons=xmalloc(sizeof(cons));    
+    XCDR(new_cons).val.cons=xmalloc(sizeof(cons));
+    new_cons.tag=_list;
+    new_cons.len=(ls.len+1);
+    XCAR(new_cons)=obj;
+    XCDR(new_cons).val.cons->car=car(ls);
+    XCDR(new_cons).val.cons->cdr=cdr(ls);
+    *(ls.val.cons)=*(new_cons.val.cons);
+    return ls;
   }
 }
 //set car af a cons cell,non type checked (probably should be)
