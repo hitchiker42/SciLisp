@@ -34,16 +34,16 @@ CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 	doc info pdf clean_doc libprim_reqs
 LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
 CXXFLAGS:=$(CXXFLAGS) $(shell llvm-config --cppflags) -flto -ggdb 
-all: SciLisp
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
 	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) llvm_codegen.o -o $@
-llvm_test.o: llvm_codegen.c libSciLisp.so
+all: SciLisp llvm_test.o
+llvm_test.o: llvm_codegen.c libSciLisp.so prim.bc
 	$(CC) -o llvm_temp.o $(COMMON_CFLAGS) \
 	`llvm-config --cppflags --cflags` -D_LLVM_TEST_ llvm_codegen.c -c -O2
 	$(CXX) -flto llvm_temp.o -ggdb\
-	 `llvm-config --cflags --ldflags --libs all engine bitreader` \
+	 `llvm-config --cflags --ldflags --libs	all` \
 	 -lcord -lgc -lm -o llvm-test.o $(COMMON_CFLAGS) -L$(shell pwd) \
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb
 lex.yy.c: lisp.lex common.h
@@ -101,12 +101,13 @@ libSciLisp.so: libprim_reqs
 	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $(libprim_files) -o $@
 prim.bc: prim.c eval.c print.c env.c cons.c array.c
 	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
-	$(CC) -S $^;\
+	$(CC) -S -emit-llvm -fno-asm $^;\
 	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\
 	rm prim.s cons.s eval.s array.s env.s print.s
 	llvm-dis prim.bc -o prim.ll
 clean:
 	rm *.o
+	rm prim.bc;rm prim.ll;rm libSciLisp.so
 asm: $(ASM_FILES)
 	mkdir -p SciLisp_asm
 	(cd SciLisp_asm; \

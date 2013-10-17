@@ -29,6 +29,16 @@ LLVMTypeRef LispSexp;
 LLVMTypeRef LispCons;
 LLVMTypeRef LispArray;
 LLVMTypeRef LispVoid;
+LLVMModuleRef SL_Module;
+LLVMContextRef SL_Context;
+LLVMBuilderRef SL_Builder;
+LLVMPassRegistryRef SL_Registry;
+LLVMValueRef LispNIL;
+LLVMValueRef LispTRUE;
+LLVMValueRef LispFALSE;
+LLVMTypeRef LispArgs[8];
+LLVMTypeRef LispFxnTypes[9];
+LLVMExecutionEngineRef SL_Engine;//I suppose this could be jit or an interpreter
 LLVMValueRef LLVM_Codegen_Special(sexp expr,env cur_env,
                                                 LLVMBuilderRef builder);
 LLVMValueRef LLVM_Codegen_if(sexp expr,env cur_env,

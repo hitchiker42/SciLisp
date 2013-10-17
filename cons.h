@@ -74,7 +74,11 @@ static inline sexp pop_cons(sexp ls){
     //why do I need to do this
     /*    ls.val.cons->car=cdr(ls).val.cons->car;
           ls.val.cons->cdr=cdr(ls).val.cons->cdr;*/
-    *(ls.val.cons)=*(cdr(ls).val.cons);
+    if(NILP(cdr(ls))){
+      ls.val.cons->car=NIL;
+    } else {
+      *(ls.val.cons)=*(cdr(ls).val.cons);
+    }
     return retval;
   }
 }
