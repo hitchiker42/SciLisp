@@ -39,7 +39,7 @@ SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
 	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) llvm_codegen.o -o $@
-llvm_test.o: llvm_codegen.c libSciLisp_prim.a
+llvm_test.o: llvm_codegen.c libSciLisp.so
 	$(CC) -o llvm_temp.o $(COMMON_CFLAGS) \
 	`llvm-config --cppflags --cflags` -D_LLVM_TEST_ llvm_codegen.c -c -O2
 	$(CXX) -flto llvm_temp.o -ggdb\
@@ -69,6 +69,7 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.c cons.h
+	$(CC) `llvm-config --cppflags` $(CFLAGS) -c llvm_codegen.c -o llvm_codegen.o
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h

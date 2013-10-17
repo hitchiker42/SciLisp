@@ -195,6 +195,10 @@ sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
     return array_iota(start,stop,step);
   }
 }
+void hello_world(){
+  printf("hello, world!\n");
+  return;
+}
 const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
 const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
 const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};

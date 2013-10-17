@@ -2,6 +2,10 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+#define uthash_malloc(sz) GC_MALLOC(sz)
+#define uthash_free(ptr,sz) GC_FREE(ptr)
+#define HASH_USING_NO_STRICT_ALIASING
+#define HASH_FUNCTION HASH_MUR
 #include "include/cord.h"
 #include <string.h>
 #include "include/uthash.h"

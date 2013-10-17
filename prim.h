@@ -48,6 +48,7 @@ extern sexp lisp_max_long;
 extern sexp lisp_mach_eps;
 //create prototypes for functions in prim.c
 //so primitives can be used in the c source
+void hello_world();
 DEFUN(lisp_consp,2);
 DEFUN(lisp_numberp,1);
 DEFUN(lisp_arrayp,1);
