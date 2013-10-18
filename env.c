@@ -6,6 +6,16 @@ global_symref getGlobalSym(CORD name){
   getGlobalSymMacro(name,tempsym);
   return tempsym;
 }
+/*array_symref getArraySym(array_env args,CORD name){
+  int i,len=args.head[0].index;
+  array_symref arr=args.head;//array_symref=array_symbol*=array of array symbols
+  for(i=0;i<len;i++){
+    if(!CORD_cmp(arr[i].name,name)){
+      return arr[i];
+    }
+  }
+  return (array_symref)getSym(args.enclosing,name);
+  }*/
 symref addGlobalSym(symref Var){
   global_symref GlobalVar=xmalloc(sizeof(global_symbol));
   GlobalVar->name=Var->name;
@@ -24,6 +34,8 @@ symref getSym(env cur_env,CORD name){
     }
     case _local:
       return (symref)getLocalSym((*(local_env*)&cur_env),name);
+      //    case _array:
+      //      return (symref)GetArraySym((*(array_env*)&cur_env),name);
   }
 }
 local_symref getLocalSym(local_env cur_env,CORD name){

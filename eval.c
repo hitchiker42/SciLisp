@@ -6,7 +6,7 @@
   to a variable*/
 #include "common.h"
 #include "cons.h"
-jmp_buf ERROR;
+jmp_buf error_buf;
 //static fuctions which are really just part of eval, but broken
 //up into seperate functions to modularise eval, and make it 
 //easier to write and understand, should be self explanitory
@@ -26,6 +26,7 @@ static sexp eval_let(sexp expr,env cur_env);
 static sexp handle_error(void){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
   //  return error_sexp(error_str); would need to copy error_str to do this
+  longjmp(error_buf,-1);
   return NIL;
 }
 //evaluate the lisp expression expr in the environment cur_env
@@ -39,8 +40,9 @@ sexp eval(sexp expr,env cur_env){
         if(LAMBDAP(curFun)){
           return call_lambda(expr,cur_env);
         }
-        if(!FUNP(curFun)){
-          CORD_fprintf(stderr,"tag = %s\n",typeName(curFun));
+        if(!FUNP(curFun)){          
+          CORD_fprintf(stderr,"tag = %s, name = %s\n",typeName(curFun),
+                       XCAR(expr).val.var->name);
           CORD_sprintf(&error_str,"%r is not a function or special form",
                        print(curFun));
           goto ERROR;
@@ -65,6 +67,9 @@ sexp eval(sexp expr,env cur_env){
       }
     case _fun:
       return expr;
+    case _error:
+      error_str=expr.val.cord;
+      return handle_error();
     default:
       return expr;
   }
@@ -245,7 +250,7 @@ sexp eval_lambda(sexp expr,env cur_env){
       }*/
   lambda *retval=xmalloc(sizeof(lambda));
   retval->env=closure;
-  retval->minargs=retval->maxargs=numargs;
+  retval->minargs=retval->maxargs=numargs;//need to fix to allow optional args
   retval->body=body;
   return (sexp){.tag=_lam,.val={.lam = retval}}; /*  */
 }
@@ -305,14 +310,14 @@ static inline sexp eval_while(sexp expr,env cur_env){
 static inline sexp call_lambda(sexp expr,env cur_env){
   lambda *cur_fun = XCAR(expr).val.var->val.val.lam;
   assert(cur_fun !=0);
+  int i=0;
+  long maxargs=cur_fun->maxargs;//maybe short?
+  long minargs=cur_fun->minargs;//""        ""
+  sexp args=cdr(expr);
   local_symref cur_param=cur_fun->env.head;
   assert(cur_param != 0);
   assert(cur_param == cur_fun->env.head);
   //PRINT_FMT("cur_param = %#0x",cur_param);
-  sexp args=cdr(expr);
-  int minargs=cur_fun->minargs;
-  int maxargs=cur_fun->maxargs;
-  int i=0;
   while((i<minargs || CONSP(args)) && cur_param != 0){
     if(!CONSP(args)){
       format_error_str("not enough arguments passed to function");
@@ -343,6 +348,9 @@ static inline sexp eval_let(sexp expr,env cur_env){
     cons defs = (cons ...)
     sexp body = */
   sexp vars=XCDR(expr);
+  if(!CONSP(vars)){
+    return error_sexp("empty let expression");
+  }
   local_symref cur_var=xmalloc(sizeof(local_symbol));
   env* cur_env_loc;
   if(cur_env.enclosing != 0){
@@ -352,7 +360,9 @@ static inline sexp eval_let(sexp expr,env cur_env){
     cur_env_loc=&topLevelEnv;
   }
   local_env scope = {.enclosing = cur_env_loc,.head = cur_var};
-  while(0){}
+  while(CONSP(XCAR(vars))){
+    
+  }
   return error_sexp("let unimplemented");
 }
 static inline sexp eval_do(sexp expr,env cur_env){

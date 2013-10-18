@@ -14,7 +14,7 @@ jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
-static sexp error_val=NIL_MACRO();
+sexp error_val=NIL_MACRO();
 static void handle_error() __attribute__((noreturn));
 static void handle_error(){
   evalError=1;
@@ -63,6 +63,7 @@ sexp yyparse(FILE* input){
     evalError=1;
     if(error_str){
       CORD_fprintf(stderr,error_str);
+      fputs("\n",stderr);
     }
     if(yylval){free(yylval);}
     if(!NILP(error_val)){
@@ -70,6 +71,7 @@ sexp yyparse(FILE* input){
       error_val=NIL;
       return temp;
     }
+    longjmp(error_buf,-1);
     return NIL;
   } else{
     yyin=input;

@@ -28,9 +28,11 @@ typedef struct fxn_proto fxn_proto;//primitive function prototype
 typedef struct symbol symbol;//generic symbol type
 typedef struct local_symbol local_symbol;//type of symbol used in local envs
 typedef struct global_symbol global_symbol;//type of symbol used in global envs
+typedef struct array_symbol array_symbol;//type of symbol used in function arguments, if I use it
 typedef struct env env;//generic symbol namespace
 typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
+typedef struct array_env array_env;//array used to hold function arguments, maybe eventually
 typedef struct lambda lambda;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
@@ -39,6 +41,7 @@ typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
 typedef global_symbol* global_symref;//"" global ""
 typedef local_symbol* local_symref;//"" local ""
+typedef array_symbol *array_symref;//"" array ""
 typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
@@ -225,6 +228,11 @@ struct local_symbol{
   sexp val;
   local_symref next;
 };
+struct array_symref{
+  CORD name;
+  sexp val;
+  int index;
+};
 struct local_env{
   env* enclosing;
   local_symref head;
@@ -233,20 +241,26 @@ struct global_env{
   env* enclosing;
   global_symref head;
 };
+struct array_env{
+  env* enclosing;
+  array_symref head;
+};
 union symbol_ref{
   global_symref global;
   local_symref local;
+  //  array_symref array;
 };
 union symbol_val{
   local_symbol local;
   global_symbol global;
+  //  array_symbol array;
 };
 struct env{
   env* enclosing;
-  symbol_ref head;
+  symbol_ref head;  
   enum {
     _local=0,
-    _global=1
+    _global=1,
   } tag;
 };
 struct lambda{

@@ -124,6 +124,8 @@ CORD print(sexp obj){
       switch(obj.val.meta){
         case 11:
           return "t";
+        case -0xff:
+          return "unbound symbol";
         default:
           return "uninterned symbol";
       }

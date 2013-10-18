@@ -9,7 +9,7 @@
 #include "codegen.h"
 #include <readline/readline.h>
 #include <readline/history.h>
-jmp_buf main_loop,ERROR;
+jmp_buf main_loop,error_buf;
 static c_string current_version="0.01";
 static c_string banner=
   "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
@@ -276,7 +276,10 @@ int main(int argc,char* argv[]){
   puts(banner);
   sexp ast,result;
  REPL:while(1){
-    if(setjmp(ERROR)){printf(error_str);}
+    if(setjmp(error_buf)){
+      PRINT_MSG("jumped to error");
+      //printf(error_str);
+    }
     if(evalError){
       truncate_and_rewind(my_pipe,tmpFile);
       evalError=0;
@@ -287,13 +290,13 @@ int main(int argc,char* argv[]){
     fseeko(my_pipe,start_pos,SEEK_SET);
     //eval;
     ast=yyparse(my_pipe);
+    //print
     if(!NILP(ast)){
       result=evalFun(XCAR(ast),topLevelEnv);
+      CORD_printf(print(result));puts("\n");
     } else {
       result=NIL;
     }
-    //print
-    CORD_printf(print(result));puts("\n");
   }
 }
 

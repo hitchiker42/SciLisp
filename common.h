@@ -61,7 +61,8 @@ extern sexp eval(sexp expr,env cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
 //global localtion of error messages
 CORD error_str;
-//jmp_buf error_buf;
+jmp_buf error_buf;
+sexp error_val;
 //from C++ code for llvm
 //sexp llvmEvalJIT(sexp expr,env cur_env);
 //void initialize_llvm();
