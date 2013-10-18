@@ -48,6 +48,8 @@ local_symref getLocalSym(local_env cur_env,CORD name){
   }
   return (local_symref)getSym(*cur_env.enclosing,name);
 }
+//perhaps I should check to see if variables exist
+//and redifine them
 symref addLocalSym(local_env cur_env,symref Var){
   local_symref LocalVar=xmalloc(sizeof(local_symbol));
   LocalVar->next=cur_env.head;

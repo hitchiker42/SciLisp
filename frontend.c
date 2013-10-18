@@ -7,8 +7,11 @@
 #include "lex.yy.h"
 #include "print.h"
 #include "codegen.h"
+#define HAVE_READLINE
+#ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 jmp_buf main_loop,error_buf;
 static c_string current_version="0.01";
 static c_string banner=
@@ -272,7 +275,10 @@ int main(int argc,char* argv[]){
   tmpnam_r(tmpFile);
   FILE* my_pipe=fopen(tmpFile,"w+");
   yyin=my_pipe;
+  #ifdef HAVE_READLINE
   rl_set_signals();
+  rl_variable_bind("blink-matching-paren","on");
+  #endif
   puts(banner);
   sexp ast,result;
  REPL:while(1){
@@ -286,7 +292,11 @@ int main(int argc,char* argv[]){
       yyrestart(yyin);
     }
     //read
+    #ifdef HAVE_READLINE
     start_pos=lispReadLine(my_pipe,tmpFile);
+    #else
+    start_pos=lispGetLine(my_pipe,tmpFile);
+    #endif
     fseeko(my_pipe,start_pos,SEEK_SET);
     //eval;
     ast=yyparse(my_pipe);

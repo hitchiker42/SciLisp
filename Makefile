@@ -15,12 +15,15 @@ OPT_FLAGS:=$(OPT_FLAGS) -ggdb
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 # -Wsuggest-attribute=pure|const|noreturn maybe add this warning for looking for optimizations
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
-COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto -rdynamic -fno-strict-aliasing
-COMMON_CXXFLAGS= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings
+COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
+	 -flto -rdynamic -fno-strict-aliasing -I$(shell pwd)/gc/include/gc\
+	 -I$(shell pwd)/llvm/llvm/include
+COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc 
 #pretty sure I violate strict-aliasing, even if not, better safe than sorry
-XLDFLAGS:=-lgc -lm -lreadline -lcord -rdynamic
+XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib  -lgc -lm -lreadline -lcord -rdynamic\
+	 -Wl,-rpath=$(shell pwd)/llvm/llvm/lib
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS)
-XCFLAGS_NOWARN=-g $(OPT_FLAGS) -std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums -flto $(XLDFLAGS)
+XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h
@@ -30,9 +33,10 @@ BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o prim.o
 ASM_FILES :=$(ASM_FILES) eval.c
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
-.PHONY: clean all quiet asm optimized set_quiet set_optimized\
+.phony: clean all quiet asm optimized set_quiet set_optimized\
 	doc info pdf clean_doc libprim_reqs
-LLVM_FLAGS:=$(shell llvm-config --ldflags --cxxflags --libs core engine)$(OPT_FLAG)
+llvm_config:=$(shell pwd)/llvm/release+asserts/bin/llvm-config
+LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs core engine` $(OPT_FLAG)
 CXXFLAGS:=$(CXXFLAGS) $(shell llvm-config --cppflags) -flto -ggdb 
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
@@ -41,9 +45,9 @@ SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
 all: SciLisp llvm_test.o
 llvm_test.o: llvm_codegen.c libSciLisp.so prim.bc
 	$(CC) -o llvm_temp.o $(COMMON_CFLAGS) \
-	`llvm-config --cppflags --cflags` -D_LLVM_TEST_ llvm_codegen.c -c -O2
+	`$(LLVM_CONFIG) --cppflags --cflags` -D_LLVM_TEST_ llvm_codegen.c -c -O2
 	$(CXX) -flto llvm_temp.o -ggdb\
-	 `llvm-config --cflags --ldflags --libs	all` \
+	 `$(LLVM_CONFIG) --cflags --ldflags --libs all` \
 	 -lcord -lgc -lm -o llvm-test.o $(COMMON_CFLAGS) -L$(shell pwd) \
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb
 lex.yy.c: lisp.lex common.h
@@ -74,7 +78,7 @@ env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 #make object file of primitives, no debugging, and optimize
-LIBPRIM_FLAGS:=-std=gnu99 -flto -O3 -fno-strict-aliasing -D_GNU_SOURCE -rdynamic
+LIBPRIM_FLAGS:=$(COMMON_CFLAGS) -O3
 define start_libprim =
 	$(eval CC_TEMP:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
 	$(CC_TEMP) -o libprim_prim.o -c prim.c

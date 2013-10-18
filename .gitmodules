@@ -4,3 +4,6 @@
 [submodule "gc/bdwgc"]
 	path = gc/bdwgc
 	url = git://github.com/ivmai/bdwgc.git
+[submodule "llvm"]
+	path = llvm
+	url = http://llvm.org/git/llvm.git

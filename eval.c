@@ -232,22 +232,18 @@ sexp eval_lambda(sexp expr,env cur_env){
   local_env closure={.enclosing = cur_env_loc,.head=cadr(expr).val.lenv};
   int numargs=cadr(expr).len;
   body=caddr(expr);
-  /*  while(CONSP(args)){
-      if(!SYMBOLP(car(args))){
+  /*This is now delt with in the parser
+    while(CONSP(args)){
+    if(!SYMBOLP(car(args))){
       format_error_str("argument %s is not a symbol",print(car(args)));
       handle_error();
-      }
-      HERE();
-      cur_arg->name=car(args).val.var->name;
-      HERE();
-      cur_arg->val=UNBOUND;
-      HERE();
-      cur_arg->next=xmalloc(sizeof(local_symbol));
-      HERE();
-      args=cdr(args);
-      numargs++;
-      HERE();
-      }*/
+    }
+    cur_arg->name=car(args).val.var->name;
+    cur_arg->val=UNBOUND;
+    cur_arg->next=xmalloc(sizeof(local_symbol));
+    args=cdr(args);
+    numargs++;
+    }*/
   lambda *retval=xmalloc(sizeof(lambda));
   retval->env=closure;
   retval->minargs=retval->maxargs=numargs;//need to fix to allow optional args
@@ -343,15 +339,13 @@ static inline sexp call_lambda(sexp expr,env cur_env){
   return retval;
 }
 static inline sexp eval_let(sexp expr,env cur_env){
-  /*syntax (let ((x 5)(y 6)(z 7.9)) (+ x y z))
-    (spec cons sexp)
-    cons defs = (cons ...)
-    sexp body = */
+  /*syntax (let ((var def)+)(body ...))*/
   sexp vars=XCDR(expr);
   if(!CONSP(vars)){
     return error_sexp("empty let expression");
   }
   local_symref cur_var=xmalloc(sizeof(local_symbol));
+  local_symref last_var=cur_var;
   env* cur_env_loc;
   if(cur_env.enclosing != 0){
     cur_env_loc=xmalloc(sizeof(env));
@@ -360,9 +354,21 @@ static inline sexp eval_let(sexp expr,env cur_env){
     cur_env_loc=&topLevelEnv;
   }
   local_env scope = {.enclosing = cur_env_loc,.head = cur_var};
-  while(CONSP(XCAR(vars))){
-    
+  while(CONSP(XCAR(vars))){//for each cons cell in the let expression
+    //take the name from the car(assuming it's a symbol)
+    cur_var->name=XCAAR(vars).val.var->name;//I think...
+    //set the value to eval(cdr) 
+    cur_var->val=eval(XCDAR(vars),cur_env);
+    //allocate next variable
+    cur_var->next=xmalloc(sizeof(local_symbol));
+    last_var=cur_var;
+    cur_var=cur_var->next;
+    vars=XCDR(vars);
+    if(!CONSP(vars)){return error_sexp("malformed let expression");}
   }
+  last_var->next=0;
+  return eval(cddr(expr),(env){.enclosing=scope.enclosing,
+        .head={.local=scope.head},.tag=_local});
   return error_sexp("let unimplemented");
 }
 static inline sexp eval_do(sexp expr,env cur_env){

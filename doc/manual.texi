@@ -59,6 +59,9 @@ Manual for the SciLisp programming language
 
 @node Introduction
 @chapter Introduction
+@menu
+* Design Overview::
+@end menu
 @cindex Introduction
 @cindex General Introduction
 SciLisp is a programming language in the LISP family largely influenced
@@ -111,6 +114,24 @@ information is subject to change. That said any changes will likely be
 minor and the high level grammar will remain the same.
 @node Syntax and Semantics
 @section SciLisp Syntax and Semantics
+The core grammar of SciLisp is the same as most other lisps, all
+programs consist of one or more s-expressions. @footnote{s-expression
+stands for symbolic expression but the term s-expression is generally
+used on its own not as an abbreviation.}. An
+@abbr{@dfn{sexp},s-expression} is one of two things, an @dfn{atom} such
+as an integer,floating point number, or string, or a @dfn{cons-cell}
+which is an expression of the form @code{(a . b)} where a and b are
+themselves sexps. 
+@c more on sexps and lists, befor this next bit
+As is traditional with most lisps SciLisp has a core set of special
+forms to allow for types of code which can not be easily be expressed
+using functions/lambda calculus. These special forms are the only truly
+immutable part of the language, all other functions and macros use in
+the language are built using the same set of tools available to the user
+and, if desired the user can modify any aspect of the language other
+than these special forms. The special forms in SciLisp are:
+@table @code
+@end table
 @node Formal Grammar
 @section Formal Grammar
 The SciLisp grammar in EBNF form.

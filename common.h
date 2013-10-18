@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 //#define GC_DEBUG
+#define GC_PRINT_STATS
 #include <gc.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -46,7 +47,7 @@
 #define NIL_MACRO() {.tag = -1,.val={.int64 = 0}}
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.int64 = 0}};
-static const sexp UNBOUND={.tag = -2,.val={.int64 = -0xff}};
+static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 static cons EmptyList={.car={.tag = -1,.val={.int64 = 0}},
