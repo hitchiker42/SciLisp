@@ -192,7 +192,8 @@ sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
   } else {
-    return array_iota(start,stop,step);
+    //    return array_iota(start,stop,step);
+    return NIL;
   }
 }
 void hello_world(){

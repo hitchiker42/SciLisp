@@ -2,9 +2,22 @@
 #define _LLVM_C_
 #include "common.h"
 #include "cons.h"
+//include fucking everything, because why not
 #include <llvm-c/Core.h>
 #include <llvm-c/BitReader.h>
 #include <llvm-c/ExecutionEngine.h>
+#include <llvm-c/Initialization.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/Transforms/Scalar.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/Transforms/Vectorize.h>
+#include <llvm-c/Transforms/IPO.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Object.h>
+#include <llvm-c/TargetMachine.h>
+//types are named Lisp##Typename
+//llvm structures are named SL_##llvm struct name
+//constant values are named Lisp##(upcase valuename)
 LLVMTypeRef LispDouble;
 LLVMTypeRef LispLong;
 LLVMTypeRef LispInt;
@@ -16,6 +29,16 @@ LLVMTypeRef LispSexp;
 LLVMTypeRef LispCons;
 LLVMTypeRef LispArray;
 LLVMTypeRef LispVoid;
+LLVMModuleRef SL_Module;
+LLVMContextRef SL_Context;
+LLVMBuilderRef SL_Builder;
+LLVMPassRegistryRef SL_Registry;
+LLVMValueRef LispNIL;
+LLVMValueRef LispTRUE;
+LLVMValueRef LispFALSE;
+LLVMTypeRef LispArgs[8];
+LLVMTypeRef LispFxnTypes[9];
+LLVMExecutionEngineRef SL_Engine;//I suppose this could be jit or an interpreter
 LLVMValueRef LLVM_Codegen_Special(sexp expr,env cur_env,
                                                 LLVMBuilderRef builder);
 LLVMValueRef LLVM_Codegen_if(sexp expr,env cur_env,

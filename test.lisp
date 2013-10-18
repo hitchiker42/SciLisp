@@ -72,7 +72,6 @@
 (print ?\x3f)
 (print copyright-literal)
 (print utf8-copyright)
-
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:
