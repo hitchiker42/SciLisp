@@ -188,7 +188,7 @@ sexp lisp_round(sexp float_num,sexp mode){
 }
 //should make this lisp_iota(a,b,c,d)
 //where d is a switch to decide between a list or an array
-sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
+sexp lisp_iota(sexp start,sexp stop,sexp step, sexp arrayorlist){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
   } else {

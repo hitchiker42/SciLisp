@@ -22,11 +22,13 @@ WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -W
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	 -flto -rdynamic -fno-strict-aliasing
 COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
-XLDFLAGS:=-Wl,-rpath=$(shell pwd)/readline/lib -Wl,-rpath=$(shell pwd)/gc/lib\
-	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib\
+INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include
+#-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
+XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
+	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib \
 	-lgc -lm -lreadline -lcord -rdynamic
-XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS)
-XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS)
+XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS)
+XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h
@@ -34,14 +36,12 @@ FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o
 BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o prim.o
-INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include\
-	-I$(shell pwd)/readline/include
-CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS) $(INCLUDE_FLAGS)
+CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
 LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs core engine` $(OPT_FLAG)
-CXXFLAGS:=$(CXXFLAGS) `$(LLVM-CONFIG) --cppflags` -flto -ggdb
+CXXFLAGS:=$(CXXFLAGS) `$(LLVM_CONFIG) --cppflags` -flto -ggdb
 define compile_llvm =
-	$(CC) $(CFLAGS) `$(LLVM-CONFIG) --cppflags` -c $< -o $@
+	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
 .PHONY: clean all quiet asm optimized set_quiet set_optimized\
 	doc info pdf clean_doc libprim_reqs readline llvm gc
@@ -51,9 +51,9 @@ SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
 	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $^ -o $@
 llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
-	 $(CC)	llvm_codegen.o llvm_test.o
-	`$(LLVM_CONFIG) --cflags --ldflags --libs all` \
-	 -lcord -lgc -lm $(COMMON_CFLAGS) -L$(shell pwd) \
+	 $(CXX)	llvm_codegen.o llvm_test.o \
+	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
+	 $(XLDFLAGS) $(COMMON_CFLAGS) -L$(shell pwd) \
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb -o llvm-test
 all: SciLisp llvm_test
 #compiled files
@@ -72,7 +72,7 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 llvm_codegen.o:llvm_codegen.c codegen.h $(COMMON_HEADERS) prim.h cons.h llvm_c.h
 	$(compile_llvm)
-llvm_test.o: llvm_codegen.c llvm_c.h
+llvm_test.o: llvm_test.c llvm_c.h
 	$(compile_llvm)
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
@@ -123,7 +123,7 @@ optimized:set_optimized all
 clean:
 	rm *.o
 	rm prim.bc;rm prim.ll;rm libSciLisp.so
-	rm SciLisp;rm llvm_th
+	rm SciLisp;rm llvm_test
 #documentation
 doc: info pdf
 info: doc/manual.texi

@@ -1,5 +1,5 @@
 #include "llvm_c.h"
- int main(){
+int main(){
    initialize_llvm(1);
    //not sure if there's a point to this
    LLVMPassManagerRef SL_Pass = LLVMCreatePassManager();
@@ -18,7 +18,7 @@
    }
    LLVMValueRef* lispadd_fn2 = xmalloc(sizeof(LLVMValueRef));
    if(!LLVMFindFunction(SL_Engine,"lisp_add",lispadd_fn2)){
-    LLVMVerifyFunction(*lispadd_fn2,LLVMPrintMessageAction);
+     //LLVMVerifyFunction(*lispadd_fn2,LLVMPrintMessageAction);
     sexp(*lispadd)(sexp,sexp)=LLVMRecompileAndRelinkFunction(SL_Engine,*lispadd_fn2);
     if(lispadd){
       PRINT_MSG("Evaluating (+ 2 2) after recompiling lisp_add");
@@ -26,7 +26,7 @@
     } else {
       return 1;
     }
-  } else { 
+  } else {
     return 1;
   }
   LLVMValueRef lispadd_fn=LLVMGetNamedFunction(SL_Module,"lisp_add");
@@ -40,7 +40,7 @@
   LLVMValueRef lisplog_fn=LLVMGetNamedFunction(SL_Module,"lisp_log");
   LLVMValueRef lispiota_fn=LLVMGetNamedFunction(SL_Module,"lisp_iota");
   sexp(*lisplog)(sexp)=LLVMGetPointerToGlobal(SL_Engine,lisplog_fn);
-  sexp(*lispiota)(sexp,sexp,sexp,sexp)=LLVMGetPointerToGlobal(SL_Engine,lispiota_fn);
+  sexp(*lispiota)(sexp,sexp,sexp,sexp)=LLVMRecompileAndRelinkFunction(SL_Engine,lispiota_fn);
   if(lisplog){
     PRINT_MSG("evaluating (log 2.781828)");
     PRINT_MSG(print(lisplog(double_sexp(2.781828))));
@@ -53,5 +53,5 @@
   } else {
     return 1;
   }
-  return 0;  
+  return 0;
 }
