@@ -39,6 +39,11 @@ LLVMValueRef LispFALSE;
 LLVMTypeRef LispArgs[8];
 LLVMTypeRef LispFxnTypes[9];
 LLVMExecutionEngineRef SL_Engine;//I suppose this could be jit or an interpreter
+void initialize_llvm(int engine);
+void dump_mod();
+LLVMModuleRef* Parse_Prim_bc(const char* name);
+LLVMValueRef LLVM_Codegen(sexp expr,env cur_env,LLVMBuilderRef builder);
+sexp LLVMEval(sexp expr,env cur_env);
 LLVMValueRef LLVM_Codegen_Special(sexp expr,env cur_env,
                                                 LLVMBuilderRef builder);
 LLVMValueRef LLVM_Codegen_if(sexp expr,env cur_env,
@@ -82,4 +87,8 @@ static LLVMTypeRef getLLVMType(sexp obj){
       return LispVoid;
   }
 }
+union hack{
+  sexp as_sexp;
+  long as_longs[2];
+};
 #endif

@@ -1,27 +1,30 @@
 SHELL:=/bin/bash
+.SUFFIXES:
+.SUFFIXES: .c .o .y .a .so
+#gcc has a nice -Og flag for optimizations w/debugging, clang does not
 ifeq ($(CC),clang)
 OPT_FLAGS:=-O2
+CXX:=clang++
 WARNING_FLAGS:=-w
 else ifeq ($(CXX),clang++)
-OPT_FLAGS:=-O1
+OPT_FLAGS:=-O2
+CC:=clang
 WARNING_FLAGS:=-w
 else
 CC:=gcc
 CXX:=g++
 OPT_FLAGS:=-Og
 endif
-CC:=$(CC) -fPIC
+CC:=$(CC) -fPIC #position independent code, for everything
 OPT_FLAGS:=$(OPT_FLAGS) -ggdb
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
-# -Wsuggest-attribute=pure|const|noreturn maybe add this warning for looking for optimizations
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
-	 -flto -rdynamic -fno-strict-aliasing -I$(shell pwd)/gc/include/gc\
-	 -I$(shell pwd)/llvm/llvm/include
-COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc 
-#pretty sure I violate strict-aliasing, even if not, better safe than sorry
-XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib  -lgc -lm -lreadline -lcord -rdynamic\
-	 -Wl,-rpath=$(shell pwd)/llvm/llvm/lib
+	 -flto -rdynamic -fno-strict-aliasing
+COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
+XLDFLAGS:=-Wl,-rpath=$(shell pwd)/readline/lib -Wl,-rpath=$(shell pwd)/gc/lib\
+	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib\
+	-lgc -lm -lreadline -lcord -rdynamic
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS)
 XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS)
 LEX:=flex
@@ -31,38 +34,33 @@ FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o
 BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o prim.o
-ASM_FILES :=$(ASM_FILES) eval.c
-CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
-.phony: clean all quiet asm optimized set_quiet set_optimized\
-	doc info pdf clean_doc libprim_reqs
-llvm_config:=$(shell pwd)/llvm/release+asserts/bin/llvm-config
+INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include\
+	-I$(shell pwd)/readline/include
+CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS) $(INCLUDE_FLAGS)
+LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
 LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs core engine` $(OPT_FLAG)
-CXXFLAGS:=$(CXXFLAGS) $(shell llvm-config --cppflags) -flto -ggdb 
+CXXFLAGS:=$(CXXFLAGS) `$(LLVM-CONFIG) --cppflags` -flto -ggdb
+define compile_llvm =
+	$(CC) $(CFLAGS) `$(LLVM-CONFIG) --cppflags` -c $< -o $@
+endef
+.PHONY: clean all quiet asm optimized set_quiet set_optimized\
+	doc info pdf clean_doc libprim_reqs readline llvm gc
+#Programs to be built
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
-	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) llvm_codegen.o -o $@
-all: SciLisp llvm_test.o
-llvm_test.o: llvm_codegen.c libSciLisp.so prim.bc
-	$(CC) -o llvm_temp.o $(COMMON_CFLAGS) \
-	`$(LLVM_CONFIG) --cppflags --cflags` -D_LLVM_TEST_ llvm_codegen.c -c -O2
-	$(CXX) -flto llvm_temp.o -ggdb\
-	 `$(LLVM_CONFIG) --cflags --ldflags --libs all` \
-	 -lcord -lgc -lm -o llvm-test.o $(COMMON_CFLAGS) -L$(shell pwd) \
-	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb
+	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $^ -o $@
+llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
+	 $(CC)	llvm_codegen.o llvm_test.o
+	`$(LLVM_CONFIG) --cflags --ldflags --libs all` \
+	 -lcord -lgc -lm $(COMMON_CFLAGS) -L$(shell pwd) \
+	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb -o llvm-test
+all: SciLisp llvm_test
+#compiled files
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
 	$(CC) $(XCFLAGS_NOWARN) -w -c lex.yy.c -o lex.yy.o
-set_quiet:
-	$(eval CFLAGS=$(CFLAGS) $(QUIET_FLAGS) )
-quiet:set_quiet all
-force:
-	$(MAKE) -B all
-set_optimized:
-	$(eval OPT_FLAGS:=-O3 -march=native)
-	$(eval CFLAGS:=$(COMMON_CFLAGS) $(QUIET_FLAGS) $(OPT_FLAGS))
-optimized:set_optimized all
 parser.o: parser.c $(COMMON_HEADERS) cons.h
 cons.o: cons.c $(COMMON_HEADERS) cons.h
 print.o: print.c $(COMMON_HEADERS) cons.h
@@ -72,13 +70,16 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
-llvm_codegen.o:codegen.h $(COMMON_HEADERS) prim.h llvm_codegen.c cons.h
-	$(CC) `llvm-config --cppflags` $(CFLAGS) -c llvm_codegen.c -o llvm_codegen.o
+llvm_codegen.o:llvm_codegen.c codegen.h $(COMMON_HEADERS) prim.h cons.h llvm_c.h
+	$(compile_llvm)
+llvm_test.o: llvm_codegen.c llvm_c.h
+	$(compile_llvm)
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
-#make object file of primitives, no debugging, and optimize
-LIBPRIM_FLAGS:=$(COMMON_CFLAGS) -O3
+#making libraries
+LIBPRIM_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
+#should be a way to do this in less lines
 define start_libprim =
 	$(eval CC_TEMP:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
 	$(CC_TEMP) -o libprim_prim.o -c prim.c
@@ -92,14 +93,14 @@ libprim_reqs: prim.c eval.c print.c env.c cons.c array.c
 define libprim_files :=
 libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o libprim_print.o
 endef
+LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libprim.o: libprim_reqs
 	$(start_libprim)
-	$(CC) -o prim.o $(LIBPRIM_FLAGS) -lm -lgc -lcord	
+	$(CC) -o libprim.o $(LIBPRIM_FLAGS) -lm -lgc -lcord
 libSciLisp.a: libprim_reqs
 	$(start_libprim)
 	ar rcs $@ $(libprim_files)
 	rm $(libprim_files)
-LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libSciLisp.so: libprim_reqs
 	$(start_libprim)
 	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $(libprim_files) -o $@
@@ -109,14 +110,21 @@ prim.bc: prim.c eval.c print.c env.c cons.c array.c
 	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\
 	rm prim.s cons.s eval.s array.s env.s print.s
 	llvm-dis prim.bc -o prim.ll
+#.PHONY targets(set flags, clean etc..)
+set_quiet:
+	$(eval CFLAGS=$(CFLAGS) $(QUIET_FLAGS) )
+quiet:set_quiet all
+force:
+	$(MAKE) -B all
+set_optimized:
+	$(eval OPT_FLAGS:=-O3 -march=native)
+	$(eval CFLAGS:=$(COMMON_CFLAGS) $(QUIET_FLAGS) $(OPT_FLAGS))
+optimized:set_optimized all
 clean:
 	rm *.o
 	rm prim.bc;rm prim.ll;rm libSciLisp.so
-asm: $(ASM_FILES)
-	mkdir -p SciLisp_asm
-	(cd SciLisp_asm; \
-	for i in $(ASM_FILES);do \
-	$(CC) -std=gnu99 $(OPT_FLAGS) -fverbose-asm ../$$i -S;done)
+	rm SciLisp;rm llvm_th
+#documentation
 doc: info pdf
 info: doc/manual.texi
 	(cd doc && makeinfo manual.texi)
@@ -124,3 +132,13 @@ pdf: doc/manual.texi
 	(cd doc && makeinfo --pdf manual.texi)
 clean_doc:
 	cd doc && rm $$(find '!' -name "*.texi" -type f)
+#external dependencys
+# the dependency basically just makes sure the readline dir isn't empty
+PYTHON2:=$(shell if [ $$(python --version 2>&1  | awk '{ print(substr($$2,1,1)) }') -ge 3 ];then echo '/usr/bin/python2';else echo '/usr/bin/python';fi)
+readline: readline/configure
+	cd readline && ./configure --prefix=$$PWD --enable-multibyte \
+	&& $(MAKE) install
+llvm:  llvm/configure
+	cd llvm && mkdir -p llvm && ./configure --prefix=$$PWD/llvm \
+	--enable-optimized --enable-shared\
+	 --with-python=$(PYTHON2) && $(MAKE) install
