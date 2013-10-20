@@ -142,3 +142,12 @@ llvm:  llvm/configure
 	cd llvm && mkdir -p llvm && ./configure --prefix=$$PWD/llvm \
 	--enable-optimized --enable-shared\
 	 --with-python=$(PYTHON2) && $(MAKE) install
+gc/gc_config.stamp:
+	if [ ! -f gc/bdwgc/configure ];then cd gc/bdwgc && ./autogen.sh; fi
+	if [ ! -f gc/libatomic_ops/configure ];then cd gc/libatomic_ops && autogen.sh;fi
+	if [ ! -h gc/bdwgc/libatomic_ops ]; then ln -s $$PWD/gc/libatomic_ops\
+	$$PWD/gc/bdwgc/libatomic_ops; fi
+	touch gc/gc_config.stamp
+gc: gc/gc_config.stamp gc/bdwgc/autogen.sh gc/libatomic_ops/autogen.sh
+	cd gc/bdwgc && ./configure --with-threads=posix --disable-java-finalization \
+	--enable-parallel-mark --enable-cplusplus --prefix=$$PWD/.. && $(MAKE) install
