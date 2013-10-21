@@ -113,6 +113,7 @@ CORD print(sexp obj){
         acc=CORD_cat(acc,print(car(obj)));
         obj=cdr(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
+        CORD_fprintf(stderr,acc);fputs("\n",stderr);
       }
       if(!NILP(obj)){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
@@ -147,7 +148,7 @@ CORD print(sexp obj){
     case _lam:
       acc="(lambda ";
       acc=CORD_catn(5,acc,
-                    print((sexp){.tag=_lenv,.val={.lenv =obj.val.lam->env.head}})
+                    print((sexp){.tag=_lenv,.val={.lenv =obj.val.lam->env->head}})
                     ," ",print(obj.val.lam->body),")");
       return CORD_balance(acc);
     case _array:
@@ -186,7 +187,7 @@ CORD print(sexp obj){
   }
 }
 sexp lisp_print(sexp obj){
-  CORD print_string = print(eval(obj,topLevelEnv));
+  CORD print_string = print(eval(obj,&topLevelEnv));
   CORD_fprintf(stderr,"%r\n",print_string);
   return (sexp){.tag=_str,.val={.cord=print_string}};
 }

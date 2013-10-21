@@ -109,6 +109,7 @@ prim.bc: prim.c eval.c print.c env.c cons.c array.c
 	$(CC) -S -emit-llvm -fno-asm $^;\
 	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\
 	rm prim.s cons.s eval.s array.s env.s print.s
+	opt -O3 prim.bc -o prim.bc
 	llvm-dis prim.bc -o prim.ll
 #.PHONY targets(set flags, clean etc..)
 set_quiet:

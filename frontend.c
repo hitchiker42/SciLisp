@@ -189,7 +189,7 @@ int main(int argc,char* argv[]){
   initPrims(); //read primitives into syntax table, this really should just
   // read a binary file containing a prepopulaed syntax table;
   int c;
-  sexp(*evalFun)(sexp,env)=eval;
+  sexp(*evalFun)(sexp,env*)=eval;
   while(1){
     c=getopt_long(argc,argv,"e:hl:o:qvtb:",long_options,NULL);
     if(c==-1){break;}
@@ -215,7 +215,7 @@ int main(int argc,char* argv[]){
         }
         ast=yyparse(file);
         while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),topLevelEnv);
+          sexp result=eval(XCAR(ast),&topLevelEnv);
           CORD_printf(print(result));puts("");
           ast=XCDR(ast);
         }
@@ -225,7 +225,7 @@ int main(int argc,char* argv[]){
         sexp ast;
         FILE* file=fopen(optarg,"r");
         while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),topLevelEnv);
+          sexp result=eval(XCAR(ast),&topLevelEnv);
           CORD_printf(print(result));puts("");
           ast=XCDR(ast);
         };
@@ -239,11 +239,14 @@ int main(int argc,char* argv[]){
       case 't':{
         FILE* file=fopen("test.lisp","r");
         sexp ast=yyparse(file);
+        PRINT_MSG(print(ast));
         puts("Testing:");
         while (CONSP(ast)){
-          CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));puts("");
-          sexp result=eval(XCAR(ast),topLevelEnv);
-          CORD_printf(CORD_cat("result: ",print(result)));puts("");
+          CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));
+          puts("");
+          sexp result=eval(XCAR(ast),&topLevelEnv);
+          CORD_printf(CORD_cat("result: ",print(result)));
+          puts("");
           ast=XCDR(ast);
         }
         exit(0);
@@ -302,7 +305,7 @@ int main(int argc,char* argv[]){
     ast=yyparse(my_pipe);
     //print
     if(!NILP(ast)){
-      result=evalFun(XCAR(ast),topLevelEnv);
+      result=evalFun(XCAR(ast),&topLevelEnv);
       CORD_printf(print(result));puts("\n");
     } else {
       result=NIL;

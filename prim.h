@@ -120,7 +120,7 @@ DEFUN(qsort_cons,2);
 //with all the primitive functions
 #define initPrims()                                                     \
   globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
-  topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
+  topLevelEnv=(env){.tag = _global,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
   DEFUN_INTERN("+",lisp_add);                                           \
   DEFUN_INTERN("-",lisp_sub);                                           \
   DEFUN_INTERN("*",lisp_mul);                                           \

@@ -203,7 +203,7 @@ struct function{
   } fxn_type;
 };
 struct fxn_proto{
-  CORD cname;//non-prim sets cname to 0...yeah no
+  CORD cname;
   CORD lispname;
   //max_args == -1 means remaining args as a list
   short min_args,max_args;
@@ -264,7 +264,7 @@ struct env{
   } tag;
 };
 struct lambda{
-  local_env env;
+  local_env *env;
   short minargs,maxargs;
   sexp body;
 };
@@ -293,17 +293,17 @@ static struct option long_options[] = {
 global_env globalSymbolTable;
 env topLevelEnv;
 //basically env.h(move to seperate file?)
-local_symref getLocalSym(local_env cur_env,CORD name);
+local_symref getLocalSym(local_env *cur_env,CORD name);
 global_symref getGlobalSym(CORD name);
-symref getSym(env cur_env,CORD name);
-symref addSym(env cur_env,symref Var);
+symref getSym(env *cur_env,CORD name);
+symref addSym(env *cur_env,symref Var);
 symref addGlobalSym(symref Var);
-symref addLocalSym(local_env cur_env,symref Var);
+symref addLocalSym(local_env *cur_env,symref Var);
 //type punning macros
 #define toSymbol(sym) (*(symbol*)&sym)
 #define toSymref(ref) (*(symref*)&(ref))
-static inline size_t symbolSize(env cur_env){
-  switch(cur_env.tag){
+static inline size_t symbolSize(env *cur_env){
+  switch(cur_env->tag){
     case _global:
       return sizeof(global_symbol);
     case _local:
@@ -312,7 +312,7 @@ static inline size_t symbolSize(env cur_env){
 }
 #define getGlobalSymMacro(name,Var)                                  \
   HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)
-#define addGlobalSymMacro(Var)                                               \
+#define addGlobalSymMacro(Var)                                          \
   HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
 //literal objects for each type

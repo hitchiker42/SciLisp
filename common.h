@@ -58,7 +58,7 @@ FILE* yyin;
 extern int evalError;
 extern sexp yyparse(FILE* input);
 //only function externed from eval, so I just put it here
-extern sexp eval(sexp expr,env cur_env);
+extern sexp eval(sexp expr,env *cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
 //global localtion of error messages
 CORD error_str;

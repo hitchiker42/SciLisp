@@ -10,18 +10,18 @@ jmp_buf error_buf;
 //static fuctions which are really just part of eval, but broken
 //up into seperate functions to modularise eval, and make it 
 //easier to write and understand, should be self explanitory
-static sexp call_builtin(sexp expr,env cur_env);
-static sexp call_lambda(sexp expr,env cur_env);
-static sexp eval_special(sexp expr,env cur_env);
-static sexp eval_def(sexp expr,env cur_env);
-static sexp eval_defun(sexp expr,env cur_env);
-static sexp eval_if(sexp expr,env cur_env);
-static sexp eval_while(sexp expr,env cur_env);
-static sexp eval_lambda(sexp expr,env cur_env);
-static sexp eval_progn(sexp expr,env cur_env);
-static sexp eval_prog1(sexp expr,env cur_env);
-static sexp eval_do(sexp expr,env cur_env);
-static sexp eval_let(sexp expr,env cur_env);
+static sexp call_builtin(sexp expr,env *cur_env);
+static sexp call_lambda(sexp expr,env *cur_env);
+static sexp eval_special(sexp expr,env *cur_env);
+static sexp eval_def(sexp expr,env *cur_env);
+static sexp eval_defun(sexp expr,env *cur_env);
+static sexp eval_if(sexp expr,env *cur_env);
+static sexp eval_while(sexp expr,env *cur_env);
+static sexp eval_lambda(sexp expr,env *cur_env);
+static sexp eval_progn(sexp expr,env *cur_env);
+static sexp eval_prog1(sexp expr,env *cur_env);
+static sexp eval_do(sexp expr,env *cur_env);
+static sexp eval_let(sexp expr,env *cur_env);
 //standard error handling function
 static sexp handle_error(void){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
@@ -30,7 +30,7 @@ static sexp handle_error(void){
   return NIL;
 }
 //evaluate the lisp expression expr in the environment cur_env
-sexp eval(sexp expr,env cur_env){
+sexp eval(sexp expr,env *cur_env){
   symref tempsym=0;
   switch(expr.tag){
     //a cons cell must be a function call or a special form
@@ -76,7 +76,7 @@ sexp eval(sexp expr,env cur_env){
  ERROR:
   return handle_error();
 }
-static inline sexp eval_special(sexp expr,env cur_env){
+static inline sexp eval_special(sexp expr,env *cur_env){
   //this is an internal only inline function, ie this function itself
   //won't be in the generated code, it's just used to git the source code
   //a bit more clarity
@@ -120,7 +120,7 @@ static inline sexp eval_special(sexp expr,env cur_env){
   return handle_error();
 }
 
-static sexp* get_args(sexp arglist,function fun,env cur_env){
+static sexp* get_args(sexp arglist,function fun,env *cur_env){
   //arglist is (sexp . (sexp . (sexp ....()...)))
   int minargs=fun.min_args;int maxargs=fun.max_args;
   int i=0;
@@ -153,7 +153,7 @@ static sexp* get_args(sexp arglist,function fun,env cur_env){
   }
   return args;
 }
-static inline sexp call_builtin(sexp expr,env cur_env){
+static inline sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   //PRINT_MSG(print(expr));
   int i;
@@ -197,7 +197,7 @@ static inline sexp call_builtin(sexp expr,env cur_env){
   return handle_error();
 #undef getArgs
 }
-static inline sexp eval_progn(sexp expr, env cur_env){
+static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval;
   while(CONSP(prog)){
@@ -206,7 +206,7 @@ static inline sexp eval_progn(sexp expr, env cur_env){
   }
   return retval;
 }
-static inline sexp eval_prog1(sexp expr, env cur_env){
+static inline sexp eval_prog1(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval;
   retval = eval(prog,cur_env);
@@ -216,20 +216,14 @@ static inline sexp eval_prog1(sexp expr, env cur_env){
   }
   return retval;
 }
-sexp eval_lambda(sexp expr,env cur_env){
+sexp eval_lambda(sexp expr,env *cur_env){
   //for now assume expr is a sexp of the form
   //(lambda (args ...) (body ...))
   sexp args,body;
-  env* cur_env_loc;
   //  PRINT_MSG(print(cdr(expr)));
-  if(cur_env.enclosing != 0){
-    cur_env_loc=xmalloc(sizeof(env));
-    *cur_env_loc=cur_env;
-  } else {
-    cur_env_loc=&topLevelEnv;
-  }
   //PRINT_MSG(tag_name(cadr(expr).tag));
-  local_env closure={.enclosing = cur_env_loc,.head=cadr(expr).val.lenv};
+  local_env *closure=xmalloc(sizeof(local_env));
+  *closure=(local_env){.enclosing = cur_env,.head=cadr(expr).val.lenv};
   int numargs=cadr(expr).len;
   body=caddr(expr);
   /*This is now delt with in the parser
@@ -250,22 +244,24 @@ sexp eval_lambda(sexp expr,env cur_env){
   retval->body=body;
   return (sexp){.tag=_lam,.val={.lam = retval}}; /*  */
 }
-static inline sexp eval_def(sexp expr,env cur_env){
+static inline sexp eval_def(sexp expr,env *cur_env){
   //should i go with the lisp standard of define only assigning
   //to a value once or not?
   symref newSym;
   //PRINT_FMT("%s",typeName(cadr(expr)));  
   newSym=getSym(cur_env,cadr(expr).val.var->name);
+  sexp symVal=eval(caddr(expr),cur_env);
   if(!newSym){
     newSym=xmalloc(symbolSize(cur_env));
     newSym->name=(cadr(expr).val.var->name);
+    newSym->val=symVal;
     newSym=addSym(cur_env,newSym);
+  } else {
+    newSym->val=symVal;
   }
-  sexp symVal=eval(caddr(expr),cur_env);
-  newSym->val=symVal;
   return (sexp){.tag = _sym,.val={.var = newSym}};
 }
-static inline sexp eval_defun(sexp expr,env cur_env){
+static inline sexp eval_defun(sexp expr,env *cur_env){
   sexp temp_lambda;
   //expr=(defun sym arglist body)
   temp_lambda.val.cons=xmalloc(sizeof(cons));
@@ -282,7 +278,7 @@ static inline sexp eval_defun(sexp expr,env cur_env){
   //expr = (def sym temp_lambda)
   return eval(expr,cur_env);
 }
-static inline sexp eval_if(sexp expr,env cur_env){
+static inline sexp eval_if(sexp expr,env *cur_env){
   //car  cadr    caddr   car(cdddr)
   //(if .(cond . (then . (else .()))))
   if(cdr(cdddr(expr)).tag != _nil){
@@ -294,7 +290,7 @@ static inline sexp eval_if(sexp expr,env cur_env){
             : eval(car(cdddr(expr)),cur_env));
   }
 }
-static inline sexp eval_while(sexp expr,env cur_env){
+static inline sexp eval_while(sexp expr,env *cur_env){
   register sexp cond=cadr(expr);
   register sexp body=caddr(expr);
   register sexp retval=NIL;
@@ -303,16 +299,16 @@ static inline sexp eval_while(sexp expr,env cur_env){
   }
   return retval;
 }
-static inline sexp call_lambda(sexp expr,env cur_env){
+static inline sexp call_lambda(sexp expr,env *cur_env){
   lambda *cur_fun = XCAR(expr).val.var->val.val.lam;
   assert(cur_fun !=0);
   int i=0;
   long maxargs=cur_fun->maxargs;//maybe short?
   long minargs=cur_fun->minargs;//""        ""
   sexp args=cdr(expr);
-  local_symref cur_param=cur_fun->env.head;
+  local_symref cur_param=cur_fun->env->head;
   assert(cur_param != 0);
-  assert(cur_param == cur_fun->env.head);
+  assert(cur_param == cur_fun->env->head);
   //PRINT_FMT("cur_param = %#0x",cur_param);
   while((i<minargs || CONSP(args)) && cur_param != 0){
     if(!CONSP(args)){
@@ -326,10 +322,10 @@ static inline sexp call_lambda(sexp expr,env cur_env){
     cur_param=cur_param->next;
     args=XCDR(args);//update values
   }
-  cur_param=cur_fun->env.head;
-  env closure={.enclosing=cur_fun->env.enclosing,
+  cur_param=cur_fun->env->head;
+  env parameters={.enclosing=cur_fun->env->enclosing,
                .head={.local=cur_param},.tag=_local};
-  sexp retval=eval(cur_fun->body,closure);
+  sexp retval=eval(cur_fun->body,&parameters);
   //PRINT_MSG(print(retval));
   //clear parameters(I think this is necessary)
   while(cur_param!=0){
@@ -338,7 +334,7 @@ static inline sexp call_lambda(sexp expr,env cur_env){
   }
   return retval;
 }
-static inline sexp eval_let(sexp expr,env cur_env){
+static inline sexp eval_let(sexp expr,env *cur_env){
   /*syntax (let ((var def)+)(body ...))*/
   sexp vars=XCDR(expr);
   if(!CONSP(vars)){
@@ -346,14 +342,8 @@ static inline sexp eval_let(sexp expr,env cur_env){
   }
   local_symref cur_var=xmalloc(sizeof(local_symbol));
   local_symref last_var=cur_var;
-  env* cur_env_loc;
-  if(cur_env.enclosing != 0){
-    cur_env_loc=xmalloc(sizeof(env));
-    *cur_env_loc=cur_env;
-  } else {
-    cur_env_loc=&topLevelEnv;
-  }
-  local_env scope = {.enclosing = cur_env_loc,.head = cur_var};
+  env *scope = xmalloc(sizeof(env));
+  *scope=(env){.enclosing = cur_env,.head = {.local = cur_var},.tag=_local};
   while(CONSP(XCAR(vars))){//for each cons cell in the let expression
     //take the name from the car(assuming it's a symbol)
     cur_var->name=XCAAR(vars).val.var->name;//I think...
@@ -367,13 +357,15 @@ static inline sexp eval_let(sexp expr,env cur_env){
     if(!CONSP(vars)){return error_sexp("malformed let expression");}
   }
   last_var->next=0;
-  return eval(cddr(expr),(env){.enclosing=scope.enclosing,
-        .head={.local=scope.head},.tag=_local});
+  return eval(cddr(expr),scope);
   return error_sexp("let unimplemented");
 }
-static inline sexp eval_do(sexp expr,env cur_env){
+static inline sexp eval_do(sexp expr,env *cur_env){
   return error_sexp("do unimplemented");
-  /*syntax (do (var init step end)*/}
+  /*syntax (do (var init step end)*/
+  expr=cdr(expr);//we don't need the do anymore
+  sexp loop_parameters=car(expr);//(var init step end)
+}
    
 /*#define getArgs(numargs)                                                \
   cur_arg=cdr(expr);                                                    \

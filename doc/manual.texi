@@ -93,6 +93,33 @@ respectively.
 @section Command Line Options
 @node The SciLisp Language
 @chapter The SciLisp Language
+@menu
+* Types::
+@c ... anything else?
+@end menu
+@section Types
+@cindex Types
+SciLisp has a well defined type hierarchy and a core set of predefined
+types with the ability of the programmer to add new types expected to be
+added to the language. That said by default SciLisp is dynamically typed
+as is typical for a Lisp language. Types are exposed to the programmer
+via optional type annotations similar to those present in standard ml or
+haskell. Unlike the aforementioned languages which are statically type
+and use type inference to fill in non annotate type, type annotation in
+SciLisp is an all or nothing affair. If a SciLisp program uses type
+annotations the entire program will be type checked at compile time and
+rejected if it contains type errors. Type annotations are only available
+in compiled code, they are silently ignored in interpreted code. As an
+example here is how a simple factorial function, with input as an
+integer and output as a double would be annotated.
+@lisp
+(defun fact::(Int -> Float) (n);the type of n is implied by fact
+  (if (< n 1);< is (Number*Number->Bool) if requires a boolean
+      1::Float;explicitly require 1 to be a Float(1.0 would also work)
+      (* n::Float (fact (- n 1)))));explicitly convert n to a Float
+@end lisp
+@c explain this example
+@c You Know what I need to come up with a better type hierarchy first
 @node Grammar
 @menu
 * SciLisp Syntax and Semantics: Syntax and Semantics
@@ -131,6 +158,10 @@ the language are built using the same set of tools available to the user
 and, if desired the user can modify any aspect of the language other
 than these special forms. The special forms in SciLisp are:
 @table @code
+@item if
+@lisp (if @var(cond) @var(then) @var(else)) @end lisp
+evaluate @var(cond) if @var(cond) evaluates to true evaluate @var(then)
+if @var(cond) evaluates to false evaluate @var(else) (@pxref{Booleans, ,Types}).
 @end table
 @node Formal Grammar
 @section Formal Grammar

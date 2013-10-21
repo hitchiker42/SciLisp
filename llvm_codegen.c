@@ -56,6 +56,7 @@ void initialize_llvm(int engine){
   LispShort=LLVMInt16TypeInContext(SL_Context);
   LispChar=LLVMInt8TypeInContext(SL_Context);
   LispVoid=LLVMVoidTypeInContext(SL_Context);
+  LLVMSexp=LLVMArrayType(LispLong,2);
   LispData=LLVMGetTypeByName(SL_Module,"union.data");
   LispSexp=LLVMGetTypeByName(SL_Module,"struct.sexp");
   LispCons=LLVMGetTypeByName(SL_Module,"struct.cons");
@@ -68,11 +69,11 @@ void initialize_llvm(int engine){
     }
   }
   for(i=0;i<8;i++){
-    LispArgs[i]=LispSexp;
+    LispArgs[i]=LLVMSexp;
   }
-  LispFxnTypes[0]=LLVMFunctionType(LispSexp,&LispVoid,0,0);
+  LispFxnTypes[0]=LLVMFunctionType(LLVMSexp,&LispVoid,0,0);
   for(i=1;i<9;i++){
-    LispFxnTypes[i]=LLVMFunctionType(LispSexp,LispArgs,i,0);
+    LispFxnTypes[i]=LLVMFunctionType(LLVMSexp,LispArgs,i,0);
   }
   SL_Engine=xmalloc(sizeof(LLVMExecutionEngineRef)); 
   LLVMInitializeNativeTarget();
@@ -94,12 +95,53 @@ void initialize_llvm(int engine){
       LLVMCreateInterpreterForModule(&SL_Engine,SL_Module,&error);
       break;
   }
+  /*I created an SL_Opt variable, I should have SL_Pass and SL_Opt
+   *SL_Pass should always run and do trivial stuff(or anything that's fast)
+   *SL_Opt should take more time to optimize stuff*/
+   SL_Pass = LLVMCreateFunctionPassManagerForModule(SL_Module);
+   LLVMAddTargetData(LLVMGetExecutionEngineTargetData(SL_Engine),SL_Pass);
+   //evaluate and combine constant expressions
+   //ex (+ 1 (* 2 4)) -> (+ 1 8) -> 9
+   LLVMAddConstantPropagationPass(SL_Pass);
+   //combine instruction to form fewer simple instructions
+   //ex. (setq y (+ x 1)) (setq z (+ y 1)) -> (setq z (+ x 2))
+   LLVMAddInstructionCombiningPass(SL_Pass);
+   //fairly self explainatory, change memory referances into register referances
+   //for instance ((let ((y 1))(+ x y))), instead of allocating memory for y
+   //do mov 1 %rax;mov x %rbx;add %rax %rbx;mov %rbx x; or something like that
+   LLVMAddPromoteMemoryToRegisterPass(SL_Pass);
+   //rearrange commutative expressions to produce better constant propagation
+   //ex. (+ 4 (+ x 5)) -> (+ x (+ 4 5)) -> (+ x 9)
+   LLVMAddReassociatePass(SL_Pass);
+   //global value numbering to delete redundant instructions
+   LLVMAddGVNPass(SL_Pass);
+   //dead code elimination, basic block merging and various peephole control
+   //flow optimizations
+   LLVMAddCFGSimplificationPass(SL_Pass);
+   //turn tail calls into loops
+   LLVMAddTailCallEliminationPass(SL_Pass);
+   //I have a fair ammount of trivial library functions that should be inlined
+   //   LLVMAddFunctionInliningPass(SL_Pass);
+   //   LLVMAddAlwaysInlinerPass(SL_Pass);
+   //turn pointers into literals for pure functions
+   //   LLVMAddArgumentPromotionPass(SL_Pass);
+   //vectorize loops
+   LLVMAddLoopVectorizePass(SL_Pass);
+   //mark functions as pure,const,etc..
+   //   LLVMAddFunctionAttrsPass(SL_Pass);
+   //eliminate redundent stores
+   LLVMAddDeadStoreEliminationPass(SL_Pass);
+   //eliminate redundent function arguments(ie args elminated via constant
+   //propagation)
+   //LLVMAddDeadArgEliminationPass(SL_Pass);
+   //There are a bunch more I could add
+   LLVMInitializeFunctionPassManager(SL_Pass);
 }
 #ifdef EVAL
 #undef EVAL
 #endif
 #define EVAL(expr,env,builder) LLVM_Codegen(expr,cur_env,builder)
-sexp LLVMEval(sexp expr,env cur_env){
+sexp LLVMEval(sexp expr,env *cur_env){
   if(setjmp(jmp_to_error)){
     return error_val;
   }
@@ -113,7 +155,7 @@ sexp LLVMEval(sexp expr,env cur_env){
   //do something
   return NIL;
 }
-LLVMValueRef LLVM_Codegen(sexp expr,env cur_env,LLVMBuilderRef builder){
+LLVMValueRef LLVM_Codegen(sexp expr,env *cur_env,LLVMBuilderRef builder){
   switch(expr.tag){
     case _cons:
       if(SYMBOLP(car(expr))){
@@ -170,7 +212,7 @@ LLVMValueRef LLVM_Codegen(sexp expr,env cur_env,LLVMBuilderRef builder){
  ERROR:
   return handle_error();
 }
-LLVMValueRef LLVM_Codegen_Special(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_Special(sexp expr,env *cur_env,
                                         LLVMBuilderRef builder){
   //this is an internal only inline function, ie this function itself
   //won't be in the generated code, it's just used to git the source code
@@ -217,7 +259,7 @@ LLVMValueRef LLVM_Codegen_Special(sexp expr,env cur_env,
       return handle_error();
   }
 }
-LLVMValueRef LLVM_Codegen_if(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_if(sexp expr,env *cur_env,
                                     LLVMBuilderRef builder){
   if(cdr(cdddr(expr)).tag != _nil){
     CORD_sprintf(&error_str,"excess arguments to if expression\n");
@@ -229,12 +271,12 @@ LLVMValueRef LLVM_Codegen_if(sexp expr,env cur_env,
        LLVMValueAsBasicBlock(EVAL(car(cdddr(expr)),cur_env,builder)));
   }
 }
-LLVMValueRef LLVM_Call_Function(sexp expr,env cur_env,
+LLVMValueRef LLVM_Call_Function(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
   sexp curFun=car(expr).val.var->val;
   return LispNIL;
 }
-LLVMValueRef* get_args(sexp arglist,function fun,env cur_env,
+LLVMValueRef* get_args(sexp arglist,function fun,env *cur_env,
                               LLVMBuilderRef builder){
   //arglist is (sexp . (sexp . (sexp ....()...)))
   int minargs=fun.min_args;int maxargs=fun.max_args;
@@ -268,39 +310,39 @@ LLVMValueRef* get_args(sexp arglist,function fun,env cur_env,
   }
   return args;
 }
-LLVMValueRef LLVM_Codegen_progn(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_progn(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Codegen_do(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_do(sexp expr,env *cur_env,
                                     LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Codegen_prog1(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_prog1(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Codegen_while(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_while(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Codegen_defun(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_defun(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Codegen_def(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_def(sexp expr,env *cur_env,
                                      LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Codegen_lambda(sexp expr,env cur_env,
+LLVMValueRef LLVM_Codegen_lambda(sexp expr,env *cur_env,
                                         LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Call_Builtin(sexp expr,env cur_env,
+LLVMValueRef LLVM_Call_Builtin(sexp expr,env *cur_env,
                                       LLVMBuilderRef builder){
   return LispNIL;
 }
-LLVMValueRef LLVM_Call_Lambda(sexp expr,env cur_env,
+LLVMValueRef LLVM_Call_Lambda(sexp expr,env *cur_env,
                                      LLVMBuilderRef builder){
   return LispNIL;
 }

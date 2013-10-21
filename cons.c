@@ -107,14 +107,14 @@ sexp mapcar(sexp ls,sexp map_fn){
   if(FUNP(map_fn)){
     f=map_fn.val.fun->fxn_call.f1;
   } else {
-    lambda_env=(env){.enclosing = (env*)&map_fn.val.lam->env,
-                .head={.local=map_fn.val.lam->env.head},.tag=0};
+    lambda_env=(env){.enclosing = (env*)map_fn.val.lam->env,
+                .head={.local=map_fn.val.lam->env->head},.tag=0};
   }
   while(!NILP(XCDR(ls))){
     if(FUNP(map_fn)){
       cur_cell->car=f(car(ls));
     } else {
-      cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),lambda_env);
+      cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),&lambda_env);
     }
     cur_cell->cdr.val.cons=xmalloc(sizeof(cons));
     cur_cell=cur_cell->cdr.val.cons;

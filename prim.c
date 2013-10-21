@@ -45,7 +45,8 @@
   }
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   fxn_proto cname##call=                                        \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
+    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};    \
+  fxn_proto *cname##call_ptr=&cname##call
 #define DEFUN_MANY(lname,cname,minargs)                 \
   fxn_proto cname##call=                                \
     { #cname, lname, minargs, -1, {.fmany=cname}};
@@ -149,7 +150,7 @@ sexp lisp_randfloat(sexp scale){
   }
   return (sexp){.tag=_double,.val={.real64=retval}};
 }
-sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
+sexp lisp_eval(sexp obj){return eval(obj,&topLevelEnv);}
 sexp lisp_length(sexp obj){
   if(obj.len){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
