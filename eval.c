@@ -22,6 +22,8 @@ static sexp eval_progn(sexp expr,env *cur_env);
 static sexp eval_prog1(sexp expr,env *cur_env);
 static sexp eval_do(sexp expr,env *cur_env);
 static sexp eval_let(sexp expr,env *cur_env);
+static sexp eval_and(sexp expr,env *cur_env);
+static sexp eval_or(sexp expr,env *cur_env);
 //standard error handling function
 static sexp handle_error(void){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
@@ -91,8 +93,7 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       newSym = getSym(cur_env,cadr(expr).val.var->name);
       sexp symVal=eval(caddr(expr),cur_env);
       if(!newSym){
-        //NEED TO MAKE GENERIC
-        newSym=xmalloc(sizeof(global_symbol));
+        newSym=xmalloc(sizeof(symbol_val));
         newSym->name=(cadr(expr).val.var->name);
         newSym=addSym(cur_env,newSym);
         newSym->val=symVal;
@@ -104,7 +105,8 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_lambda(expr,cur_env);
     case _if: 
       return eval_if(expr,cur_env);
-    case _do: return NIL;
+    case _do: 
+      return eval_do(expr,cur_env);
     case _while:
       return eval_while(expr,cur_env);
     case _defun:
@@ -113,6 +115,12 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_progn(expr,cur_env);
     case _prog1:
       return eval_prog1(expr,cur_env);
+    case _let:
+      return eval_let(expr,cur_env);
+    case _and:
+      return eval_and(expr,cur_env);
+    case _or:
+      return eval_or(expr,cur_env);
     default:
       goto error;
   }
@@ -361,24 +369,57 @@ static inline sexp eval_let(sexp expr,env *cur_env){
   return error_sexp("let unimplemented");
 }
 static inline sexp eval_do(sexp expr,env *cur_env){
-  return error_sexp("do unimplemented");
-  /*syntax (do (var init step end)*/
+  /*syntax (do (var init step end) body)*/
+  //for now body must be a single sexp(ie use explict progn)
   expr=cdr(expr);//we don't need the do anymore
-  sexp loop_parameters=car(expr);//(var init step end)
+  sexp loop_params=car(expr);//(var init step end)
+  if(!CONSP(loop_params) || !CONSP(XCDR(loop_params)) ||
+     !CONSP(XCDDR(loop_params)) || !CONSP(XCDDDR(loop_params))){
+    return error_sexp("incomplete paramenter list for do expression");
+  }
+  //create environment for loop
+  local_symref loop_var=alloca(sizeof(local_symbol));
+  *loop_var=*(local_symref)XCAR(loop_params).val.var;
+  loop_var->next=NULL;
+  sexp retval=NIL;
+  env *loop_scope=alloca(sizeof(env));
+  *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
+  //initialize loop var
+  eval(XCADR(loop_params),loop_scope);
+  loop_params=XCDDR(loop_params);//(step end)
+  //why am i doing this this way, I don't really know
+  while(isTrue(eval(XCADR(loop_params),loop_scope))){//test loop end condition
+    retval=eval(cadr(expr),loop_scope);//execute loop body
+    //run loop step function
+    eval(XCAR(loop_params),loop_scope);//I'm not sure if this will work
+  }
+  return retval;
 }
-   
-/*#define getArgs(numargs)                                                \
-  cur_arg=cdr(expr);                                                    \
-  if(NILP(cur_arg)){goto ARGS_ERR ## numargs;}                          \
-  sexp args##numargs[numargs];                                          \
-  for(i=0;i<numargs;i++){                                             \
-  if(!CONSP(cur_arg)){                                              \
-  ARGS_ERR ## numargs:                                            \
-  CORD_sprintf(&error_str,"Too few Arguments given to %r",      \
-  FLNAME(curFun));                                   \
-  goto ERROR;                                                     \
-  } else {                                                          \
-  args##numargs[i]=eval(XCAR(cur_arg),cur_env);                   \
-  cur_arg=XCDR(cur_arg);                                        \
-  }                                                                 \
-  }*/
+static sexp eval_and(sexp expr,env *cur_env){
+  //(and sexp*) if all sexp's are true return value of last sexp
+  //otherwise return false
+  expr=cdr(expr);//discard and
+  sexp retval=NIL;
+  while(CONSP(expr)){
+    retval=eval(XCAR(expr),cur_env);
+    if(!(isTrue(retval))){
+      return LISP_FALSE;
+    } else {
+      expr=XCDR(expr);
+    }
+  }
+  return retval;    
+}
+static sexp eval_or(sexp expr,env *cur_env){
+  expr=cdr(expr);
+  sexp retval=NIL;
+  while(CONSP(expr)){
+    retval=eval(XCAR(expr),cur_env);
+    if(isTrue(retval)){
+      return retval;
+    } else {
+      expr=XCDR(expr);
+    }
+  }
+  return LISP_FALSE;
+}

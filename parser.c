@@ -197,6 +197,10 @@ sexp parse_atom(){
       return (sexp){_double,.val={.real64=yylval->val.real64}};
     case TOK_INT:
       return *yylval;
+    case TOK_LISP_TRUE:
+      return LISP_TRUE;
+    case TOK_LISP_FALSE:
+      return LISP_FALSE;
     case TOK_QUOTE:
       nextTok();
       //parse a literal list
