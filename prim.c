@@ -200,6 +200,34 @@ void hello_world(){
   printf("hello, world!\n");
   return;
 }
+sexp lisp_inc(sexp num){
+  if(!NUMBERP(num)){
+    return error_sexp("cannot increment something that is not a number");
+  } else switch(num.tag){
+      case _long:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.int64=(++num.val.int64)}};
+      case _double:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.real64=(++num.val.real64)}};
+    }
+}
+sexp lisp_dec(sexp num){
+  if(!NUMBERP(num)){
+    return error_sexp("cannot increment something that is not a number");
+  } else switch(num.tag){
+      case _long:
+        num.val.int64-=1;
+        return num;
+      case _double:
+        num.val.real64-=1;
+        return num;
+    }
+}
+/*probably eaiser in lisp
+  (defun ++! (x) (setq x (+1 x)))
+  (defun --! (x) (setq x (-1 x)))
+*/
 const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
 const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
 const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
@@ -264,4 +292,6 @@ DEFUN("round",lisp_round,1,2);
 DEFUN("push!",push_cons,2,2);
 DEFUN("pop!",pop_cons,1,1);
 DEFUN("qsort!",qsort_cons,2,2);
+DEFUN("++",lisp_inc,1,1);
+DEFUN("--",lisp_dec,1,1);
 #undef DEFUN

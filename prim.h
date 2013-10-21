@@ -109,6 +109,8 @@ DEFUN(lisp_round,2);
 DEFUN(pop_cons,1);
 DEFUN(push_cons,2);
 DEFUN(qsort_cons,2);
+DEFUN(lisp_inc,1);
+DEFUN(lisp_dec,1);
 /*
   (defun SciLisp-mkIntern ()
   (interactive)
@@ -182,6 +184,8 @@ DEFUN(qsort_cons,2);
   DEFUN_INTERN("pop!",pop_cons);                                        \
   DEFUN_INTERN("push!",push_cons);                                      \
   DEFUN_INTERN("qsort!",qsort_cons);                                    \
+  DEFUN_INTERN("++",lisp_inc);                                          \
+  DEFUN_INTERN("--",lisp_dec);                                          \
   INTERN_ALIAS("cons?",lisp_consp,17);                                  \
   INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFCONST("Meps",lisp_mach_eps);                                       \

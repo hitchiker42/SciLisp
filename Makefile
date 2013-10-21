@@ -152,3 +152,4 @@ gc/gc_config.stamp:
 gc: gc/gc_config.stamp gc/bdwgc/autogen.sh gc/libatomic_ops/autogen.sh
 	cd gc/bdwgc && ./configure --with-threads=posix --disable-java-finalization \
 	--enable-parallel-mark --enable-cplusplus --prefix=$$PWD/.. && $(MAKE) install
+	cp gc/bdwgc/include/cord_pos.h gc/include/gc
