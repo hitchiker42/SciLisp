@@ -5,8 +5,8 @@
 #define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
 #define HERE_MSG(string) fprintf(stderr,"here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
-#define PRINT_MSG(string) fputs(string,stderr);fputs("\n",stderr)
-#define PRINT_FMT(string,fmt...) fprintf(stderr,string,##fmt);fputs("\n",stderr)
+#define PRINT_MSG(string) CORD_fprintf(stderr,string);fputs("\n",stderr)
+#define PRINT_FMT(string,fmt...) CORD_fprintf(stderr,string,##fmt);fputs("\n",stderr)
 #else
 #define HERE()
 #define HERE_MSG(string)

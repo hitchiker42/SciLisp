@@ -113,13 +113,15 @@ CORD print(sexp obj){
         acc=CORD_cat(acc,print(car(obj)));
         obj=cdr(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
-        CORD_fprintf(stderr,acc);fputs("\n",stderr);
+        //CORD_fprintf(stderr,acc);fputs("\n",stderr);
       }
       if(!NILP(obj)){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
-        retval=CORD_cat_char(acc,')');
+        acc=CORD_cat(acc,")");
       }
+      retval=acc;
+      PRINT_MSG(retval);
       return CORD_balance(retval);
     case _uninterned:
       switch(obj.val.meta){

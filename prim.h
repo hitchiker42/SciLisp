@@ -74,6 +74,7 @@ DEFUN(cddar,1);
 DEFUN(cdaar,1);
 DEFUN(cadar,1);
 DEFUN(cdadr,1);
+DEFUN(last,1);
 DEFUN(Cons,2);
 DEFUN(mapcar,2);
 DEFUN(set_car,2);
@@ -155,6 +156,7 @@ DEFUN(qsort_cons,2);
   DEFUN_INTERN("cdaar",cdaar);                                          \
   DEFUN_INTERN("cadar",cadar);                                          \
   DEFUN_INTERN("cdadr",cdadr);                                          \
+  DEFUN_INTERN("last",last);                                            \
   DEFUN_INTERN("cons",Cons);                                            \
   DEFUN_INTERN("typeName",lisp_typeName);                               \
   DEFUN_INTERN("print",lisp_print);                                     \

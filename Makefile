@@ -81,7 +81,7 @@ prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 LIBPRIM_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
 #should be a way to do this in less lines
 define start_libprim =
-	$(eval CC_TEMP:=$(CC) $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
+	$(eval CC_TEMP:=$(CC) $(LIBPRIM_FLAGS))#$(QUIET_FLAGS) 
 	$(CC_TEMP) -o libprim_prim.o -c prim.c
 	$(CC_TEMP) -o libprim_cons.o -c  cons.c
 	$(CC_TEMP) -o libprim_array.o -c array.c

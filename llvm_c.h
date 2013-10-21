@@ -2,6 +2,7 @@
 #define _LLVM_C_
 #include "common.h"
 #include "cons.h"
+#include "prim.h"
 //include fucking everything, because why not
 #include <llvm-c/Core.h>
 #include <llvm-c/BitReader.h>

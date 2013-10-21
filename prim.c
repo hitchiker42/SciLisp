@@ -45,8 +45,7 @@
   }
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   fxn_proto cname##call=                                        \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};    \
-  fxn_proto *cname##call_ptr=&cname##call
+    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
 #define DEFUN_MANY(lname,cname,minargs)                 \
   fxn_proto cname##call=                                \
     { #cname, lname, minargs, -1, {.fmany=cname}};
@@ -230,6 +229,7 @@ DEFUN("cddar",cddar,1,1);
 DEFUN("cdaar",cdaar,1,1);
 DEFUN("cadar",cadar,1,1);
 DEFUN("cdadr",cdadr,1,1);
+DEFUN("last",last,1,1);
 DEFUN("cons",Cons,2,2);
 DEFUN("set-car!",set_car,2,2);
 DEFUN("set-cdr!",set_cdr,2,2);

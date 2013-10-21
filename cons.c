@@ -80,6 +80,7 @@ sexp reduce(sexp ls,sexp reduce_fn){
   if(!CONSP(ls) || !FUNP(reduce_fn)){
     //error;
   }
+  HERE();
   sexp result=XCAR(ls);
   sexp(*f)(sexp,sexp);
   switch(reduce_fn.tag){
@@ -149,10 +150,10 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   }
   if(NILP(stop)){
     int imax=lrint(getDoubleVal(start));
-    cons* newlist=xmalloc(sizeof(cons)*imax);
+    cons* newlist=xmalloc(sizeof(cons)*imax+1);
     for(i=0;i<imax;i++){
       newlist[i].car=(sexp){.tag=_long,.val={.int64=i}};
-      newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
+      newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
     }
     newlist[i-1].cdr=NIL;
     HERE();
@@ -163,15 +164,20 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     dstep=getDoubleVal(step);
     if(dstep == 0) return NIL;
   }
+  HERE();
   int imax=ceil(fabs(getDoubleVal(lisp_sub(stop,start))/dstep));
-  cons* newlist=xmalloc(sizeof(cons)*imax);
+  cons* newlist=xmalloc(sizeof(cons)*imax+1);
   double j=getDoubleVal(start);
   for(i=0;i<imax;i++){
     newlist[i].car=(sexp){.tag=_double,.val={.real64=j}};
-    newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
+    newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
     j+=dstep;
   }
+  HERE();
   newlist[i-1].cdr=NIL;
+  HERE();
+  PRINT_MSG(print((sexp){.tag=_list,.val={.cons=newlist},.len=i}));
+  HERE();
   return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
 }
 static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
