@@ -81,6 +81,7 @@ DEFUN(set_car,2);
 DEFUN(set_cdr,2);
 DEFUN(lisp_typeName,1);
 DEFUN(lisp_print,1);
+DEFUN(lisp_println,1);
 DEFUN(reduce,2);
 DEFUN(lisp_lt,2);
 DEFUN(lisp_gt,2);
@@ -162,6 +163,7 @@ DEFUN(lisp_dec,1);
   DEFUN_INTERN("cons",Cons);                                            \
   DEFUN_INTERN("typeName",lisp_typeName);                               \
   DEFUN_INTERN("print",lisp_print);                                     \
+  DEFUN_INTERN("println",lisp_println);                                 \
   DEFUN_INTERN("reduce",reduce);                                        \
   DEFUN_INTERN("abs",lisp_abs);                                         \
   DEFUN_INTERN("ash",ash);                                              \

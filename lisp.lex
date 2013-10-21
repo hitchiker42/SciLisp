@@ -21,6 +21,7 @@ static wchar_t lex_char(char* cur_yytext){
      it relies on the size of chars,specific input and output encoding
      and little endian byte ordering*/
   if(cur_yytext[1]=='\\'){
+    if(cur_yytext[2]=='?'){return '?';}
     if(cur_yytext[2]=='x'){
       //without this if you gave \x0000 you'd segfault
       char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
@@ -48,7 +49,7 @@ static wchar_t lex_char(char* cur_yytext){
     return (wchar_t)L'\0';
   }
 }
-
+ static int comment_depth=0;
 %}
 DIGIT [0-9]
 HEX_DIGIT [0-9a-fA-f]
@@ -70,6 +71,10 @@ union data {
 /*%option bison-bridge*/
 %option header-file="lex.yy.h"
 %option noyywrap
+   /*start conditon for scanning nested comments*/
+%x comment
+   /*start condition for scaning "`" quoted sexps*/
+%x quasiquote 
 %%
    /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
@@ -121,8 +126,6 @@ do {LEX_MSG("lexing do");
   yylval->tag=_special;yylval->val.special=_do;return TOK_SPECIAL;}
 while {LEX_MSG("lexing while");
   yylval->tag=_special;yylval->val.special=_while;return TOK_SPECIAL;}
-quasiquote|"`" {LEX_MSG("lexing quasiquote");
-  yylval->tag=_special;yylval->val.special=_quasi;return TOK_SPECIAL;}
 eval {LEX_MSG("lexing eval");
   yylval->tag=_special;yylval->val.special=_eval;return TOK_SPECIAL;}
 main {LEX_MSG("lexing mainl");
@@ -135,13 +138,19 @@ and {LEX_MSG("lexing and");
   yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}
 {QUOTE} {LEX_MSG("Lexing quote");
   yylval->tag=_special;yylval->val.special=_quote;return TOK_QUOTE;}
+"quasiquote"|"`" {LEX_MSG("lexing quasiquote");
+  yylval->tag=_special;yylval->val.special=_quasi;return TOK_SPECIAL;}
 "," {LEX_MSG("Lexing comma");
   yylval->tag=_special;yylval->val.special=_comma;return TOK_SPECIAL;}
 {TYPENAME} {LEX_MSG("lexing typename");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(&yytext[2]);
   return TOK_TYPEINFO;}
-"#|" {LEX_MSG("lexing open comment");return TOK_COMMENT_START;}
-"|#" {LEX_MSG("lexing close comment");return TOK_COMMENT_END;}
+<comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
+  if(YY_START != comment){BEGIN(comment);}comment_depth+=1;}
+<comment,INITIAL>"|#" {LEX_MSG("lexing close comment"); comment_depth-=1;
+  if(comment_depth == 0){BEGIN(0);}}
+<comment>[^#|]+
+<comment>"#"[^|}|"|"[^#]
 "#t" {LEX_MSG("lexing true literal");return TOK_LISP_TRUE;}
 "#f" {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
 {ID} {LEX_MSG("lexing ID");yylval->tag=_str;

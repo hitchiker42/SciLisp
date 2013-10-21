@@ -264,6 +264,7 @@ DEFUN("set-cdr!",set_cdr,2,2);
 DEFUN("mapcar",mapcar,2,2);
 DEFUN("typeName",lisp_typeName,1,1);
 DEFUN("print",lisp_print,1,1);
+DEFUN("println",lisp_println,1,1);
 DEFUN("reduce",reduce,2,2);
 DEFUN("<",lisp_lt,2,2);
 DEFUN(">",lisp_gt,2,2);

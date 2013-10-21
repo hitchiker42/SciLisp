@@ -18,9 +18,9 @@ endif
 CC:=$(CC) -fPIC #position independent code, for everything
 OPT_FLAGS:=$(OPT_FLAGS) -ggdb
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
-WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit
+WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
-	 -flto -rdynamic -fno-strict-aliasing
+	 -flto -rdynamic #-fstrict-aliasing
 COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
 INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include
 #-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include

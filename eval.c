@@ -209,7 +209,7 @@ static inline sexp eval_progn(sexp expr, env *cur_env){
 static inline sexp eval_prog1(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval;
-  retval = eval(prog,cur_env);
+  retval = eval(XCAR(prog),cur_env);
   while(CONSP(prog)){
     eval(XCAR(prog),cur_env);
     prog=XCDR(prog);

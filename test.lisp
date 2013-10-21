@@ -6,14 +6,14 @@
 (def arr2 [1.0 4.0 8.9 3 0.9])
 (defun sum (x)(reduce x +))
 (define prod (lambda (x) (reduce x +)))
-(sum ls);issue here
-(print ls)
-(sum ls2);and here 
-(prod ls3);and here
+#|(sum ls);issue here
+#|(print ls)
+(sum ls2);and here |#
+(prod ls3);and here |#
 (car ls)
 (cdr ls2)
 (cdddr ls3)
-(caddr 1s)
+(caddr ls)
 (print (cons ls ls2))
 (def ls4 (cons 4 ls3))
 (def ls5 (array->list arr))
@@ -66,11 +66,11 @@
     (prog1
         88
       (+ 2 8)))
-(setq copyright-literal ?©)
+;(setq copyright-literal ?©)
 (setq utf8-copyright ?\u00a9)
 (print ?\?)
 (print ?\x3f)
-(print copyright-literal)
+#|(print copyright-literal)|#
 (print utf8-copyright)
 ;; Local Variables:
 ;; mode: SciLisp
