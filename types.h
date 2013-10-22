@@ -85,6 +85,7 @@ enum _tag {
   _lenv = 14,//type of local environments,value is lenv
   _dpair = 15,
   _ustr = 16,//utf8 string
+  _regexp = 17,//compiled regular expression
 };
 enum special_form{
   _def=0,
@@ -142,6 +143,7 @@ union data {
   _tag meta;
   sexp* quoted;
   local_symref lenv;
+  regex_t regex;
 };
 struct sexp{
   _tag tag;//could be shorter if need be
