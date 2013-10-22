@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #include <assert.h>
 #include <execinfo.h>
 #if defined (HERE_ON) && !(defined (HERE_OFF))\

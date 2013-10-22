@@ -1,4 +1,8 @@
 ;-*- mode: SciLisp; -*-
+#|*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************|#
 (def ls '(1 23 34 56 78))
 (def ls2 (iota 10))
 (def ls3 (iota -1 1 0.1))
