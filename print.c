@@ -27,6 +27,7 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_lenv,local environment);
   }
 }
+#undef mk_tag_name
 #define spec_to_string(spec)                    \
   case _##spec: return #spec
 c_string specialForm_name(sexp obj){
@@ -122,8 +123,8 @@ CORD print(sexp obj){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
         acc=CORD_cat(acc,")");
+        retval=acc;
       }
-      retval=acc;
       PRINT_MSG(retval);
       return CORD_balance(retval);
     case _uninterned:
@@ -207,5 +208,35 @@ CORD function_name(function fun){
     return "lambda";
   } else if(fun.fxn_type == 0){
     return fun.fun.prim->lispname;
+  }
+}
+#define mk_tok_name(tok) case tok: return #tok
+CORD token_name(TOKEN token){
+  switch(token){
+    mk_tok_name(TOK_EOF);
+    mk_tok_name(TOK_INT);
+    mk_tok_name(TOK_REAL);
+    mk_tok_name(TOK_CHAR);
+    mk_tok_name(TOK_STRING);
+    mk_tok_name(TOK_ID);
+    mk_tok_name(TOK_LISP_TRUE);
+    mk_tok_name(TOK_LISP_FALSE);
+    mk_tok_name(TOK_SPECIAL);
+    mk_tok_name(TOK_QUOTE);
+    mk_tok_name(TOK_COMMENT_START);
+    mk_tok_name(TOK_COMMENT_END);
+    mk_tok_name(TOK_DOT);
+    mk_tok_name(TOK_COLON);
+    mk_tok_name(TOK_LAMBDA);
+    mk_tok_name(TOK_TYPEDEF);
+    mk_tok_name(TOK_TYPEINFO);
+    mk_tok_name(TOK_LPAREN);
+    mk_tok_name(TOK_RPAREN);
+    mk_tok_name(TOK_LBRACE);
+    mk_tok_name(TOK_RBRACE);
+    mk_tok_name(TOK_LCBRACE);
+    mk_tok_name(TOK_RCBRACE);
+    default:
+      return "forgot to implemnt that token";
   }
 }

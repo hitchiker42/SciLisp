@@ -5,5 +5,8 @@
 
 /*SciLisp interface to emacs regex (also possibly pcre if I add in 
  *support for that)*/
+#ifndef _REGEX_H_
+#define _REGEX_H_
 #include "common.h"
 #include "emacs_regex.h"
+#endif

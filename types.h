@@ -12,6 +12,7 @@
 #include <wchar.h>
 #include <getopt.h>
 #include <limits.h>
+#include "regex.h"
 typedef enum _tag _tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum special_form special_form;//different types of special forms
@@ -45,7 +46,7 @@ typedef array_symbol *array_symref;//"" array ""
 typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
-#define CONSP(obj) (obj.tag == _cons || obj.tag == _list)
+#define CONSP(obj) (obj.tag == _cons || obj.tag == _list || obj.tag == _dpair)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
 #define FLOATP(obj) (obj.tag == _double)
 #define AS_DOUBLE(obj) (obj.val.real64)
@@ -115,7 +116,7 @@ enum special_form{
 };
 //sign bit determines quoting
 #define quote_mask  0x7fff
-#define stripQuote(meta) quote_mask & meta
+#define strippQuote(meta) quote_mask & meta
 #define isQuoted(meta)  0x8000 & meta
 #define MakeQuoted(meta)  _quoted_value | meta
 enum sexp_meta{

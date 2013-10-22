@@ -17,8 +17,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef _REGEX_H
-#define _REGEX_H 1
+#ifndef _EMACS_REGEX_H
+#define _EMACS_REGEX_H 1
 
 /* Allow the use in C++ code.  */
 #ifdef __cplusplus

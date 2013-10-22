@@ -25,13 +25,23 @@ static inline sexp parse_list(){
   retval.tag=_list;
   cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
   cons* prev_loc=cur_loc;
-  while(nextTok() != TOK_RPAREN){
+  while(nextTok() != TOK_RPAREN && yytag != TOK_DOT){
+    HERE();
     cur_loc->car=parse_sexp();
     cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
     prev_loc=cur_loc;
     cur_loc=cur_loc->cdr.val.cons;
   }
-  prev_loc->cdr=NIL;
+  if(yytag == TOK_DOT){
+    HERE();
+    nextTok();
+    //some kind of error handling needs to go here
+    prev_loc->cdr=parse_sexp();
+    //how do I tag this?
+    nextTok();
+  } else {//yytag // TOK_RPAREN
+    prev_loc->cdr=NIL;
+  }
   return retval;
 }
 static inline sexp parse_arg_list(){
@@ -292,7 +302,8 @@ sexp parse_atom(){
     case TOK_SPECIAL:
       return *yylval;//I dont' know how well this'll work
     default:
-      CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n",print(*yylval));
+      CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n"
+                   "Tag value recieved was %r\n",print(*yylval),token_name(yytag));
       handle_error();
   }
 }

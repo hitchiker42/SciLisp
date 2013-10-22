@@ -227,3 +227,10 @@ reached in @var{body}. If @var{inc} is omitted it defaults to
 @c eval: (flyspell-mode)
 @c time-stamp-format: "%02d %:b %:y"
 @c End:
+this is after @bye so it's all a comment.
+I'm going to sketch out ideas for the type hierarchy
+in no real order we have:
+number -> long or double (or int/short/char or float)
+
+
+

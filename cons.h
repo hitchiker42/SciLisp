@@ -83,11 +83,11 @@ static inline sexp pop_cons(sexp ls){
   }
 }
 static inline sexp unsafe_pop(sexp cell){
-  sexp retval=XCAR(ls);
-  if(NILP(XCDR(ls))){
-    ls.val.cons->car=NIL;
+  sexp retval=XCAR(cell);
+  if(NILP(XCDR(cell))){
+    cell.val.cons->car=NIL;
   } else {
-    *(ls.val.cons)=*(XCDR(ls).val.cons);
+    *(cell.val.cons)=*(XCDR(cell).val.cons);
   }
   return retval;
 }

@@ -30,3 +30,5 @@ sexp lisp_print(sexp obj);
 sexp lisp_println(sexp obj);
 //return lambda for a lambda function or the lisp name of a primitive function
 CORD function_name(function fun);
+//return the name of the enum value of token as a string
+CORD token_name(TOKEN token);

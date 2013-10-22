@@ -438,7 +438,7 @@ static sexp eval_dolist(sexp expr,env *cur_env){
   env *loop_scope=alloca(sizeof(env));
   *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
   while(CONSP(loop_list)){
-    loop_var.val=unsafe_pop(loop_list);
+    loop_var->val=unsafe_pop(loop_list);
     retval=eval(cdr(expr),loop_scope);//execute loop body
   }
   return retval;
