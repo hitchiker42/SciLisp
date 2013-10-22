@@ -47,8 +47,8 @@
 # pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
 
-#include <config.h>
-
+//#include <config.h>
+#include <stdlib.h>
 #include <stddef.h>
 
 #ifdef emacs
@@ -285,7 +285,7 @@ enum syntaxcode { Swhitespace = 0, Sword = 1, Ssymbol = 2 };
 #endif
 
 /* Get the interface, including the syntax bits.  */
-#include "regex.h"
+#include "emacs_regex.h"
 
 /* isalpha etc. are used for the character classes.  */
 #include <ctype.h>

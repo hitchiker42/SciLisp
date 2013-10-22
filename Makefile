@@ -77,6 +77,7 @@ llvm_test.o: llvm_test.c llvm_c.h
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
+emacs_regex.o: emacs_regex.c emacs_regex.h
 #making libraries
 LIBPRIM_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
 #should be a way to do this in less lines
