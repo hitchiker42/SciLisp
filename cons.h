@@ -70,17 +70,26 @@ static inline sexp pop_cons(sexp ls){
   if(!(CONSP(ls))){
     return error_sexp("pop! type error, expected cons cell or list");
   } else {
-    sexp retval=car(ls);
+    sexp retval=XCAR(ls);
     //why do I need to do this
     /*    ls.val.cons->car=cdr(ls).val.cons->car;
           ls.val.cons->cdr=cdr(ls).val.cons->cdr;*/
-    if(NILP(cdr(ls))){
+    if(NILP(XCDR(ls))){
       ls.val.cons->car=NIL;
     } else {
-      *(ls.val.cons)=*(cdr(ls).val.cons);
+      *(ls.val.cons)=*(XCDR(ls).val.cons);
     }
     return retval;
   }
+}
+static inline sexp unsafe_pop(sexp cell){
+  sexp retval=XCAR(ls);
+  if(NILP(XCDR(ls))){
+    ls.val.cons->car=NIL;
+  } else {
+    *(ls.val.cons)=*(XCDR(ls).val.cons);
+  }
+  return retval;
 }
 static sexp as_list(sexp obj){
   if(CONSP(obj)){

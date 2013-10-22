@@ -387,7 +387,6 @@ static inline sexp eval_do(sexp expr,env *cur_env){
   //initialize loop var
   eval(XCADR(loop_params),loop_scope);
   loop_params=XCDDR(loop_params);//(step end)
-  //why am i doing this this way, I don't really know
   while(isTrue(eval(XCADR(loop_params),loop_scope))){//test loop end condition
     retval=eval(cadr(expr),loop_scope);//execute loop body
     //run loop step function
@@ -422,4 +421,25 @@ static sexp eval_or(sexp expr,env *cur_env){
     }
   }
   return LISP_FALSE;
+}
+static sexp eval_dolist(sexp expr,env *cur_env){
+  //(dolist (var list) body)
+  expr=cdr(expr);
+  sexp loop_params=car(expr);//(var list)
+  if(!CONSP(loop_params) || !CONSP(XCDR(loop_params))){
+    return error_sexp("incomplete paramenter list for dolist expression");
+  }
+  //create environment for loop
+  local_symref loop_var=alloca(sizeof(local_symbol));
+  sexp loop_list=XCADAR(expr);
+  *loop_var=*(local_symref)XCAR(loop_params).val.var;
+  loop_var->next=NULL;
+  sexp retval=NIL;
+  env *loop_scope=alloca(sizeof(env));
+  *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
+  while(CONSP(loop_list)){
+    loop_var.val=unsafe_pop(loop_list);
+    retval=eval(cdr(expr),loop_scope);//execute loop body
+  }
+  return retval;
 }
