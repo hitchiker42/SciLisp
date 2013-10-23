@@ -166,7 +166,13 @@ static inline sexp call_builtin(sexp expr,env *cur_env){
   //PRINT_MSG(print(expr));
   int i;
   sexp cur_arg,*args;
-  switch (FMAX_ARGS(curFun)){
+  long numargs;
+  if(FMAX_ARGS(curFun)< 0){
+    numargs=FMIN_ARGS(curFun) + 1;
+  } else {
+    numargs=FMAX_ARGS(curFun);
+  }
+  switch (numargs){
     case 0:
       if(!NILP(XCDR(expr))){
         CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
@@ -203,7 +209,6 @@ static inline sexp call_builtin(sexp expr,env *cur_env){
   }
  ERROR:
   return handle_error();
-#undef getArgs
 }
 static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);

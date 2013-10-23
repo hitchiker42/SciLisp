@@ -1,3 +1,12 @@
+(defun indent-buffer ()
+  "Indent entire buffer using indent-region"
+  (interactive)
+  (indent-region (point-min) (point-max)))
+(defun mkPrim (lname cname minargs maxargs)
+  (insert (format 
+           "((:lname . \"%s\")(:cname . \"%s\")(:minargs . %d)(:maxargs . %d))"
+           lname cname minargs maxargs)))
+(defvar SciLisp-prims)
 (setq SciLisp-prims 
   '(
     ;arithmatic functions
@@ -13,6 +22,7 @@
     ((:lname . "=") (:cname ."lisp_equals")(:minargs . 2)(:maxargs . 2))
     ((:lname . "++")(:cname . "lisp_inc")  (:minargs . 1)(:maxargs . 1))
     ((:lname . "--")(:cname . "lisp_dec")  (:minargs . 1)(:maxargs . 1))
+    ((:lname . "sum")(:cname . "lisp_sum") (:minargs . 1)(:maxargs . "many"))
     ;functions on conses
     ((:lname . "cons")(:cname ."Cons")(:minargs . 2)(:maxargs . 2))
     ((:lname . "car")(:cname ."car")(:minargs . 1)(:maxargs . 1))
@@ -58,11 +68,17 @@
     ;array functions
     ((:lname . "aref")(:cname ."aref")(:minargs . 2)(:maxargs . 2))
     ((:lname . "array->list")(:cname ."array_to_list")(:minargs . 1)(:maxargs . 1))
-    ;meta information/ read eval print
+    ;meta information/ read eval print / system ctl
     ((:lname . "typeName")(:cname ."lisp_typeName")(:minargs . 1)(:maxargs . 1))
     ((:lname . "print")(:cname ."lisp_print")(:minargs . 1)(:maxargs . 1))
     ((:lname . "println")(:cname ."lisp_println")(:minargs . 1)(:maxargs . 1))
     ((:lname . "eval")(:cname ."lisp_eval")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "fopen")(:cname . "lisp_open")(:minargs . 1)(:maxargs . 2))
+    ((:lname . "fclose")(:cname . "lisp_close")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "fputs")(:cname . "lisp_fputs")(:minargs . 2)(:maxargs . 2))
+    ((:lname . "cat")(:cname . "lisp_cat")(:minargs . 1)(:maxargs . "many"))
+    ((:lname . "pwd")(:cname . "lisp_getcwd")(:minargs . 0)(:maxargs . 0))
+    ((:lname . "system")(:cname . "lisp_system")(:minargs . 1)(:maxargs . 1))
     ;bit twiddling 
     ((:lname . "logxor")(:cname ."lisp_xor")(:minargs . 2)(:maxargs . 2))
     ((:lname . "logand")(:cname ."lisp_logand")(:minargs . 2)(:maxargs . 2))
@@ -80,15 +96,24 @@
     ((:lname . "mod") (:cname ."lisp_mod") (:minargs . 2)(:maxargs . 2))
     ((:lname . "round")(:cname ."lisp_round")    (:minargs . 1)(:maxargs . 2))
     ((:lname . "drand")(:cname ."lisp_randfloat")(:minargs . 0)(:maxargs . 1))
-    ((:lname . "lrand")(:cname ."lisp_randint")  (:minargs . 0)(:maxargs . 0))))
+    ((:lname . "lrand")(:cname ."lisp_randint")  (:minargs . 0)(:maxargs . 0))
+    ((:lname . "consp")(:cname . "lisp_consp")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "numberp")(:cname . "lisp_numberp")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "arrayp")(:cname . "lisp_arrayp")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "nilp")(:cname . "lisp_nilp")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "stringp")(:cname . "lisp_stringp")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "symbolp")(:cname . "lisp_symbolp")(:minargs . 1)(:maxargs . 1))))
 ;idea, have files with constant contend then generate
 ;code for primitives, create a new file, copy the text
 ;from the constant file into the new file then add
 ;the code for the primitives(could also have a suffix file)
 (defvar initPrims-header
 "#define initPrims()                                                     \\
+if(initPrimsFlag){                                                    \\
+initPrimsFlag=0;                                                      \\
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \\
-topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \\")
+topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \\
+")
 (defvar initPrims-suffix 
 "INTERN_ALIAS(\"cons?\",lisp_consp,17);                                  \\
 INTERN_ALIAS(\"array?\",lisp_arrayp,23);                                \\
@@ -100,28 +125,38 @@ DEFCONST(\"t\",LISP_TRUE);                                              \\
 DEFCONST(\"#f\",LISP_FALSE);                                            \\
 DEFCONST(\"MAX_LONG\",lisp_max_long);                                   \\
 DEFCONST(\"$$\",LispEmptyList);                                         \\
-srand48(time(NULL));
+srand48(time(NULL));}
 #undef DEFUN
 #endif")
 (defvar primc-suffix "#undef DEFUN")
-(defvar llvm-header
-"static name_args_pair lisp_prims[]={\n")
-(defun primc-format (prim)
+;(defvar llvm-header
+;"static name_args_pair lisp_prims[]={\n")
+(defun primc-normal-format (prim)
   (format "DEFUN(\"%s\",%s,%d,%d);\n"
           (cdr (assq :lname prim)) (cdr (assq :cname prim))
           (cdr (assq :minargs prim)) (cdr (assq :maxargs prim))))
+(defun primc-many-format(prim)
+  (format "DEFUN_MANY(\"%s\",%s,%d,%d)\n"
+          (cdr (assq :lname prim)) (cdr (assq :cname prim))
+          (cdr (assq :minargs prim)) (1+ (cdr (assq :minargs prim)))))
+(defun primc-format (prim)
+  (if (stringp (cdr (assq :maxargs prim)))
+      (primc-many-format prim)
+    (primc-normal-format prim)))
 (defun primh-format (prim)
-  (format "DEFUN(%s,%d);\n"
-          (cdr (assq :cname prim))(cdr (assq :maxargs prim))))
-(defun llvmh-format (prim)
-  (format "{\"%scall\",%d}, "
-          (cdr (assq :cname prim))(cdr (assq :maxargs prim))))
+  (format "DEFUN(%s,%s);\n"
+          (cdr (assq :cname prim))
+          (if (stringp (cdr (assq :maxargs prim)))
+              (1+ (cdr (assq :minargs prim)))
+          (cdr(assq :maxargs prim)))))
+;(defun llvmh-format (prim)
+;  (format "{\"%scall\",%d}, "
+;          (cdr (assq :cname prim))(cdr (assq :maxargs prim))))
 (defun initPrims-format (prim)
   (format "DEFUN_INTERN(\"%s\",%s);\\\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))))
 (defun generate-SciLisp-prims()
-  (unwind-protect
-  (progn (let ((primh (generate-new-buffer "primh"))
+  (let ((primh (generate-new-buffer "primh"))
         (initPrims (generate-new-buffer "initPrims"))
         (primc (generate-new-buffer "primc")))
     (princ initPrims-header initPrims)
@@ -131,25 +166,26 @@ srand48(time(NULL));
       (princ (initPrims-format prim) initPrims))
     (princ initPrims-suffix initPrims)
     (princ primc-suffix primc)
-    ;next should be some thing like this
-    ;let primh.txt be the prim.h header(same for the other 3)
+                                        ;next should be some thing like this
+                                        ;let primh.txt be the prim.h header(same for the other 3)
     (with-current-buffer primh
       (goto-char (point-min))
       (insert-file-contents "primh_header.h")
-      (write-file "prim_temp.h")
+      (write-file (expand-file-name "../prim.h"))
       (kill-buffer))
     (with-current-buffer initPrims
       (indent-buffer)
-      (append-to-file (point-min) (point-max) "prim_temp.h")
+      (append-to-file (point-min) (point-max) 
+                      (expand-file-name "../prim.h"))
       (kill-buffer))
     (with-current-buffer primc
       (goto-char (point-min))
       (insert-file-contents "primc_header.c")
       (goto-char (point-max))
-      (write-file "prim_temp.c")
-      (kill-buffer))))
-  (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrims))))
-;    (with-current-buffer llvmh
+      (write-file (expand-file-name "../prim.c"))
+      (kill-buffer))
+    (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrims))))
+                                        ;    (with-current-buffer llvmh
 ;      (goto-char (point-max))
 ;      (delete-backward-char 2)
 ;      (write-char ?} llvmh)

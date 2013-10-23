@@ -116,6 +116,7 @@ enum special_form{
   _main=21,
   _while=22,
   _prog1=23,
+  _dolist=24,
 };
 //sign bit determines quoting
 #define quote_mask  0x7fff
@@ -155,10 +156,11 @@ union data {
   FILE* stream;
 };
 //I'm thinking of using a bitfield for quoting...I'm not sure though
+//
 struct sexp{
-  _tag tag;//could be shorter if need be
-  unsigned short len;//length of a list, array or string
+  _tag tag;//could be shorter if need be  
   sexp_meta meta : 16;//random meta data(sign bit determines quoting)
+  unsigned short len;//length of a list, array or string
   data val;
 };
 struct cons{
@@ -396,3 +398,15 @@ static sexp typeOf(sexp obj){
     mkTypeCase(Qlenv,14);
   }
 }
+enum operator{
+  _add,
+  _sub,
+  _mul,
+  _div,
+  _pow,
+  _max,
+  _min,
+  _logand,
+  _logior,
+  _logxor,
+};

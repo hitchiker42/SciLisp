@@ -2715,7 +2715,6 @@ float_arith_driver (double accum, ptrdiff_t argnum, enum arithop code,
   return make_float (accum);
 }
 
-
 DEFUN ("+", Fplus, Splus, 0, MANY, 0,
        doc: /* Return sum of any number of arguments, which are numbers or markers.
 usage: (+ &rest NUMBERS-OR-MARKERS)  */)

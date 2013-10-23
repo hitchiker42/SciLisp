@@ -297,6 +297,7 @@ sexp parse_atom(){
       PRINT_MSG(print(retval));
       return retval;
     case TOK_STRING:
+      PRINT_MSG(yylval->val.cord);
       return *yylval;
     case TOK_CHAR:
       return *yylval;

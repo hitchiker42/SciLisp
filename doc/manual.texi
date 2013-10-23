@@ -10,6 +10,9 @@
 @c %**end of header
 @c @allowcodebreaks true/false; allow line breaking at _ or - in
 @c @code{}(et. all) blocks
+@ignore
+m4_include(`manual.m4')
+@end ignore
 @copying
 This manual is for SciLisp (version @value{VERSION}, last updated on
 @value{UPDATED} @*
@@ -42,6 +45,7 @@ Manual for the SciLisp programming language
 * Introduction:: Introduction to SciLisp and reasons for it's creation
 * Usage:: How to call SciLisp and what the command line options do
 * The SciLisp Language:: Informal introduction to the SciLisp language
+* SciLisp Types:: The internal/optional type system of SciLisp
 * Grammar:: Introduction to SciLisp grammar and formal grammar rules
 * Standard Library:: The standard library of SciLisp (not much to it
                      though)
@@ -62,8 +66,7 @@ Manual for the SciLisp programming language
 @menu
 * Design Overview::
 @end menu
-@cindex Introduction
-@cindex General Introduction
+cindices([[Introduction]],[[General Introduction]])
 SciLisp is a programming language in the LISP family largely influenced
 by aspects of both Common Lisp and Scheme. The SciLisp compiler and
 interpreter are the first programs of their kind written by the author
@@ -78,6 +81,8 @@ workings of the compiler more than the usage of the language. For those
 simply wishing to understand the usage of the SciLisp compiler or the
 SciLisp language itself @pxref{Usage}, or @ref{The SciLisp Language},
 respectively.
+@node Design Overview
+@section Design Overview
 @node Usage
 @chapter Usage
 @menu
@@ -93,11 +98,14 @@ respectively.
 @section Command Line Options
 @node The SciLisp Language
 @chapter The SciLisp Language
+@node SciLisp Types
+@chapter SciLisp Types
 @menu
-* Types::
-@c ... anything else?
+* Atoms::
+* Cons::
+* Functions::
+* Macros::
 @end menu
-@section Types
 @cindex Types
 SciLisp has a well defined type hierarchy and a core set of predefined
 types with the ability of the programmer to add new types expected to be
@@ -109,17 +117,27 @@ and use type inference to fill in non annotate type, type annotation in
 SciLisp is an all or nothing affair. If a SciLisp program uses type
 annotations the entire program will be type checked at compile time and
 rejected if it contains type errors. Type annotations are only available
-in compiled code, they are silently ignored in interpreted code. As an
-example here is how a simple factorial function, with input as an
-integer and output as a double would be annotated.
-@lisp
-(defun fact::(Int -> Float) (n);the type of n is implied by fact
-  (if (< n 1);< is (Number*Number->Bool) if requires a boolean
-      1::Float;explicitly require 1 to be a Float(1.0 would also work)
-      (* n::Float (fact (- n 1)))));explicitly convert n to a Float
-@end lisp
-@c explain this example
+in compiled code, they are silently ignored in interpreted code.
 @c You Know what I need to come up with a better type hierarchy first
+@node Atoms
+@section Atoms
+cindices([[Floating Point Numbers]],[[Integers]],[[Numbers]],
+                    [[Characters]],[[Strings]])
+@menu
+* Numbers::
+@c * Floating Point Numbers::
+@c * Integers::
+* Booleans
+@end menu
+@node Numbers
+@subsection Numbers
+@node Booleans
+@node Cons
+@section Cons
+@node Functions
+@section Functions
+@node Macros
+@section Macros
 @node Grammar
 @menu
 * SciLisp Syntax and Semantics: Syntax and Semantics
@@ -159,9 +177,10 @@ and, if desired the user can modify any aspect of the language other
 than these special forms. The special forms in SciLisp are:
 @table @code
 @item if
-@lisp (if @var(cond) @var(then) @var(else)) @end lisp
-evaluate @var(cond) if @var(cond) evaluates to true evaluate @var(then)
-if @var(cond) evaluates to false evaluate @var(else) (@pxref{Booleans, ,Types}).
+@lisp (if @var{cond} @var{then} @var{else}) 
+@end lisp
+evaluate @var{cond} if @var{cond} evaluates to true evaluate @var{then}
+if @var{cond} evaluates to false evaluate @var{else} (@pxref{Booleans, ,Types}).
 @end table
 @node Formal Grammar
 @section Formal Grammar

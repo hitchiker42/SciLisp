@@ -20,13 +20,13 @@ OPT_FLAGS:=$(OPT_FLAGS) -ggdb
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
-	 -flto -rdynamic #-fstrict-aliasing
+	-flto -rdynamic #-fstrict-aliasing
 COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
 INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include
 #-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
 XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
 	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib \
-	-lgc -lm -lreadline -lcord -rdynamic
+	-lgc -lm -lreadline -lcord -rdynamic -lpthread
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS)
 XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS)
 LEX:=flex
@@ -47,7 +47,7 @@ endef
 	doc info pdf clean_doc libprim_reqs readline llvm gc
 #Programs to be built
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
-	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -o $@
+	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
 	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $^ -o $@
 llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
@@ -127,13 +127,14 @@ clean:
 	rm prim.bc;rm prim.ll;rm libSciLisp.so
 	rm SciLisp;rm llvm_test
 #documentation
-doc: info pdf
-info: doc/manual.texi
-	(cd doc && makeinfo manual.texi)
+doc:
+	cd doc && $(MAKE) all
+info:
+	cd doc && $(MAKE) info
 pdf: doc/manual.texi
-	(cd doc && makeinfo --pdf manual.texi)
+	cd doc && $(MAKE) pdf
 clean_doc:
-	cd doc && rm $$(find '!' -name "*.texi" -type f)
+	cd doc && rm $$(find '!' '('-name "*.texi" '-o' -name "*.m4" ')' -type f)
 #external dependencys
 # the dependency basically just makes sure the readline dir isn't empty
 PYTHON2:=$(shell if [ $$(python --version 2>&1  | awk '{ print(substr($$2,1,1)) }') -ge 3 ];then echo '/usr/bin/python2';else echo '/usr/bin/python';fi)

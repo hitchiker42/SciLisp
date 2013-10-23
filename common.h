@@ -8,7 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 //#define GC_DEBUG
-#define GC_PRINT_STATS
+//#define GC_PRINT_STATS
+#include <pthread.h>
+#define GC_THREADS
 #include <gc.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -82,6 +84,9 @@ static inline double getDoubleVal(sexp x){
     default:
       return NAN;
   }
+}
+static inline double getDoubleValUnsafe(sexp x){
+  return (x.tag == _double ? x.val.real64 : (double)x.val.int64);
 }
 static inline const char* CORD_as_cstring(CORD cord){
   if(CORD_IS_STRING(cord)){return cord;}

@@ -41,10 +41,10 @@
 #define DEFUN(cname,numargs)                    \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern fxn_proto cname ## call
-extern sexp lisp_pi;
-extern sexp lisp_euler;
-extern sexp lisp_max_long;
-extern sexp lisp_mach_eps;
+extern const sexp lisp_pi;
+extern const sexp lisp_euler;
+extern const sexp lisp_max_long;
+extern const sexp lisp_mach_eps;
 //create prototypes for functions in prim.c 
 //so primitives can be used in the c source
 DEFUN(lisp_add,2);
@@ -106,6 +106,12 @@ DEFUN(lisp_typeName,1);
 DEFUN(lisp_print,1);
 DEFUN(lisp_println,1);
 DEFUN(lisp_eval,1);
+DEFUN(lisp_open,2);
+DEFUN(lisp_close,1);
+DEFUN(lisp_fputs,2);
+DEFUN(lisp_cat,2);
+DEFUN(lisp_getcwd,0);
+DEFUN(lisp_system,1);
 DEFUN(lisp_xor,2);
 DEFUN(lisp_logand,2);
 DEFUN(lisp_logor,2);
@@ -122,9 +128,18 @@ DEFUN(lisp_mod,2);
 DEFUN(lisp_round,2);
 DEFUN(lisp_randfloat,1);
 DEFUN(lisp_randint,0);
+DEFUN(lisp_consp,1);
+DEFUN(lisp_numberp,1);
+DEFUN(lisp_arrayp,1);
+DEFUN(lisp_nilp,1);
+DEFUN(lisp_stringp,1);
+DEFUN(lisp_symbolp,1);
 #define initPrims()                                                     \
+if(initPrimsFlag){                                                    \
+initPrimsFlag=0;                                                      \
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
-topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \DEFUN_INTERN("+",lisp_add);\
+topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
+DEFUN_INTERN("+",lisp_add);\
 DEFUN_INTERN("-",lisp_sub);\
 DEFUN_INTERN("*",lisp_mul);\
 DEFUN_INTERN("/",lisp_div);\
@@ -183,6 +198,12 @@ DEFUN_INTERN("typeName",lisp_typeName);\
 DEFUN_INTERN("print",lisp_print);\
 DEFUN_INTERN("println",lisp_println);\
 DEFUN_INTERN("eval",lisp_eval);\
+DEFUN_INTERN("fopen",lisp_open);\
+DEFUN_INTERN("fclose",lisp_close);\
+DEFUN_INTERN("fputs",lisp_fputs);\
+DEFUN_INTERN("cat",lisp_cat);\
+DEFUN_INTERN("pwd",lisp_getcwd);\
+DEFUN_INTERN("system",lisp_system);\
 DEFUN_INTERN("logxor",lisp_xor);\
 DEFUN_INTERN("logand",lisp_logand);\
 DEFUN_INTERN("logor",lisp_logor);\
@@ -199,6 +220,12 @@ DEFUN_INTERN("mod",lisp_mod);\
 DEFUN_INTERN("round",lisp_round);\
 DEFUN_INTERN("drand",lisp_randfloat);\
 DEFUN_INTERN("lrand",lisp_randint);\
+DEFUN_INTERN("consp",lisp_consp);\
+DEFUN_INTERN("numberp",lisp_numberp);\
+DEFUN_INTERN("arrayp",lisp_arrayp);\
+DEFUN_INTERN("nilp",lisp_nilp);\
+DEFUN_INTERN("stringp",lisp_stringp);\
+DEFUN_INTERN("symbolp",lisp_symbolp);\
 INTERN_ALIAS("cons?",lisp_consp,17);                                  \
 INTERN_ALIAS("array?",lisp_arrayp,23);                                \
 DEFCONST("Meps",lisp_mach_eps);                                       \
@@ -209,6 +236,6 @@ DEFCONST("t",LISP_TRUE);                                              \
 DEFCONST("#f",LISP_FALSE);                                            \
 DEFCONST("MAX_LONG",lisp_max_long);                                   \
 DEFCONST("$$",LispEmptyList);                                         \
-srand48(time(NULL));
+srand48(time(NULL));}
 #undef DEFUN
 #endif

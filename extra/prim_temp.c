@@ -224,6 +224,72 @@ sexp lisp_dec(sexp num){
         return num;
     }
 }
+sexp lisp_open(sexp filename,sexp mode){
+  if(NILP(mode)){
+    mode=string_sexp("r");
+  }
+  if (!STRINGP(filename) || !(STRINGP(mode))){
+    return error_sexp("arguments to open must be strings");
+  }
+  FILE* file = fopen(filename.val.cord,mode.val.cord);
+  if(file){
+    return (sexp){.tag=_stream,.val={.stream=file}};
+  } else { 
+    PRINT_MSG(filename.val.cord);
+    PRINT_MSG(mode.val.cord);
+    return_errno("fopen");
+  }
+}
+sexp lisp_close(sexp stream){
+  if(!STREAMP(stream)){
+    return error_sexp("invalid file descriptor passed to close");
+  } else {
+    //fclose returns 0 on success and EOF on failure
+    if(fclose(stream.val.stream)){
+      return_errno("fclose");
+    } else {
+        return NIL;
+    }
+  }
+}
+sexp lisp_fputs(sexp string,sexp stream){
+  if(!STREAMP(stream)){
+    return error_sexp("invalid stream passed to fputs");
+  } else if (!STRINGP(string)){
+    return error_sexp("invalid string passed to fputs");
+  } else if (string.tag == _str){
+    fputs(CORD_as_cstring(string.val.cord),stream.val.stream);
+  } else {//string must be a w_char string
+    fputws(string.val.ustr,stream.val.stream);
+  }
+  return NIL;
+}
+sexp lisp_cat(sexp string,sexp rest){
+  if(!STRINGP(string)){goto CAT_ERR;}
+  CORD retval = string.val.cord;
+  while(CONSP(rest)){
+    if(!STRINGP(XCAR(rest))){goto CAT_ERR;}
+    retval=CORD_cat(retval,XCAR(rest).val.cord);
+    rest=XCDR(rest);
+  }
+  return (sexp){.tag = _str,.val={.cord=retval}};
+  CAT_ERR:return error_sexp("arguments to cat must be strings");
+}
+sexp lisp_getcwd(){
+  //probabaly not the most efficent way to do this
+  char* temp_cwdname=get_current_dir_name();
+  CORD cwdname=CORD_from_char_star(temp_cwdname);
+  free(temp_cwdname);
+  return (sexp){.tag=_str,.val={.cord=cwdname}};
+}
+sexp lisp_system(sexp command){
+  if(!STRINGP(command)){
+    return error_sexp("argument to system must be a string");
+  } else {
+    int retval=system(command.val.cord);//should probably be CORD_as_cstring
+    return long_sexp(retval);
+  }
+}   
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -295,6 +361,12 @@ DEFUN("typeName",lisp_typeName,1,1);
 DEFUN("print",lisp_print,1,1);
 DEFUN("println",lisp_println,1,1);
 DEFUN("eval",lisp_eval,1,1);
+DEFUN("fopen",lisp_fopen,2,2);
+DEFUN("fclose",lisp_fclose,1,1);
+DEFUN("fputs",lisp_fputs,2,2);
+DEFUN("cat",lisp_cat,1,-1);
+DEFUN("pwd",lisp_getcwd,0,0);
+DEFUN("system",lisp_system,1,1);
 DEFUN("logxor",lisp_xor,2,2);
 DEFUN("logand",lisp_logand,2,2);
 DEFUN("logor",lisp_logor,2,2);
