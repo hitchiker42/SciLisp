@@ -16,6 +16,7 @@
 #include <setjmp.h>
 #include <math.h>
 #include <signal.h>
+#include <errno.h>
 /*types.h has
 #include "include/cord.h"
 #include <string.h>
@@ -38,6 +39,7 @@
 #define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
 #define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
+#define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
 #define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
@@ -53,20 +55,23 @@ static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 static cons EmptyList={.car={.tag = -1,.val={.int64 = 0}},
                              .cdr={.tag = -1,.val={.int64 = 0}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
+//global variables
 sexp* yylval;
 FILE* yyin;
+//flag for errors at repl
 extern int evalError;
-extern sexp yyparse(FILE* input);
-//only function externed from eval, so I just put it here
-extern sexp eval(sexp expr,env *cur_env);
-extern sexp lispRead(CORD code);// __attribute__((pure));
 //global localtion of error messages
 CORD error_str;
 jmp_buf error_buf;
 sexp error_val;
+static int initPrimsFlag=1;
 //from C++ code for llvm
 //sexp llvmEvalJIT(sexp expr,env cur_env);
 //void initialize_llvm();
+extern sexp yyparse(FILE* input);
+//only function externed from eval, so I just put it here
+extern sexp eval(sexp expr,env *cur_env);
+extern sexp lispRead(CORD code);// __attribute__((pure));
 static c_string output_file=NULL;
 static inline double getDoubleVal(sexp x){
   switch(x.tag){
@@ -78,5 +83,15 @@ static inline double getDoubleVal(sexp x){
       return NAN;
   }
 }
+static inline const char* CORD_as_cstring(CORD cord){
+  if(CORD_IS_STRING(cord)){return cord;}
+  else{return CORD_to_const_char_star(cord);}
+}
 extern/*C++*/ void initialize_llvm();
+#define return_errno(fn_name)                   \
+  int ___errsave=errno;                            \
+  char* ___errmsg=strerror(errno);                 \
+  CORD ___errorstr;                                                        \
+  CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
+  return error_sexp(___errorstr)                                          
 #endif

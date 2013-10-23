@@ -92,7 +92,7 @@ union data {
 "\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
-  yylval->val.utf8_char=(wchar_t)lex_char(yytext);return TOK_CHAR;}
+  yylval->val.uchar=(wchar_t)lex_char(yytext);return TOK_CHAR;}
  /*Special forms, generating function at end of file*/
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
@@ -139,9 +139,9 @@ and {LEX_MSG("lexing and");
 {QUOTE} {LEX_MSG("Lexing quote");
   yylval->tag=_special;yylval->val.special=_quote;return TOK_QUOTE;}
 "quasiquote"|"`" {LEX_MSG("lexing quasiquote");
-  yylval->tag=_special;yylval->val.special=_quasi;return TOK_SPECIAL;}
+  yylval->tag=_special;yylval->val.special=_quasi;return TOK_QUASI;}
 "," {LEX_MSG("Lexing comma");
-  yylval->tag=_special;yylval->val.special=_comma;return TOK_SPECIAL;}
+  yylval->tag=_special;yylval->val.special=_comma;return TOK_COMMA;}
 {TYPENAME} {LEX_MSG("lexing typename");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(&yytext[2]);
   return TOK_TYPEINFO;}
@@ -163,6 +163,8 @@ and {LEX_MSG("lexing and");
 "}" {LEX_MSG("lexing }");return TOK_RCBRACE;}
 "." {LEX_MSG("lexing .");return TOK_DOT;}
 ":" {LEX_MSG("lexing :");return TOK_COLON;}
+"@" {LEX_MSG("lexing @");return TOK_AROBASE;}
+    /*because really what else could I use, atsign, atmark, really?*/
 [ \t\n]+ /*whitespace*/
 ";"[^\n]* /*one line comments*/
 <<EOF>> return -1;

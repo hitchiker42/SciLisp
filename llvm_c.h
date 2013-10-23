@@ -1,3 +1,4 @@
+
 /*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
@@ -22,6 +23,8 @@
 #include <llvm-c/TargetMachine.h>
 //llvm returns 0 on success, so use this to keep my brain straight
 #define LLVM_IF(cond) if (!cond)
+#define CastSexpToLongs(sexp,longs)             \
+  longs=*(long*)&sexp
 //types are named Lisp##Typename
 //llvm structures are named SL_##llvm struct name
 //constant values are named Lisp##(upcase valuename)

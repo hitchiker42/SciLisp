@@ -222,11 +222,12 @@ int main(int argc,char* argv[]){
         exit(0);
       }
       case 'l':{
+        initPrims();
         sexp ast;
         FILE* file=fopen(optarg,"r");
+        ast=yyparse(file);
         while (CONSP(ast)){
           sexp result=eval(XCAR(ast),&topLevelEnv);
-          CORD_printf(print(result));puts("");
           ast=XCDR(ast);
         };
         break;
@@ -322,7 +323,7 @@ static CORD Make_SciLisp_verson_string(c_string Version_no){
 static CORD Make_SciLisp_Copyright_string(){
   CORD retval;
   CORD_sprintf(&retval,"Copyright %lc 2013 Tucker DiNapoli\n"
-               "License GPLv3+: GNU GPL version 3 or"
+               "License GPLv3+: GNU GPL version 3 or "
                "later <http://gnu.org/licenses/gpl.html>.",0x00A9);
   return retval;
 }
@@ -330,7 +331,7 @@ static CORD Make_SciLisp_help_string(){
   CORD copyright_string=Make_SciLisp_Copyright_string();
   CORD version_string=Make_SciLisp_verson_string(current_version);
   CORD help_string=CORD_catn(4,version_string," ",copyright_string,"\n");
-  CORD_cat
+  help_string=CORD_cat
     (help_string,
      "SciLisp [-hqv] [-e|--eval] [-f|--file] [-l|--load] [-o|--output] [file]\n"
      "Options:\n"

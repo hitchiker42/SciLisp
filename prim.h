@@ -74,6 +74,22 @@ DEFUN(cddar,1);
 DEFUN(cdaar,1);
 DEFUN(cadar,1);
 DEFUN(cdadr,1);
+DEFUN(caaaar,1);
+DEFUN(caaadr,1);
+DEFUN(caadar,1);
+DEFUN(caaddr,1);
+DEFUN(cadaar,1);
+DEFUN(cadadr,1);
+DEFUN(caddar,1);
+DEFUN(cadddr,1);
+DEFUN(cdaaar,1);
+DEFUN(cdaadr,1);
+DEFUN(cdadar,1);
+DEFUN(cdaddr,1);
+DEFUN(cddaar,1);
+DEFUN(cddadr,1);
+DEFUN(cdddar,1);
+DEFUN(cddddr,1);
 DEFUN(last,1);
 DEFUN(Cons,2);
 DEFUN(mapcar,2);
@@ -112,6 +128,9 @@ DEFUN(push_cons,2);
 DEFUN(qsort_cons,2);
 DEFUN(lisp_inc,1);
 DEFUN(lisp_dec,1);
+DEFUN(lisp_fputs,2);
+DEFUN(lisp_open,2);
+DEFUN(lisp_close,1);
 /*
   (defun SciLisp-mkIntern ()
   (interactive)
@@ -123,6 +142,8 @@ DEFUN(lisp_dec,1);
 //insert code to initialize the global symbol table
 //with all the primitive functions
 #define initPrims()                                                     \
+  if(initPrimsFlag){                                                    \
+  initPrimsFlag=0;                                                      \
   globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
   topLevelEnv=(env){.tag = _global,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
   DEFUN_INTERN("+",lisp_add);                                           \
@@ -159,6 +180,21 @@ DEFUN(lisp_dec,1);
   DEFUN_INTERN("cdaar",cdaar);                                          \
   DEFUN_INTERN("cadar",cadar);                                          \
   DEFUN_INTERN("cdadr",cdadr);                                          \
+  DEFUN_INTERN("caaadr",caaadr);                                        \
+  DEFUN_INTERN("caadar",caadar);                                        \
+  DEFUN_INTERN("caaddr",caaddr);                                        \
+  DEFUN_INTERN("cadaar",cadaar);                                        \
+  DEFUN_INTERN("cadadr",cadadr);                                        \
+  DEFUN_INTERN("caddar",caddar);                                        \
+  DEFUN_INTERN("cadddr",cadddr);                                        \
+  DEFUN_INTERN("cdaaar",cdaaar);                                        \
+  DEFUN_INTERN("cdaadr",cdaadr);                                        \
+  DEFUN_INTERN("cdadar",cdadar);                                        \
+  DEFUN_INTERN("cdaddr",cdaddr);                                        \
+  DEFUN_INTERN("cddaar",cddaar);                                        \
+  DEFUN_INTERN("cddadr",cddadr);                                        \
+  DEFUN_INTERN("cdddar",cdddar);                                        \
+  DEFUN_INTERN("cddddr",cddddr);                                        \
   DEFUN_INTERN("last",last);                                            \
   DEFUN_INTERN("cons",Cons);                                            \
   DEFUN_INTERN("typeName",lisp_typeName);                               \
@@ -188,6 +224,9 @@ DEFUN(lisp_dec,1);
   DEFUN_INTERN("qsort!",qsort_cons);                                    \
   DEFUN_INTERN("++",lisp_inc);                                          \
   DEFUN_INTERN("--",lisp_dec);                                          \
+  DEFUN_INTERN("fopen",lisp_open);                                      \
+  DEFUN_INTERN("fclose",lisp_close);                                    \
+  DEFUN_INTERN("fputs",lisp_fputs);                                     \
   INTERN_ALIAS("cons?",lisp_consp,17);                                  \
   INTERN_ALIAS("array?",lisp_arrayp,23);                                \
   DEFCONST("Meps",lisp_mach_eps);                                       \
@@ -198,6 +237,6 @@ DEFUN(lisp_dec,1);
   DEFCONST("#f",LISP_FALSE);                                            \
   DEFCONST("MAX_LONG",lisp_max_long);                                   \
   DEFCONST("$$",LispEmptyList);                                         \
-  srand48(time(NULL));
+  srand48(time(NULL));}
 #undef DEFUN
 #endif

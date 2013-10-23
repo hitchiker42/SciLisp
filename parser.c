@@ -14,6 +14,7 @@ jmp_buf ERROR;//location of error handling function
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
+sexp parse_macro();//really parse backtick but it's almost always used in macros
 sexp error_val=NIL_MACRO();
 static void handle_error() __attribute__((noreturn));
 static void handle_error(){
@@ -279,7 +280,7 @@ sexp parse_atom(){
           case _long:
             arr[i].int64=yylval->val.int64;break;
           case _char:
-            arr[i].utf8_char=yylval->val.utf8_char;break;
+            arr[i].uchar=yylval->val.uchar;break;
           default:
             my_abort("How'd you get here?");
         }
@@ -289,7 +290,7 @@ sexp parse_atom(){
         if(i>=size){
           arr=retval.val.array=xrealloc(arr,(size+=1)*sizeof(data));
         }
-        arr[i].utf8_char=L'\0';
+        arr[i].uchar=L'\0';
       }
       retval.len=i;
       PRINT_FMT("len = %d",i);
@@ -311,11 +312,15 @@ sexp parse_sexp(){
   if(yytag == TOK_QUOTE){
     nextTok();
     sexp retval = parse_sexp();
-    //retval.meta=MakeQuoted(retval.meta);
+    //retval=MakeQuoted(retval);
     return retval;
+  } else if (yytag == TOK_QUASI){
+    return parse_macro();
+  } else if(yytag == TOK_LPAREN){
+    return parse_cons();
+  } else{
+    return parse_atom();
   }
-  if(yytag == TOK_LPAREN){return parse_cons();}
-  else{return parse_atom();}
 }
 
 sexp lispRead(CORD code) {
@@ -326,4 +331,16 @@ sexp lispRead(CORD code) {
   yyin=stringStream;
   nextTok();
   return parse_sexp();
+}
+sexp parse_macro(){
+  nextTok();
+  if(yytag != TOK_LPAREN){
+    if(yytag == TOK_COMMA){
+      return parse_sexp();
+    } else {
+      //make quoted
+      return parse_sexp();
+    }
+  }
+  handle_error();
 }

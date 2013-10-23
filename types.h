@@ -55,7 +55,7 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define SYMBOLP(obj) (obj.tag == _sym)
 #define AS_SYMBOL(obj) (obj.val.var)
 #define SPECP(obj) (obj.tag== _special)
-#define STRINGP(obj) (obj.tag == _str)
+#define STRINGP(obj) (obj.tag == _str || obj.tag == _ustr)
 #define AS_STRING(obj) (obj.val.cord)
 #define CHARP(obj) (obj.tag == _char)
 #define AS_CHAR(obj) (obj.val.utf8_char)
@@ -64,6 +64,7 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define AS_ARRAY(obj) (obj.val.array)
 #define LAMBDAP(obj) (obj.tag == _lam)
 #define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
+#define STREAMP(obj)(obj.tag ==_stream)
 enum _tag {
   _error = -4,//type of errors, value is a string
   _false = -3,//type of #f, actual value is undefined
@@ -87,6 +88,8 @@ enum _tag {
   _dpair = 15,
   _ustr = 16,//utf8 string
   _regexp = 17,//compiled regular expression
+  _symbol = 18,//for keyword symbols mostly
+  _stream = 19,//type of input/output streams, corrsponds to c FILE*
 };
 enum special_form{
   _def=0,
@@ -131,8 +134,9 @@ enum sexp_meta{
 union data {
   double real64;
   long int64;
-  wchar_t utf8_char;
-  wchar_t utf8_str;
+  wchar_t utf8_char;//depreciated
+  wchar_t uchar;//try to change all utf8_chars to this
+  wchar_t *ustr;
   c_string string;
   CORD cord;
   cons* cons;
@@ -145,7 +149,12 @@ union data {
   sexp* quoted;
   local_symref lenv;
   regex_t regex;
+  //before I use keyword symbols I need to figure out an efficent 
+  //way to compare them
+  symref sym;
+  FILE* stream;
 };
+//I'm thinking of using a bitfield for quoting...I'm not sure though
 struct sexp{
   _tag tag;//could be shorter if need be
   unsigned short len;//length of a list, array or string
@@ -166,14 +175,17 @@ enum TOKEN{
   TOK_ID=5,
   TOK_LISP_TRUE=6,
   TOK_LISP_FALSE=7,
-  //reserved words/characters 20-30
+  //reserved words/characters 18-30  
+  TOK_QUOTE=18,
+  TOK_QUASI=19,
   TOK_SPECIAL=20,
-  TOK_QUOTE=19,
   TOK_COMMENT_START=21,
   TOK_COMMENT_END=22,
   TOK_DOT=23,
   TOK_COLON=24,
   TOK_LAMBDA=25,
+  TOK_AROBASE=26,
+  TOK_COMMA=27,
   //Types 40-50
   TOK_TYPEDEF=40,
   TOK_TYPEINFO=41,
@@ -183,7 +195,7 @@ enum TOKEN{
   TOK_LBRACE=52,
   TOK_RBRACE=53,
   TOK_LCBRACE=54,
-  TOK_RCBRACE=55
+  TOK_RCBRACE=55,
 };
 union funcall{
   sexp(*f0)(void);

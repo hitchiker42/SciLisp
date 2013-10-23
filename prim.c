@@ -14,7 +14,7 @@
 #include "print.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
-    if((x.tag==y.tag)==(long)_long){                                    \
+    if((x.tag==y.tag)==_long){                                          \
       return                                                            \
         (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}}; \
     } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
@@ -188,11 +188,11 @@ sexp lisp_round(sexp float_num,sexp mode){
 }
 //should make this lisp_iota(a,b,c,d)
 //where d is a switch to decide between a list or an array
-sexp lisp_iota(sexp start,sexp stop,sexp step, sexp arrayorlist){
+sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
   } else {
-    //    return array_iota(start,stop,step);
+    //  return array_iota(start,stop,step);
     return NIL;
   }
 }
@@ -224,6 +224,45 @@ sexp lisp_dec(sexp num){
         return num;
     }
 }
+sexp lisp_open(sexp filename,sexp mode){
+  if(NILP(mode)){
+    mode=string_sexp("r");
+  }
+  if (!STRINGP(filename) || !(STRINGP(mode))){
+    return error_sexp("arguments to open must be strings");
+  }
+  FILE* file = fopen(CORD_as_cstring(filename.val.cord),
+                     CORD_as_cstring(mode.val.cord));
+  if(file){
+    return (sexp){.tag=_stream,.val={.stream=file}};
+  } else { 
+    return_errno("fopen");
+  }
+}
+sexp lisp_close(sexp stream){
+  if(!STREAMP(stream)){
+    return error_sexp("invalid file descriptor passed to close");
+  } else {
+    //fclose returns 0 on success and EOF on failure
+    if(fclose(stream.val.stream)){
+      return_errno("fclose");
+    } else {
+        return NIL;
+    }
+  }
+}
+sexp lisp_fputs(sexp string,sexp stream){
+  if(!STREAMP(stream)){
+    return error_sexp("invalid stream passed to fputs");
+  } else if (!STRINGP(string)){
+    return error_sexp("invalid string passed to fputs");
+  } else if (string.tag == _str){
+    fputs(CORD_as_cstring(string.val.cord),stream.val.stream);
+  } else {//string must be a w_char string
+    fputws(string.val.ustr,stream.val.stream);
+  }
+  return NIL;
+}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -240,9 +279,15 @@ DEFUN("+",lisp_add,2,2);
 DEFUN("-",lisp_sub,2,2);
 DEFUN("*",lisp_mul,2,2);
 DEFUN("/",lisp_div,2,2);
-DEFUN("logxor",lisp_xor,2,2);
-DEFUN("logand",lisp_logand,2,2);
-DEFUN("logor",lisp_logor,2,2);
+DEFUN("<",lisp_lt,2,2);
+DEFUN(">",lisp_gt,2,2);
+DEFUN(">=",lisp_gte,2,2);
+DEFUN("<=",lisp_lte,2,2);
+DEFUN("!=",lisp_ne,2,2);
+DEFUN("=",lisp_equals,2,2);
+DEFUN("++",lisp_inc,1,1);
+DEFUN("--",lisp_dec,1,1);
+DEFUN("cons",Cons,2,2);
 DEFUN("car",car,1,1);
 DEFUN("cdr",cdr,1,1);
 DEFUN("caar",caar,1,1);
@@ -257,21 +302,42 @@ DEFUN("cddar",cddar,1,1);
 DEFUN("cdaar",cdaar,1,1);
 DEFUN("cadar",cadar,1,1);
 DEFUN("cdadr",cdadr,1,1);
-DEFUN("last",last,1,1);
-DEFUN("cons",Cons,2,2);
+DEFUN("caaaar",caaaar,1,1);
+DEFUN("caaadr",caaadr,1,1);
+DEFUN("caadar",caadar,1,1);
+DEFUN("caaddr",caaddr,1,1);
+DEFUN("cadaar",cadaar,1,1);
+DEFUN("cadadr",cadadr,1,1);
+DEFUN("caddar",caddar,1,1);
+DEFUN("cadddr",cadddr,1,1);
+DEFUN("cdaaar",cdaaar,1,1);
+DEFUN("cdaadr",cdaadr,1,1);
+DEFUN("cdadar",cdadar,1,1);
+DEFUN("cdaddr",cdaddr,1,1);
+DEFUN("cddaar",cddaar,1,1);
+DEFUN("cddadr",cddadr,1,1);
+DEFUN("cdddar",cdddar,1,1);
+DEFUN("cddddr",cddddr,1,1);
 DEFUN("set-car!",set_car,2,2);
 DEFUN("set-cdr!",set_cdr,2,2);
+DEFUN("last",last,1,1);
+DEFUN("push!",push_cons,2,2);
+DEFUN("pop!",pop_cons,1,1);
 DEFUN("mapcar",mapcar,2,2);
+DEFUN("reduce",reduce,2,2);
+DEFUN("qsort!",qsort_cons,2,2);
+DEFUN("length",lisp_length,1,1);
+DEFUN("iota",lisp_iota,1,4);
+DEFUN("aref",aref,2,2);
+DEFUN("array->list",array_to_list,1,1);
 DEFUN("typeName",lisp_typeName,1,1);
 DEFUN("print",lisp_print,1,1);
 DEFUN("println",lisp_println,1,1);
-DEFUN("reduce",reduce,2,2);
-DEFUN("<",lisp_lt,2,2);
-DEFUN(">",lisp_gt,2,2);
-DEFUN(">=",lisp_gte,2,2);
-DEFUN("<=",lisp_lte,2,2);
-DEFUN("!=",lisp_ne,2,2);
-DEFUN("=",lisp_equals,2,2);
+DEFUN("eval",lisp_eval,1,1);
+DEFUN("logxor",lisp_xor,2,2);
+DEFUN("logand",lisp_logand,2,2);
+DEFUN("logor",lisp_logor,2,2);
+DEFUN("ash",ash,2,2);
 DEFUN("expt",lisp_pow,2,2);
 DEFUN("sqrt",lisp_sqrt,1,1);
 DEFUN("cos",lisp_cos,1,1);
@@ -280,19 +346,11 @@ DEFUN("tan",lisp_tan,1,1);
 DEFUN("exp",lisp_exp,1,1);
 DEFUN("log",lisp_log,1,1);
 DEFUN("abs",lisp_abs,1,1);
-DEFUN("ash",ash,2,2);
 DEFUN("mod",lisp_mod,2,2);
+DEFUN("round",lisp_round,1,2);
 DEFUN("drand",lisp_randfloat,0,1);
 DEFUN("lrand",lisp_randint,0,0);
-DEFUN("iota",lisp_iota,1,4);
-DEFUN("aref",aref,2,2);
-DEFUN("array->list",array_to_list,1,1);
-DEFUN("eval",lisp_eval,1,1);
-DEFUN("length",lisp_length,1,1);
-DEFUN("round",lisp_round,1,2);
-DEFUN("push!",push_cons,2,2);
-DEFUN("pop!",pop_cons,1,1);
-DEFUN("qsort!",qsort_cons,2,2);
-DEFUN("++",lisp_inc,1,1);
-DEFUN("--",lisp_dec,1,1);
+DEFUN("fopen",lisp_open,1,2);
+DEFUN("fclose",lisp_close,1,1);
+DEFUN("fputs",lisp_fputs,2,2);
 #undef DEFUN

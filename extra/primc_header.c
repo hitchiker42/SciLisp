@@ -149,7 +149,7 @@ sexp lisp_randfloat(sexp scale){
   }
   return (sexp){.tag=_double,.val={.real64=retval}};
 }
-sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
+sexp lisp_eval(sexp obj){return eval(obj,&topLevelEnv);}
 sexp lisp_length(sexp obj){
   if(obj.len){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
@@ -192,9 +192,42 @@ sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
   } else {
-    return array_iota(start,stop,step);
+    //  return array_iota(start,stop,step);
+    return NIL;
   }
 }
+void hello_world(){
+  printf("hello, world!\n");
+  return;
+}
+sexp lisp_inc(sexp num){
+  if(!NUMBERP(num)){
+    return error_sexp("cannot increment something that is not a number");
+  } else switch(num.tag){
+      case _long:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.int64=(++num.val.int64)}};
+      case _double:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.real64=(++num.val.real64)}};
+    }
+}
+sexp lisp_dec(sexp num){
+  if(!NUMBERP(num)){
+    return error_sexp("cannot increment something that is not a number");
+  } else switch(num.tag){
+      case _long:
+        num.val.int64-=1;
+        return num;
+      case _double:
+        num.val.real64-=1;
+        return num;
+    }
+}
+/*probably eaiser in lisp
+  (defun ++! (x) (setq x (+1 x)))
+  (defun --! (x) (setq x (-1 x)))
+*/
 const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
 const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
 const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};

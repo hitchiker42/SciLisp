@@ -149,7 +149,7 @@ sexp lisp_randfloat(sexp scale){
   }
   return (sexp){.tag=_double,.val={.real64=retval}};
 }
-sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
+sexp lisp_eval(sexp obj){return eval(obj,&topLevelEnv);}
 sexp lisp_length(sexp obj){
   if(obj.len){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
@@ -192,9 +192,42 @@ sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
   } else {
-    return array_iota(start,stop,step);
+    //  return array_iota(start,stop,step);
+    return NIL;
   }
 }
+void hello_world(){
+  printf("hello, world!\n");
+  return;
+}
+sexp lisp_inc(sexp num){
+  if(!NUMBERP(num)){
+    return error_sexp("cannot increment something that is not a number");
+  } else switch(num.tag){
+      case _long:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.int64=(++num.val.int64)}};
+      case _double:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.real64=(++num.val.real64)}};
+    }
+}
+sexp lisp_dec(sexp num){
+  if(!NUMBERP(num)){
+    return error_sexp("cannot increment something that is not a number");
+  } else switch(num.tag){
+      case _long:
+        num.val.int64-=1;
+        return num;
+      case _double:
+        num.val.real64-=1;
+        return num;
+    }
+}
+/*probably eaiser in lisp
+  (defun ++! (x) (setq x (+1 x)))
+  (defun --! (x) (setq x (-1 x)))
+*/
 const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
 const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
 const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
@@ -203,14 +236,19 @@ MK_PREDICATE2(consp,_cons,_list);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
 MK_PREDICATE(nilp,_nil);
-DEFUN("car",cdr,2,2);
 DEFUN("+",lisp_add,2,2);
 DEFUN("-",lisp_sub,2,2);
 DEFUN("*",lisp_mul,2,2);
 DEFUN("/",lisp_div,2,2);
-DEFUN("logxor",lisp_xor,2,2);
-DEFUN("logand",lisp_logand,2,2);
-DEFUN("logor",lisp_logor,2,2);
+DEFUN("<",lisp_lt,2,2);
+DEFUN(">",lisp_gt,2,2);
+DEFUN(">=",lisp_gte,2,2);
+DEFUN("<=",lisp_lte,2,2);
+DEFUN("!=",lisp_ne,2,2);
+DEFUN("=",lisp_equals,2,2);
+DEFUN("++",lisp_inc,1,1);
+DEFUN("--",lisp_dec,1,1);
+DEFUN("cons",Cons,2,2);
 DEFUN("car",car,1,1);
 DEFUN("cdr",cdr,1,1);
 DEFUN("caar",caar,1,1);
@@ -225,19 +263,42 @@ DEFUN("cddar",cddar,1,1);
 DEFUN("cdaar",cdaar,1,1);
 DEFUN("cadar",cadar,1,1);
 DEFUN("cdadr",cdadr,1,1);
-DEFUN("cons",Cons,2,2);
+DEFUN("caaaar",caaaar,1,1);
+DEFUN("caaadr",caaadr,1,1);
+DEFUN("caadar",caadar,1,1);
+DEFUN("caaddr",caaddr,1,1);
+DEFUN("cadaar",cadaar,1,1);
+DEFUN("cadadr",cadadr,1,1);
+DEFUN("caddar",caddar,1,1);
+DEFUN("cadddr",cadddr,1,1);
+DEFUN("cdaaar",cdaaar,1,1);
+DEFUN("cdaadr",cdaadr,1,1);
+DEFUN("cdadar",cdadar,1,1);
+DEFUN("cdaddr",cdaddr,1,1);
+DEFUN("cddaar",cddaar,1,1);
+DEFUN("cddadr",cddadr,1,1);
+DEFUN("cdddar",cdddar,1,1);
+DEFUN("cddddr",cddddr,1,1);
 DEFUN("set-car!",set_car,2,2);
 DEFUN("set-cdr!",set_cdr,2,2);
+DEFUN("last",last,1,1);
+DEFUN("push!",push_cons,2,2);
+DEFUN("pop!",pop_cons,1,1);
 DEFUN("mapcar",mapcar,2,2);
+DEFUN("reduce",reduce,2,2);
+DEFUN("qsort!",qsort_cons,2,2);
+DEFUN("length",lisp_length,1,1);
+DEFUN("iota",lisp_iota,1,4);
+DEFUN("aref",aref,2,2);
+DEFUN("array->list",array_to_list,1,1);
 DEFUN("typeName",lisp_typeName,1,1);
 DEFUN("print",lisp_print,1,1);
-DEFUN("reduce",reduce,2,2);
-DEFUN("<",lisp_lt,2,2);
-DEFUN(">",lisp_gt,2,2);
-DEFUN(">=",lisp_gte,2,2);
-DEFUN("<=",lisp_lte,2,2);
-DEFUN("!=",lisp_ne,2,2);
-DEFUN("=",lisp_equals,2,2);
+DEFUN("println",lisp_println,1,1);
+DEFUN("eval",lisp_eval,1,1);
+DEFUN("logxor",lisp_xor,2,2);
+DEFUN("logand",lisp_logand,2,2);
+DEFUN("logor",lisp_logor,2,2);
+DEFUN("ash",ash,2,2);
 DEFUN("expt",lisp_pow,2,2);
 DEFUN("sqrt",lisp_sqrt,1,1);
 DEFUN("cos",lisp_cos,1,1);
@@ -246,13 +307,8 @@ DEFUN("tan",lisp_tan,1,1);
 DEFUN("exp",lisp_exp,1,1);
 DEFUN("log",lisp_log,1,1);
 DEFUN("abs",lisp_abs,1,1);
-DEFUN("ash",ash,2,2);
 DEFUN("mod",lisp_mod,2,2);
+DEFUN("round",lisp_round,1,2);
 DEFUN("drand",lisp_randfloat,0,1);
 DEFUN("lrand",lisp_randint,0,0);
-DEFUN("iota",lisp_iota,1,4);
-DEFUN("aref",aref,2,2);
-DEFUN("array->list",array_to_list,1,1);
-DEFUN("eval",lisp_eval,1,1);
-DEFUN("length",lisp_length,1,1);
-DEFUN("round",lisp_round,1,2);
+#undef DEFUN

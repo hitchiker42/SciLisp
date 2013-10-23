@@ -24,8 +24,9 @@ sexp nappend(sexp conses);
 //ls must be at least 2 elements long
 sexp reduce(sexp ls,sexp reduce_fn);
 //create a new list formed by applying map_fn(f(sexp)->sexp) to
-//each element of ls in turn
+//each car of ls in turn
 sexp mapcar(sexp ls,sexp map_fn);
+//
 //check len field of sexp for length
 //if len==0 compute length using tail recursion
 sexp cons_length(sexp ls)__attribute__((pure));
@@ -132,7 +133,7 @@ static inline sexp set_cdr(sexp cell,sexp new_val){
   }
   return (cell.val.cons->cdr=new_val);
 }
-//type checked car/cdr extensions
+//type checked car/cdr extensions (should any of these be inlined?)
 static inline sexp caar(sexp cell){return car(car(cell));}
 static inline sexp cadr(sexp cell){return car(cdr(cell));}
 static inline sexp cdar(sexp cell){return cdr(car(cell));}
@@ -145,22 +146,60 @@ static inline sexp cddar(sexp cell){return cdr(cdr(car(cell)));}
 static inline sexp cdaar(sexp cell){return cdr(car(car(cell)));}
 static inline sexp cadar(sexp cell){return car(cdr(car(cell)));}
 static inline sexp cdadr(sexp cell){return cdr(car(cdr(cell)));}
+static sexp caaaar(sexp cell){return car(car(car(car(cell))));}
+static sexp caaadr(sexp cell){return car(car(car(cdr(cell))));}
+static sexp caadar(sexp cell){return car(car(cdr(car(cell))));}
+static sexp caaddr(sexp cell){return car(car(cdr(cdr(cell))));}
+static sexp cadaar(sexp cell){return car(cdr(car(car(cell))));}
+static sexp cadadr(sexp cell){return car(cdr(car(cdr(cell))));}
+static sexp caddar(sexp cell){return car(cdr(cdr(car(cell))));}
+static sexp cadddr(sexp cell){return car(cdr(cdr(cdr(cell))));}
+static sexp cdaaar(sexp cell){return cdr(car(car(car(cell))));}
+static sexp cdaadr(sexp cell){return cdr(car(car(cdr(cell))));}
+static sexp cdadar(sexp cell){return cdr(car(cdr(car(cell))));}
+static sexp cdaddr(sexp cell){return cdr(car(cdr(cdr(cell))));}
+static sexp cddaar(sexp cell){return cdr(cdr(car(car(cell))));}
+static sexp cddadr(sexp cell){return cdr(cdr(car(cdr(cell))));}
+static sexp cdddar(sexp cell){return cdr(cdr(cdr(car(cell))));}
+static sexp cddddr(sexp cell){return cdr(cdr(cdr(cdr(cell))));}
+
 //non typechecked car/cdr/etc macros, for use when type checking has been
-//done in some other way. Don't use these if you don't know than the argument
+//done in some other way. Don't use these if you don't know that the argument
 //has to be a cons cell
-#define XCAAR(cell) XCAR(XCAR(cell))
-#define XCADR(cell) XCAR(XCDR(cell))
-#define XCDAR(cell) XCDR(XCAR(cell))
-#define XCDDR(cell) XCDR(XCDR(cell))
-#define XCAAAR(cell) XCAR(XCAR(XCAR(cell)))
-#define XCAADR(cell) XCAR(XCAR(XCDR(cell)))
-#define XCADDR(cell) XCAR(XCDR(XCDR(cell)))
-#define XCDDDR(cell) XCDR(XCDR(XCDR(cell)))
-#define XCDDAR(cell) XCDR(XCDR(XCAR(cell)))
-#define XCDAAR(cell) XCDR(XCAR(XCAR(cell)))
-#define XCADAR(cell) XCAR(XCDR(XCAR(cell)))
-#define XCDADR(cell) XCDR(XCAR(XCDR(cell)))
+#define XCAAR(CELL) XCAR(XCAR(CELL))
+#define XCADR(CELL) XCAR(XCDR(CELL))
+#define XCDAR(CELL) XCDR(XCAR(CELL))
+#define XCDDR(CELL) XCDR(XCDR(CELL))
+#define XCAAAR(CELL) XCAR(XCAR(XCAR(CELL)))
+#define XCAADR(CELL) XCAR(XCAR(XCDR(CELL)))
+#define XCADDR(CELL) XCAR(XCDR(XCDR(CELL)))
+#define XCDDDR(CELL) XCDR(XCDR(XCDR(CELL)))
+#define XCDDAR(CELL) XCDR(XCDR(XCAR(CELL)))
+#define XCDAAR(CELL) XCDR(XCAR(XCAR(CELL)))
+#define XCADAR(CELL) XCAR(XCDR(XCAR(CELL)))
+#define XCDADR(CELL) XCDR(XCAR(XCDR(CELL)))
+#define XCAAAAR(CELL) XCAR(XCAR(XCAR(XCAR(CELL))))
+#define XCAAADR(CELL) XCAR(XCAR(XCAR(XCDR(CELL))))
+#define XCAADAR(CELL) XCAR(XCAR(XCDR(XCAR(CELL))))
+#define XCAADDR(CELL) XCAR(XCAR(XCDR(XCDR(CELL))))
+#define XCADAAR(CELL) XCAR(XCDR(XCAR(XCAR(CELL))))
+#define XCADADR(CELL) XCAR(XCDR(XCAR(XCDR(CELL))))
+#define XCADDAR(CELL) XCAR(XCDR(XCDR(XCAR(CELL))))
+#define XCADDDR(CELL) XCAR(XCDR(XCDR(XCDR(CELL))))
+#define XCDAAAR(CELL) XCDR(XCAR(XCAR(XCAR(CELL))))
+#define XCDAADR(CELL) XCDR(XCAR(XCAR(XCDR(CELL))))
+#define XCDADAR(CELL) XCDR(XCAR(XCDR(XCAR(CELL))))
+#define XCDADDR(CELL) XCDR(XCAR(XCDR(XCDR(CELL))))
+#define XCDDAAR(CELL) XCDR(XCDR(XCAR(XCAR(CELL))))
+#define XCDDADR(CELL) XCDR(XCDR(XCAR(XCDR(CELL))))
+#define XCDDDAR(CELL) XCDR(XCDR(XCDR(XCAR(CELL))))
+#define XCDDDDR(CELL) XCDR(XCDR(XCDR(XCDR(CELL))))
+/*(dolist (i '(?a ?d))
+  (dolist (j '(?a ?d))
+  (dolist (k '(?a ?d))
+  (dolist (l '(?a ?d))
+  (insert (format "static sexp c%c%c%c%cr(sexp cell){return c%cr(c%cr(c%cr(c%cr(cell))));}\n"))
+  (insert (upcase (format "#define XC%c%c%c%cr(cell) XC%cR(XC%cR(XC%cR(XC%cR(cell))))\n")))
+  i j k l i j k l)))))
+*/
 #endif
-
-
-

@@ -295,12 +295,14 @@ static inline sexp eval_if(sexp expr,env *cur_env){
   } else {
     register sexp cond = eval(cadr(expr),cur_env);
     return (isTrue(cond) ? eval(caddr(expr),cur_env) 
-            : eval(car(cdddr(expr)),cur_env));
+            : eval(cadddr(expr),cur_env));
   }
 }
 static inline sexp eval_while(sexp expr,env *cur_env){
-  register sexp cond=cadr(expr);
-  register sexp body=caddr(expr);
+  //(while cond body)
+  expr=cdr(expr);
+  register sexp cond=car(expr);
+  register sexp body=cadr(expr);
   register sexp retval=NIL;
   while(isTrue(eval(cond,cur_env))){
     retval=eval(body,cur_env);

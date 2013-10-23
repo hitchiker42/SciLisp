@@ -105,7 +105,7 @@ CORD print(sexp obj){
       //PRINT_MSG(obj.val.var->name);
       break;
     case _char:{
-      CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.utf8_char);
+      CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
       return retval;
     }
     case _nil:

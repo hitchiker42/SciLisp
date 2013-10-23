@@ -221,16 +221,23 @@ reached in @var{body}. If @var{inc} is omitted it defaults to
 @appendix GNU Free Documentation License
 @include fdl.texi
 @bye
+this is after @bye so it's all a comment.
+I'm going to sketch out ideas for the type hierarchy
+in no real order we have:
+number -> long or double (or int/short/char or float)
+text -> char or string or array  of chars(not the same as a string)
+@c  a string in c is a CORD, so a string is an array of
+@c  characters(essentially), while a char is a wchar_t in c so an
+@c  array of characters is an array of wchar_t's(or ints) while
+@c  Unicode will work in either case it'll be utf-8 for the CORDs(or
+@c  lisp strings) and utf-32 for the characters/character arrays
+sequence -> list or array/vector or string
+map -> assoc list or hash table
+cons -> list, dotted pair, tree or code
 
 @c Local Variables:
 @c mode: texinfo
 @c eval: (flyspell-mode)
 @c time-stamp-format: "%02d %:b %:y"
+@c eval: (flyspell-mode)
 @c End:
-this is after @bye so it's all a comment.
-I'm going to sketch out ideas for the type hierarchy
-in no real order we have:
-number -> long or double (or int/short/char or float)
-
-
-
