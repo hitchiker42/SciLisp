@@ -266,18 +266,17 @@ struct global_env{
 };
 //this is a better way of doing this
 //but needs work
-#define LAST_OPTARG(funarg) funarg->opt_args[funarg->num_opt_args]
-#define LAST_REQARG(funarg) funarg->req_args[funarg->num_req_args]
+#define LAST_ARG(funarg) funarg->args[funarg->max_args]
+#define ADD_REQ_ARG(funarg) funarg->num_req_args++;funarg->max_args++
+#define ADD_OPT_ARG(funarg) funarg->num_opt_args++;funarg->max_args++
+#define ADD_KEYWORD_ARG(funarg) funarg->num_keyword_args++;funarg->max_args++
+#define ADD_REST_ARG(funarg) funarg->has_rest_arg++;funarg->max_args++
 struct function_args{
-  short num_req_args;
-  short num_opt_args;
-  short num_keyword_args;//not implemented yet
-  short has_rest_arg;
-  symref* req_args;//req arg is just a symref
-  symref* opt_args;//opt arg is a symref with a possible default value
-  sexp* keyword_args;//unimplemened, but here for the future
-  symref* rest_arg;//a rest arg is a list of 0 or more arguments
-  symref* args[4];
+  short num_req_args;//0-num_req_args are required
+  short num_opt_args;//num_req_args-num_req_args+num_opt_args
+  short num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
+  short has_rest_arg;//0 or 1(only one keyword allowed
+  symref* args;
   int max_args;//number of args in c/llvm must be max_args
 };
 struct function_new{

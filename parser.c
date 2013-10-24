@@ -331,13 +331,10 @@ static inline sexp parse_function_args(){
   //just an inital guess, should be more than enough in most cases
   //at the moment I haven't actually put in checking for more that
   //8 args
-  symref* req_args=xmalloc(8*sizeof(symref));
-  symref* opt_args=xmalloc(8*sizeof(symref));
-  symref* rest_arg=xmalloc(sizeof(symref));
+  symref* args=xmalloc(16*sizeof(symref));
   *retval.val.funarg=(function_args)
     {.num_req_args=0,.num_opt_args=0,.num_keyword_args=0,
-     .has_rest_arg=0,.req_args=req_args,.opt_args=opt_args,
-     .rest_arg=rest_arg,.args={req_args,opt_args,0,rest_arg}};
+     .has_rest_arg=0,.args=args,.max_args=0};
   retval.tag=_funarg;
   while(nextTok() != TOK_RPAREN){
     if(yytag != TOK_ID){
@@ -352,11 +349,11 @@ static inline sexp parse_function_args(){
             case TOK_LPAREN:
               nextTok();
               if(yytag != TOK_ID){goto TYPE_ERROR;}
-              LAST_OPTARG(retval.val.funarg)->name=yylval->val.cord;
+              LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
               if(nextTok() != TOK_RPAREN){
                 //default arg must be an atom
                 LAST_OPTARG(retval.val.funarg)->val=parse_atom();
-                retval.val.funarg->num_opt_args++;
+                ADD_OPT_ARG(retval.val.funarg);
                 if(nextTok() != TOK_RPAREN){
                   format_error_str
                     ("excess arguments in optional argument's default value");
@@ -364,9 +361,9 @@ static inline sexp parse_function_args(){
                 }
               }
             case TOK_ID:
-              LAST_OPTARG(retval.val.funarg)->name=yylval->val.cord;
-              LAST_OPTARG(retval.val.funarg)->val=NIL;
-              retval.val.funarg->num_opt_args++;
+              LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
+              LAST_ARG(retval.val.funarg)->val=NIL;
+              ADD_OPT_ARG(retval.val.funarg);
             default:
               format_error_str
                 ("optional argument must be id or cons of id and default val");
@@ -395,25 +392,23 @@ static inline sexp parse_function_args(){
          !CORD_cmp(yylval->val.cord,"&body")){
       REST_PARAM:
         if(nextTok() != TOK_ID){goto TYPE_ERROR;}
-        retval.val.funarg->rest_arg[0]->name=yylval->val.cord;
-        retval.val.funarg->rest_arg[0]->val=NIL;
-        retval.val.funarg->has_rest_arg++;
+        LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
+        LAST_ARG(retval.val.funarg)->val=NIL;
+        ADD_REST_ARG(retval.val.funarg);
         nextTok();
       }
       break;
     } else {
-      LAST_REQARG(retval.val.funarg)->name=yylval->val.cord;
-      LAST_REQARG(retval.val.funarg)->val=UNBOUND;
-      retval.val.funarg->num_req_args++;
+      LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
+      LAST_ARG(retval.val.funarg)->val=UNBOUND;
+      ADD_REQ_ARG(retval.val.funarg);
     }
   }
   if(yytag != TOK_RPAREN){
     format_error_str("malformed argument list");
     handle_error();
   }
-  retval.val.funarg->max_args=retval.val.funarg->num_req_args+
-    retval.val.funarg->num_opt_args+retval.val.funarg->has_rest_arg+
-    retval.val.funarg->num_keyword_args;
+
   return retval;
 }
 static inline sexp parse_arg_list(){

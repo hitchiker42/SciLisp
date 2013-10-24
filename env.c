@@ -71,3 +71,20 @@ symref addSym(env *cur_env,symref Var){
       return addLocalSym((local_env*)cur_env,Var);
   }
 }
+sexp getFunctionArgs(sexp args,env* cur_env){
+  if(args.tag != _funargs){
+    handle_error();
+  }
+  int i,j=0;
+  for(i=0;i<args.val.funargs->num_req_args;i++){  
+    if(!(CONSP(args))){
+      handle_error_str("not enough args");
+      handle_error();
+    } else {
+      args.val.funargs->args[j++]=eval(XCAR(args));
+      args=XCDR(args);
+    }
+  }
+  for(i=0;i<args.val.funargs->num_opt_args;i++){
+    
+  ARGS_END:
