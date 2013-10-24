@@ -78,7 +78,16 @@
 (print utf8-copyright)
 (pwd)
 (system "ls")
-(system "touch" "temp.temp")
+(system "touch temp.temp")
+(def file (fopen "temp.temp" "w"))
+(fputs "Hello, World!
+" file)
+(fclose file)
+(system "cat temp.temp")
+(def i 15)
+(print i)
+(do (i (setq i 0)(setq i (++ i))(<= i 10)) (print i))
+(print i)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:
