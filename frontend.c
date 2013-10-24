@@ -76,14 +76,20 @@ int parens_matched(const char* line,int parens){
 int compile(FILE* input,const char *output,FILE* c_code) __attribute__((noreturn));
 int compile(FILE* input,const char *output,FILE* c_code){
   HERE();
-  sexp ast=yyparse(input);
-  if(NILP(ast)){
-    CORD_printf("parsing failed exiting compiler\n");
-    exit(1);
+  if(setjmp(error_buf)){
+    PRINT_MSG("jumped to error");
+    fputs("compilation error\n",stderr);
+    exit(-1);
+  } else {
+    sexp ast=yyparse(input);
+    if(NILP(ast)){
+      CORD_printf("parsing failed exiting compiler\n");
+      exit(1);
+    }
+    CORD_printf("%r\n",print(XCAR(ast)));
+    //codegen(output,c_code,ast);
+    exit(0);
   }
-  CORD_printf("%r\n",print(XCAR(ast)));
-  //codegen(output,c_code,ast);
-  exit(0);
 }
 /* Read interactive input using readline.
  * outfile is a temporary file essentally used as a pipe. read scans a line

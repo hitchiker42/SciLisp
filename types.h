@@ -37,6 +37,7 @@ typedef struct array_env array_env;//array used to hold function arguments, mayb
 typedef struct lambda lambda;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
+typedef struct function_args function_args;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
@@ -91,7 +92,8 @@ enum _tag {
   _regex = 17,//compiled regular expression
   _stream = 18,//type of input/output streams, corrsponds to c FILE*
   _matrix =19,//array for mathematical calculations
-  
+  _keyword = 20,
+  _funarg = 21,
 };
 enum special_form{
   _def=0,
@@ -155,6 +157,7 @@ union data {
   //before I use keyword symbols I need to figure out an efficent 
   //way to compare them
   FILE* stream;
+  function_args* funarg;
 };
 //I'm thinking of using a bitfield for quoting...I'm not sure though
 //
@@ -211,6 +214,8 @@ union funcall{
 struct function{
   short min_args;
   short max_args;
+  short opt_args;
+  short rest_parameter;
   union {
     fxn_proto* prim;
     lambda* lam;
@@ -258,6 +263,34 @@ struct local_env{
 struct global_env{
   env* enclosing;
   global_symref head;
+};
+//this is a better way of doing this
+//but needs work
+#define LAST_OPTARG(funarg) funarg->opt_args[funarg->num_opt_args]
+#define LAST_REQARG(funarg) funarg->req_args[funarg->num_req_args]
+struct function_args{
+  short num_req_args;
+  short num_opt_args;
+  short num_keyword_args;//not implemented yet
+  short has_rest_arg;
+  symref* req_args;//req arg is just a symref
+  symref* opt_args;//opt arg is a symref with a possible default value
+  sexp* keyword_args;//unimplemened, but here for the future
+  symref* rest_arg;//a rest arg is a list of 0 or more arguments
+  symref* args[4];
+  int max_args;//number of args in c/llvm must be max_args
+};
+struct function_new{
+  struct function_args* args;
+  CORD lname;//lambdas should be #<lambda{number via global counter}>
+  union {
+    lambda* lambda_fun;
+    fxn_ptr compiled_fun;
+  } function_ptr;
+  enum {
+    _lambda_fun,
+    _compiled_fun,
+  } fun_type;
 };
 struct array_env{
   env* enclosing;

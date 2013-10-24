@@ -147,6 +147,10 @@ void initialize_llvm(int engine){
 #undef EVAL
 #endif
 #define EVAL(expr,env,builder) LLVM_Codegen(expr,cur_env,builder)
+sexp LLVMGetFunction(sexp lambda_expr,env* cur_env){
+  //assume we get passed a lambda expression
+  //that should be the main use of llvm anyway
+}
 sexp LLVMEval(sexp expr,env *cur_env){
   if(setjmp(jmp_to_error)){
     return error_val;

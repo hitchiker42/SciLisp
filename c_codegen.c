@@ -120,4 +120,3 @@ CORD c_codegen_specials(sexp expr,CORD code){
 CORD c_codegen_functions(sexp expr,CORD code){
   return "";
 }
-

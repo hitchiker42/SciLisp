@@ -54,7 +54,7 @@ static wchar_t lex_char(char* cur_yytext){
 DIGIT [0-9]
 HEX_DIGIT [0-9a-fA-f]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
-ID [A-Za-z%+*!\-_^$/&<>=/][A-Za-z%+*!?\-_^$&<>0-9=/]*
+ID [A-Za-z%+*!\-_^$/<>=/&][A-Za-z%+*!?\-_^$&<>0-9=/]*
 TYPENAME "::"[A-z_a-z][A-Z_a-z0-9]*
 QUOTE "'"|quote
 UCHAR "?"("\\?"|"\\\\"|"\\x"([0-9a-fA-F]{2})|"\\u"([0-9a-fA-F]{4})|[^?\\])
