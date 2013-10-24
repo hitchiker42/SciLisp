@@ -145,7 +145,7 @@ void initialize_llvm(int engine){
 }
 #ifdef EVAL
 #undef EVAL
-#endif
+#endify
 #define EVAL(expr,env,builder) LLVM_Codegen(expr,cur_env,builder)
 sexp LLVMGetFunction(sexp lambda_expr,env* cur_env){
   //assume we get passed a lambda expression
