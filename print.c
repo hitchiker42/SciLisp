@@ -26,6 +26,7 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_true,t);
     mk_tag_name(_lenv,local environment);
     mk_tag_name(_stream,stream);
+    mk_tag_name(_funarg,Function Args)
     default:
       return "forgot to do that one";
   }
@@ -155,6 +156,29 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,")"));
     }
+    case _funarg:
+      acc="(";
+      function_args* args=obj.val.funarg;
+      int i=0,j=0;
+#define funarg_print_loop(argtype,optional_str)             \
+      if(args->num_##argtype##_args){                       \
+        acc=CORD_cat(acc,optional_str);                     \
+        for(i=0;i<args->num_##argtype##_args;i++){          \
+          acc=CORD_cat(acc,args[j++]->name);                \
+          if(j != args->max_args){                          \
+            acc=CORD_cat(acc," ");                          \
+          }                                                 \
+        }
+      funarg_print_loop(req,0);//not sure if the 0 will work
+      funarg_print_loop(opt,"&optional");
+      funarg_print_loop(keyword,"&key");
+      if(args->has_rest_arg){
+        acc=CORD_catn(4,"&rest ",args->args[j],")");
+      } else {
+        acc=CORD_cat(acc,")");
+      }
+      return CORD_balance(acc);
+#undef funarg_print_loop
     case _lam:
       acc="(lambda ";
       acc=CORD_catn(5,acc,

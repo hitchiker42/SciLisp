@@ -29,11 +29,10 @@ typedef struct fxn_proto fxn_proto;//primitive function prototype
 typedef struct symbol symbol;//generic symbol type
 typedef struct local_symbol local_symbol;//type of symbol used in local envs
 typedef struct global_symbol global_symbol;//type of symbol used in global envs
-typedef struct array_symbol array_symbol;//type of symbol used in function arguments, if I use it
 typedef struct env env;//generic symbol namespace
 typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
-typedef struct array_env array_env;//array used to hold function arguments, maybe eventually
+typedef struct function_env function_env;//Actually used for function arguments
 typedef struct lambda lambda;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
@@ -43,7 +42,6 @@ typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
 typedef global_symbol* global_symref;//"" global ""
 typedef local_symbol* local_symref;//"" local ""
-typedef array_symbol *array_symref;//"" array ""
 typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
@@ -251,11 +249,7 @@ struct local_symbol{
   sexp val;
   local_symref next;
 };
-struct array_symref{
-  CORD name;
-  sexp val;
-  int index;
-};
+
 struct local_env{
   env* enclosing;
   local_symref head;
@@ -271,6 +265,9 @@ struct global_env{
 #define ADD_OPT_ARG(funarg) funarg->num_opt_args++;funarg->max_args++
 #define ADD_KEYWORD_ARG(funarg) funarg->num_keyword_args++;funarg->max_args++
 #define ADD_REST_ARG(funarg) funarg->has_rest_arg++;funarg->max_args++
+//the one issus with this structure is looping throgh it requires
+//two loop variables, one for the index in args and one for
+//the index in num_req/opt/keyword_args
 struct function_args{
   short num_req_args;//0-num_req_args are required
   short num_opt_args;//num_req_args-num_req_args+num_opt_args
@@ -279,9 +276,14 @@ struct function_args{
   symref* args;
   int max_args;//number of args in c/llvm must be max_args
 };
+struct function_env{
+  env* enclosing;
+  function_args* head;//for consistancy in naming
+};
 struct function_new{
   struct function_args* args;
   CORD lname;//lambdas should be #<lambda{number via global counter}>
+  CORD cname;//name in c, and llvm I suppose
   union {
     lambda* lambda_fun;
     fxn_ptr compiled_fun;
@@ -291,19 +293,15 @@ struct function_new{
     _compiled_fun,
   } fun_type;
 };
-struct array_env{
-  env* enclosing;
-  array_symref head;
-};
+
 union symbol_ref{
   global_symref global;
   local_symref local;
-  //  array_symref array;
+  function_args* function;
 };
 union symbol_val{
   local_symbol local;
   global_symbol global;
-  //  array_symbol array;
 };
 struct env{
   env* enclosing;
@@ -311,6 +309,7 @@ struct env{
   enum {
     _local=0,
     _global=1,
+    _funArgs=2,
   } tag;
 };
 struct lambda{
@@ -486,3 +485,12 @@ enum operator{
 {.tag =_array,.name = "array",.hash = 0x11b0a054}
 {.tag =_boolean,.name = "boolean",.hash = 0x624dd20f}
 {.tag =_lambda,.name = "lambda",.hash = 0x65d0c568}*/
+/*struct array_symref{
+  CORD name;
+  sexp val;
+  int index;
+  };*/
+/*struct array_env{
+  env* enclosing;
+  array_symref head;
+  };*/

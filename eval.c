@@ -191,6 +191,9 @@ static inline sexp call_builtin(sexp expr,env *cur_env){
       } else {
         return F_CALL(curFun).f1((eval(cadr(expr),cur_env)));
       }
+      //these next 3 become
+      //                                  maybe?
+      //args=get_args(cdr(expr),curFun.val.fun.args,cur_env)->args;
     case 2:
       args=get_args(cdr(expr),prim_to_fun(curFun.val.fun),cur_env);
       if(!args){goto ERROR;}
@@ -449,4 +452,51 @@ static sexp eval_dolist(sexp expr,env *cur_env){
     retval=eval(cdr(expr),loop_scope);//execute loop body
   }
   return retval;
+}
+#define setArg()                                \
+  args->args[j++]->val=eval(XCAR(arglist),cur_env);        \
+  arglist=XCDR(arglist)
+function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
+  /*  if(args.tag != _funargs){
+    handle_error();
+    }*/
+  int i,j=0;
+  for(i=0;i<args->num_req_args;i++){  
+    if(!(CONSP(arglist))){
+      format_error_str("not enough args");
+      handle_error();
+    } else {
+      setArg();
+    }
+  }
+  for(i=0;i<args->num_opt_args;i++){
+    if(!CONSP(arglist)){
+      goto ARGS_END;
+    } else {
+      setArg();
+    }
+  }
+  for(i=0;i<args->num_keyword_args;i++){
+    format_error_str("keyword args unimplemented");
+    handle_error();
+  }
+  if(args->has_rest_arg){
+    if(CONSP(arglist)){
+      cons* prev_arg;
+      while(CONSP(arglist)){
+        cons* cur_arg=xmalloc(sizeof(cons));
+        prev_arg=cur_arg;
+        j++;
+        args->args[j]->val=cons_sexp(cur_arg);
+        cur_arg->car=eval(XCAR(arglist),cur_env);
+        arglist=XCDR(arglist);
+        cur_arg->cdr.val.cons=xmalloc(sizeof(cons));
+        prev_arg=cur_arg;
+        cur_arg=cur_arg->cdr.val.cons;      
+      }
+      prev_arg->cdr=NIL;
+    }
+  }
+ ARGS_END:
+  return args;
 }

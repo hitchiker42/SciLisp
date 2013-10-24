@@ -91,14 +91,21 @@ sexp parse_cons(){
     tmpsym->val=UNBOUND;
     result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
     }
-  } else if(yytag==TOK_LAMBDA){
+  } else if(yytag==TOK_LAMBDA){//defun returns a TOK_LAMBDA as well
     sexp retval;
     retval.val.cons=xmalloc(sizeof(cons));
     retval.tag=_cons;
     retval.val.cons->car=*yylval;
     sexp fake_retval=retval;
+    //fake_retval because if we have, for a defun and lambda
+    //retval=(defun . fake_retval= (var . (args) . (body)))
+    //retval=fake_retval=(lambda . ( (args) . (body )))
+    //this goto seems unecessary
   TEST_ARG_LIST:if(nextTok() != TOK_LPAREN){
       if(retval.val.cons->car.val.special == _defun){
+        //because defun is (defun var (args) (body))
+        //and lambda is (lambda (args) (body)) we need to parse
+        //the var in defun seperately(that's what this is)
         retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
         fake_retval=XCDR(retval);*yylval;
         symref tempSym=xmalloc(sizeof(symbol));
@@ -111,14 +118,16 @@ sexp parse_cons(){
       handle_error();
       }
     }
+    //with the new args the only thing that changes is 
     cons* temp;
     temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+    //this, which becomes temp->car=parse_funcion_args();
     temp->car=parse_arg_list();
     //    PRINT_MSG(tag_name(temp->car.tag));
     temp->cdr.val.cons=xmalloc(sizeof(cons));
     temp=temp->cdr.val.cons;
     temp->cdr=NIL;
-    //    HERE();
+    //parse the function body
     if(nextTok() == TOK_LPAREN){
       temp->car=parse_list();
       temp->car.tag=_cons;
@@ -126,12 +135,13 @@ sexp parse_cons(){
       temp->car=parse_atom();
     }
     if(nextTok() != TOK_RPAREN){
-      error_val=error_sexp("error, missing closing parentheses");
+      error_val=error_sexp("error, missing closing parentheses in function defination");
       handle_error();
     }
-    //PRINT_MSG(print(cdr(retval)));
     return retval;
-  } else {
+  } else {//an unquoted list that's not a function call or special form
+    //should probably be a parse error, but I'm not totally confidient
+    //in things to do that yet
     return parse_list();
   }
   //implicit progn basically, keep parsing tokens until we get a close parens
@@ -352,7 +362,7 @@ static inline sexp parse_function_args(){
               LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
               if(nextTok() != TOK_RPAREN){
                 //default arg must be an atom
-                LAST_OPTARG(retval.val.funarg)->val=parse_atom();
+                LAST_ARG(retval.val.funarg)->val=parse_atom();
                 ADD_OPT_ARG(retval.val.funarg);
                 if(nextTok() != TOK_RPAREN){
                   format_error_str

@@ -9,6 +9,8 @@
 (defvar SciLisp-prims)
 (setq SciLisp-prims 
   '(
+;:minargs->:reqargs,add :optargs and :restarg
+;
     ;arithmatic functions
     ((:lname . "+") (:cname ."lisp_add")   (:minargs . 2)(:maxargs . 2))
     ((:lname . "-") (:cname ."lisp_sub")   (:minargs . 2)(:maxargs . 2))

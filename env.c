@@ -4,31 +4,8 @@
  ****************************************************************/
 #include "common.h"
 //#include "env.h"
-//looking stuff up, don't need a pointer
 local_symref getLocalSym(local_env *cur_env,CORD name);
-global_symref getGlobalSym(CORD name){
-  global_symref tempsym;
-  getGlobalSymMacro(name,tempsym);
-  return tempsym;
-}
-/*array_symref getArraySym(array_env args,CORD name){
-  int i,len=args.head[0].index;
-  array_symref arr=args.head;//array_symref=array_symbol*=array of array symbols
-  for(i=0;i<len;i++){
-    if(!CORD_cmp(arr[i].name,name)){
-      return arr[i];
-    }
-  }
-  return (array_symref)getSym(args.enclosing,name);
-  }*/
-symref addGlobalSym(symref Var){
-  global_symref GlobalVar=xmalloc(sizeof(global_symbol));
-  GlobalVar->name=Var->name;
-  GlobalVar->val=Var->val;
-  addGlobalSymMacro(GlobalVar);
-  PRINT_MSG(GlobalVar->name);
-  return toSymref(GlobalVar);
-}
+symref getFunctionSym(function_env *cur_env,CORD name);
 symref getSym(env *cur_env,CORD name){
   switch(cur_env->tag){
     case _global:{
@@ -39,9 +16,22 @@ symref getSym(env *cur_env,CORD name){
     }
     case _local:
       return (symref)getLocalSym((local_env*)cur_env,name);
-      //    case _array:
-      //      return (symref)GetArraySym((*(array_env*)&cur_env),name);
+    case _funArgs:
+      return (symref)getFunctionSym((function_env*)cur_env,name);
   }
+}
+global_symref getGlobalSym(CORD name){
+  global_symref tempsym;
+  getGlobalSymMacro(name,tempsym);
+  return tempsym;
+}
+symref addGlobalSym(symref Var){
+  global_symref GlobalVar=xmalloc(sizeof(global_symbol));
+  GlobalVar->name=Var->name;
+  GlobalVar->val=Var->val;
+  addGlobalSymMacro(GlobalVar);
+  PRINT_MSG(GlobalVar->name);
+  return toSymref(GlobalVar);
 }
 local_symref getLocalSym(local_env *cur_env,CORD name){
   local_symref cur_sym=cur_env->head;
@@ -69,22 +59,30 @@ symref addSym(env *cur_env,symref Var){
       return addGlobalSym(Var);
     case _local:
       return addLocalSym((local_env*)cur_env,Var);
+    case _funArgs:
+      return NULL;
   }
 }
-sexp getFunctionArgs(sexp args,env* cur_env){
-  if(args.tag != _funargs){
-    handle_error();
-  }
-  int i,j=0;
-  for(i=0;i<args.val.funargs->num_req_args;i++){  
-    if(!(CONSP(args))){
-      handle_error_str("not enough args");
-      handle_error();
-    } else {
-      args.val.funargs->args[j++]=eval(XCAR(args));
-      args=XCDR(args);
+symref getFunctionSym(function_env* cur_env,CORD name){
+  function_args* args=cur_env->head;
+  int i;
+  for(i=0;i<args->max_args;i++){
+    if(!CORD_cmp(name,args->args[i]->name)){
+      return args->args[i];
     }
   }
-  for(i=0;i<args.val.funargs->num_opt_args;i++){
+  return getSym(cur_env->enclosing,name);
+}
+//needs to move to somewhere else.
+
     
-  ARGS_END:
+/*array_symref getArraySym(array_env args,CORD name){
+  int i,len=args.head[0].index;
+  array_symref arr=args.head;//array_symref=array_symbol*=array of array symbols
+  for(i=0;i<len;i++){
+    if(!CORD_cmp(arr[i].name,name)){
+      return arr[i];
+    }
+  }
+  return (array_symref)getSym(args.enclosing,name);
+  }*/
