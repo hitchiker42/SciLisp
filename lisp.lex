@@ -90,7 +90,8 @@ union data {
     /*String Literal a quote, followed by either a literal \"
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
 "\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
-  yylval->val.cord=CORD_strdup(yytext);return TOK_STRING;}
+  yylval->val.cord=CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2));
+                               return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
   yylval->val.uchar=(wchar_t)lex_char(yytext);return TOK_CHAR;}
  /*Special forms, generating function at end of file*/

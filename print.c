@@ -25,6 +25,9 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_type,type);
     mk_tag_name(_true,t);
     mk_tag_name(_lenv,local environment);
+    mk_tag_name(_stream,stream);
+    default:
+      return "forgot to do that one";
   }
 }
 #undef mk_tag_name
@@ -138,7 +141,8 @@ CORD print(sexp obj){
       }
     case _error:
     case _str:
-      return obj.val.cord;
+      CORD_sprintf(&retval,"\"%r\"",obj.val.cord);
+      return retval;
     case _lenv:{
       local_symref cur_sym=obj.val.lenv;
       acc="(";
@@ -187,6 +191,9 @@ CORD print(sexp obj){
       return "#f";
     case _type:
       return tag_name(obj.val.meta);
+    case _stream:
+      CORD_sprintf(&retval,"File descriptor %d",fileno(obj.val.stream));
+      return retval;
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;
@@ -202,6 +209,14 @@ sexp lisp_println(sexp obj){
   print_string=CORD_cat(print_string,"\n");
   CORD_fprintf(stderr,"%r\n",print_string);
   return (sexp){.tag=_str,.val={.cord=print_string}};
+}
+sexp lisp_fprint(sexp obj, sexp file){
+  lisp_fputs(lisp_print(obj),file);
+  return NIL;
+}
+sexp lisp_fprintln(sexp obj, sexp file){
+  lisp_fputs(lisp_println(obj),file);
+  return NIL;
 }
 CORD function_name(function fun){
   if(fun.fxn_type==1){

@@ -10,6 +10,9 @@
 //#define GC_DEBUG
 //#define GC_PRINT_STATS
 #include <pthread.h>
+#include <sched.h>
+#include <sys/wait.h>
+#include <dlfcn.h>
 #define GC_THREADS
 #include <gc.h>
 #include <ctype.h>

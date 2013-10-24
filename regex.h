@@ -7,6 +7,7 @@
  *support for that)*/
 #ifndef _REGEX_H_
 #define _REGEX_H_
-#include "common.h"
 #include "emacs_regex.h"
+/*sexp lisp_re_compile(sexp regex);
+  sexp lisp_re_replace(sexp regex,sexp string);*/
 #endif

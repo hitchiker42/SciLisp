@@ -313,8 +313,6 @@ int main(int argc,char* argv[]){
     }
   }
 }
-
-
 static CORD Make_SciLisp_verson_string(c_string Version_no){
   CORD version_string;
   CORD_sprintf(&version_string,"SciLisp %s",Version_no);

@@ -23,12 +23,16 @@ CORD print_num(sexp obj);
  * will recursively(actually via a loop) print the values in a cons cell or
  * list*/
 CORD print(sexp obj);
+//really ought to consolodate these next functions into one w/optional args
 /* return a lisp object contating the printed representation of obj*/
 sexp lisp_print(sexp obj);
+sexp lisp_fprint(sexp obj,sexp file);
 /* return a lisp object containing the preinted representation of obj 
  * with an added traling newline */
 sexp lisp_println(sexp obj);
+sexp lisp_fprintln(sexp obj,sexp file);
 //return lambda for a lambda function or the lisp name of a primitive function
 CORD function_name(function fun);
 //return the name of the enum value of token as a string
 CORD token_name(TOKEN token);
+sexp lisp_fputs(sexp string,sexp stream);

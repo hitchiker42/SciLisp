@@ -238,7 +238,8 @@ sexp lisp_open(sexp filename,sexp mode){
   if (!STRINGP(filename) || !(STRINGP(mode))){
     return error_sexp("arguments to open must be strings");
   }
-  FILE* file = fopen(filename.val.cord,mode.val.cord);
+  FILE* file = fopen(CORD_as_cstring(filename.val.cord),
+                     CORD_as_cstring(mode.val.cord));
   if(file){
     return (sexp){.tag=_stream,.val={.stream=file}};
   } else {
@@ -289,7 +290,8 @@ sexp lisp_getcwd(){
   free(temp_cwdname);
   return (sexp){.tag=_str,.val={.cord=cwdname}};
 }
-sexp lisp_system(sexp command){
+sexp lisp_system_simple(sexp command){
+  HERE();
   if(!STRINGP(command)){
     return error_sexp("argument to system must be a string");
   } else {
@@ -297,7 +299,58 @@ sexp lisp_system(sexp command){
     return long_sexp(retval);
   }
 }
-sexp lisp_system_wArgs(sexp command_and_args){}
+#define SHELL "/bin/bash"
+sexp lisp_system(sexp command,sexp args){
+  HERE();
+  if(!STRINGP(command)){
+  string_error:
+    return error_sexp("arguments to system must be strings");
+  } if(NILP(args)){
+    //    return lisp_system_simple(command);
+  }
+  /*allocate arguments, suprisingly complicated */
+  char **argv=alloca(16*sizeof(char*));//this should usually be enough
+  argv[0]="bash";
+  argv[1]="-c";
+  argv[2]=CORD_as_cstring(command.val.cord);
+  int i=3,maxargs=16;
+  while(1){
+    HERE();
+    while(CONSP(args) && i<maxargs){
+      HERE();
+      if(!STRINGP(XCAR(args))){goto string_error;}
+      argv[i]=CORD_as_cstring(XCAR(args).val.cord);
+      args=XCDR(args);
+      i++;
+    } if(i<maxargs){break;}
+    maxargs*=2;
+    char** temp=alloca(maxargs*sizeof(char*));
+    *temp=*argv;//? this seems somehow wrong
+    argv=temp;
+  }
+  argv[i]=NULL;
+  PRINT_MSG(argv[3]);
+  //now to actually do what we came here for
+  int status;
+  pid_t pid;
+  pid=fork();
+  if(!pid){
+    //we're in the child process now (fork returns 0 in child process)
+    execv(SHELL,argv);//doesn't return
+    _exit(EXIT_FAILURE);//if we get here something failed
+    //we need to termin
+  } else if (pid < 0) {//fork failed
+    return_errno("fork");
+  } else {//this is the parent process
+    if(waitpid(pid,&status,0) != pid){
+      return error_sexp
+        ("the hell, I only forked one process, how'd we get here");
+    } else {
+      return long_sexp(status);
+    }
+  }
+}
+sexp arith_driver(sexp required,sexp values,enum operator op){}
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen");
@@ -325,6 +378,25 @@ sexp lisp_sum(sexp required,sexp values){
     }
   }
 }
+//just call a c function, unsafe, no typechecking and not very user frendly
+//argtypes should be either keyword symbols or literal types
+sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
+  if(!STRINGP(function) || !(STRINGP(libname)) || !(CONSP(argtypes))
+     || !(CONSP(args))){
+    return error_sexp("type error in ccall");
+  }
+  char* dllibname;
+  void* dllib;
+  if(CORD_cmp(CORD_substr(libname.val.cord,0,3),"lib")){
+    dllibname=CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
+  } else {
+    dllibname=CORD_to_const_char_star
+      (CORD_catn(3,"lib",libname.val.cord,".so"));
+  }
+  dllib=dlopen(dllibname,0);
+  return NIL;
+}
+                                  
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -333,6 +405,7 @@ const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e
 const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
 const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
 const sexp lisp_max_long = {.tag = _long,.val={.int64 = LONG_MAX}};
+
 MK_PREDICATE2(consp,_cons,_list);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
@@ -396,15 +469,18 @@ DEFUN("iota",lisp_iota,1,4);
 DEFUN("aref",aref,2,2);
 DEFUN("array->list",array_to_list,1,1);
 DEFUN("typeName",lisp_typeName,1,1);
+DEFUN("typeOf",typeOf,1,1);
 DEFUN("print",lisp_print,1,1);
 DEFUN("println",lisp_println,1,1);
 DEFUN("eval",lisp_eval,1,1);
 DEFUN("fopen",lisp_open,1,2);
 DEFUN("fclose",lisp_close,1,1);
 DEFUN("fputs",lisp_fputs,2,2);
+DEFUN("fprint",lisp_fprint,2,2);
+DEFUN("fprintln",lisp_fprintln,2,2);
 DEFUN_MANY("cat",lisp_cat,1,2)
 DEFUN("pwd",lisp_getcwd,0,0);
-DEFUN("system",lisp_system,1,1);
+DEFUN_MANY("system",lisp_system,1,2)
 DEFUN("logxor",lisp_xor,2,2);
 DEFUN("logand",lisp_logand,2,2);
 DEFUN("logor",lisp_logor,2,2);

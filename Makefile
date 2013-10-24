@@ -16,7 +16,7 @@ CXX:=g++
 OPT_FLAGS:=-Og
 endif
 CC:=$(CC) -fPIC #position independent code, for everything
-OPT_FLAGS:=$(OPT_FLAGS) -ggdb
+OPT_FLAGS:=$(OPT_FLAGS) -g
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
@@ -39,7 +39,7 @@ BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
 LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs core engine` $(OPT_FLAG)
-CXXFLAGS:=$(CXXFLAGS) `$(LLVM_CONFIG) --cppflags` -flto -ggdb
+CXXFLAGS:=$(CXXFLAGS) `$(LLVM_CONFIG) --cppflags` -flto -g
 define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
@@ -54,7 +54,7 @@ llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	 $(CXX)	llvm_codegen.o llvm_test.o \
 	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
 	 $(XLDFLAGS) $(COMMON_CFLAGS) -L$(shell pwd) \
-	 libSciLisp.so -Wl,-rpath=$(shell pwd) -ggdb -o llvm-test
+	 libSciLisp.so -Wl,-rpath=$(shell pwd) -g -o llvm-test
 all: SciLisp llvm_test
 #compiled files
 lex.yy.c: lisp.lex common.h
@@ -63,8 +63,9 @@ lex.yy.o: lex.yy.c
 	$(CC) $(XCFLAGS_NOWARN) -w -c lex.yy.c -o lex.yy.o
 parser.o: parser.c $(COMMON_HEADERS) cons.h
 cons.o: cons.c $(COMMON_HEADERS) cons.h
-print.o: print.c $(COMMON_HEADERS) cons.h
+print.o: print.c $(COMMON_HEADERS) cons.h prim.h
 frontend.o: frontend.c $(COMMON_HEADERS) prim.h
+	$(CC) $(CFLAGS) -c frontend.c -o frontend.o -fno-var-tracking-assignments
 eval.o: eval.c $(COMMON_HEADERS) cons.h array.h
 codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
@@ -78,6 +79,8 @@ env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 emacs_regex.o: emacs_regex.c emacs_regex.h
+prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h
+	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
 #making libraries
 LIBPRIM_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
 #should be a way to do this in less lines

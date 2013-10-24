@@ -70,15 +70,17 @@
     ((:lname . "array->list")(:cname ."array_to_list")(:minargs . 1)(:maxargs . 1))
     ;meta information/ read eval print / system ctl
     ((:lname . "typeName")(:cname ."lisp_typeName")(:minargs . 1)(:maxargs . 1))
-    ((:lname . "print")(:cname ."lisp_print")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "typeOf")(:cname . "typeOf")(:minargs . 1)(:maxargs . 1))    ((:lname . "print")(:cname ."lisp_print")(:minargs . 1)(:maxargs . 1))
     ((:lname . "println")(:cname ."lisp_println")(:minargs . 1)(:maxargs . 1))
     ((:lname . "eval")(:cname ."lisp_eval")(:minargs . 1)(:maxargs . 1))
     ((:lname . "fopen")(:cname . "lisp_open")(:minargs . 1)(:maxargs . 2))
     ((:lname . "fclose")(:cname . "lisp_close")(:minargs . 1)(:maxargs . 1))
     ((:lname . "fputs")(:cname . "lisp_fputs")(:minargs . 2)(:maxargs . 2))
+    ((:lname . "fprint")(:cname ."lisp_fprint")(:minargs . 2)(:maxargs . 2))
+    ((:lname . "fprintln")(:cname ."lisp_fprintln")(:minargs . 2)(:maxargs . 2))
     ((:lname . "cat")(:cname . "lisp_cat")(:minargs . 1)(:maxargs . "many"))
     ((:lname . "pwd")(:cname . "lisp_getcwd")(:minargs . 0)(:maxargs . 0))
-    ((:lname . "system")(:cname . "lisp_system")(:minargs . 1)(:maxargs . 1))
+    ((:lname . "system")(:cname . "lisp_system")(:minargs . 1)(:maxargs . "many"))
     ;bit twiddling 
     ((:lname . "logxor")(:cname ."lisp_xor")(:minargs . 2)(:maxargs . 2))
     ((:lname . "logand")(:cname ."lisp_logand")(:minargs . 2)(:maxargs . 2))
@@ -107,14 +109,16 @@
 ;code for primitives, create a new file, copy the text
 ;from the constant file into the new file then add
 ;the code for the primitives(could also have a suffix file)
-(defvar initPrims-header
+(defvar initPrims-header)
+(setq initPrims-header
 "#define initPrims()                                                     \\
 if(initPrimsFlag){                                                    \\
 initPrimsFlag=0;                                                      \\
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \\
 topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \\
 ")
-(defvar initPrims-suffix 
+(defvar initPrims-suffix)
+(setq initPrims-suffix 
 "INTERN_ALIAS(\"cons?\",lisp_consp,17);                                  \\
 INTERN_ALIAS(\"array?\",lisp_arrayp,23);                                \\
 DEFCONST(\"Meps\",lisp_mach_eps);                                       \\
@@ -125,6 +129,9 @@ DEFCONST(\"t\",LISP_TRUE);                                              \\
 DEFCONST(\"#f\",LISP_FALSE);                                            \\
 DEFCONST(\"MAX_LONG\",lisp_max_long);                                   \\
 DEFCONST(\"$$\",LispEmptyList);                                         \\
+DEFCONST(\"stderr\",lisp_stderr);                                       \\
+DEFCONST(\"stdout\",lisp_stdout);                                       \\
+DEFCONST(\"stdin\",lisp_stdin);                                         \\
 srand48(time(NULL));}
 #undef DEFUN
 #endif")
@@ -195,4 +202,3 @@ srand48(time(NULL));}
 ;      (insert-file-contents "llvmh_header.c")
 ;      (write-file "llvm_temp.h")
 ;      (kill-buffer))))
- (generate-SciLisp-prims)

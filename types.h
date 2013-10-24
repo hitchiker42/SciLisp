@@ -65,6 +65,7 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define LAMBDAP(obj) (obj.tag == _lam)
 #define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
 #define STREAMP(obj)(obj.tag ==_stream)
+#define REGEXP(obj)(obj.tag == _regex)
 enum _tag {
   _error = -4,//type of errors, value is a string
   _false = -3,//type of #f, actual value is undefined
@@ -87,9 +88,10 @@ enum _tag {
   _lenv = 14,//type of local environments,value is lenv
   _dpair = 15,
   _ustr = 16,//utf8 string
-  _regexp = 17,//compiled regular expression
-  _symbol = 18,//for keyword symbols mostly
-  _stream = 19,//type of input/output streams, corrsponds to c FILE*
+  _regex = 17,//compiled regular expression
+  _stream = 18,//type of input/output streams, corrsponds to c FILE*
+  _matrix =19,//array for mathematical calculations
+  
 };
 enum special_form{
   _def=0,
@@ -149,10 +151,9 @@ union data {
   _tag meta;
   sexp* quoted;
   local_symref lenv;
-  regex_t regex;
+  regex_t* regex;
   //before I use keyword symbols I need to figure out an efficent 
   //way to compare them
-  symref sym;
   FILE* stream;
 };
 //I'm thinking of using a bitfield for quoting...I'm not sure though
@@ -398,6 +399,7 @@ static sexp typeOf(sexp obj){
     mkTypeCase(Qlenv,14);
   }
 }
+
 enum operator{
   _add,
   _sub,
@@ -410,3 +412,45 @@ enum operator{
   _logior,
   _logxor,
 };
+#define getVal(obj)                                             \
+  (obj.tag == _error ? obj.val.cord  :                          \
+   (obj.tag == _false ? -3  :                                   \
+    (obj.tag == _uninterned ? -2  :                             \
+     (obj.tag == _nil ? 0  :                                    \
+      (obj.tag == _cons ? obj.val.cons  :                       \
+       (obj.tag == _double ? obj.val.real64  :                  \
+        (obj.tag == _long ? obj.val.int64  :                    \
+         (obj.tag == _char ? obj.val.uchar  :                   \
+          (obj.tag == _str ? obj.val.cord  :                    \
+           (obj.tag == _fun ? obj.val.fun  :                    \
+            (obj.tag == _sym ? obj.val.var  :                   \
+             (obj.tag == _special ? obj.val.meta  :             \
+              (obj.tag == _macro ? 0.  :                        \
+               (obj.tag == _type ? obj.val.meta  :              \
+                (obj.tag == _array ? obj.val.array  :           \
+                 (obj.tag == _true ? 11  :                      \
+                  (obj.tag == _list ? obj.val.cons  :           \
+                   (obj.tag == _lam ? obj.val.lam  :            \
+                    (obj.tag == _lenv ? obj.val.lenv  :         \
+                     (obj.tag == _dpair ? obj.val.cons  :       \
+                      (obj.tag == _ustr ? obj.val.ustr  :       \
+                       (obj.tag == _regex ? obj.val.regex  :    \
+                        (obj.tag == _stream ? obj.val.stream  : \
+                         )))))))))))))))))))))))
+/*struct typehash{
+  _tag type;
+  char* name;
+  long hash;
+};
+{.tag =_double,.name = "double",.hash = 0x276d1506}
+{.tag =_long,.name = "long",.hash = 0xc6417873}
+{.tag =_nil,.name = "nil",.hash = 0x6b8a33b2}
+{.tag =_cons,.name = "cons",.hash = 0xf114bd8e}
+{.tag =_string,.name = "string",.hash = 0xa17d48e}
+{.tag =_char,.name = "char",.hash = 0xf118d13d}
+{.tag =_symbol,.name = "symbol",.hash = 0x83615d2d}
+{.tag =_special,.name = "special",.hash = 0x59d387a}
+{.tag =_type,.name = "type",.hash = 0x9fa9a73d}
+{.tag =_array,.name = "array",.hash = 0x11b0a054}
+{.tag =_boolean,.name = "boolean",.hash = 0x624dd20f}
+{.tag =_lambda,.name = "lambda",.hash = 0x65d0c568}*/

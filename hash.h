@@ -21,6 +21,7 @@
 #ifndef HASH_H_
 # define HASH_H_
 #include "common.h"
+#include "hash_fn.h"
 # include <stdint.h>
 # include <stdio.h>
 #define _GL_ATTRIBUTE_WUR __attribute__((warn_unused_result))

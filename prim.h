@@ -41,6 +41,9 @@
 #define DEFUN(cname,numargs)                    \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern fxn_proto cname ## call
+#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
+#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
+#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
 extern const sexp lisp_pi;
 extern const sexp lisp_euler;
 extern const sexp lisp_max_long;
@@ -104,15 +107,18 @@ DEFUN(lisp_iota,4);
 DEFUN(aref,2);
 DEFUN(array_to_list,1);
 DEFUN(lisp_typeName,1);
+DEFUN(typeOf,1);
 DEFUN(lisp_print,1);
 DEFUN(lisp_println,1);
 DEFUN(lisp_eval,1);
 DEFUN(lisp_open,2);
 DEFUN(lisp_close,1);
 DEFUN(lisp_fputs,2);
+DEFUN(lisp_fprint,2);
+DEFUN(lisp_fprintln,2);
 DEFUN(lisp_cat,2);
 DEFUN(lisp_getcwd,0);
-DEFUN(lisp_system,1);
+DEFUN(lisp_system,2);
 DEFUN(lisp_xor,2);
 DEFUN(lisp_logand,2);
 DEFUN(lisp_logor,2);
@@ -197,12 +203,15 @@ DEFUN_INTERN("iota",lisp_iota);\
 DEFUN_INTERN("aref",aref);\
 DEFUN_INTERN("array->list",array_to_list);\
 DEFUN_INTERN("typeName",lisp_typeName);\
+DEFUN_INTERN("typeOf",typeOf);\
 DEFUN_INTERN("print",lisp_print);\
 DEFUN_INTERN("println",lisp_println);\
 DEFUN_INTERN("eval",lisp_eval);\
 DEFUN_INTERN("fopen",lisp_open);\
 DEFUN_INTERN("fclose",lisp_close);\
 DEFUN_INTERN("fputs",lisp_fputs);\
+DEFUN_INTERN("fprint",lisp_fprint);\
+DEFUN_INTERN("fprintln",lisp_fprintln);\
 DEFUN_INTERN("cat",lisp_cat);\
 DEFUN_INTERN("pwd",lisp_getcwd);\
 DEFUN_INTERN("system",lisp_system);\
@@ -238,6 +247,9 @@ DEFCONST("t",LISP_TRUE);                                              \
 DEFCONST("#f",LISP_FALSE);                                            \
 DEFCONST("MAX_LONG",lisp_max_long);                                   \
 DEFCONST("$$",LispEmptyList);                                         \
+DEFCONST("stderr",lisp_stderr);                                       \
+DEFCONST("stdout",lisp_stdout);                                       \
+DEFCONST("stdin",lisp_stdin);                                         \
 srand48(time(NULL));}
 #undef DEFUN
 #endif

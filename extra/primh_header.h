@@ -41,6 +41,9 @@
 #define DEFUN(cname,numargs)                    \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern fxn_proto cname ## call
+#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
+#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
+#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
 extern const sexp lisp_pi;
 extern const sexp lisp_euler;
 extern const sexp lisp_max_long;

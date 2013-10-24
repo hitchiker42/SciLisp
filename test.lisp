@@ -76,6 +76,9 @@
 (print ?\x3f)
 #|(print copyright-literal)|#
 (print utf8-copyright)
+(pwd)
+(system "ls")
+(system "touch" "temp.temp")
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:
