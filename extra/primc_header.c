@@ -350,7 +350,66 @@ sexp lisp_system(sexp command,sexp args){
     }
   }
 }
+sexp arith_driver_simple(sexp required,sexp values,enum operator op){
+  sexp(*f)(sexp,sexp);
+  sexp retval;
+  if(!(NUMBERP(required))){} 
+  switch(op){
+    case _add:
+      f=lisp_add;
+      retval=required;
+      break;
+    case _sub:
+      if(NILP(values)){
+        if(INTP(required)){
+          return (sexp){.tag=_long,.meta=required.meta,
+              .val = {.int64 = (required.val.int64<0?
+                                required.val.int64:
+                                -required.val.int64)}};
+        } else if(FLOATP(required)){
+          return (sexp){.tag=_double,.meta=required.meta,
+              .val = {.real64 = (required.val.real64<0?
+                                required.val.real64:
+                                -required.val.real64)}};
+        } else {goto TYPE_ERROR;}
+      } else {
+        f=lisp_sub;
+        retval=required;
+      }
+    case _mul:
+      f=lisp_mul;
+      retval=required;
+    case _div:
+      if(NILP(values)){
+        if(NUMBERP(required)){
+        return (sexp){.tag=_double,.meta=required.meta,
+            .val={.real64=1/getDoubleVal(required)}};
+        } else {goto TYPE_ERROR;}
+      } else {
+        f=lisp_div;
+        retval=required;
+      }
+    case _min:
+      f=lisp_min;
+      retval=required;
+    case _max:
+      f=lisp_max;
+      retval=required;
+      //do bitwise stuff
+  }
+  while(CONSP(values)){
+    retval=f(retval,XCAR(values));
+    values=XCDR(values);
+    if(ERRORP(retval)){
+      goto TYPE_ERROR;
+    }
+  }
+  return retval;
+ TYPE_ERROR:
+  
+}
 sexp arith_driver(sexp required,sexp values,enum operator op){}
+sexp float_arith_driver(sexp required,sexp values,enum operator op){}
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen");

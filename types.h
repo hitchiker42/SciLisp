@@ -134,7 +134,7 @@ enum sexp_meta{
   _long_array=2,
   _utf8_string=3,
 };
-union data {
+union data {//keep max size at 64 bits
   double real64;
   long int64;
   wchar_t utf8_char;//depreciated
@@ -159,13 +159,13 @@ union data {
 };
 //I'm thinking of using a bitfield for quoting...I'm not sure though
 //
-struct sexp{
+struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  
   sexp_meta meta : 16;//random meta data(sign bit determines quoting)
   unsigned short len;//length of a list, array or string
   data val;
 };
-struct cons{
+struct cons{//32 bytes
   sexp car;
   sexp cdr;
 };
@@ -207,13 +207,16 @@ union funcall{
   sexp(*f2)(sexp,sexp);
   sexp(*f3)(sexp,sexp,sexp);
   sexp(*f4)(sexp,sexp,sexp,sexp);
+  sexp(*f5)(sexp,sexp,sexp,sexp,sexp);
+  sexp(*f6)(sexp,sexp,sexp,sexp,sexp,sexp);
+  sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*fmany)(sexp,...);
 };
 struct function{
   short min_args;
   short max_args;
   short opt_args;
-  short rest_parameter;
+  short renst_parameter;
   union {
     fxn_proto* prim;
     lambda* lam;
@@ -280,15 +283,16 @@ struct function_env{
   env* enclosing;
   function_args* head;//for consistancy in naming
 };
-struct function_new{
-  struct function_args* args;
-  CORD lname;//lambdas should be #<lambda{number via global counter}>
-  CORD cname;//name in c, and llvm I suppose
+//typedef function_new* fxn_ptr
+struct function_new{//36 bytes
+  function_args* args;//64
+  CORD lname;//lambdas should be #<lambda{number via global counter}>(64)
+  CORD cname;//name in c, and llvm I suppose(64)
   union {
     lambda* lambda_fun;
-    fxn_ptr compiled_fun;
-  } function_ptr;
-  enum {
+    funcall compiled_fun;
+  } function_ptr;//(64)
+  enum {//(32)
     _lambda_fun,
     _compiled_fun,
   } fun_type;
@@ -315,6 +319,10 @@ struct env{
 struct lambda{
   local_env *env;
   short minargs,maxargs;
+  sexp body;
+};
+struct lambda_new{
+  local_env *env;//for closures
   sexp body;
 };
 struct scoped_sexp{
