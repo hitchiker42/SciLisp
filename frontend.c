@@ -301,6 +301,8 @@ int main(int argc,char* argv[]){
       evalError=0;
       yyrestart(yyin);
     }
+    //try to parallize this for practice
+    //3 threads, one to read, one to parse and one to eval and print
     //read
     #ifdef HAVE_READLINE
     start_pos=lispReadLine(my_pipe,tmpFile);

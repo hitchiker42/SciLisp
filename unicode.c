@@ -46,3 +46,4 @@ static wchar_t lex_char(char* cur_yytext){
     return (wchar_t)L'\0';
   }
 }
+
