@@ -47,6 +47,14 @@
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   fxn_proto cname##call=                                        \
     { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
+#define DEFUN_NEW(lname,cname,reqargs,optargs,keyargs,restarg,maxargs)  \
+  function_args cname##args=                                            \
+    { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
+      .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
+  function_new cname##call=                                             \
+    { .args=&cname##args,.lname=#lname,.cname=#cname,                   \
+      .function_ptr = {.compiled_fun = {.f##maxargs=cname}},            \
+      .fun_type = _compiled_fun };
 #define DEFUN_MANY(lname,cname,minargs,maxargs)                \
   fxn_proto cname##call=                                       \
     { #cname, lname, minargs, -1, {.f##maxargs=cname}};

@@ -284,6 +284,7 @@ struct function_env{
   function_args* head;//for consistancy in naming
 };
 //typedef function_new* fxn_ptr
+#define CALL_PRIM(fun) fun.val.fxn.function_ptr.compiled_fun
 struct function_new{//36 bytes
   function_args* args;//64
   CORD lname;//lambdas should be #<lambda{number via global counter}>(64)

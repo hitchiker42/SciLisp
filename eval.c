@@ -497,6 +497,65 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
       prev_arg->cdr=NIL;
     }
   }
+  if(CONSP(arglist)){
+    format_error_string("excess arguments passed");
+    handle_error();
+  }
  ARGS_END:
   return args;
+}
+static inline sexp call_builtin_new(sexp expr,env *cur_env){
+  sexp curFun=car(expr).val.var->val;
+  function_args *args=curFun.val.fun.args;
+  args=getFunctionArgs(cdr(expr),args,cur_env);
+  if(!args){
+    handle_error();
+  }
+  //PRINT_MSG(print(expr));
+  int i;
+  long numargs=args->max_args;
+  switch (numargs){
+    case 0:
+      if(!NILP(XCDR(expr))){
+        format_error_string
+          ("Arguments given to %r which takes no arguments",FLNAME(curFun));
+        return handle_error();
+      } else {
+        return CALL_PRIM(curFun).f0();
+      }
+    case 1:
+      return CALL_PRIM(curFun).f1(args->args[0]);
+    case 2:
+      return CALL_PRIM(curFun).f2(args->args[0],args->args[1]);
+    case 3:
+      return CALL_PRIM(curFun).f3(args->args[0],args->args[1],args->args[2]);
+    case 4:    
+      return CALL_PRIM(curFun).f4(args->args[0],args->args[1],
+                                  args->args[2],args->args[3]);
+    case 5:    
+      return CALL_PRIM(curFun).f5(args->args[0],args->args[1],
+                                  args->args[2],args->args[3],args->args[4]);
+    case 6:    
+      return CALL_PRIM(curFun).f6(args->args[0],args->args[1],args->args[2]
+                                  args->args[3],args->args[4],args->args[5]);
+    case 7:    
+      return CALL_PRIM(curFun).f7
+        (args->args[0],args->args[1],args->args[2],args->args[3],
+         args->args[4],args->args[5],args->args[6]);
+    default:
+      goto ERROR;
+  }
+ ERROR:
+  return handle_error();
+}
+static sexp call_lambda_new(sexp expr,env *cur_env){
+  sexp curFun=car(expr).val.var->val;
+  lambda* curLambda=curFun.val.fun.function_ptr.lambda_fun;
+  function_args *args=curFun.val.fun.args;
+  args=getFunctionArgs(cdr(expr),args,cur_env);
+  if(!args){
+    handle_error();
+  }
+  function_env lambda_env={.enclosing = curLambda->env,.head=args->args};
+  return eval(curLambda->body,&lambda_env);
 }
