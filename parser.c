@@ -341,7 +341,7 @@ static inline sexp parse_function_args(){
   //just an inital guess, should be more than enough in most cases
   //at the moment I haven't actually put in checking for more that
   //8 args
-  symref* args=xmalloc(16*sizeof(symref));
+  symbol* args=xmalloc(16*sizeof(symbol));
   *retval.val.funarg=(function_args)
     {.num_req_args=0,.num_opt_args=0,.num_keyword_args=0,
      .has_rest_arg=0,.args=args,.max_args=0};
@@ -359,10 +359,10 @@ static inline sexp parse_function_args(){
             case TOK_LPAREN:
               nextTok();
               if(yytag != TOK_ID){goto TYPE_ERROR;}
-              LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
+              LAST_ARG(retval.val.funarg).name=yylval->val.cord;
               if(nextTok() != TOK_RPAREN){
                 //default arg must be an atom
-                LAST_ARG(retval.val.funarg)->val=parse_atom();
+                LAST_ARG(retval.val.funarg).val=parse_atom();
                 ADD_OPT_ARG(retval.val.funarg);
                 if(nextTok() != TOK_RPAREN){
                   format_error_str
@@ -371,8 +371,8 @@ static inline sexp parse_function_args(){
                 }
               }
             case TOK_ID:
-              LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
-              LAST_ARG(retval.val.funarg)->val=NIL;
+              LAST_ARG(retval.val.funarg).name=yylval->val.cord;
+              LAST_ARG(retval.val.funarg).val=NIL;
               ADD_OPT_ARG(retval.val.funarg);
             default:
               format_error_str
@@ -402,15 +402,15 @@ static inline sexp parse_function_args(){
          !CORD_cmp(yylval->val.cord,"&body")){
       REST_PARAM:
         if(nextTok() != TOK_ID){goto TYPE_ERROR;}
-        LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
-        LAST_ARG(retval.val.funarg)->val=NIL;
+        LAST_ARG(retval.val.funarg).name=yylval->val.cord;
+        LAST_ARG(retval.val.funarg).val=NIL;
         ADD_REST_ARG(retval.val.funarg);
         nextTok();
       }
       break;
     } else {
-      LAST_ARG(retval.val.funarg)->name=yylval->val.cord;
-      LAST_ARG(retval.val.funarg)->val=UNBOUND;
+      LAST_ARG(retval.val.funarg).name=yylval->val.cord;
+      LAST_ARG(retval.val.funarg).val=UNBOUND;
       ADD_REQ_ARG(retval.val.funarg);
     }
   }

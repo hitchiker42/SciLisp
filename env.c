@@ -67,8 +67,8 @@ symref getFunctionSym(function_env* cur_env,CORD name){
   function_args* args=cur_env->head;
   int i;
   for(i=0;i<args->max_args;i++){
-    if(!CORD_cmp(name,args->args[i]->name)){
-      return args->args[i];
+    if(!CORD_cmp(name,args->args[i].name)){
+      return args->args+i;
     }
   }
   return getSym(cur_env->enclosing,name);

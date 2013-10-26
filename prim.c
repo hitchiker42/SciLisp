@@ -47,6 +47,15 @@
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   fxn_proto cname##call=                                        \
     { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
+#define DEFUN_NEW(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
+  symbol c_name##mem[maxargs];                                          \
+  function_args c_name##args=                                            \
+    { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
+      .has_rest_arg=restarg,.args=c_name##mem,.max_args=maxargs };      \
+  function_new c_name##call=                                             \
+    { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
+      .function_ptr = {.compiled_fun = {.f##maxargs=c_name}},            \
+      .fun_type = _compiled_fun };
 #define DEFUN_MANY(lname,cname,minargs,maxargs)                \
   fxn_proto cname##call=                                       \
     { #cname, lname, minargs, -1, {.f##maxargs=cname}};
@@ -231,6 +240,24 @@ sexp lisp_dec(sexp num){
         return num;
     }
 }
+sexp lisp_min(sexp a,sexp b){
+  if (!NUMBERP(a) || !(NUMBERP(b))){
+    return error_sexp("arguments to min must be numbers");
+  } if (a.tag == b.tag && a.tag==_long){
+    return (a.val.int64 > b.val.int64?a:b);
+  } else {
+    return (getDoubleVal(a) > getDoubleVal(b)?a:b);
+  }
+}
+sexp lisp_max(sexp a,sexp b){
+  if (!NUMBERP(a) || !(NUMBERP(b))){
+    return error_sexp("arguments to max must be numbers");
+  } if (a.tag == b.tag && a.tag==_long){
+    return (a.val.int64 < b.val.int64?a:b);
+  } else {
+    return (getDoubleVal(a) < getDoubleVal(b)?a:b);
+  }
+}
 sexp lisp_open(sexp filename,sexp mode){
   if(NILP(mode)){
     mode=string_sexp("r");
@@ -350,7 +377,66 @@ sexp lisp_system(sexp command,sexp args){
     }
   }
 }
+sexp arith_driver_simple(sexp required,sexp values,enum operator op){
+  sexp(*f)(sexp,sexp);
+  sexp retval;
+  if(!(NUMBERP(required))){} 
+  switch(op){
+    case _add:
+      f=lisp_add;
+      retval=required;
+      break;
+    case _sub:
+      if(NILP(values)){
+        if(INTP(required)){
+          return (sexp){.tag=_long,.meta=required.meta,
+              .val = {.int64 = (required.val.int64<0?
+                                required.val.int64:
+                                -required.val.int64)}};
+        } else if(FLOATP(required)){
+          return (sexp){.tag=_double,.meta=required.meta,
+              .val = {.real64 = (required.val.real64<0?
+                                required.val.real64:
+                                -required.val.real64)}};
+        } else {goto TYPE_ERROR;}
+      } else {
+        f=lisp_sub;
+        retval=required;
+      }
+    case _mul:
+      f=lisp_mul;
+      retval=required;
+    case _div:
+      if(NILP(values)){
+        if(NUMBERP(required)){
+        return (sexp){.tag=_double,.meta=required.meta,
+            .val={.real64=1/getDoubleVal(required)}};
+        } else {goto TYPE_ERROR;}
+      } else {
+        f=lisp_div;
+        retval=required;
+      }
+    case _min:
+      f=lisp_min;
+      retval=required;
+    case _max:
+      f=lisp_max;
+      retval=required;
+      //do bitwise stuff
+  }
+  while(CONSP(values)){
+    retval=f(retval,XCAR(values));
+    values=XCDR(values);
+    if(ERRORP(retval)){
+      goto TYPE_ERROR;
+    }
+  }
+  return retval;
+ TYPE_ERROR:
+  return error_sexp("Type error");
+}
 sexp arith_driver(sexp required,sexp values,enum operator op){}
+sexp float_arith_driver(sexp required,sexp values,enum operator op){}
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen");
@@ -424,7 +510,7 @@ DEFUN("!=",lisp_ne,2,2);
 DEFUN("=",lisp_equals,2,2);
 DEFUN("++",lisp_inc,1,1);
 DEFUN("--",lisp_dec,1,1);
-DEFUN_MANY("sum",lisp_sum,1,2)
+DEFUN("sum",lisp_sum,1,2);
 DEFUN("cons",Cons,2,2);
 DEFUN("car",car,1,1);
 DEFUN("cdr",cdr,1,1);
@@ -478,9 +564,9 @@ DEFUN("fclose",lisp_close,1,1);
 DEFUN("fputs",lisp_fputs,2,2);
 DEFUN("fprint",lisp_fprint,2,2);
 DEFUN("fprintln",lisp_fprintln,2,2);
-DEFUN_MANY("cat",lisp_cat,1,2)
+DEFUN("cat",lisp_cat,1,2);
 DEFUN("pwd",lisp_getcwd,0,0);
-DEFUN_MANY("system",lisp_system,1,2)
+DEFUN("system",lisp_system,1,2);
 DEFUN("logxor",lisp_xor,2,2);
 DEFUN("logand",lisp_logand,2,2);
 DEFUN("logor",lisp_logor,2,2);
@@ -494,6 +580,8 @@ DEFUN("exp",lisp_exp,1,1);
 DEFUN("log",lisp_log,1,1);
 DEFUN("abs",lisp_abs,1,1);
 DEFUN("mod",lisp_mod,2,2);
+DEFUN("min",lisp_min,2,2);
+DEFUN("max",lisp_max,2,2);
 DEFUN("round",lisp_round,1,2);
 DEFUN("drand",lisp_randfloat,0,1);
 DEFUN("lrand",lisp_randint,0,0);

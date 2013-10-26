@@ -34,7 +34,9 @@ typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct global_env global_env;//hash table representing global namespace
 typedef struct function_env function_env;//Actually used for function arguments
 typedef struct lambda lambda;//type of lambda expressions
+typedef struct lambda_new lambda_new;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
+typedef struct function_new function_new;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
 typedef struct function_args function_args;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
@@ -65,6 +67,7 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
 #define STREAMP(obj)(obj.tag ==_stream)
 #define REGEXP(obj)(obj.tag == _regex)
+#define ERRORP(obj)(obj.tag == _error)
 enum _tag {
   _error = -4,//type of errors, value is a string
   _false = -3,//type of #f, actual value is undefined
@@ -156,6 +159,7 @@ union data {//keep max size at 64 bits
   //way to compare them
   FILE* stream;
   function_args* funarg;
+  function_new* fnew;
 };
 //I'm thinking of using a bitfield for quoting...I'm not sure though
 //
@@ -276,7 +280,7 @@ struct function_args{
   short num_opt_args;//num_req_args-num_req_args+num_opt_args
   short num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
   short has_rest_arg;//0 or 1(only one keyword allowed
-  symref* args;
+  symbol* args;
   int max_args;//number of args in c/llvm must be max_args
 };
 struct function_env{
@@ -284,19 +288,19 @@ struct function_env{
   function_args* head;//for consistancy in naming
 };
 //typedef function_new* fxn_ptr
-#define CALL_PRIM(fun) fun.val.fxn.function_ptr.compiled_fun
+#define CALL_PRIM(fxn) (fxn.val.fnew->fun.comp)
 struct function_new{//36 bytes
   function_args* args;//64
   CORD lname;//lambdas should be #<lambda{number via global counter}>(64)
   CORD cname;//name in c, and llvm I suppose(64)
   union {
-    lambda* lambda_fun;
-    funcall compiled_fun;
-  } function_ptr;//(64)
+    lambda_new* lam;
+    funcall comp;
+  } fun;//(64)
   enum {//(32)
     _lambda_fun,
     _compiled_fun,
-  } fun_type;
+  } type;
 };
 
 union symbol_ref{
@@ -323,7 +327,7 @@ struct lambda{
   sexp body;
 };
 struct lambda_new{
-  local_env *env;//for closures
+  env *env;//for closures
   sexp body;
 };
 struct scoped_sexp{

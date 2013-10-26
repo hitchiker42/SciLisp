@@ -7,6 +7,7 @@
 #include "common.h"
 #include "cons.h"
 jmp_buf error_buf;
+static long lambda_counter=0;
 //static fuctions which are really just part of eval, but broken
 //up into seperate functions to modularise eval, and make it 
 //easier to write and understand, should be self explanitory
@@ -453,8 +454,8 @@ static sexp eval_dolist(sexp expr,env *cur_env){
   }
   return retval;
 }
-#define setArg()                                \
-  args->args[j++]->val=eval(XCAR(arglist),cur_env);        \
+#define setArg()                                        \
+  args->args[j++].val=eval(XCAR(arglist),cur_env);      \
   arglist=XCDR(arglist)
 function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
   /*  if(args.tag != _funargs){
@@ -487,7 +488,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
         cons* cur_arg=xmalloc(sizeof(cons));
         prev_arg=cur_arg;
         j++;
-        args->args[j]->val=cons_sexp(cur_arg);
+        args->args[j].val=cons_sexp(cur_arg);
         cur_arg->car=eval(XCAR(arglist),cur_env);
         arglist=XCDR(arglist);
         cur_arg->cdr.val.cons=xmalloc(sizeof(cons));
@@ -498,7 +499,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
     }
   }
   if(CONSP(arglist)){
-    format_error_string("excess arguments passed");
+    format_error_str("excess arguments passed");
     handle_error();
   }
  ARGS_END:
@@ -506,7 +507,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
 }
 static inline sexp call_builtin_new(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
-  function_args *args=curFun.val.fun.args;
+  function_args *args=curFun.val.fnew->args;
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
     handle_error();
@@ -517,31 +518,35 @@ static inline sexp call_builtin_new(sexp expr,env *cur_env){
   switch (numargs){
     case 0:
       if(!NILP(XCDR(expr))){
-        format_error_string
+        format_error_str
           ("Arguments given to %r which takes no arguments",FLNAME(curFun));
         return handle_error();
       } else {
-        return CALL_PRIM(curFun).f0();
+        return (CALL_PRIM(curFun).f0());
       }
     case 1:
-      return CALL_PRIM(curFun).f1(args->args[0]);
+      return (CALL_PRIM(curFun).f1(args->args[0].val));
     case 2:
-      return CALL_PRIM(curFun).f2(args->args[0],args->args[1]);
+      return (CALL_PRIM(curFun).f2(args->args[0].val,args->args[1].val));
     case 3:
-      return CALL_PRIM(curFun).f3(args->args[0],args->args[1],args->args[2]);
+      return (CALL_PRIM(curFun).f3
+              (args->args[0].val,args->args[1].val,args->args[2].val));
     case 4:    
-      return CALL_PRIM(curFun).f4(args->args[0],args->args[1],
-                                  args->args[2],args->args[3]);
+      return (CALL_PRIM(curFun).f4(args->args[0].val,args->args[1].val,
+                                  args->args[2].val,args->args[3].val));
     case 5:    
-      return CALL_PRIM(curFun).f5(args->args[0],args->args[1],
-                                  args->args[2],args->args[3],args->args[4]);
+      return (CALL_PRIM(curFun).f5
+        (args->args[0].val,args->args[1].val,
+         args->args[2].val,args->args[3].val,args->args[4].val));
     case 6:    
-      return CALL_PRIM(curFun).f6(args->args[0],args->args[1],args->args[2]
-                                  args->args[3],args->args[4],args->args[5]);
+      return (CALL_PRIM(curFun).f6
+              (args->args[0].val,args->args[1].val,args->args[2].val,
+               args->args[3].val,args->args[4].val,args->args[5].val));
     case 7:    
-      return CALL_PRIM(curFun).f7
-        (args->args[0],args->args[1],args->args[2],args->args[3],
-         args->args[4],args->args[5],args->args[6]);
+      return (CALL_PRIM(curFun).f7
+        (args->args[0].val,args->args[1].val,args->args[2].val,
+         args->args[3].val,args->args[4].val,args->args[5].val,
+         args->args[6].val));
     default:
       goto ERROR;
   }
@@ -550,12 +555,30 @@ static inline sexp call_builtin_new(sexp expr,env *cur_env){
 }
 static sexp call_lambda_new(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
-  lambda* curLambda=curFun.val.fun.function_ptr.lambda_fun;
-  function_args *args=curFun.val.fun.args;
+  lambda_new* curLambda=curFun.val.fnew->fun.lam;
+  function_args *args=curFun.val.fnew->args;
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
     handle_error();
   }
-  function_env lambda_env={.enclosing = curLambda->env,.head=args->args};
+  env lambda_env={.enclosing = curLambda->env,.head={.function=args->args},
+                  .tag=_funArgs};
   return eval(curLambda->body,&lambda_env);
+}
+sexp eval_lambda_new(sexp expr,env *cur_env){
+  //(lambda (arglist) (body))
+  sexp body;
+  function_args *args=cadr(expr).val.funarg;
+  CORD lambdaName;
+  CORD_sprintf(&lambdaName,"#<lambda%06d>",lambda_counter++);
+  body=caddr(expr);
+  function_new *retval=xmalloc(sizeof(function_new));
+  lambda_new *newLambda=xmalloc(sizeof(lambda_new));
+  env* closure = xmalloc(sizeof(env));
+  *closure=(env){.enclosing=cur_env,.head={.function=args},.tag=_funArgs};
+  newLambda->env=closure;
+  newLambda->body=body;
+  *retval=(function_new){.args=args,.lname=lambdaName,.cname=lambdaName,
+                         .fun={.lam=newLambda},.type=_lambda_fun};
+  return (sexp){.tag=_fun,.val={.fnew=retval}};
 }

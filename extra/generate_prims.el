@@ -36,7 +36,7 @@
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "--") (:cname . "lisp_dec")  (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ((:lname . "sum") (:cname . "lisp_sum") (:minargs . 1) (:maxargs . "many")
+    ((:lname . "sum") (:cname . "lisp_sum") (:minargs . 1) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 1))
                                         ;functions on conses
     ((:lname . "cons") (:cname ."Cons") (:minargs . 2) (:maxargs . 2)
@@ -147,12 +147,12 @@
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "fprintln") (:cname ."lisp_fprintln") (:minargs . 2)
       (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "cat") (:cname . "lisp_cat") (:minargs . 1) (:maxargs . "many")
+     ((:lname . "cat") (:cname . "lisp_cat") (:minargs . 1) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 1))
      ((:lname . "pwd") (:cname . "lisp_getcwd") (:minargs . 0) (:maxargs . 0)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "system") (:cname . "lisp_system") (:minargs . 1)
-      (:maxargs . "many") (:optargs . 0) (:keyargs . 0) (:restarg . 1))
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 1))
      ;bit twiddling 
      ((:lname . "logxor") (:cname ."lisp_xor") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
@@ -180,6 +180,10 @@
      ((:lname . "abs") (:cname ."lisp_abs") (:minargs . 1) (:maxargs . 1)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "mod") (:cname ."lisp_mod") (:minargs . 2) (:maxargs . 2)
+      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "min") (:cname . "lisp_min") (:minargs . 2) (:maxargs . 2)
+      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "max") (:cname . "lisp_max") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "round") (:cname ."lisp_round") (:minargs . 1) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
@@ -234,11 +238,11 @@ srand48(time(NULL));}
   `(cdr (assq ,keysym prim)))
 ;(defvar llvm-header
 ;"static name_args_pair lisp_prims[]={\n")
-(defun primc-format-new (prim)
-  (format 
-   "DEFUN_NEW (%s,%s,%d,%d,%d,%d,%d)\n"
-   (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
-   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
+;(defun primc-format (prim)
+;  (format 
+;   "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
+;   (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
+;   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
 (defun primc-normal-format (prim)
   (format 
    "DEFUN(\"%s\",%s,%d,%d);\n"
@@ -254,9 +258,7 @@ srand48(time(NULL));}
 (defun primh-format (prim)
   (format "DEFUN(%s,%s);\n"
           (cdr (assq :cname prim))
-          (if (stringp (cdr (assq :maxargs prim)))
-              (1+ (cdr (assq :minargs prim)))
-          (cdr(assq :maxargs prim)))))
+          (cdr(assq :maxargs prim))))
 ;(defun llvmh-format (prim)
 ;  (format "{\"%scall\",%d}, "
 ;          (cdr (assq :cname prim))(cdr (assq :maxargs prim))))

@@ -41,6 +41,9 @@
 #define DEFUN(cname,numargs)                    \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern fxn_proto cname ## call
+#define DEFUN_NEW(cname,numargs)                                \
+  sexp cname DEFUN_ARGS_##numargs ;              \
+  extern function_new cname ## call
 #define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
 #define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
 #define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
@@ -132,6 +135,8 @@ DEFUN(lisp_exp,1);
 DEFUN(lisp_log,1);
 DEFUN(lisp_abs,1);
 DEFUN(lisp_mod,2);
+DEFUN(lisp_min,2);
+DEFUN(lisp_max,2);
 DEFUN(lisp_round,2);
 DEFUN(lisp_randfloat,1);
 DEFUN(lisp_randint,0);
@@ -228,6 +233,8 @@ DEFUN_INTERN("exp",lisp_exp);\
 DEFUN_INTERN("log",lisp_log);\
 DEFUN_INTERN("abs",lisp_abs);\
 DEFUN_INTERN("mod",lisp_mod);\
+DEFUN_INTERN("min",lisp_min);\
+DEFUN_INTERN("max",lisp_max);\
 DEFUN_INTERN("round",lisp_round);\
 DEFUN_INTERN("drand",lisp_randfloat);\
 DEFUN_INTERN("lrand",lisp_randint);\

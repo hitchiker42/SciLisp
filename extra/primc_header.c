@@ -47,13 +47,14 @@
 #define DEFUN(lname,cname,minargs,maxargs)                      \
   fxn_proto cname##call=                                        \
     { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
-#define DEFUN_NEW(lname,cname,reqargs,optargs,keyargs,restarg,maxargs)  \
-  function_args cname##args=                                            \
+#define DEFUN_NEW(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
+  symbol c_name##mem[maxargs];                                          \
+  function_args c_name##args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
-      .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
-  function_new cname##call=                                             \
-    { .args=&cname##args,.lname=#lname,.cname=#cname,                   \
-      .function_ptr = {.compiled_fun = {.f##maxargs=cname}},            \
+      .has_rest_arg=restarg,.args=c_name##mem,.max_args=maxargs };      \
+  function_new c_name##call=                                             \
+    { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
+      .function_ptr = {.compiled_fun = {.f##maxargs=c_name}},            \
       .fun_type = _compiled_fun };
 #define DEFUN_MANY(lname,cname,minargs,maxargs)                \
   fxn_proto cname##call=                                       \
@@ -239,6 +240,24 @@ sexp lisp_dec(sexp num){
         return num;
     }
 }
+sexp lisp_min(sexp a,sexp b){
+  if (!NUMBERP(a) || !(NUMBERP(b))){
+    return error_sexp("arguments to min must be numbers");
+  } if (a.tag == b.tag && a.tag==_long){
+    return (a.val.int64 > b.val.int64?a:b);
+  } else {
+    return (getDoubleVal(a) > getDoubleVal(b)?a:b);
+  }
+}
+sexp lisp_max(sexp a,sexp b){
+  if (!NUMBERP(a) || !(NUMBERP(b))){
+    return error_sexp("arguments to max must be numbers");
+  } if (a.tag == b.tag && a.tag==_long){
+    return (a.val.int64 < b.val.int64?a:b);
+  } else {
+    return (getDoubleVal(a) < getDoubleVal(b)?a:b);
+  }
+}
 sexp lisp_open(sexp filename,sexp mode){
   if(NILP(mode)){
     mode=string_sexp("r");
@@ -414,7 +433,7 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   }
   return retval;
  TYPE_ERROR:
-  
+  return error_sexp("Type error");
 }
 sexp arith_driver(sexp required,sexp values,enum operator op){}
 sexp float_arith_driver(sexp required,sexp values,enum operator op){}
