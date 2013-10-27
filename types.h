@@ -13,6 +13,8 @@
 #include <getopt.h>
 #include <limits.h>
 #include "regex.h"
+#include <gmp.h>
+#include <mpfr.h>
 typedef enum _tag _tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum special_form special_form;//different types of special forms
@@ -95,6 +97,8 @@ enum _tag {
   _matrix =19,//array for mathematical calculations
   _keyword = 20,
   _funarg = 21,
+  _bigint = 22,
+  _bigfloat = 23,
 };
 enum special_form{
   _def=0,
@@ -160,6 +164,8 @@ union data {//keep max size at 64 bits
   FILE* stream;
   function_args* funarg;
   function_new* fnew;
+  mpz_ptr bigint;
+  mpfr_ptr bigfloat;
 };
 //I'm thinking of using a bitfield for quoting...I'm not sure though
 //

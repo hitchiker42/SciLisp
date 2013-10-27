@@ -22,11 +22,13 @@ WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -W
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	-flto -rdynamic #-fstrict-aliasing
 COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
-INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include
+INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include\
+	-I$(shell pwd)/bignum/include
 #-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
 XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
 	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib \
-	-lgc -lm -lreadline -lcord -rdynamic -lpthread
+	-Wl,-rpath=$(shell pwd)/bignum/lib \
+	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS)
 XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS)
 LEX:=flex
@@ -43,8 +45,8 @@ CXXFLAGS:=$(CXXFLAGS) `$(LLVM_CONFIG) --cppflags` -flto -g
 define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
-.PHONY: clean all quiet asm optimized set_quiet set_optimized\
-	doc info pdf clean_doc libprim_reqs readline llvm gc
+.PHONY: clean all quiet asm optimized set_quiet set_optimized mpfr\
+	doc info pdf clean_doc libprim_reqs readline llvm gc gmp
 #Programs to be built
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
@@ -158,3 +160,9 @@ gc: gc/gc_config.stamp gc/bdwgc/autogen.sh gc/libatomic_ops/autogen.sh
 	cd gc/bdwgc && ./configure --with-threads=posix --disable-java-finalization \
 	--enable-parallel-mark --enable-cplusplus --prefix=$$PWD/.. && $(MAKE) install
 	cp gc/bdwgc/include/cord_pos.h gc/include/gc
+gmp: bignum/gmp/configure
+	cd bignum/gmp && ./configure --enable-alloca=alloca --prefix=$$PWD/.. \
+	&& $(MAKE) install
+mpfr: bignum/mpfr/configure
+	cd bignum/mpfr && ./configure --prefix=$$PWD/.. \
+	--with-gmp-build=$$PWD/../gmp/ && $(MAKE) install
