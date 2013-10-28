@@ -155,6 +155,7 @@ union data {//keep max size at 64 bits
   int16_t int16;
   int32_t int32;
   int64_t int64;
+  uint64_t uint64;
   wchar_t utf8_char;//depreciated
   wchar_t uchar;//try to change all utf8_chars to this
   wchar_t *ustr;
@@ -174,8 +175,8 @@ union data {//keep max size at 64 bits
   FILE* stream;
   function_args* funarg;
   function_new* fnew;
-  mpz_ptr bigint;
-  mpfr_ptr bigfloat;
+  mpz_t *bigint;
+  mpfr_t *bigfloat;
 };
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  

@@ -36,6 +36,12 @@ sexp list_iota(sexp start,sexp stop,sexp step);
 sexp Cons(sexp car_cell,sexp cdr_cell);
 //sort ls (mostly in place) using sort_fn to compair elements
 sexp qsort_cons(sexp ls,sexp sort_fn);
+//functions on alists
+//general assoication function, look for an object in ls that is equal to obj
+//according to eq_fn, default eq
+sexp assoc(sexp ls,sexp obj,sexp eq_fn);
+//assoc with eq_fn explictly set to eq
+sexp assq(sexp ls, sexp obj);
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));

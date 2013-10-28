@@ -79,10 +79,11 @@ symref getFunctionSym(function_env* cur_env,CORD name){
 sexp getKeySymSexp(CORD name){
   keyword_symref keysym;
   getKeySymMacro(name,keysym);
-  if(keysym){return (sexp){.tag=_keyword,.val={.keyword=keysym}};}
+  if(keysym){PRINT_FMT("%#0d",keysym);return (sexp){.tag=_keyword,.val={.keyword=keysym}};}
   keysym=xmalloc(sizeof(keyword_symbol));
   keysym->name=name;
   addKeySymMacro(keysym);
+  PRINT_FMT("%#0d",keysym);
   return (sexp){.tag=_keyword,.val={.keyword=keysym}};
 }
 //needs to move to somewhere else.

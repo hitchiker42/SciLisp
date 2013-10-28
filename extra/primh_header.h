@@ -47,6 +47,15 @@
 #define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
 #define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
 #define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
+static void* GC_REALLOC_3(void* ptr,size_t old,size_t new){
+  return GC_REALLOC(ptr,new);
+}
+static void GC_FREE_2(void* ptr,size_t size){
+  return GC_FREE(ptr);
+}
+static void* GC_MALLOC_1(size_t size){
+  return GC_MALLOC(size);
+}
 extern const sexp lisp_pi;
 extern const sexp lisp_euler;
 extern const sexp lisp_max_long;

@@ -22,7 +22,7 @@ WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -W
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	-flto -rdynamic #-fstrict-aliasing
 COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
-INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include\
+INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include \
 	-I$(shell pwd)/bignum/include
 #-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
 XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
@@ -36,7 +36,7 @@ SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o
-BACKEND_SRC:=eval.c codegen.c
+BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
@@ -81,7 +81,7 @@ llvm_test.o: llvm_test.c llvm_c.h
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
-bignum.o: bignum.c $(COMMON_HEADERS) 
+bignum.o: bignum.c $(COMMON_HEADERS) prim.h
 emacs_regex.o: emacs_regex.c emacs_regex.h
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
@@ -96,10 +96,11 @@ define start_libprim =
 	$(CC_TEMP) -o libprim_eval.o -c eval.c
 	$(CC_TEMP) -o libprim_print.o -c print.c
 	$(CC_TEMP) -o libprim_env.o -c env.c
+	$(CC_TEMP) -o libprim_bignum.o -c bignum.c
 endef
-libprim_reqs: prim.c eval.c print.c env.c cons.c array.c
+libprim_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c
 define libprim_files :=
-libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o libprim_print.o
+libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o libprim_print.o libprim_bignum.o
 endef
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libprim.o: libprim_reqs
@@ -112,7 +113,7 @@ libSciLisp.a: libprim_reqs
 libSciLisp.so: libprim_reqs
 	$(start_libprim)
 	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $(libprim_files) -o $@
-prim.bc: prim.c eval.c print.c env.c cons.c array.c
+prim.bc: prim.c eval.c print.c env.c cons.c array.c bignum.c
 	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
 	$(CC) -S -emit-llvm -fno-asm $^;\
 	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\

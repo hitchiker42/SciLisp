@@ -178,6 +178,8 @@ sexp parse_atom(){
       return LISP_TRUE;
     case TOK_LISP_FALSE:
       return LISP_FALSE;
+    case TOK_KEYSYM:
+      return *yylval;
     case TOK_QUOTE:
       nextTok();
       //parse a literal list

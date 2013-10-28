@@ -497,6 +497,7 @@ sexp lisp_eq(sexp obj1,sexp obj2){
     case _str:
     case _lenv:
     case _funarg:
+    case _keyword:
       return (obj1.val.int64 == obj2.val.int64 ? LISP_TRUE : LISP_FALSE);
     case _type:
     case _special:

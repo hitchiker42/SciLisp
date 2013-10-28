@@ -994,8 +994,8 @@ YY_RULE_SETUP
 case 7:
 YY_RULE_SETUP
 #line 98 "lisp.lex"
-{LEX_MSG("lexing keyword symbol");
-  *yylval=(sexp)getKeySymSexp(yytext);return TOK_KEYSYM;}
+{LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
+  sexp temp=(sexp)getKeySymSexp(name);yylval->tag=temp.tag;yylval->val=temp.val;return TOK_KEYSYM;}
 	YY_BREAK
 /*Special forms, generating function at end of file*/
 case 8:

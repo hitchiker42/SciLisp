@@ -77,7 +77,7 @@ static inline size_t symbolSize(env *cur_env){
   HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
 #define getKeySymMacro(name,Var)                                  \
-  HASH_FIND_STR(keywordSymbols.head,CORD_as_cstring(name),Var)
+  HASH_FIND_STR(keywordSymbols.head,(const char *)name,Var)
 #define addKeySymMacro(Var)                                          \
-  HASH_ADD_KEYPTR(hh, keywordSymbols.head, Var->name, CORD_len(Var->name), Var)
+  HASH_ADD_KEYPTR(hh, keywordSymbols.head, Var->name, strlen(Var->name), Var)
 #endif

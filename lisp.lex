@@ -95,8 +95,8 @@ union data {
                                return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
   yylval->val.uchar=(wchar_t)lex_char(yytext);return TOK_CHAR;}
-{KEYSYM} {LEX_MSG("lexing keyword symbol");
-  *yylval=(sexp)getKeySymSexp(yytext);return TOK_KEYSYM;}
+{KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
+  sexp temp=(sexp)getKeySymSexp(name);yylval->tag=temp.tag;yylval->val=temp.val;return TOK_KEYSYM;}
  /*Special forms, generating function at end of file*/
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}

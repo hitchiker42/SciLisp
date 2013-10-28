@@ -14,7 +14,7 @@
 #include <sys/wait.h>
 #include <dlfcn.h>
 #define GC_THREADS
-#include <gc.h>
+#include "gc/include/gc/gc.h"
 #include <ctype.h>
 #include <unistd.h>
 #include <stdarg.h>

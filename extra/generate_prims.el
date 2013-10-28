@@ -2,10 +2,25 @@
   "Indent entire buffer using indent-region"
   (interactive)
   (indent-region (point-min) (point-max)))
-(defun mkPrim (lname cname minargs maxargs)
+(defun mkPrimBasic (lname cname numargs)
   (insert (format 
-           "((:lname . \"%s\")(:cname . \"%s\")(:minargs . %d)(:maxargs . %d))"
-           lname cname minargs maxargs)))
+"((:lname . \"%s\") (:cname . \"%s\") (:minargs . %d) (:maxargs . %d)
+(:optargs . 0) (:keyargs . 0) (:restarg . 0))" lname cname numargs numargs)))
+(defun mpz-binops(op-list)
+  (dolist (op op-list)
+    (insert (format 
+"((:lname . \"bigint-%s\")(:cname . \"lisp_gmp_%s\") (:minargs . 2) (:maxargs . 2)
+(:optargs . 0) (:keyargs . 0) (:restarg . 0))" op op))))
+(defun mpfr-binops(op-list)
+  (dolist (op op-list)
+    (insert (format 
+"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 2) (:maxargs . 2)
+(:optargs . 0) (:keyargs . 0) (:restarg . 0))" op op))))
+(defun mpfr-unops(op-list)
+  (dolist (op op-list)
+    (insert (format 
+"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 1) (:maxargs . 1)
+(:optargs . 0) (:keyargs . 0) (:restarg . 0))" op op))))
 (defvar SciLisp-prims)
 (setq SciLisp-prims 
   '(
@@ -222,6 +237,7 @@ globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \\
 topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \\
 keywordSymbols=(global_env){.enclosing=NULL,.head=NULL};\\
 mpfr_set_default_prec(256);\\
+mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);\\
 ")
 (defvar initPrims-suffix)
 (setq initPrims-suffix 

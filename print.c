@@ -27,6 +27,9 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_lenv,local environment);
     mk_tag_name(_stream,stream);
     mk_tag_name(_funarg,Function Args);
+    mk_tag_name(_bigint,BigInt);
+    mk_tag_name(_bigfloat,BigFloat);
+    mk_tag_name(_keyword,Keyword Symbol);
     default:
       return "forgot to do that one";
   }
@@ -72,7 +75,7 @@ sexp lisp_typeName(sexp obj){
   return (sexp){.tag = _str,.val={.cord = CORD_from_char_star(typeName(obj))}};
 }
 CORD print_num_format(sexp obj,CORD format){
-  if(!NUMBERP(obj)){return 0;}
+  if(!BIGNUMP(obj)){return 0;}
   else{
     CORD retval;
     if(FLOATP(obj)){
@@ -81,11 +84,35 @@ CORD print_num_format(sexp obj,CORD format){
       } else {
         CORD_sprintf(&retval,"%g",(double)obj.val.real64);
       }
-    } else {
-      if(format != 0){
+    } else if (INTP(obj)){
+      if(format != 0){     
         CORD_sprintf(&retval,format,(long)obj.val.int64);
       } else {
         CORD_sprintf(&retval,"%ld",(long)obj.val.int64);
+      }
+    } else if (BIGINTP(obj)){
+      if(format != 0){
+        char *temp;
+        gmp_asprintf(&temp,format,(*obj.val.bigint));
+        retval=temp;
+      } else {
+        char *temp;
+        gmp_asprintf(&temp,"%Zd",(*obj.val.bigint));
+        retval=temp;
+      }
+    } else if (BIGFLOATP(obj)){
+      if(format != 0){
+        char *temp;
+        mpfr_asprintf(&temp,format,(*obj.val.bigfloat));
+        retval=temp;
+        //        retval=CORD_from_char_star(temp);
+        //        mpfr_free_str(temp);
+      } else {
+        char *temp;
+        mpfr_asprintf(&temp,"%RG",(*obj.val.bigfloat));
+        retval=temp;
+        //        retval=CORD_from_char_star(temp);
+        //        mpfr_free_str(temp);
       }
     }
     return retval;
@@ -101,6 +128,8 @@ CORD print(sexp obj){
     HERE();
     case _double:
     case _long:
+    case _bigint:
+    case _bigfloat:
       return print_num(obj);
     case _fun:
     case _sym:
@@ -108,6 +137,8 @@ CORD print(sexp obj){
       //retval=obj.val.var->name;
       //PRINT_MSG(obj.val.var->name);
       break;
+    case _keyword:
+      return obj.val.keyword->name;
     case _char:{
       CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
       return retval;
@@ -134,7 +165,7 @@ CORD print(sexp obj){
     case _uninterned:
       switch(obj.val.meta){
         case 11:
-          return "t";
+          return "#t";
         case -0xf:
           return "unbound symbol";
         default:

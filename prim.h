@@ -47,6 +47,15 @@
 #define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
 #define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
 #define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
+static void* GC_REALLOC_3(void* ptr,size_t old,size_t new){
+  return GC_REALLOC(ptr,new);
+}
+static void GC_FREE_2(void* ptr,size_t size){
+  return GC_FREE(ptr);
+}
+static void* GC_MALLOC_1(size_t size){
+  return GC_MALLOC(size);
+}
 extern const sexp lisp_pi;
 extern const sexp lisp_euler;
 extern const sexp lisp_max_long;
@@ -156,6 +165,7 @@ globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
 topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
 keywordSymbols=(global_env){.enclosing=NULL,.head=NULL};\
 mpfr_set_default_prec(256);\
+mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);\
 DEFUN_INTERN("+",lisp_add);\
 DEFUN_INTERN("-",lisp_sub);\
 DEFUN_INTERN("*",lisp_mul);\
