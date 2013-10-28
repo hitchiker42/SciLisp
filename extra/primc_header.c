@@ -44,18 +44,18 @@
   sexp fun_name(sexp x,sexp y){                                         \
     return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
-#define DEFUN(lname,cname,minargs,maxargs)                      \
+/*#define DEFUN(lname,cname,minargs,maxargs)                    \
   fxn_proto cname##call=                                        \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
-#define DEFUN_NEW(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  symbol c_name##mem[maxargs];                                          \
+  { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
+#define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
+  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};            \
   function_args c_name##args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=c_name##mem,.max_args=maxargs };      \
-  function_new c_name##call=                                             \
+  function c_name##call=                                             \
     { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
-      .function_ptr = {.compiled_fun = {.f##maxargs=c_name}},            \
-      .fun_type = _compiled_fun };
+      .fun = {.comp = {.f##maxargs=c_name}},            \
+      .type = _compiled_fun };
 #define DEFUN_MANY(lname,cname,minargs,maxargs)                \
   fxn_proto cname##call=                                       \
     { #cname, lname, minargs, -1, {.f##maxargs=cname}};

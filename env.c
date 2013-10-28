@@ -9,15 +9,21 @@ symref getFunctionSym(function_env *cur_env,CORD name);
 symref getSym(env *cur_env,CORD name){
   switch(cur_env->tag){
     case _global:{
+      HERE();
       global_symref tempsym;
       getGlobalSymMacro(name,tempsym);
+      HERE();
       return *(symref*)&tempsym;
       //return (sexp){.tag=_sym,.val={.var=tempsym}};
     }
     case _local:
       return (symref)getLocalSym((local_env*)cur_env,name);
     case _funArgs:
+      HERE();
       return (symref)getFunctionSym((function_env*)cur_env,name);
+    default:
+      fprintf(stderr,"shouldn't get here");
+      exit(1);
   }
 }
 global_symref getGlobalSym(CORD name){
@@ -69,6 +75,7 @@ symref addSym(env *cur_env,symref Var){
 symref getFunctionSym(function_env* cur_env,CORD name){
   function_args* args=cur_env->head;
   int i;
+  HERE();
   for(i=0;i<args->max_args;i++){
     if(!CORD_cmp(name,args->args[i].name)){
       return args->args+i;

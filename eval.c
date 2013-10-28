@@ -2,6 +2,7 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+/*ARGS Structure is modified by a funciton call this is bad, fix it*/
 /*TODO: add quoting in such a way that I can assign a list 
   to a variable*/
 #include "common.h"
@@ -129,7 +130,7 @@ static inline sexp eval_special(sexp expr,env *cur_env){
   return handle_error();
 }
 
-static sexp* get_args(sexp arglist,function fun,env *cur_env){
+/*static sexp* get_args(sexp arglist,function fun,env *cur_env){
   //arglist is (sexp . (sexp . (sexp ....()...)))
   int minargs=fun.min_args;int maxargs=fun.max_args;
   int i=0;
@@ -213,7 +214,7 @@ static inline sexp call_builtin(sexp expr,env *cur_env){
   }
  ERROR:
   return handle_error();
-}
+  }*/
 static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval;
@@ -233,7 +234,7 @@ static inline sexp eval_prog1(sexp expr, env *cur_env){
   }
   return retval;
 }
-sexp eval_lambda(sexp expr,env *cur_env){
+/*sexp eval_lambda(sexp expr,env *cur_env){
   //for now assume expr is a sexp of the form
   //(lambda (args ...) (body ...))
   sexp args,body;
@@ -254,13 +255,13 @@ sexp eval_lambda(sexp expr,env *cur_env){
     cur_arg->next=xmalloc(sizeof(local_symbol));
     args=cdr(args);
     numargs++;
-    }*/
+    }*
   lambda *retval=xmalloc(sizeof(lambda));
   retval->env=closure;
   retval->minargs=retval->maxargs=numargs;//need to fix to allow optional args
   retval->body=body;
-  return (sexp){.tag=_lam,.val={.lam = retval}}; /*  */
-}
+  return (sexp){.tag=_lam,.val={.lam = retval}};
+}*/
 static inline sexp eval_def(sexp expr,env *cur_env){
   //should i go with the lisp standard of define only assigning
   //to a value once or not?
@@ -282,7 +283,7 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
   sexp temp_lambda;
   //expr=(defun sym arglist body)
   temp_lambda.val.cons=xmalloc(sizeof(cons));
-  temp_lambda.tag=_cons;
+  temp_lambda.tag=_cons;  
   XCAR(temp_lambda)=(sexp){.tag=_special,.val={.special=_lambda}};
   XCDR(temp_lambda)=cddr(expr);
   //temp_lambda = (lambda arglist body)
@@ -292,7 +293,7 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
   XCDDDR(expr)=NIL;
   //expr = (defun sym temp_lambda)
   XCAR(expr)=(sexp){.tag=_special,.val={.special=_def}};
-  //expr = (def sym temp_lambda)
+  //expr = (def sym temp_lambda);
   return eval(expr,cur_env);
 }
 static inline sexp eval_if(sexp expr,env *cur_env){
@@ -318,7 +319,7 @@ static inline sexp eval_while(sexp expr,env *cur_env){
   }
   return retval;
 }
-static inline sexp call_lambda(sexp expr,env *cur_env){
+/*static inline sexp call_lambda(sexp expr,env *cur_env){
   lambda *cur_fun = XCAR(expr).val.var->val.val.lam;
   assert(cur_fun !=0);
   int i=0;
@@ -352,7 +353,7 @@ static inline sexp call_lambda(sexp expr,env *cur_env){
     cur_param=cur_param->next;
   }
   return retval;
-}
+  }*/
 static inline sexp eval_let(sexp expr,env *cur_env){
   /*syntax (let ((var def)+)(body ...))*/
   sexp vars=XCDR(expr);
@@ -503,16 +504,22 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
     handle_error();
   }
  ARGS_END:
+  if(j<args->max_args){
+    while(j<args->max_args){
+      args->args[j++].val=NIL;
+    }
+  }
   return args;
 }
-static inline sexp call_builtin_new(sexp expr,env *cur_env){
+static inline sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
-  function_args *args=curFun.val.fnew->args;
+  function_args *args=curFun.val.fun->args;
+  args->args=alloca(sizeof(symbol)*args->max_args);
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
     handle_error();
   }
-  //PRINT_MSG(print(expr));
+  //print_msg(print(expr));
   int i;
   long numargs=args->max_args;
   switch (numargs){
@@ -553,10 +560,11 @@ static inline sexp call_builtin_new(sexp expr,env *cur_env){
  ERROR:
   return handle_error();
 }
-static sexp call_lambda_new(sexp expr,env *cur_env){
+static sexp call_lambda(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
-  lambda_new* curLambda=curFun.val.fnew->fun.lam;
-  function_args *args=curFun.val.fnew->args;
+  lambda* curLambda=curFun.val.fun->fun.lam;
+  function_args *args=curFun.val.fun->args;
+  //  args->args=alloca(sizeof(symbol)*args->max_args);
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
     handle_error();
@@ -565,20 +573,21 @@ static sexp call_lambda_new(sexp expr,env *cur_env){
                        .tag=_funArgs};
   return eval(curLambda->body,&lambda_env);
 }
-sexp eval_lambda_new(sexp expr,env *cur_env){
+sexp eval_lambda(sexp expr,env *cur_env){
   //(lambda (arglist) (body))
   sexp body;
   function_args *args=cadr(expr).val.funarg;
   CORD lambdaName;
   CORD_sprintf(&lambdaName,"#<lambda%06d>",lambda_counter++);
+  PRINT_MSG(lambdaName);
   body=caddr(expr);
-  function_new *retval=xmalloc(sizeof(function_new));
-  lambda_new *newLambda=xmalloc(sizeof(lambda_new));
+  function *retval=xmalloc(sizeof(function));
+  lambda *newLambda=xmalloc(sizeof(lambda));
   env* closure = xmalloc(sizeof(env));
-  *closure=(env){.enclosing=cur_env,.head={.function=args},.tag=_funArgs};
+  *closure=*cur_env;
   newLambda->env=closure;
   newLambda->body=body;
-  *retval=(function_new){.args=args,.lname=lambdaName,.cname=lambdaName,
+  *retval=(function){.args=args,.lname=lambdaName,.cname=lambdaName,
                          .fun={.lam=newLambda},.type=_lambda_fun};
-  return (sexp){.tag=_fun,.val={.fnew=retval}};
+  return (sexp){.tag=_fun,.val={.fun=retval}};
 }

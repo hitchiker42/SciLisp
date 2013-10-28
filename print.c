@@ -132,6 +132,7 @@ CORD print(sexp obj){
     case _bigfloat:
       return print_num(obj);
     case _fun:
+      return obj.val.fun->lname;
     case _sym:
       return obj.val.var->name;
       //retval=obj.val.var->name;
@@ -213,11 +214,13 @@ CORD print(sexp obj){
     }
 #undef funarg_print_loop
     case _lam:
-      acc="(lambda ";
+      /*      acc="(lambda ";
       acc=CORD_catn(5,acc,
-                    print((sexp){.tag=_lenv,.val={.lenv =obj.val.lam->env->head}})
+                    print((sexp){.tag=_lenv,.val=
+                          {.lenv =(local_env*)obj.val.lam->env}})
                     ," ",print(obj.val.lam->body),")");
-      return CORD_balance(acc);
+                    return CORD_balance(acc);*/
+      return "Lambda";
     case _array:
       acc="[";
       int i;
@@ -275,13 +278,13 @@ sexp lisp_fprintln(sexp obj, sexp file){
   lisp_fputs(lisp_println(obj),file);
   return NIL;
 }
-CORD function_name(function fun){
+/*CORD function_name(function fun){
   if(fun.fxn_type==1){
     return "lambda";
   } else if(fun.fxn_type == 0){
     return fun.fun.prim->lispname;
   }
-}
+  }*/
 #define mk_tok_name(tok) case tok: return #tok
 CORD token_name(TOKEN token){
   switch(token){

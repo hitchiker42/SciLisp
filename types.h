@@ -32,7 +32,7 @@ typedef union symbol_ref symbol_ref;//generic symbol pointer
 typedef union symbol_val symbol_val;//generic symbol
 typedef struct sexp sexp;//type of all lisp objects
 typedef struct cons cons;//cons cell, for lists,pairs and everything else
-typedef struct fxn_proto fxn_proto;//primitive function prototype
+//typedef struct fxn_proto fxn_proto;//primitive function prototype
 typedef struct symbol symbol;//generic symbol type
 typedef struct local_symbol local_symbol;//type of symbol used in local envs
 typedef struct global_symbol global_symbol;//type of symbol used in global envs
@@ -53,7 +53,7 @@ typedef global_symbol* global_symref;//"" global ""
 typedef local_symbol* local_symref;//"" local ""
 typedef global_symbol* keyword_symref;
 typedef global_symbol keyword_symbol;
-typedef fxn_proto* fxn_ptr;//pointer to primitive function
+//typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
 #define CONSP(obj) (obj.tag == _cons || obj.tag == _list || obj.tag == _dpair)
@@ -69,11 +69,11 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define AS_STRING(obj) (obj.val.cord)
 #define CHARP(obj) (obj.tag == _char)
 #define AS_CHAR(obj) (obj.val.utf8_char)
-#define FUNP(obj) (obj.tag == _fun)
+#define FUNP(obj) (obj.tag == _fun && obj.val.fun->type == _compiled_fun)
 #define ARRAYP(obj) (obj.tag == _array)
 #define AS_ARRAY(obj) (obj.val.array)
-#define LAMBDAP(obj) (obj.tag == _lam)
-#define FUNCTIONP(obj)(obj.tag == _lam || obj.tag == _fun)
+#define LAMBDAP(obj) (obj.tag == _fun && obj.val.fun->type == _lambda_fun)
+#define FUNCTIONP(obj)(obj.tag == _fun)
 #define STREAMP(obj)(obj.tag ==_stream)
 #define REGEXP(obj)(obj.tag == _regex)
 #define ERRORP(obj)(obj.tag == _error)
@@ -164,7 +164,7 @@ union data {//keep max size at 64 bits
   cons* cons;
   symref var;
   keyword_symref keyword;
-  fxn_ptr fun;
+  function* fun;
   lambda* lam;
   special_form special;
   data* array;
@@ -174,7 +174,7 @@ union data {//keep max size at 64 bits
   regex_t* regex;
   FILE* stream;
   function_args* funarg;
-  function_new* fnew;
+  //  function_new* fnew;
   mpz_t *bigint;
   mpfr_t *bigfloat;
 };
@@ -235,7 +235,7 @@ union funcall{
   sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*fmany)(sexp,...);
 };
-struct function{
+/*struct function{
   short min_args;
   short max_args;
   short opt_args;
@@ -248,19 +248,19 @@ struct function{
     _primFun=0,
     _lambdaFun=1,
   } fxn_type;
-};
-struct fxn_proto{
+  };*/
+/*struct fxn_proto{
   CORD cname;
   CORD lispname;
   //max_args == -1 means remaining args as a list
   short min_args,max_args;
   funcall fxn_call;
-};
-#define FMAX_ARGS(fxn) fxn.val.fun->max_args
-#define FMIN_ARGS(fxn) fxn.val.fun->min_args
+  };*/
+/*#define FMAX_ARGS(fxn) fxn.val.fun->max_args
+  #define FMIN_ARGS(fxn) fxn.val.fun->min_args*/
 #define FCNAME(fxn) fxn.val.fun->cname
-#define FLNAME(fxn) fxn.val.fun->lispname
-#define F_CALL(fxn) fxn.val.fun->fxn_call
+#define FLNAME(fxn) fxn.val.fun->lname
+/*#define F_CALL(fxn) fxn.val.fun->fxn_call*/
 //this is a better way of doing this
 //but needs work
 #define LAST_ARG(funarg) funarg->args[funarg->max_args]
@@ -280,13 +280,13 @@ struct function_args{
   int max_args;//number of args in c/llvm must be max_args
 };
 //typedef function_new* fxn_ptr
-#define CALL_PRIM(fxn) (fxn.val.fnew->fun.comp)
-struct function_new{//36 bytes
+#define CALL_PRIM(fxn) (fxn.val.fun->fun.comp)
+struct function{//36 bytes
   function_args* args;//64
   CORD lname;//lambdas should be #<lambda{number via global counter}>(64)
   CORD cname;//name in c, and llvm I suppose(64)
   union {
-    lambda_new* lam;
+    lambda* lam;
     funcall comp;
   } fun;//(64)
   enum {//(32)
@@ -294,12 +294,12 @@ struct function_new{//36 bytes
     _compiled_fun,
   } type;
 };
-struct lambda{
+/*struct lambda{
   local_env *env;
   short minargs,maxargs;
   sexp body;
-};
-struct lambda_new{
+  };*/
+struct lambda{
   env *env;//for closures
   sexp body;
 };
@@ -363,10 +363,10 @@ enum backend{
   llvm=1,
   as=2,
 };
-static function prim_to_fun(fxn_proto *prim){
+/*static function prim_to_fun(fxn_proto *prim){
   return (function){.min_args=prim->min_args,
       .max_args=prim->max_args,.fun={.prim = prim},0};
-}
+      }*/
 #define mkTypeCase(type,tag) case tag: return type  
 static sexp typeOf(sexp obj){
   switch (obj.tag){

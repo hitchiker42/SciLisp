@@ -3,11 +3,11 @@ SHELL:=/bin/bash
 .SUFFIXES: .c .o .y .a .so
 #gcc has a nice -Og flag for optimizations w/debugging, clang does not
 ifeq ($(CC),clang)
-OPT_FLAGS:=-O2
+OPT_FLAGS:=-O2 -fno-lto
 CXX:=clang++
 WARNING_FLAGS:=-w
 else ifeq ($(CXX),clang++)
-OPT_FLAGS:=-O2
+OPT_FLAGS:=-O2 -fno-lto
 CC:=clang
 WARNING_FLAGS:=-w
 else
@@ -29,8 +29,8 @@ XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
 	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib \
 	-Wl,-rpath=$(shell pwd)/bignum/lib \
 	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr
-XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS)
-XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS)
+XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
+XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS) 
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h env.h

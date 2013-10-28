@@ -44,18 +44,18 @@
   sexp fun_name(sexp x,sexp y){                                         \
     return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
-#define DEFUN(lname,cname,minargs,maxargs)                      \
+/*#define DEFUN(lname,cname,minargs,maxargs)                    \
   fxn_proto cname##call=                                        \
-    { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};
-#define DEFUN_NEW(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  symbol c_name##mem[maxargs];                                          \
+  { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
+#define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
+  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};            \
   function_args c_name##args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=c_name##mem,.max_args=maxargs };      \
-  function_new c_name##call=                                             \
+  function c_name##call=                                             \
     { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
-      .function_ptr = {.compiled_fun = {.f##maxargs=c_name}},            \
-      .fun_type = _compiled_fun };
+      .fun = {.comp = {.f##maxargs=c_name}},            \
+      .type = _compiled_fun };
 #define DEFUN_MANY(lname,cname,minargs,maxargs)                \
   fxn_proto cname##call=                                       \
     { #cname, lname, minargs, -1, {.f##maxargs=cname}};
@@ -521,100 +521,100 @@ MK_PREDICATE(arrayp,_array);
 MK_PREDICATE(nilp,_nil);
 MK_PREDICATE(symbolp,_sym);
 MK_PREDICATE2(stringp,_str,_ustr);
-DEFUN("+",lisp_add,2,2);
-DEFUN("-",lisp_sub,2,2);
-DEFUN("*",lisp_mul,2,2);
-DEFUN("/",lisp_div,2,2);
-DEFUN("<",lisp_lt,2,2);
-DEFUN(">",lisp_gt,2,2);
-DEFUN(">=",lisp_gte,2,2);
-DEFUN("<=",lisp_lte,2,2);
-DEFUN("!=",lisp_ne,2,2);
-DEFUN("=",lisp_numeq,2,2);
-DEFUN("++",lisp_inc,1,1);
-DEFUN("--",lisp_dec,1,1);
-DEFUN("sum",lisp_sum,1,2);
-DEFUN("cons",Cons,2,2);
-DEFUN("car",car,1,1);
-DEFUN("cdr",cdr,1,1);
-DEFUN("caar",caar,1,1);
-DEFUN("cadr",cadr,1,1);
-DEFUN("cddr",cddr,1,1);
-DEFUN("cdar",cdar,1,1);
-DEFUN("caaar",caaar,1,1);
-DEFUN("caadr",caadr,1,1);
-DEFUN("caddr",caddr,1,1);
-DEFUN("cdddr",cdddr,1,1);
-DEFUN("cddar",cddar,1,1);
-DEFUN("cdaar",cdaar,1,1);
-DEFUN("cadar",cadar,1,1);
-DEFUN("cdadr",cdadr,1,1);
-DEFUN("caaaar",caaaar,1,1);
-DEFUN("caaadr",caaadr,1,1);
-DEFUN("caadar",caadar,1,1);
-DEFUN("caaddr",caaddr,1,1);
-DEFUN("cadaar",cadaar,1,1);
-DEFUN("cadadr",cadadr,1,1);
-DEFUN("caddar",caddar,1,1);
-DEFUN("cadddr",cadddr,1,1);
-DEFUN("cdaaar",cdaaar,1,1);
-DEFUN("cdaadr",cdaadr,1,1);
-DEFUN("cdadar",cdadar,1,1);
-DEFUN("cdaddr",cdaddr,1,1);
-DEFUN("cddaar",cddaar,1,1);
-DEFUN("cddadr",cddadr,1,1);
-DEFUN("cdddar",cdddar,1,1);
-DEFUN("cddddr",cddddr,1,1);
-DEFUN("set-car!",set_car,2,2);
-DEFUN("set-cdr!",set_cdr,2,2);
-DEFUN("last",last,1,1);
-DEFUN("push!",push_cons,2,2);
-DEFUN("pop!",pop_cons,1,1);
-DEFUN("mapcar",mapcar,2,2);
-DEFUN("reduce",reduce,2,2);
-DEFUN("qsort!",qsort_cons,2,2);
-DEFUN("length",lisp_length,1,1);
-DEFUN("iota",lisp_iota,1,4);
-DEFUN("aref",aref,2,2);
-DEFUN("array->list",array_to_list,1,1);
-DEFUN("typeName",lisp_typeName,1,1);
-DEFUN("typeOf",typeOf,1,1);
-DEFUN("print",lisp_print,1,1);
-DEFUN("println",lisp_println,1,1);
-DEFUN("eval",lisp_eval,1,1);
-DEFUN("fopen",lisp_open,1,2);
-DEFUN("fclose",lisp_close,1,1);
-DEFUN("fputs",lisp_fputs,2,2);
-DEFUN("fprint",lisp_fprint,2,2);
-DEFUN("fprintln",lisp_fprintln,2,2);
-DEFUN("cat",lisp_cat,1,2);
-DEFUN("pwd",lisp_getcwd,0,0);
-DEFUN("system",lisp_system,1,2);
-DEFUN("eq",lisp_eq,2,2);
-DEFUN("logxor",lisp_xor,2,2);
-DEFUN("logand",lisp_logand,2,2);
-DEFUN("logor",lisp_logor,2,2);
-DEFUN("ash",ash,2,2);
-DEFUN("expt",lisp_pow,2,2);
-DEFUN("sqrt",lisp_sqrt,1,1);
-DEFUN("cos",lisp_cos,1,1);
-DEFUN("sin",lisp_sin,1,1);
-DEFUN("tan",lisp_tan,1,1);
-DEFUN("exp",lisp_exp,1,1);
-DEFUN("log",lisp_log,1,1);
-DEFUN("abs",lisp_abs,1,1);
-DEFUN("mod",lisp_mod,2,2);
-DEFUN("min",lisp_min,2,2);
-DEFUN("max",lisp_max,2,2);
-DEFUN("round",lisp_round,1,2);
-DEFUN("drand",lisp_randfloat,0,1);
-DEFUN("lrand",lisp_randint,0,0);
-DEFUN("consp",lisp_consp,1,1);
-DEFUN("numberp",lisp_numberp,1,1);
-DEFUN("arrayp",lisp_arrayp,1,1);
-DEFUN("nilp",lisp_nilp,1,1);
-DEFUN("stringp",lisp_stringp,1,1);
-DEFUN("symbolp",lisp_symbolp,1,1);
-DEFUN("bigint",lisp_bigint,1,1);
-DEFUN("bigfloat",lisp_bigfloat,1,3);
+DEFUN("+",lisp_add,2,0,0,0,2);
+DEFUN("-",lisp_sub,2,0,0,0,2);
+DEFUN("*",lisp_mul,2,0,0,0,2);
+DEFUN("/",lisp_div,2,0,0,0,2);
+DEFUN("<",lisp_lt,2,0,0,0,2);
+DEFUN(">",lisp_gt,2,0,0,0,2);
+DEFUN(">=",lisp_gte,2,0,0,0,2);
+DEFUN("<=",lisp_lte,2,0,0,0,2);
+DEFUN("!=",lisp_ne,2,0,0,0,2);
+DEFUN("=",lisp_numeq,2,0,0,0,2);
+DEFUN("++",lisp_inc,1,0,0,0,1);
+DEFUN("--",lisp_dec,1,0,0,0,1);
+DEFUN("sum",lisp_sum,1,0,0,1,2);
+DEFUN("cons",Cons,2,0,0,0,2);
+DEFUN("car",car,1,0,0,0,1);
+DEFUN("cdr",cdr,1,0,0,0,1);
+DEFUN("caar",caar,1,0,0,0,1);
+DEFUN("cadr",cadr,1,0,0,0,1);
+DEFUN("cddr",cddr,1,0,0,0,1);
+DEFUN("cdar",cdar,1,0,0,0,1);
+DEFUN("caaar",caaar,1,0,0,0,1);
+DEFUN("caadr",caadr,1,0,0,0,1);
+DEFUN("caddr",caddr,1,0,0,0,1);
+DEFUN("cdddr",cdddr,1,0,0,0,1);
+DEFUN("cddar",cddar,1,0,0,0,1);
+DEFUN("cdaar",cdaar,1,0,0,0,1);
+DEFUN("cadar",cadar,1,0,0,0,1);
+DEFUN("cdadr",cdadr,1,0,0,0,1);
+DEFUN("caaaar",caaaar,1,0,0,0,1);
+DEFUN("caaadr",caaadr,1,0,0,0,1);
+DEFUN("caadar",caadar,1,0,0,0,1);
+DEFUN("caaddr",caaddr,1,0,0,0,1);
+DEFUN("cadaar",cadaar,1,0,0,0,1);
+DEFUN("cadadr",cadadr,1,0,0,0,1);
+DEFUN("caddar",caddar,1,0,0,0,1);
+DEFUN("cadddr",cadddr,1,0,0,0,1);
+DEFUN("cdaaar",cdaaar,1,0,0,0,1);
+DEFUN("cdaadr",cdaadr,1,0,0,0,1);
+DEFUN("cdadar",cdadar,1,0,0,0,1);
+DEFUN("cdaddr",cdaddr,1,0,0,0,1);
+DEFUN("cddaar",cddaar,1,0,0,0,1);
+DEFUN("cddadr",cddadr,1,0,0,0,1);
+DEFUN("cdddar",cdddar,1,0,0,0,1);
+DEFUN("cddddr",cddddr,1,0,0,0,1);
+DEFUN("set-car!",set_car,2,0,0,0,2);
+DEFUN("set-cdr!",set_cdr,2,0,0,0,2);
+DEFUN("last",last,1,0,0,0,1);
+DEFUN("push!",push_cons,2,0,0,0,2);
+DEFUN("pop!",pop_cons,1,0,0,0,1);
+DEFUN("mapcar",mapcar,2,0,0,0,2);
+DEFUN("reduce",reduce,2,0,0,0,2);
+DEFUN("qsort!",qsort_cons,2,0,0,0,2);
+DEFUN("length",lisp_length,1,0,0,0,1);
+DEFUN("iota",lisp_iota,1,3,0,0,4);
+DEFUN("aref",aref,2,0,0,0,2);
+DEFUN("array->list",array_to_list,1,0,0,0,1);
+DEFUN("typeName",lisp_typeName,1,0,0,0,1);
+DEFUN("typeOf",typeOf,1,0,0,0,1);
+DEFUN("print",lisp_print,1,0,0,0,1);
+DEFUN("println",lisp_println,1,0,0,0,1);
+DEFUN("eval",lisp_eval,1,0,0,0,1);
+DEFUN("fopen",lisp_open,1,1,0,0,2);
+DEFUN("fclose",lisp_close,1,0,0,0,1);
+DEFUN("fputs",lisp_fputs,2,0,0,0,2);
+DEFUN("fprint",lisp_fprint,2,0,0,0,2);
+DEFUN("fprintln",lisp_fprintln,2,0,0,0,2);
+DEFUN("cat",lisp_cat,1,0,0,1,2);
+DEFUN("pwd",lisp_getcwd,0,0,0,0,0);
+DEFUN("system",lisp_system,1,0,0,1,2);
+DEFUN("eq",lisp_eq,2,0,0,0,2);
+DEFUN("logxor",lisp_xor,2,0,0,0,2);
+DEFUN("logand",lisp_logand,2,0,0,0,2);
+DEFUN("logor",lisp_logor,2,0,0,0,2);
+DEFUN("ash",ash,2,0,0,0,2);
+DEFUN("expt",lisp_pow,2,0,0,0,2);
+DEFUN("sqrt",lisp_sqrt,1,0,0,0,1);
+DEFUN("cos",lisp_cos,1,0,0,0,1);
+DEFUN("sin",lisp_sin,1,0,0,0,1);
+DEFUN("tan",lisp_tan,1,0,0,0,1);
+DEFUN("exp",lisp_exp,1,0,0,0,1);
+DEFUN("log",lisp_log,1,0,0,0,1);
+DEFUN("abs",lisp_abs,1,0,0,0,1);
+DEFUN("mod",lisp_mod,2,0,0,0,2);
+DEFUN("min",lisp_min,2,0,0,0,2);
+DEFUN("max",lisp_max,2,0,0,0,2);
+DEFUN("round",lisp_round,1,0,0,0,2);
+DEFUN("drand",lisp_randfloat,0,1,0,0,1);
+DEFUN("lrand",lisp_randint,0,0,0,0,0);
+DEFUN("consp",lisp_consp,1,0,0,0,1);
+DEFUN("numberp",lisp_numberp,1,0,0,0,1);
+DEFUN("arrayp",lisp_arrayp,1,0,0,0,1);
+DEFUN("nilp",lisp_nilp,1,0,0,0,1);
+DEFUN("stringp",lisp_stringp,1,0,0,0,1);
+DEFUN("symbolp",lisp_symbolp,1,0,0,0,1);
+DEFUN("bigint",lisp_bigint,1,0,0,0,1);
+DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
 #undef DEFUN

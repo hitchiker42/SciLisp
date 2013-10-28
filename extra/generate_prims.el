@@ -270,11 +270,11 @@ srand48(time(NULL));}
   `(cdr (assq ,keysym prim)))
 ;(defvar llvm-header
 ;"static name_args_pair lisp_prims[]={\n")
-;(defun primc-format (prim)
-;  (format 
-;   "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
-;   (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
-;   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
+(defun primc-format (prim)
+  (format 
+   "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
+   (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
+   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
 (defun primc-normal-format (prim)
   (format 
    "DEFUN(\"%s\",%s,%d,%d);\n"
@@ -283,10 +283,10 @@ srand48(time(NULL));}
   (format "DEFUN_MANY(\"%s\",%s,%d,%d)\n"
           (cdr (assq :lname prim)) (cdr (assq :cname prim))
           (cdr (assq :minargs prim)) (1+ (cdr (assq :minargs prim)))))
-(defun primc-format (prim)
-  (if (stringp (cdr (assq :maxargs prim)))
-      (primc-many-format prim)
-    (primc-normal-format prim)))
+;(defun primc-format (prim)
+;  (if (stringp (cdr (assq :maxargs prim)))
+;      (primc-many-format prim)
+;    (primc-normal-format prim)))
 (defun primh-format (prim)
   (format "DEFUN(%s,%s);\n"
           (cdr (assq :cname prim))

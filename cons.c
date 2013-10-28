@@ -85,7 +85,7 @@ sexp reduce(sexp ls,sexp reduce_fn){
   sexp(*f)(sexp,sexp);
   switch(reduce_fn.tag){
     case _fun:
-      f=reduce_fn.val.fun->fxn_call.f2;
+      f=reduce_fn.val.fun->fun.comp.f2;
       break;
     case _lam:
       break;
@@ -104,18 +104,15 @@ sexp mapcar(sexp ls,sexp map_fn){
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
   result.tag=_cons;
   sexp(*f)(sexp);
-  env lambda_env;
   if(FUNP(map_fn)){
-    f=map_fn.val.fun->fxn_call.f1;
-  } else {
-    lambda_env=(env){.enclosing = (env*)map_fn.val.lam->env,
-                .head={.local=map_fn.val.lam->env->head},.tag=0};
+    f=map_fn.val.fun->fun.comp.f1;
   }
   while(!NILP(XCDR(ls))){
     if(FUNP(map_fn)){
       cur_cell->car=f(car(ls));
     } else {
-      cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),&lambda_env);
+      cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),
+                         map_fn.val.fun->fun.lam->env);
     }
     cur_cell->cdr.val.cons=xmalloc(sizeof(cons));
     cur_cell=cur_cell->cdr.val.cons;
@@ -212,7 +209,7 @@ sexp qsort_cons(sexp ls,sexp sort_fn){
   }
   sexp(*f)(sexp,sexp);
   env lambda_env;
-  f=sort_fn.val.fun->fxn_call.f2;
+  f=sort_fn.val.fun->fun.comp.f2;
   return qsort_acc(ls,f);
 }
 /*sexp assoc(sexp ls,sexp obj,sexp eq_fn){

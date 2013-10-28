@@ -16,6 +16,7 @@ sexp parse_sexp();
 sexp parse_macro();//really parse backtick but it's almost always used in macros
 static sexp parse_list();
 static sexp parse_arg_list();
+static sexp parse_function_args();
 sexp error_val=NIL_MACRO();
 static void handle_error() __attribute__((noreturn));
 static void handle_error(){
@@ -80,7 +81,7 @@ sexp parse_cons(){
   if (yytag == TOK_SPECIAL){
     result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
   } else if(yytag==TOK_ID){
-    //PRINT_FMT("found id %s",yylval->val.cord);
+    //    PRINT_FMT("found id %s",yylval->val.cord);
     tmpsym = (symref)getGlobalSym(yylval->val.cord);
     if(tmpsym){
       //PRINT_FMT("Found prim %s",tmpsym->name);
@@ -107,7 +108,7 @@ sexp parse_cons(){
         //and lambda is (lambda (args) (body)) we need to parse
         //the var in defun seperately(that's what this is)
         retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
-        fake_retval=XCDR(retval);*yylval;
+        fake_retval=XCDR(retval);
         symref tempSym=xmalloc(sizeof(symbol));
         tempSym->name=yylval->val.string;
         tempSym->val=UNBOUND;
@@ -122,7 +123,7 @@ sexp parse_cons(){
     cons* temp;
     temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
     //this, which becomes temp->car=parse_funcion_args();
-    temp->car=parse_arg_list();
+    temp->car=parse_function_args();
     //    PRINT_MSG(tag_name(temp->car.tag));
     temp->cdr.val.cons=xmalloc(sizeof(cons));
     temp=temp->cdr.val.cons;
@@ -319,7 +320,6 @@ static inline sexp parse_list(){
   cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
   cons* prev_loc=cur_loc;
   while(nextTok() != TOK_RPAREN && yytag != TOK_DOT){
-    HERE();
     cur_loc->car=parse_sexp();
     cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
     prev_loc=cur_loc;

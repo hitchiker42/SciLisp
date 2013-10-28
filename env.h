@@ -1,5 +1,6 @@
 #ifndef __ENV_H__
 #define __ENV_H__
+#include<uthash.h>
 struct symbol{
   CORD name;
   sexp val;
@@ -71,10 +72,10 @@ static inline size_t symbolSize(env *cur_env){
       return sizeof(local_symbol);
  }
 }
-#define getGlobalSymMacro(name,Var)                                  \
-  HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)
+#define getGlobalSymMacro(name,Var)                             \
+  HASH_FIND_STR(globalSymbolTable.head,CORD_to_const_char_star(name),Var)
 #define addGlobalSymMacro(Var)                                          \
-  HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
+  HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, CORD_len(Var->name), Var)
   //         hh_name, head,        key_ptr,   key_len,           item_ptr
 #define getKeySymMacro(name,Var)                                  \
   HASH_FIND_STR(keywordSymbols.head,(const char *)name,Var)

@@ -10,16 +10,20 @@
 #include "array.h"
 #include "print.h"
 #include <time.h>
-#define DEFUN_INTERN(lname,cname)                                       \
-  global_symbol cname ## _sym=(global_symbol){.name = lname,.val = {.tag=_fun,.val={.fun = &cname##call}}}; \
-  global_symref cname ## _ptr=&cname##_sym;                             \
-  addGlobalSymMacro(cname##_ptr)
-#define INTERN_ALIAS(lname,cname,gensym)                                \
-  global_symbol cname ## _sym ## gensym=                                \
-    (global_symbol){.name = lname,.val =                                \
-                    {.tag=_fun,.val={.fun = &cname##call}}};            \
-  global_symref cname ## _ptr ## gensym =&cname##_sym##gensym;          \
-  addGlobalSymMacro(cname##_ptr##gensym)
+#define DEFUN_INTERN(l_name,c_name)                                       \
+  global_symbol c_name ## _sym=                                         \
+    (global_symbol){.name = l_name,.val =                               \
+                    {.tag=_fun,.val={.fun = &c_name##call}},            \
+                    .symbol_env=&topLevelEnv};                           \
+  global_symref c_name ## _ptr=&c_name##_sym;                             \
+  addGlobalSymMacro(c_name##_ptr)
+#define INTERN_ALIAS(l_name,c_name,gensym)                                \
+  global_symbol c_name ## _sym ## gensym=                                \
+    (global_symbol){.name = l_name,.val =                                \
+                    {.tag=_fun,.val={.fun = &c_name##call}},            \
+                    .symbol_env=&topLevelEnv};                           \
+  global_symref c_name ## _ptr ## gensym =&c_name##_sym##gensym;          \
+  addGlobalSymMacro(c_name##_ptr##gensym)
 #define DEFCONST(lisp_name,c_name)                                      \
   global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};       \
   global_symref c_name ## _ptr=&c_name##_sym;                           \
@@ -38,12 +42,9 @@
 #define DEFUN_ARGS_8	(sexp, sexp, sexp, sexp,        \
                          sexp, sexp, sexp, sexp)
 #define DEFUN_ARGS_MANY (...)
-#define DEFUN(cname,numargs)                    \
+#define DEFUN(cname,numargs)                                \
   sexp cname DEFUN_ARGS_##numargs ;              \
-  extern fxn_proto cname ## call
-#define DEFUN_NEW(cname,numargs)                                \
-  sexp cname DEFUN_ARGS_##numargs ;              \
-  extern function_new cname ## call
+  extern function cname ## call
 #define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
 #define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
 #define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
