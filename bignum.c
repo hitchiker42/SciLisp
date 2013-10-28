@@ -5,12 +5,12 @@
   mpz_t *gmp_temp=xmalloc(sizeof(mpz_t));      \
   mpz_init(*gmp_temp);                          \
   function(*gmp_temp,args);                     \
-  return gmp_temp
+  return bigint_sexp(gmp_temp)
 #define mpfr_wrapper(function,args...)          \
-  mprf_t *mpfr_temp=xmalloc(sizeof(mpfr_t));   \
+  mpfr_t *mpfr_temp=xmalloc(sizeof(mpfr_t));    \
   mpfr_init(*mpfr_temp);                        \
   function(*mpfr_temp,args,MPFR_RNDN);          \
-  return mpfr_temp
+  return bigfloat_sexp(mpfr_temp)
 sexp lisp_bigint(sexp init){
   switch(init.tag){
     case _double:{
@@ -106,21 +106,21 @@ sexp promoteNum(sexp obj1,sexp obj2){
     if(!(BIGINTP(obj1))||!(BIGINTP(obj2))){                             \
       return error_sexp("bigint-op functions require bigint operands"); \
     }                                                                   \
-    gmp_wrapper(mpz_##op,obj1,obj2);                                    \
+    gmp_wrapper(mpz_##op,*obj1.val.bigint,*obj2.val.bigint);            \
   }
 #define mpfr_binop_mpfr(op)                                               \
   sexp lisp_mpfr_##op(sexp obj1,sexp obj2){                              \
     if(!(BIGFLOATP(obj1))||!(BIGFLOATP(obj2))){                             \
       return error_sexp("bigfloat-op functions require bigfloat operands"); \
     }                                                                   \
-    mpfr_wrapper(mpfr_##op,obj1,obj2);                                    \
+    mpfr_wrapper(mpfr_##op,*obj1.val.bigfloat,*obj2.val.bigfloat);      \
   }
 #define mpfr_unop_mpfr(op)                                             \
   sexp lisp_mpfr_##op(sexp obj1){                                       \
     if(!(BIGFLOATP(obj1))){                                             \
       return error_sexp("bigfloat-op functions require bigfloat operands"); \
     }                                                                   \
-    mpfr_wrapper(mpfr_##op,obj1);                                       \
+    mpfr_wrapper(mpfr_##op,*obj1.val.bigfloat);                         \
   }
 gmp_binop_mpz(add);
 gmp_binop_mpz(sub);
@@ -132,7 +132,7 @@ gmp_binop_mpz(tdiv_q);
 gmp_binop_mpz(cdiv_r);
 gmp_binop_mpz(fdiv_r);
 gmp_binop_mpz(tdiv_r);
-gmp_binop_mpz(powm);
+//gmp_binop_mpz(powm);
 gmp_binop_mpz(and);
 gmp_binop_mpz(ior);
 gmp_binop_mpz(xor);

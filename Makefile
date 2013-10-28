@@ -175,3 +175,4 @@ gmp.tar.xz:
 mpfr.tar.xz:
 	cd bignum && http://www.mpfr.org/mpfr-current/mpfr-3.1.2.tar.xz \
 	&& mv mpfr-3.1.2.tar.xz mpfr.tar.xz
+#http://physics.nist.gov/cuu/Constants/Table/allascii.txt

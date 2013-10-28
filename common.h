@@ -43,15 +43,17 @@
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
+#define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
 #define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
 #define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
+#define cord_sexp(cord_val) string_sexp(cord_val)
 #define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
 #define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
       .val={.bigfloat=bigfloat_ptr}}
-#define symVal(symref_sexp) symref_sexp.val.var->val.val
+#define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")

@@ -3,25 +3,33 @@
   (interactive)
   (indent-region (point-min) (point-max)))
 (defun mkPrimBasic (lname cname numargs)
-  (insert (format 
-"((:lname . \"%s\") (:cname . \"%s\") (:minargs . %d) (:maxargs . %d)
-(:optargs . 0) (:keyargs . 0) (:restarg . 0))" lname cname numargs numargs)))
+  (insert (format (concat
+"((:lname . \"%s\") (:cname . \"%s\") (:minargs . %d) (:maxargs . %d)"
+"(:optargs . 0) (:keyargs . 0) (:restarg . 0))") lname cname numargs numargs)))
 (defun mpz-binops(op-list)
   (dolist (op op-list)
-    (insert (format 
-"((:lname . \"bigint-%s\")(:cname . \"lisp_gmp_%s\") (:minargs . 2) (:maxargs . 2)
-(:optargs . 0) (:keyargs . 0) (:restarg . 0))" op op))))
+    (insert (format (concat
+"((:lname . \"bigint-%s\")(:cname . \"lisp_gmp_%s\") (:minargs . 2) "
+"(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
+(defvar mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "cdiv_r" "fdiv_q"
+                          "fdiv_r" "tdiv_r" "tdiv_q" "and" "ior" "xor"))
 (defun mpfr-binops(op-list)
   (dolist (op op-list)
-    (insert (format 
-"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 2) (:maxargs . 2)
-(:optargs . 0) (:keyargs . 0) (:restarg . 0))" op op))))
+    (insert (format (concat
+"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 2) " 
+"(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
+(defvar mpfr-binops-list '("add" "sub" "mul" "div" "pow"))
 (defun mpfr-unops(op-list)
   (dolist (op op-list)
-    (insert (format 
-"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 1) (:maxargs . 1)
-(:optargs . 0) (:keyargs . 0) (:restarg . 0))" op op))))
+    (insert (format (concat 
+"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 1) "
+"(:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
+(defvar mpfr-unops-list '("log" "exp" "cos" "sin" "tan"))
 (defvar SciLisp-prims)
+(defvar basic-prims-list 
+  '(("+" "lisp_add" 2) ("-" "lisp_sub" 2) ("*" "lisp_mul" 2) ("/" "lisp_div" 2)
+    ("<" "lisp_lt" 2) (">" "lisp_gt" 2) (">=" "lisp_gte" 2) ("<=" "lisp_lte" 2)
+    ("!=" "lisp_ne" 2)))
 (setq SciLisp-prims 
   '(
 ;:minargs->:reqargs,add :optargs and :restarg
