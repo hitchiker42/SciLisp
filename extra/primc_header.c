@@ -115,7 +115,7 @@ mkLisp_cmp(<,lisp_lt);
 mkLisp_cmp(>=,lisp_gte);
 mkLisp_cmp(<=,lisp_lte);
 mkLisp_cmp(!=,lisp_ne);
-mkLisp_cmp(==,lisp_equals);
+mkLisp_cmp(==,lisp_numeq);
 //math primitives
 mkMathFun2(pow,lisp_pow);
 mkMathFun1(sqrt,lisp_sqrt);
@@ -482,7 +482,29 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
   dllib=dlopen(dllibname,0);
   return NIL;
 }
-                                  
+sexp lisp_eq(sexp obj1,sexp obj2){
+  if(BIGNUMP(obj1) && BIGNUMP(obj2)){
+    return lisp_numeq(obj1,obj2);
+  }
+  if(obj1.tag != obj2.tag){
+    return LISP_FALSE;
+  }
+  switch(obj1.tag){
+    case _cons:
+    case _list:
+    case _sym:
+    case _array:
+    case _str:
+    case _lenv:
+    case _funarg:
+      return (obj1.val.int64 == obj2.val.int64 ? LISP_TRUE : LISP_FALSE);
+    case _type:
+    case _special:
+      return (obj1.val.meta == obj2.val.meta ? LISP_TRUE : LISP_FALSE);
+    default:
+      return LISP_FALSE;
+  }
+}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))

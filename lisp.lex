@@ -58,6 +58,7 @@ ID [A-Za-z%+*!\-_^$/<>=/&][A-Za-z%+*!?\-_^$&<>0-9=/]*
 TYPENAME "::"[A-z_a-z][A-Z_a-z0-9]*
 QUOTE "'"|quote
 UCHAR "?"("\\?"|"\\\\"|"\\x"([0-9a-fA-F]{2})|"\\u"([0-9a-fA-F]{4})|[^?\\])
+KEYSYM ":"{ID}
 /*
 union data {
   double real64;
@@ -94,6 +95,8 @@ union data {
                                return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
   yylval->val.uchar=(wchar_t)lex_char(yytext);return TOK_CHAR;}
+{KEYSYM} {LEX_MSG("lexing keyword symbol");
+  *yylval=(sexp)getKeySymSexp(yytext);return TOK_KEYSYM;}
  /*Special forms, generating function at end of file*/
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}

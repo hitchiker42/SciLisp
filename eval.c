@@ -561,8 +561,8 @@ static sexp call_lambda_new(sexp expr,env *cur_env){
   if(!args){
     handle_error();
   }
-  env lambda_env={.enclosing = curLambda->env,.head={.function=args->args},
-                  .tag=_funArgs};
+  env lambda_env=(env){.enclosing = curLambda->env,.head={.function=args},
+                       .tag=_funArgs};
   return eval(curLambda->body,&lambda_env);
 }
 sexp eval_lambda_new(sexp expr,env *cur_env){

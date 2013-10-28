@@ -30,7 +30,7 @@
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "!=") (:cname ."lisp_ne")    (:minargs . 2) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ((:lname . "=") (:cname ."lisp_equals") (:minargs . 2) (:maxargs . 2)
+    ((:lname . "=") (:cname ."lisp_numeq") (:minargs . 2) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "++") (:cname . "lisp_inc")  (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
@@ -153,6 +153,8 @@
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "system") (:cname . "lisp_system") (:minargs . 1)
       (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 1))
+     ((:lname . "eq") (:cname . "lisp_eq") (:minargs . 2) (:maxargs . 2)
+      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ;bit twiddling 
      ((:lname . "logxor") (:cname ."lisp_xor") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
@@ -162,7 +164,7 @@
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "ash") (:cname ."ash") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-                                        ;math functions
+     ;math functions
      ((:lname . "expt") (:cname ."lisp_pow") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "sqrt") (:cname ."lisp_sqrt") (:minargs . 1) (:maxargs . 1)
@@ -202,7 +204,11 @@
      ((:lname . "stringp") (:cname . "lisp_stringp") (:minargs . 1) (:maxargs . 1)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "symbolp") (:cname . "lisp_symbolp") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))))
+      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint") (:cname . "lisp_bigint") (:minargs . 1) (:maxargs . 1)
+      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigfloat") (:cname . "lisp_bigfloat") (:minargs . 1)
+      (:maxargs . 3) (:optargs . 2) (:keyargs . 0) (:restarg . 0))))
 ;idea, have files with constant contend then generate
 ;code for primitives, create a new file, copy the text
 ;from the constant file into the new file then add
@@ -214,6 +220,8 @@ if(initPrimsFlag){                                                    \\
 initPrimsFlag=0;                                                      \\
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \\
 topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \\
+keywordSymbols=(global_env){.enclosing=NULL,.head=NULL};\\
+mpfr_set_default_prec(256);\\
 ")
 (defvar initPrims-suffix)
 (setq initPrims-suffix 

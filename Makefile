@@ -33,9 +33,9 @@ XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS)
 XCFLAGS_NOWARN=-g $(OPT_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
-COMMON_HEADERS:=common.h debug.h types.h
-FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c
-FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o
+COMMON_HEADERS:=common.h debug.h types.h env.h
+FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c
+FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o
 BACKEND_SRC:=eval.c codegen.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -46,7 +46,8 @@ define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
 .PHONY: clean all quiet asm optimized set_quiet set_optimized mpfr\
-	doc info pdf clean_doc libprim_reqs readline llvm gc gmp
+	doc info pdf clean_doc libprim_reqs readline llvm gc gmp gmp.tar.xz\
+	mpfr.tar.xz
 #Programs to be built
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
@@ -80,6 +81,7 @@ llvm_test.o: llvm_test.c llvm_c.h
 env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
+bignum.o: bignum.c $(COMMON_HEADERS) 
 emacs_regex.o: emacs_regex.c emacs_regex.h
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
@@ -166,3 +168,9 @@ gmp: bignum/gmp/configure
 mpfr: bignum/mpfr/configure
 	cd bignum/mpfr && ./configure --prefix=$$PWD/.. \
 	--with-gmp-build=$$PWD/../gmp/ && $(MAKE) install
+gmp.tar.xz:
+	cd bignum && wget ftp://ftp.gnu.org/gnu/gmp/gmp-5.1.3.tar.xz \
+	&& mv gmp-5.1.3.tar.xz gmp.tar.xz
+mpfr.tar.xz:
+	cd bignum && http://www.mpfr.org/mpfr-current/mpfr-3.1.2.tar.xz \
+	&& mv mpfr-3.1.2.tar.xz mpfr.tar.xz

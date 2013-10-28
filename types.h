@@ -6,15 +6,20 @@
 #define uthash_free(ptr,sz) GC_FREE(ptr)
 #define HASH_USING_NO_STRICT_ALIASING
 #define HASH_FUNCTION HASH_MUR
-#include <cord.h>
+//including cord.h is weird, it includes "cord_pos.h" which isn't
+//automatically installed for some reason so we specify the actual
+//file we're including explicitly, as thats the easiest way to fix things
+#include "gc/include/gc/cord.h"
 #include <string.h>
 #include "include/uthash.h"
 #include <wchar.h>
+#include <stdint.h>
 #include <getopt.h>
 #include <limits.h>
 #include "regex.h"
 #include <gmp.h>
 #include <mpfr.h>
+#include <mpf2mpfr.h>
 typedef enum _tag _tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum special_form special_form;//different types of special forms
@@ -46,6 +51,8 @@ typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
 typedef global_symbol* global_symref;//"" global ""
 typedef local_symbol* local_symref;//"" local ""
+typedef global_symbol* keyword_symref;
+typedef global_symbol keyword_symbol;
 typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
@@ -70,35 +77,43 @@ typedef fxn_proto* fxn_ptr;//pointer to primitive function
 #define STREAMP(obj)(obj.tag ==_stream)
 #define REGEXP(obj)(obj.tag == _regex)
 #define ERRORP(obj)(obj.tag == _error)
+#define BIGINTP(obj)(obj.tag == _bigint)
+#define BIGFLOATP(obj) (obj.tag == _bigfloat)
+#define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
+                     obj.tag == _bigint || obj.tag == _bigfloat)
 enum _tag {
   _error = -4,//type of errors, value is a string
   _false = -3,//type of #f, actual value is undefined
   _uninterned = -2,//type of uninterned symbols, value is symbol(var)
   _nil = -1,//type of nil, singular object,vaule is undefined
   _cons = 0,//type of cons cells(aka lisp programs), value is cons
-  _double = 1,//type of floating point numbers, value is real64
-  _long = 2,//type of integers, vaule is int64
-  _char = 3,//type of chars(c type wchar_t),value is utf8_char
-  _str = 4,//type of strings, value is cord
-  _fun = 5,//type of builtin functions,value is function pointer,fun
-  _sym = 6,//type of symbols,value is var
-  _special = 7,//type of special form,value is meta(a _tag value)
-  _macro = 8,//type of macros, unimplemented
-  _type = 9,//type of types, unimplemened
-  _array = 10,//type of arrays, element type in meta, vaule is array
-  _true = 11,//type of #t, singular value
-  _list = 12,//type of lists,value is cons
-  _lam = 13,//type of lambda, value is lam
-  _lenv = 14,//type of local environments,value is lenv
-  _dpair = 15,
-  _ustr = 16,//utf8 string
-  _regex = 17,//compiled regular expression
-  _stream = 18,//type of input/output streams, corrsponds to c FILE*
-  _matrix =19,//array for mathematical calculations
-  _keyword = 20,
-  _funarg = 21,
-  _bigint = 22,
-  _bigfloat = 23,
+  _byte = 1,
+  _short = 2,
+  _int = 3,
+  _long = 4,//type of integers, vaule is int64
+  _float = 5,
+  _double = 6,//type of floating point numbers, value is real64
+  _bigint = 7,
+  _bigfloat = 8,
+  _char = 19,//type of chars(c type wchar_t),value is utf8_char
+  _str = 20,//type of strings, value is cord
+  _array = 21,//type of arrays, element type in meta, vaule is array
+  _ustr = 22,//utf8 string
+  _regex = 23,//compiled regular expression
+  _stream = 24,//type of input/output streams, corrsponds to c FILE*
+  _matrix =25,//array for mathematical calculations
+  _list = 26,//type of lists,value is cons
+  _dpair = 27,
+  _fun = 31,//type of builtin functions,value is function pointer,fun
+  _sym = 32,//type of symbols,value is var
+  _special = 33,//type of special form,value is meta(a _tag value)
+  _macro = 34,//type of macros, unimplemented
+  _type = 35,//type of types, unimplemened
+  _lam = 36,//type of lambda, value is lam
+  _lenv = 37,//type of local environments,value is lenv
+  _keyword = 38,
+  _funarg = 39,
+  _true = 40,//type of #t, singular value
 };
 enum special_form{
   _def=0,
@@ -128,22 +143,18 @@ enum special_form{
   _dolist=24,
 };
 //sign bit determines quoting
-#define quote_mask  0x7fff
-#define strippQuote(meta) quote_mask & meta
-#define isQuoted(meta)  0x8000 & meta
-#define MakeQuoted(meta)  _quoted_value | meta
 enum sexp_meta{
-  _quoted_utf8_string=(short)0x8003,
-  _quoted_long_array=(short)0x8002,
-  _quoted_double_array=(short)0x8001,
-  _quoted_value = (short)0x8,
   _double_array=1,
   _long_array=2,
   _utf8_string=3,
 };
 union data {//keep max size at 64 bits
+  float real32;
   double real64;
-  long int64;
+  int8_t int8;
+  int16_t int16;
+  int32_t int32;
+  int64_t int64;
   wchar_t utf8_char;//depreciated
   wchar_t uchar;//try to change all utf8_chars to this
   wchar_t *ustr;
@@ -151,6 +162,7 @@ union data {//keep max size at 64 bits
   CORD cord;
   cons* cons;
   symref var;
+  keyword_symref keyword;
   fxn_ptr fun;
   lambda* lam;
   special_form special;
@@ -159,19 +171,18 @@ union data {//keep max size at 64 bits
   sexp* quoted;
   local_symref lenv;
   regex_t* regex;
-  //before I use keyword symbols I need to figure out an efficent 
-  //way to compare them
   FILE* stream;
   function_args* funarg;
   function_new* fnew;
   mpz_ptr bigint;
   mpfr_ptr bigfloat;
 };
-//I'm thinking of using a bitfield for quoting...I'm not sure though
-//
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  
-  sexp_meta meta : 16;//random meta data(sign bit determines quoting)
+  sexp_meta meta : 8;//random meta data(sign bit determines quoting)
+  int quoted :1;
+  int setfable :1;
+  int packing :6;
   unsigned short len;//length of a list, array or string
   data val;
 };
@@ -189,6 +200,7 @@ enum TOKEN{
   TOK_ID=5,
   TOK_LISP_TRUE=6,
   TOK_LISP_FALSE=7,
+  TOK_KEYSYM=8,
   //reserved words/characters 18-30  
   TOK_QUOTE=18,
   TOK_QUASI=19,
@@ -248,29 +260,6 @@ struct fxn_proto{
 #define FCNAME(fxn) fxn.val.fun->cname
 #define FLNAME(fxn) fxn.val.fun->lispname
 #define F_CALL(fxn) fxn.val.fun->fxn_call
-struct symbol{
-  CORD name;
-  sexp val;
-};
-struct global_symbol{
-  CORD name;
-  sexp val;
-  UT_hash_handle hh;
-};
-struct local_symbol{
-  CORD name;
-  sexp val;
-  local_symref next;
-};
-
-struct local_env{
-  env* enclosing;
-  local_symref head;
-};
-struct global_env{
-  env* enclosing;
-  global_symref head;
-};
 //this is a better way of doing this
 //but needs work
 #define LAST_ARG(funarg) funarg->args[funarg->max_args]
@@ -289,10 +278,6 @@ struct function_args{
   symbol* args;
   int max_args;//number of args in c/llvm must be max_args
 };
-struct function_env{
-  env* enclosing;
-  function_args* head;//for consistancy in naming
-};
 //typedef function_new* fxn_ptr
 #define CALL_PRIM(fxn) (fxn.val.fnew->fun.comp)
 struct function_new{//36 bytes
@@ -307,25 +292,6 @@ struct function_new{//36 bytes
     _lambda_fun,
     _compiled_fun,
   } type;
-};
-
-union symbol_ref{
-  global_symref global;
-  local_symref local;
-  function_args* function;
-};
-union symbol_val{
-  local_symbol local;
-  global_symbol global;
-};
-struct env{
-  env* enclosing;
-  symbol_ref head;  
-  enum {
-    _local=0,
-    _global=1,
-    _funArgs=2,
-  } tag;
 };
 struct lambda{
   local_env *env;
@@ -358,31 +324,6 @@ static struct option long_options[] = {
   {"version",0,0,'v'},
   {0,0,0,0}
 };
-global_env globalSymbolTable;
-env topLevelEnv;
-//basically env.h(move to seperate file?)
-local_symref getLocalSym(local_env *cur_env,CORD name);
-global_symref getGlobalSym(CORD name);
-symref getSym(env *cur_env,CORD name);
-symref addSym(env *cur_env,symref Var);
-symref addGlobalSym(symref Var);
-symref addLocalSym(local_env *cur_env,symref Var);
-//type punning macros
-#define toSymbol(sym) (*(symbol*)&sym)
-#define toSymref(ref) (*(symref*)&(ref))
-static inline size_t symbolSize(env *cur_env){
-  switch(cur_env->tag){
-    case _global:
-      return sizeof(global_symbol);
-    case _local:
-      return sizeof(local_symbol);
- }
-}
-#define getGlobalSymMacro(name,Var)                                  \
-  HASH_FIND_STR(globalSymbolTable.head,(const char *)name,Var)
-#define addGlobalSymMacro(Var)                                          \
-  HASH_ADD_KEYPTR(hh, globalSymbolTable.head, Var->name, strlen(Var->name), Var)
-  //         hh_name, head,        key_ptr,   key_len,           item_ptr
 //literal objects for each type
 #define mkTypeSym(name,mval)                                    \
   static const sexp name = {.tag=_type, .val={.meta = mval}}

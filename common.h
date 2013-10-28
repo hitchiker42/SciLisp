@@ -28,7 +28,9 @@
 #include <uthash.h>
 #include <wchar.h>*/
 #include "types.h"
+#include "env.h"
 #include "print.h"
+#include "bignum.h"
 //#include "lex.yy.h"
 //enable/disable debugging/lexing output
 #define HERE_ON
@@ -46,6 +48,9 @@
 #define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
 #define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
+#define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
+#define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
+      .val={.bigfloat=bigfloat_ptr}}
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)

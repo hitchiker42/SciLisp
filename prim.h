@@ -62,7 +62,7 @@ DEFUN(lisp_gt,2);
 DEFUN(lisp_gte,2);
 DEFUN(lisp_lte,2);
 DEFUN(lisp_ne,2);
-DEFUN(lisp_equals,2);
+DEFUN(lisp_numeq,2);
 DEFUN(lisp_inc,1);
 DEFUN(lisp_dec,1);
 DEFUN(lisp_sum,2);
@@ -122,6 +122,7 @@ DEFUN(lisp_fprintln,2);
 DEFUN(lisp_cat,2);
 DEFUN(lisp_getcwd,0);
 DEFUN(lisp_system,2);
+DEFUN(lisp_eq,2);
 DEFUN(lisp_xor,2);
 DEFUN(lisp_logand,2);
 DEFUN(lisp_logor,2);
@@ -146,11 +147,15 @@ DEFUN(lisp_arrayp,1);
 DEFUN(lisp_nilp,1);
 DEFUN(lisp_stringp,1);
 DEFUN(lisp_symbolp,1);
+DEFUN(lisp_bigint,1);
+DEFUN(lisp_bigfloat,3);
 #define initPrims()                                                     \
 if(initPrimsFlag){                                                    \
 initPrimsFlag=0;                                                      \
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \
 topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \
+keywordSymbols=(global_env){.enclosing=NULL,.head=NULL};\
+mpfr_set_default_prec(256);\
 DEFUN_INTERN("+",lisp_add);\
 DEFUN_INTERN("-",lisp_sub);\
 DEFUN_INTERN("*",lisp_mul);\
@@ -160,7 +165,7 @@ DEFUN_INTERN(">",lisp_gt);\
 DEFUN_INTERN(">=",lisp_gte);\
 DEFUN_INTERN("<=",lisp_lte);\
 DEFUN_INTERN("!=",lisp_ne);\
-DEFUN_INTERN("=",lisp_equals);\
+DEFUN_INTERN("=",lisp_numeq);\
 DEFUN_INTERN("++",lisp_inc);\
 DEFUN_INTERN("--",lisp_dec);\
 DEFUN_INTERN("sum",lisp_sum);\
@@ -220,6 +225,7 @@ DEFUN_INTERN("fprintln",lisp_fprintln);\
 DEFUN_INTERN("cat",lisp_cat);\
 DEFUN_INTERN("pwd",lisp_getcwd);\
 DEFUN_INTERN("system",lisp_system);\
+DEFUN_INTERN("eq",lisp_eq);\
 DEFUN_INTERN("logxor",lisp_xor);\
 DEFUN_INTERN("logand",lisp_logand);\
 DEFUN_INTERN("logor",lisp_logor);\
@@ -244,6 +250,8 @@ DEFUN_INTERN("arrayp",lisp_arrayp);\
 DEFUN_INTERN("nilp",lisp_nilp);\
 DEFUN_INTERN("stringp",lisp_stringp);\
 DEFUN_INTERN("symbolp",lisp_symbolp);\
+DEFUN_INTERN("bigint",lisp_bigint);\
+DEFUN_INTERN("bigfloat",lisp_bigfloat);\
 INTERN_ALIAS("cons?",lisp_consp,17);                                  \
 INTERN_ALIAS("array?",lisp_arrayp,23);                                \
 DEFCONST("Meps",lisp_mach_eps);                                       \

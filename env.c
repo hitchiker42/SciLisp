@@ -29,6 +29,7 @@ symref addGlobalSym(symref Var){
   global_symref GlobalVar=xmalloc(sizeof(global_symbol));
   GlobalVar->name=Var->name;
   GlobalVar->val=Var->val;
+  GlobalVar->symbol_env=&topLevelEnv;
   addGlobalSymMacro(GlobalVar);
   PRINT_MSG(GlobalVar->name);
   return toSymref(GlobalVar);
@@ -45,12 +46,14 @@ local_symref getLocalSym(local_env *cur_env,CORD name){
 }
 //perhaps I should check to see if variables exist
 //and redifine them
-symref addLocalSym(local_env *cur_env,symref Var){
+symref addLocalSym(env *cur_env,symref Var){
+  local_env *cur_lenv=(local_env*)cur_env;
   local_symref LocalVar=xmalloc(sizeof(local_symbol));
-  LocalVar->next=cur_env->head;
+  LocalVar->next=cur_lenv->head;
   LocalVar->name=Var->name;
   LocalVar->val=Var->val;
-  cur_env->head=LocalVar;
+  LocalVar->symbol_env=cur_env;
+  cur_lenv->head=LocalVar;
   return toSymref(LocalVar);
 }
 symref addSym(env *cur_env,symref Var){
@@ -58,7 +61,7 @@ symref addSym(env *cur_env,symref Var){
     case _global:
       return addGlobalSym(Var);
     case _local:
-      return addLocalSym((local_env*)cur_env,Var);
+      return addLocalSym(cur_env,Var);
     case _funArgs:
       return NULL;
   }
@@ -72,6 +75,15 @@ symref getFunctionSym(function_env* cur_env,CORD name){
     }
   }
   return getSym(cur_env->enclosing,name);
+}
+sexp getKeySymSexp(CORD name){
+  keyword_symref keysym;
+  getKeySymMacro(name,keysym);
+  if(keysym){return (sexp){.tag=_keyword,.val={.keyword=keysym}};}
+  keysym=xmalloc(sizeof(keyword_symbol));
+  keysym->name=name;
+  addKeySymMacro(keysym);
+  return (sexp){.tag=_keyword,.val={.keyword=keysym}};
 }
 //needs to move to somewhere else.
 

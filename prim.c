@@ -115,7 +115,7 @@ mkLisp_cmp(<,lisp_lt);
 mkLisp_cmp(>=,lisp_gte);
 mkLisp_cmp(<=,lisp_lte);
 mkLisp_cmp(!=,lisp_ne);
-mkLisp_cmp(==,lisp_equals);
+mkLisp_cmp(==,lisp_numeq);
 //math primitives
 mkMathFun2(pow,lisp_pow);
 mkMathFun1(sqrt,lisp_sqrt);
@@ -482,7 +482,29 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
   dllib=dlopen(dllibname,0);
   return NIL;
 }
-                                  
+sexp lisp_eq(sexp obj1,sexp obj2){
+  if(BIGNUMP(obj1) && BIGNUMP(obj2)){
+    return lisp_numeq(obj1,obj2);
+  }
+  if(obj1.tag != obj2.tag){
+    return LISP_FALSE;
+  }
+  switch(obj1.tag){
+    case _cons:
+    case _list:
+    case _sym:
+    case _array:
+    case _str:
+    case _lenv:
+    case _funarg:
+      return (obj1.val.int64 == obj2.val.int64 ? LISP_TRUE : LISP_FALSE);
+    case _type:
+    case _special:
+      return (obj1.val.meta == obj2.val.meta ? LISP_TRUE : LISP_FALSE);
+    default:
+      return LISP_FALSE;
+  }
+}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -507,7 +529,7 @@ DEFUN(">",lisp_gt,2,2);
 DEFUN(">=",lisp_gte,2,2);
 DEFUN("<=",lisp_lte,2,2);
 DEFUN("!=",lisp_ne,2,2);
-DEFUN("=",lisp_equals,2,2);
+DEFUN("=",lisp_numeq,2,2);
 DEFUN("++",lisp_inc,1,1);
 DEFUN("--",lisp_dec,1,1);
 DEFUN("sum",lisp_sum,1,2);
@@ -567,6 +589,7 @@ DEFUN("fprintln",lisp_fprintln,2,2);
 DEFUN("cat",lisp_cat,1,2);
 DEFUN("pwd",lisp_getcwd,0,0);
 DEFUN("system",lisp_system,1,2);
+DEFUN("eq",lisp_eq,2,2);
 DEFUN("logxor",lisp_xor,2,2);
 DEFUN("logand",lisp_logand,2,2);
 DEFUN("logor",lisp_logor,2,2);
@@ -591,4 +614,6 @@ DEFUN("arrayp",lisp_arrayp,1,1);
 DEFUN("nilp",lisp_nilp,1,1);
 DEFUN("stringp",lisp_stringp,1,1);
 DEFUN("symbolp",lisp_symbolp,1,1);
+DEFUN("bigint",lisp_bigint,1,1);
+DEFUN("bigfloat",lisp_bigfloat,1,3);
 #undef DEFUN
