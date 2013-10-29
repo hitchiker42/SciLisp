@@ -83,15 +83,71 @@ uint32_t murmur_hash(char* key,int keylen){
   hash = hash ^ data[i];
   hash = hash * fnv_prime
   return hash;*/
-#define offset_basis 14695981039346656037UL
-#define fnv_prime 1099511628211UL
-long fnv_hash(char* key,int keylen){
-  char *raw_data=key;
+#define fnv_prime_32 16777619
+#define fnv_prime_64 1099511628211UL
+#define fnv_prime_128 309485009821345068724781371
+#define fnv_prime_256 374144419156711147060143317175368453031918731002211
+#define fnv_prime_512 "35835915874844867368919076489095108449946327955754392558399825615420669938882575126094039892345713852759"
+#define fnv_prime_1024 "5016456510113118655434598811035278955030765345404790744303017523831112055108147451509157692220295382716162651878526895249385292291816524375083746691371804094271873160484737966720260389217684476157468082573"
+#define offset_basis_32 2166136261
+#define offset_basis_64 14695981039346656037UL
+#define offset_basis_128 144066263297769815596495629667062367629
+#define offset_basis_256 100029257958052580907070968620625704837092796014241193945225284501741471925557
+#define offset_basis_512 "9659303129496669498009435400716310466090418745672637896108374329434462657994582932197716438449813051892206539805784495328239340083876191928701583869517785"
+#define offset_basis_1024 "14197795064947621068722070641403218320880622795441933960878474914617582723252296732303717722150864096521202355549365628174669108571814760471015076148029755969804077320157692458563003215304957150157403644460363550505412711285966361610267868082893823963790439336411086884584107735010676915"
+static unsigned int fnv_hash32(void* key, int keylen){
+  char *raw_data=(char*)key;
   int i;
-  long hash=offset_basis;
+  unsigned long hash=offset_basis_32;
+  for(i=0;i<keylen;i++){
+    hash=(hash*fnv_prime_32)^raw_data[i];
+  }
+}
+static unsigned long fnv_hash(void* key,int keylen){
+  char *raw_data=(char*)key;
+  int i;
+  unsigned long hash=offset_basis_64;
   for(i=0; i < keylen; i++){
-      hash = (hash * fnv_prime) ^ raw_data[i];
+      hash = (hash * fnv_prime_64) ^ raw_data[i];
   }
   return hash;
+}
+static mpz_t fnv_hash_mpz(void* key, int keylen,int keysize){
+  mpz_t hash,fnv_prime,cur_octet;
+  mpz_init_set_str(hash,offset_basis_256,0);
+  mpz_init_set_str(fnv_prime,fnv_prime_256,0);
+  mpz_init(cur_octet);
+  char* raw_data=(char*)key;
+  int i;
+  for(i=0;i<keylen;i++){
+    mpz_set(cur_octet,(unsigned long)raw_data[i]);
+    mpz_mul(hash,hash,fnv_prime);
+    mpz_xor(hash,hash,cur_octet);
+  }
+  return hash;
+}
+
+static long bernstein_hash(void* key,int keylen){
+  unsigned _hb_keylen=keylen;
+  char *_hb_key=(char*)(key);
+  (hashv) = 0;
+  while (_hb_keylen--)  { (hashv) = ((hashv) * 33) + *_hb_key++; }
+  return hashv;
+}
+unsigned oat_hash ( void *key, int len ){
+  unsigned char *p = key;
+  unsigned h = 0;
+  int i;
+  for ( i = 0; i < len; i++ ) {
+    h += p[i];
+    h += ( h << 10 );
+    h ^= ( h >> 6 );
+  }
+
+  h += ( h << 3 );
+  h ^= ( h >> 11 );
+  h += ( h << 15 );
+
+  return h;
 }
 #endif
