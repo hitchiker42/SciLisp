@@ -46,6 +46,8 @@ typedef struct function function;//struct of min/max args and union of lambda/fx
 typedef struct function_new function_new;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
 typedef struct function_args function_args;
+typedef struct obarray obarray;
+typedef struct obarray_entry obarray_entry;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances

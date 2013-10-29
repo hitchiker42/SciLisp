@@ -81,4 +81,44 @@ static inline size_t symbolSize(env *cur_env){
   HASH_FIND_STR(keywordSymbols.head,(const char *)name,Var)
 #define addKeySymMacro(Var)                                          \
   HASH_ADD_KEYPTR(hh, keywordSymbols.head, Var->name, strlen(Var->name), Var)
+//not sure if this should be a parameter
+#define OBARRAY_BKT_CAPACITY 10
+struct obarray {  
+  obarray_entry **buckets;//points to first bucket
+  int size;//memory allocated for the obarray
+  int used;//buckets used, should usually be equal to num_buckets
+  int entries;//number of obarray_entries 
+  float capacity;//sum of entries per buckets for all buckets/num_buckets
+  float capicity_inc;//1/(size*10)
+  float gthresh;//growth threshold
+  float gfactor;//growth factor
+  int is_weak_hash;//only actually needs a single bit
+  unsigned long (*hash_fn)(void*,int);
+};
+struct obarray_env {
+  env* enclosing;
+  obarray* head;
+};
+struct obarray_entry {
+  obarray_entry *prev;
+  obarray_entry *next;
+  symref ob_symbol;
+  uint64_t hashv;
+};
+enum add_option{//conflict resolution for an existing symbol
+  _update=2,//change value of existing symbol
+  _ignore=3,//keep current symbol and add new symbol
+  //this is likely to cause some errors, but it exists, because why not
+  _overwrite=4,//explictly overwrite current entry
+  _use_current=5,//keep current entry and ignore update
+};
+obarray* obarray_init(float gthresh,uint64_t(*hash_fn)(void*,long),
+                      int64_t num_buckets,int32_t is_weak_hash);
+obarray* obarray_init_default(int64_t num_buckets);
+obarray_entry*  obarray_add_entry_generic
+(obarray *ob,symref new_entry,enum add_option conflict_opt,int append);
+obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry{
+int obarray_rehash(obarray *ob);
+obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);
+obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
 #endif
