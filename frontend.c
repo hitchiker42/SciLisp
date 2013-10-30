@@ -8,6 +8,7 @@
 #include "lex.yy.h"
 #include "print.h"
 #include "codegen.h"
+#include <sys/mman.h>
 #define HAVE_READLINE
 #ifdef HAVE_READLINE
 #include <readline/readline.h>

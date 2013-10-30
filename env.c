@@ -22,6 +22,8 @@ symref getSym(env *cur_env,CORD name){
     case _funArgs:
       HERE();
       return (symref)getFunctionSym((function_env*)cur_env,name);
+    case _obEnv:
+      return (symref)getObarraySym((obarray_env*)cur_env,name);
     default:
       fprintf(stderr,"shouldn't get here");
       exit(1);
@@ -186,6 +188,16 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
   }
   return 0;
 }
+symref getObarraySym(obarray_env* ob_env,CORD name){
+  obarray_entry* entry;
+  entry=obarray_get_entry(ob_env->head,name,0);
+  if(entry){
+    return entry->ob_symbol;
+  } else {
+    return getSym(ob_env->enclosing,name);
+  }
+}
+  
 obarray_entry* obarray_add_entry_generic
 (obarray *ob,symref new_entry,enum add_option conflict_opt,int append){
   if (ob->capacity>=ob->gthresh){
@@ -297,4 +309,16 @@ int obarray_rehash(obarray *ob){
   }
   HERE();
   return 1;
+}
+int bucketLength(obarray_entry* bucket){
+  if(!bucket){
+    return 0;
+  } else {
+    int len=0;
+    while(bucket){
+      bucket=bucket->next;
+      len++;
+    }
+    return len;
+  }
 }

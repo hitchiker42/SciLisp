@@ -282,7 +282,7 @@ sexp parse_sexp(){
   if(yytag == TOK_QUOTE){
     nextTok();
     sexp retval = parse_sexp();
-    //retval=MakeQuoted(retval);
+    retval.quoted=1;
     return retval;
   } else if (yytag == TOK_QUASI){
     return parse_macro();

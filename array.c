@@ -13,12 +13,44 @@ sexp aref(sexp obj,sexp ind){
     return XAREF(obj,ind.val.int64);
   }
 }
-#define iota_loop(sign,cmp,type,tag)            \
+/*#define iota_loop(sign,cmp,type,tag)         \
       for(i=0;i cmp imax;i sign##sign){        \
         newarray[sign i].tag=(type)i;          \
-      }
-//maybe I made this a bit overcomplecated
-sexp array_iota(sexp start,sexp stop,sexp step){
+        }*/
+sexp array_iota(sexp start,sexp stop,sexp step,sexp should_round){
+  int i=0,k;
+  double j,dstep;
+  if(!NUMBERP(start)){goto TYPE_ERROR;}
+  if(NILP(stop)){
+    stop=start;
+    start=long_sexp(0);
+  } else if(!NUMBERP(stop)){goto TYPE_ERROR;}
+  double range=getDoubleValUnsafe(lisp_sub(stop,start));
+  if(NILP(step)){
+    step=(range < 0)?long_sexp(-1):long_sexp(1);
+  } else if(!NUMBERP(step)){goto TYPE_ERROR;}
+  dstep=getDoubleValUnsafe(step);
+  int imax=ceil(fabs(range/dstep));
+  data* newarray=xmalloc(sizeof(data)*imax+1);
+  j=getDoubleValUnsafe(start);
+  int rnd=!NILP(should_round);
+  for(i=0;i<imax;i++){
+    if(rnd){
+      newarray[i].int64=round(j);
+    } else {
+      newarray[i].real64=j;
+    }
+    j+=dstep;
+  }
+  if(rnd){
+    return (sexp){.tag=_array,.meta=_long_array,.val={.array=newarray},.len=imax};
+  } else {
+    return (sexp){.tag=_array,.meta=_double_array,.val={.array=newarray},.len=imax};
+  }
+  TYPE_ERROR:
+    return error_sexp("iota type error, arguments must be numbers");
+}
+/*sexp array_iota(sexp start,sexp stop,sexp step){
   long i,imax;
   double dstep;
   data* newarray;
@@ -73,4 +105,4 @@ sexp array_iota(sexp start,sexp stop,sexp step){
     return (sexp){.tag=_array,.val={.array=newarray},
         .len=imax,.meta=_double_array};
   }
-}    
+  }    */

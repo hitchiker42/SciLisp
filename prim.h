@@ -14,10 +14,9 @@
   symbol c_name ## _sym=                                                \
     (symbol){.name = l_name,.val =                                      \
              {.tag=_fun,.val={.fun = &c_name##call}},                   \
-             .symbol_env=ob_env};                                      \
+             .symbol_env=ob_env};                                       \
   symref c_name ## _ptr=&c_name##_sym;                                  \
   obarray_add_entry(ob,c_name##_ptr)
-
 #define DEFUN_INTERN(l_name,c_name)                                       \
   global_symbol c_name ## _sym=                                         \
     (global_symbol){.name = l_name,.val =                               \
@@ -124,7 +123,7 @@ DEFUN(mapcar,2);
 DEFUN(reduce,2);
 DEFUN(qsort_cons,2);
 DEFUN(lisp_length,1);
-DEFUN(lisp_iota,4);
+DEFUN(lisp_iota,5);
 DEFUN(aref,2);
 DEFUN(array_to_list,1);
 DEFUN(lisp_typeName,1);
@@ -180,6 +179,11 @@ DEFUN(lisp_gmp_tdiv_q,2);
 DEFUN(lisp_gmp_and,2);
 DEFUN(lisp_gmp_ior,2);
 DEFUN(lisp_gmp_xor,2);
+DEFUN(lisp_mpfr_add,2);
+DEFUN(lisp_mpfr_sub,2);
+DEFUN(lisp_mpfr_mul,2);
+DEFUN(lisp_mpfr_div,2);
+DEFUN(lisp_mpfr_pow,2);
 static void initPrimsObarray(obarray *ob,env* ob_env){
 DEFUN_INTERN_OBARRAY("+",lisp_add);
 DEFUN_INTERN_OBARRAY("-",lisp_sub);
@@ -290,6 +294,11 @@ DEFUN_INTERN_OBARRAY("bigint-tdiv_q",lisp_gmp_tdiv_q);
 DEFUN_INTERN_OBARRAY("bigint-and",lisp_gmp_and);
 DEFUN_INTERN_OBARRAY("bigint-ior",lisp_gmp_ior);
 DEFUN_INTERN_OBARRAY("bigint-xor",lisp_gmp_xor);
+DEFUN_INTERN_OBARRAY("bigfloat-add",lisp_mpfr_add);
+DEFUN_INTERN_OBARRAY("bigfloat-sub",lisp_mpfr_sub);
+DEFUN_INTERN_OBARRAY("bigfloat-mul",lisp_mpfr_mul);
+DEFUN_INTERN_OBARRAY("bigfloat-div",lisp_mpfr_div);
+DEFUN_INTERN_OBARRAY("bigfloat-pow",lisp_mpfr_pow);
 }
 #define initPrims()                                                     \
 if(initPrimsFlag){                                                    \
@@ -408,6 +417,11 @@ DEFUN_INTERN("bigint-tdiv_q",lisp_gmp_tdiv_q);\
 DEFUN_INTERN("bigint-and",lisp_gmp_and);\
 DEFUN_INTERN("bigint-ior",lisp_gmp_ior);\
 DEFUN_INTERN("bigint-xor",lisp_gmp_xor);\
+DEFUN_INTERN("bigfloat-add",lisp_mpfr_add);\
+DEFUN_INTERN("bigfloat-sub",lisp_mpfr_sub);\
+DEFUN_INTERN("bigfloat-mul",lisp_mpfr_mul);\
+DEFUN_INTERN("bigfloat-div",lisp_mpfr_div);\
+DEFUN_INTERN("bigfloat-pow",lisp_mpfr_pow);\
 INTERN_ALIAS("cons?",lisp_consp,17);                                  \
 INTERN_ALIAS("array?",lisp_arrayp,23);                                \
 DEFCONST("Meps",lisp_mach_eps);                                       \

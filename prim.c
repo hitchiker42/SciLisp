@@ -47,15 +47,24 @@
 /*#define DEFUN(lname,cname,minargs,maxargs)                    \
   fxn_proto cname##call=                                        \
   { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
-//  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};            
+//  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
   function_args c_name##args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
   function c_name##call=                                             \
     { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
-      .fun = {.comp = {.f##maxargs=c_name}},            \
+      .comp = {.f##maxargs=c_name},            \
       .type = _compiled_fun };
+#define MAKE_SYMBOL(l_name,c_name,hashv)                                \
+  symbol c_name ## _sym=                                                \
+    (symbol){.name = l_name,.val =                                      \
+             {.tag=_fun,.val={.fun = &c_name##call}},                   \
+             .symbol_env=0};                                            \
+  symref c_name ## _ptr=&c_name##_sym;                                  \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=c_name ## _ptr, \
+                                    .hashv=hashv}
+
 #define DEFUN_MANY(lname,cname,minargs,maxargs)                \
   fxn_proto cname##call=                                       \
     { #cname, lname, minargs, -1, {.f##maxargs=cname}};
@@ -204,12 +213,11 @@ sexp lisp_round(sexp float_num,sexp mode){
 }
 //should make this lisp_iota(a,b,c,d)
 //where d is a switch to decide between a list or an array
-sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist){
+sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist,sexp rnd){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
   } else {
-    //  return array_iota(start,stop,step);
-    return NIL;
+    return array_iota(start,stop,step,rnd);
   }
 }
 void hello_world(){
@@ -380,7 +388,7 @@ sexp lisp_system(sexp command,sexp args){
 sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   sexp(*f)(sexp,sexp);
   sexp retval;
-  if(!(NUMBERP(required))){} 
+  if(!(NUMBERP(required))){}
   switch(op){
     case _add:
       f=lisp_add;
@@ -506,6 +514,12 @@ sexp lisp_eq(sexp obj1,sexp obj2){
       return LISP_FALSE;
   }
 }
+sexp lisp_apply(sexp fun,sexp args){
+  if(!FUNCTIONP(fun)){
+    return error_sexp("first argument to apply should be a funciton");
+  }
+  cons* arglist=alloca(fun.val.fun->args->max_args*sizeof(sexp));
+}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -574,7 +588,7 @@ DEFUN("mapcar",mapcar,2,0,0,0,2);
 DEFUN("reduce",reduce,2,0,0,0,2);
 DEFUN("qsort!",qsort_cons,2,0,0,0,2);
 DEFUN("length",lisp_length,1,0,0,0,1);
-DEFUN("iota",lisp_iota,1,3,0,0,4);
+DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("aref",aref,2,0,0,0,2);
 DEFUN("array->list",array_to_list,1,0,0,0,1);
 DEFUN("typeName",lisp_typeName,1,0,0,0,1);
@@ -630,4 +644,9 @@ DEFUN("bigint-tdiv_q",lisp_gmp_tdiv_q,2,0,0,0,2);
 DEFUN("bigint-and",lisp_gmp_and,2,0,0,0,2);
 DEFUN("bigint-ior",lisp_gmp_ior,2,0,0,0,2);
 DEFUN("bigint-xor",lisp_gmp_xor,2,0,0,0,2);
+DEFUN("bigfloat-add",lisp_mpfr_add,2,0,0,0,2);
+DEFUN("bigfloat-sub",lisp_mpfr_sub,2,0,0,0,2);
+DEFUN("bigfloat-mul",lisp_mpfr_mul,2,0,0,0,2);
+DEFUN("bigfloat-div",lisp_mpfr_div,2,0,0,0,2);
+DEFUN("bigfloat-pow",lisp_mpfr_pow,2,0,0,0,2);
 #undef DEFUN

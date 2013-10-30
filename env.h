@@ -56,6 +56,8 @@ struct env{
 global_env globalSymbolTable;
 env topLevelEnv;
 global_env keywordSymbols;
+obarray globalObarray;
+obarray_env globalObarrayEnv;
 //basically env.h(move to seperate file?)
 local_symref getLocalSym(local_env *cur_env,CORD name);
 global_symref getGlobalSym(CORD name);
@@ -89,8 +91,8 @@ static inline size_t symbolSize(env *cur_env){
 struct obarray {  
   obarray_entry **buckets;//points to first bucket
   int size;//memory allocated for the obarray
-  int used;//buckets used, should usually be equal to num_buckets
-  int entries;//number of obarray_entries 
+  int used;//buckets used
+  int entries;//number of obarray_entries
   float capacity;//sum of entries per buckets for all buckets/num_buckets
   float capacity_inc;//1/(size*10)
   float gthresh;//growth threshold
@@ -125,4 +127,6 @@ obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
 int obarray_rehash(obarray *ob);
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);
 obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
+symref getObarraySym(obarray_env *ob_env,CORD name);
+int bucketLength(obarray_entry* bucket);
 #endif

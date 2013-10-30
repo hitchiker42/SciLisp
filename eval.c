@@ -36,6 +36,7 @@ static sexp handle_error(void){
 //evaluate the lisp expression expr in the environment cur_env
 sexp eval(sexp expr,env *cur_env){
   symref tempsym=0;
+  if(expr.quoted){expr.quoted=0;return expr;}
   switch(expr.tag){
     //a cons cell must be a function call or a special form
     case _cons:
@@ -549,7 +550,7 @@ static inline sexp call_builtin(sexp expr,env *cur_env){
 }
 static sexp call_lambda(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
-  lambda* curLambda=curFun.val.fun->fun.lam;
+  lambda* curLambda=curFun.val.fun->lam;
   function_args *args=curFun.val.fun->args;
   //  args->args=alloca(sizeof(symbol)*args->max_args);
   args=getFunctionArgs(cdr(expr),args,cur_env);
@@ -575,6 +576,6 @@ sexp eval_lambda(sexp expr,env *cur_env){
   newLambda->env=closure;
   newLambda->body=body;
   *retval=(function){.args=args,.lname=lambdaName,.cname=lambdaName,
-                         .fun={.lam=newLambda},.type=_lambda_fun};
+                     .lam=newLambda,.type=_lambda_fun};
   return (sexp){.tag=_fun,.val={.fun=retval}};
 }

@@ -2,6 +2,14 @@
   "Indent entire buffer using indent-region"
   (interactive)
   (indent-region (point-min) (point-max)))
+(defvar *cadrs*
+(let ((ls ()))
+  (dolist (i '("a" "d"))
+    (dolist (j '("a" "d" ""))
+      (dolist (k '("a" "d" ""))
+        (dolist (l '("a" "d" ""))
+          (add-to-list 'ls (concat "c" i j k l "r"))))))
+  ls))
 (defun mkPrimBasic (lname cname numargs)
   (insert (format (concat
 "((:lname . \"%s\") (:cname . \"%s\") (:minargs . %d) (:maxargs . %d)"
@@ -16,8 +24,8 @@
 (defun mpfr-binops(op-list)
   (dolist (op op-list)
     (insert (format (concat
-"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 2) " 
-"(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
+"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 2)\n" 
+"(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))\n") op op))))
 (defvar mpfr-binops-list '("add" "sub" "mul" "div" "pow"))
 (defun mpfr-unops(op-list)
   (dolist (op op-list)
@@ -26,10 +34,20 @@
 "(:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
 (defvar mpfr-unops-list '("log" "exp" "cos" "sin" "tan"))
 (defvar SciLisp-prims)
-(defvar basic-prims-list 
+(defvar basic-prims-list (append 
   '(("+" "lisp_add" 2) ("-" "lisp_sub" 2) ("*" "lisp_mul" 2) ("/" "lisp_div" 2)
     ("<" "lisp_lt" 2) (">" "lisp_gt" 2) (">=" "lisp_gte" 2) ("<=" "lisp_lte" 2)
-    ("!=" "lisp_ne" 2)))
+    ("!=" "lisp_ne" 2) ("=" "lisp_numeq" 2) ("++" "lisp_inc" 1) ("--" "lisp_dec" 1)
+    ("cons" "Cons" 2) ("set-car!" "set_car" 2) ("set-cdr!" "set_cdr" 2) 
+    ("last" "last" 1) ("push!" "push_cons" 2) ("pop!" "pop_cons" 1)
+    ("mapcar" "mapcar" 2) ("reduce" "reduce" 2))
+  (mapcar (lambda (x) (list x x 1)) *cadrs*)
+  ))
+(defvar basic-SciLisp-prims
+  (dolist (f basic-prims-list)
+    (let ((ls ()))
+      (add-to-list 'ls (apply #'mkPrimBasic f))
+      ls)))
 (setq SciLisp-prims 
   '(
 ;:minargs->:reqargs,add :optargs and :restarg
@@ -142,8 +160,8 @@
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "length") (:cname ."lisp_length") (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ((:lname . "iota") (:cname ."lisp_iota") (:minargs . 1) (:maxargs . 4)
-     (:optargs . 3) (:keyargs . 0) (:restarg . 0))
+    ((:lname . "iota") (:cname ."lisp_iota") (:minargs . 1) (:maxargs . 5)
+     (:optargs . 4) (:keyargs . 0) (:restarg . 0))
                                         ;array functions
     ((:lname . "aref") (:cname ."aref") (:minargs . 2) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
@@ -257,6 +275,16 @@
      ((:lname . "bigint-ior") (:cname . "lisp_gmp_ior") (:minargs . 2) 
       (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "bigint-xor") (:cname . "lisp_gmp_xor") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigfloat-add")(:cname . "lisp_mpfr_add") (:minargs . 2)
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigfloat-sub")(:cname . "lisp_mpfr_sub") (:minargs . 2)
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigfloat-mul")(:cname . "lisp_mpfr_mul") (:minargs . 2)
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigfloat-div")(:cname . "lisp_mpfr_div") (:minargs . 2)
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigfloat-pow")(:cname . "lisp_mpfr_pow") (:minargs . 2)
       (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))))
 ;idea, have files with constant contend then generate
 ;code for primitives, create a new file, copy the text
@@ -334,6 +362,12 @@ srand48(time(NULL));}
 (defun initPrimsObarray-format (prim)
   (format "DEFUN_INTERN_OBARRAY(\"%s\",%s);\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))))
+(defun makePrimSymbols-format(prim)
+  (format "MAKE_SYMBOL(\"%s\",%s,%s);\n"
+          (cdr (assq :lname prim))(cdr (assq :cname prim))
+          (shell-command-to-string (format "../fnv_hash '%s'" 
+                                           (cdr (assq :cname prim))))))
+(makePrimSymbols-format (car SciLisp-prims))
 (defun generate-SciLisp-prims()
   (let ((primh (generate-new-buffer "primh"))
         (initPrims (generate-new-buffer "initPrims"))

@@ -41,5 +41,6 @@ static sexp array_to_list(sexp obj){
     return retval;
   }
 }
-sexp array_iota(sexp start,sexp stop,sexp step);
+sexp array_iota(sexp start,sexp stop,sexp step,sexp rnd);
+sexp array_from_list(sexp ls);
 #endif

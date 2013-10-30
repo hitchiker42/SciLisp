@@ -285,7 +285,7 @@ struct function_args{
   int max_args;//number of args in c/llvm must be max_args
 };
 //typedef function_new* fxn_ptr
-#define CALL_PRIM(fxn) (fxn.val.fun->fun.comp)
+#define CALL_PRIM(fxn) (fxn.val.fun->comp)
 struct function{//36 bytes
   function_args* args;//64
   CORD lname;//lambdas should be #<lambda{number via global counter}>(64)
@@ -293,7 +293,7 @@ struct function{//36 bytes
   union {
     lambda* lam;
     funcall comp;
-  } fun;//(64)
+  };//(64)
   enum {//(32)
     _lambda_fun,
     _compiled_fun,
@@ -371,7 +371,7 @@ enum backend{
 /*static function prim_to_fun(fxn_proto *prim){
   return (function){.min_args=prim->min_args,
       .max_args=prim->max_args,.fun={.prim = prim},0};
-      }*/
+v      }*/
 #define mkTypeCase(type,tag) case tag: return type  
 static sexp typeOf(sexp obj){
   switch (obj.tag){

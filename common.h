@@ -98,9 +98,9 @@ static inline double getDoubleVal(sexp x){
 static inline double getDoubleValUnsafe(sexp x){
   return (x.tag == _double ? x.val.real64 : (double)x.val.int64);
 }
-static inline const char* CORD_as_cstring(CORD cord){
-  if(CORD_IS_STRING(cord)){return cord;}
-  else{return CORD_to_const_char_star(cord);}
+static inline char* CORD_as_cstring(CORD cord){
+  if(CORD_IS_STRING(cord)){return (char*)cord;}
+  else{return (char*)CORD_to_const_char_star(cord);}
 }
 extern/*C++*/ void initialize_llvm();
 #define return_errno(fn_name)                   \
