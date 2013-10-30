@@ -10,6 +10,14 @@
 #include "array.h"
 #include "print.h"
 #include <time.h>
+#define DEFUN_INTERN_OBARRAY(l_name,c_name)                             \
+  symbol c_name ## _sym=                                                \
+    (symbol){.name = l_name,.val =                                      \
+             {.tag=_fun,.val={.fun = &c_name##call}},                   \
+             .symbol_env=ob_env};                                      \
+  symref c_name ## _ptr=&c_name##_sym;                                  \
+  obarray_add_entry(ob,c_name##_ptr)
+
 #define DEFUN_INTERN(l_name,c_name)                                       \
   global_symbol c_name ## _sym=                                         \
     (global_symbol){.name = l_name,.val =                               \

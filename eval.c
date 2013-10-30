@@ -244,18 +244,6 @@ static inline sexp eval_prog1(sexp expr, env *cur_env){
   *closure=(local_env){.enclosing = cur_env,.head=cadr(expr).val.lenv};
   int numargs=cadr(expr).len;
   body=caddr(expr);
-  /*This is now delt with in the parser
-    while(CONSP(args)){
-    if(!SYMBOLP(car(args))){
-      format_error_str("argument %s is not a symbol",print(car(args)));
-      handle_error();
-    }
-    cur_arg->name=car(args).val.var->name;
-    cur_arg->val=UNBOUND;
-    cur_arg->next=xmalloc(sizeof(local_symbol));
-    args=cdr(args);
-    numargs++;
-    }*
   lambda *retval=xmalloc(sizeof(lambda));
   retval->env=closure;
   retval->minargs=retval->maxargs=numargs;//need to fix to allow optional args
@@ -485,11 +473,10 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
   if(args->has_rest_arg){
     if(CONSP(arglist)){
       cons* prev_arg;
+      cons* cur_arg=args->args[j].val.val.cons=xmalloc(sizeof(cons));
+      args->args[j].val.tag=_list;
       while(CONSP(arglist)){
-        cons* cur_arg=xmalloc(sizeof(cons));
-        prev_arg=cur_arg;
         j++;
-        args->args[j].val=cons_sexp(cur_arg);
         cur_arg->car=eval(XCAR(arglist),cur_env);
         arglist=XCDR(arglist);
         cur_arg->cdr.val.cons=xmalloc(sizeof(cons));

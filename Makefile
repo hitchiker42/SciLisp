@@ -18,7 +18,7 @@ endif
 CC:=$(CC) -fPIC #position independent code, for everything
 OPT_FLAGS:=$(OPT_FLAGS) -g
 QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
-WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing
+WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing -fmax-errors=30 -Wmissing-braces -Wcomment
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	-flto -rdynamic #-fstrict-aliasing
 COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
@@ -34,8 +34,10 @@ XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
-FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c
-FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o
+FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
+	hash_fn.c
+FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
+	hash_fn.o
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -47,7 +49,7 @@ define compile_llvm =
 endef
 .PHONY: clean all quiet asm optimized set_quiet set_optimized mpfr\
 	doc info pdf clean_doc libprim_reqs readline llvm gc gmp gmp.tar.xz\
-	mpfr.tar.xz
+	mpfr.tar.xz libs
 #Programs to be built
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
@@ -82,6 +84,7 @@ env.o: env.c $(COMMON_HEADERS)
 array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 bignum.o: bignum.c $(COMMON_HEADERS) prim.h
+hash_fn.o: hash_fn.c hash_fn.h
 emacs_regex.o: emacs_regex.c emacs_regex.h
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
@@ -97,10 +100,12 @@ define start_libprim =
 	$(CC_TEMP) -o libprim_print.o -c print.c
 	$(CC_TEMP) -o libprim_env.o -c env.c
 	$(CC_TEMP) -o libprim_bignum.o -c bignum.c
+	$(CC_TEMP) -o libprim_hash_fn.o -c hash_fn.c
 endef
-libprim_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c
+libprim_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c
 define libprim_files :=
-libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o libprim_print.o libprim_bignum.o
+libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o\
+	 libprim_print.o libprim_bignum.o libprim_hash_fn.o
 endef
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libprim.o: libprim_reqs
@@ -113,6 +118,7 @@ libSciLisp.a: libprim_reqs
 libSciLisp.so: libprim_reqs
 	$(start_libprim)
 	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $(libprim_files) -o $@
+libs: libSciLisp.a libSciLisp.so
 prim.bc: prim.c eval.c print.c env.c cons.c array.c bignum.c
 	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
 	$(CC) -S -emit-llvm -fno-asm $^;\
@@ -175,4 +181,6 @@ gmp.tar.xz:
 mpfr.tar.xz:
 	cd bignum && http://www.mpfr.org/mpfr-current/mpfr-3.1.2.tar.xz \
 	&& mv mpfr-3.1.2.tar.xz mpfr.tar.xz
+write_prims: write_prims.c libSciLisp.so
+	gcc -o write_prims -std=gnu99 write_prims.c -lgc -lcord -lgmp libSciLisp.so -Wl,-rpath=$$PWD -L$$PWD -lm
 #http://physics.nist.gov/cuu/Constants/Table/allascii.txt

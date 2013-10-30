@@ -10,6 +10,14 @@
 #include "array.h"
 #include "print.h"
 #include <time.h>
+#define DEFUN_INTERN_OBARRAY(l_name,c_name)                             \
+  symbol c_name ## _sym=                                                \
+    (symbol){.name = l_name,.val =                                      \
+             {.tag=_fun,.val={.fun = &c_name##call}},                   \
+             .symbol_env=ob_env};                                      \
+  symref c_name ## _ptr=&c_name##_sym;                                  \
+  obarray_add_entry(ob,c_name##_ptr)
+
 #define DEFUN_INTERN(l_name,c_name)                                       \
   global_symbol c_name ## _sym=                                         \
     (global_symbol){.name = l_name,.val =                               \
@@ -159,6 +167,130 @@ DEFUN(lisp_stringp,1);
 DEFUN(lisp_symbolp,1);
 DEFUN(lisp_bigint,1);
 DEFUN(lisp_bigfloat,3);
+DEFUN(lisp_gmp_add,2);
+DEFUN(lisp_gmp_sub,2);
+DEFUN(lisp_gmp_mul,2);
+DEFUN(lisp_gmp_mod,2);
+DEFUN(lisp_gmp_cdiv_q,2);
+DEFUN(lisp_gmp_cdiv_r,2);
+DEFUN(lisp_gmp_fdiv_q,2);
+DEFUN(lisp_gmp_fdiv_r,2);
+DEFUN(lisp_gmp_tdiv_r,2);
+DEFUN(lisp_gmp_tdiv_q,2);
+DEFUN(lisp_gmp_and,2);
+DEFUN(lisp_gmp_ior,2);
+DEFUN(lisp_gmp_xor,2);
+static void initPrimsObarray(obarray *ob,env* ob_env){
+DEFUN_INTERN_OBARRAY("+",lisp_add);
+DEFUN_INTERN_OBARRAY("-",lisp_sub);
+DEFUN_INTERN_OBARRAY("*",lisp_mul);
+DEFUN_INTERN_OBARRAY("/",lisp_div);
+DEFUN_INTERN_OBARRAY("<",lisp_lt);
+DEFUN_INTERN_OBARRAY(">",lisp_gt);
+DEFUN_INTERN_OBARRAY(">=",lisp_gte);
+DEFUN_INTERN_OBARRAY("<=",lisp_lte);
+DEFUN_INTERN_OBARRAY("!=",lisp_ne);
+DEFUN_INTERN_OBARRAY("=",lisp_numeq);
+DEFUN_INTERN_OBARRAY("++",lisp_inc);
+DEFUN_INTERN_OBARRAY("--",lisp_dec);
+DEFUN_INTERN_OBARRAY("sum",lisp_sum);
+DEFUN_INTERN_OBARRAY("cons",Cons);
+DEFUN_INTERN_OBARRAY("car",car);
+DEFUN_INTERN_OBARRAY("cdr",cdr);
+DEFUN_INTERN_OBARRAY("caar",caar);
+DEFUN_INTERN_OBARRAY("cadr",cadr);
+DEFUN_INTERN_OBARRAY("cddr",cddr);
+DEFUN_INTERN_OBARRAY("cdar",cdar);
+DEFUN_INTERN_OBARRAY("caaar",caaar);
+DEFUN_INTERN_OBARRAY("caadr",caadr);
+DEFUN_INTERN_OBARRAY("caddr",caddr);
+DEFUN_INTERN_OBARRAY("cdddr",cdddr);
+DEFUN_INTERN_OBARRAY("cddar",cddar);
+DEFUN_INTERN_OBARRAY("cdaar",cdaar);
+DEFUN_INTERN_OBARRAY("cadar",cadar);
+DEFUN_INTERN_OBARRAY("cdadr",cdadr);
+DEFUN_INTERN_OBARRAY("caaaar",caaaar);
+DEFUN_INTERN_OBARRAY("caaadr",caaadr);
+DEFUN_INTERN_OBARRAY("caadar",caadar);
+DEFUN_INTERN_OBARRAY("caaddr",caaddr);
+DEFUN_INTERN_OBARRAY("cadaar",cadaar);
+DEFUN_INTERN_OBARRAY("cadadr",cadadr);
+DEFUN_INTERN_OBARRAY("caddar",caddar);
+DEFUN_INTERN_OBARRAY("cadddr",cadddr);
+DEFUN_INTERN_OBARRAY("cdaaar",cdaaar);
+DEFUN_INTERN_OBARRAY("cdaadr",cdaadr);
+DEFUN_INTERN_OBARRAY("cdadar",cdadar);
+DEFUN_INTERN_OBARRAY("cdaddr",cdaddr);
+DEFUN_INTERN_OBARRAY("cddaar",cddaar);
+DEFUN_INTERN_OBARRAY("cddadr",cddadr);
+DEFUN_INTERN_OBARRAY("cdddar",cdddar);
+DEFUN_INTERN_OBARRAY("cddddr",cddddr);
+DEFUN_INTERN_OBARRAY("set-car!",set_car);
+DEFUN_INTERN_OBARRAY("set-cdr!",set_cdr);
+DEFUN_INTERN_OBARRAY("last",last);
+DEFUN_INTERN_OBARRAY("push!",push_cons);
+DEFUN_INTERN_OBARRAY("pop!",pop_cons);
+DEFUN_INTERN_OBARRAY("mapcar",mapcar);
+DEFUN_INTERN_OBARRAY("reduce",reduce);
+DEFUN_INTERN_OBARRAY("qsort!",qsort_cons);
+DEFUN_INTERN_OBARRAY("length",lisp_length);
+DEFUN_INTERN_OBARRAY("iota",lisp_iota);
+DEFUN_INTERN_OBARRAY("aref",aref);
+DEFUN_INTERN_OBARRAY("array->list",array_to_list);
+DEFUN_INTERN_OBARRAY("typeName",lisp_typeName);
+DEFUN_INTERN_OBARRAY("typeOf",typeOf);
+DEFUN_INTERN_OBARRAY("print",lisp_print);
+DEFUN_INTERN_OBARRAY("println",lisp_println);
+DEFUN_INTERN_OBARRAY("eval",lisp_eval);
+DEFUN_INTERN_OBARRAY("fopen",lisp_open);
+DEFUN_INTERN_OBARRAY("fclose",lisp_close);
+DEFUN_INTERN_OBARRAY("fputs",lisp_fputs);
+DEFUN_INTERN_OBARRAY("fprint",lisp_fprint);
+DEFUN_INTERN_OBARRAY("fprintln",lisp_fprintln);
+DEFUN_INTERN_OBARRAY("cat",lisp_cat);
+DEFUN_INTERN_OBARRAY("pwd",lisp_getcwd);
+DEFUN_INTERN_OBARRAY("system",lisp_system);
+DEFUN_INTERN_OBARRAY("eq",lisp_eq);
+DEFUN_INTERN_OBARRAY("logxor",lisp_xor);
+DEFUN_INTERN_OBARRAY("logand",lisp_logand);
+DEFUN_INTERN_OBARRAY("logor",lisp_logor);
+DEFUN_INTERN_OBARRAY("ash",ash);
+DEFUN_INTERN_OBARRAY("expt",lisp_pow);
+DEFUN_INTERN_OBARRAY("sqrt",lisp_sqrt);
+DEFUN_INTERN_OBARRAY("cos",lisp_cos);
+DEFUN_INTERN_OBARRAY("sin",lisp_sin);
+DEFUN_INTERN_OBARRAY("tan",lisp_tan);
+DEFUN_INTERN_OBARRAY("exp",lisp_exp);
+DEFUN_INTERN_OBARRAY("log",lisp_log);
+DEFUN_INTERN_OBARRAY("abs",lisp_abs);
+DEFUN_INTERN_OBARRAY("mod",lisp_mod);
+DEFUN_INTERN_OBARRAY("min",lisp_min);
+DEFUN_INTERN_OBARRAY("max",lisp_max);
+DEFUN_INTERN_OBARRAY("round",lisp_round);
+DEFUN_INTERN_OBARRAY("drand",lisp_randfloat);
+DEFUN_INTERN_OBARRAY("lrand",lisp_randint);
+DEFUN_INTERN_OBARRAY("consp",lisp_consp);
+DEFUN_INTERN_OBARRAY("numberp",lisp_numberp);
+DEFUN_INTERN_OBARRAY("arrayp",lisp_arrayp);
+DEFUN_INTERN_OBARRAY("nilp",lisp_nilp);
+DEFUN_INTERN_OBARRAY("stringp",lisp_stringp);
+DEFUN_INTERN_OBARRAY("symbolp",lisp_symbolp);
+DEFUN_INTERN_OBARRAY("bigint",lisp_bigint);
+DEFUN_INTERN_OBARRAY("bigfloat",lisp_bigfloat);
+DEFUN_INTERN_OBARRAY("bigint-add",lisp_gmp_add);
+DEFUN_INTERN_OBARRAY("bigint-sub",lisp_gmp_sub);
+DEFUN_INTERN_OBARRAY("bigint-mul",lisp_gmp_mul);
+DEFUN_INTERN_OBARRAY("bigint-mod",lisp_gmp_mod);
+DEFUN_INTERN_OBARRAY("bigint-cdiv_q",lisp_gmp_cdiv_q);
+DEFUN_INTERN_OBARRAY("bigint-cdiv_r",lisp_gmp_cdiv_r);
+DEFUN_INTERN_OBARRAY("bigint-fdiv_q",lisp_gmp_fdiv_q);
+DEFUN_INTERN_OBARRAY("bigint-fdiv_r",lisp_gmp_fdiv_r);
+DEFUN_INTERN_OBARRAY("bigint-tdiv_r",lisp_gmp_tdiv_r);
+DEFUN_INTERN_OBARRAY("bigint-tdiv_q",lisp_gmp_tdiv_q);
+DEFUN_INTERN_OBARRAY("bigint-and",lisp_gmp_and);
+DEFUN_INTERN_OBARRAY("bigint-ior",lisp_gmp_ior);
+DEFUN_INTERN_OBARRAY("bigint-xor",lisp_gmp_xor);
+}
 #define initPrims()                                                     \
 if(initPrimsFlag){                                                    \
 initPrimsFlag=0;                                                      \
@@ -263,6 +395,19 @@ DEFUN_INTERN("stringp",lisp_stringp);\
 DEFUN_INTERN("symbolp",lisp_symbolp);\
 DEFUN_INTERN("bigint",lisp_bigint);\
 DEFUN_INTERN("bigfloat",lisp_bigfloat);\
+DEFUN_INTERN("bigint-add",lisp_gmp_add);\
+DEFUN_INTERN("bigint-sub",lisp_gmp_sub);\
+DEFUN_INTERN("bigint-mul",lisp_gmp_mul);\
+DEFUN_INTERN("bigint-mod",lisp_gmp_mod);\
+DEFUN_INTERN("bigint-cdiv_q",lisp_gmp_cdiv_q);\
+DEFUN_INTERN("bigint-cdiv_r",lisp_gmp_cdiv_r);\
+DEFUN_INTERN("bigint-fdiv_q",lisp_gmp_fdiv_q);\
+DEFUN_INTERN("bigint-fdiv_r",lisp_gmp_fdiv_r);\
+DEFUN_INTERN("bigint-tdiv_r",lisp_gmp_tdiv_r);\
+DEFUN_INTERN("bigint-tdiv_q",lisp_gmp_tdiv_q);\
+DEFUN_INTERN("bigint-and",lisp_gmp_and);\
+DEFUN_INTERN("bigint-ior",lisp_gmp_ior);\
+DEFUN_INTERN("bigint-xor",lisp_gmp_xor);\
 INTERN_ALIAS("cons?",lisp_consp,17);                                  \
 INTERN_ALIAS("array?",lisp_arrayp,23);                                \
 DEFCONST("Meps",lisp_mach_eps);                                       \

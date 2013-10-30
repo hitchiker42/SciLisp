@@ -47,11 +47,11 @@
 /*#define DEFUN(lname,cname,minargs,maxargs)                    \
   fxn_proto cname##call=                                        \
   { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
+//  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};            
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};            \
   function_args c_name##args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
-      .has_rest_arg=restarg,.args=c_name##mem,.max_args=maxargs };      \
+      .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
   function c_name##call=                                             \
     { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
       .fun = {.comp = {.f##maxargs=c_name}},            \
@@ -439,7 +439,7 @@ sexp arith_driver(sexp required,sexp values,enum operator op){}
 sexp float_arith_driver(sexp required,sexp values,enum operator op){}
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
-    return error_sexp("this shouldn't happen");
+    return error_sexp("this shouldn't happen, rest arg to sum is not a list or nil");
   } else {
     switch (required.tag){
       case _double:{
@@ -617,4 +617,17 @@ DEFUN("stringp",lisp_stringp,1,0,0,0,1);
 DEFUN("symbolp",lisp_symbolp,1,0,0,0,1);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
 DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
+DEFUN("bigint-add",lisp_gmp_add,2,0,0,0,2);
+DEFUN("bigint-sub",lisp_gmp_sub,2,0,0,0,2);
+DEFUN("bigint-mul",lisp_gmp_mul,2,0,0,0,2);
+DEFUN("bigint-mod",lisp_gmp_mod,2,0,0,0,2);
+DEFUN("bigint-cdiv_q",lisp_gmp_cdiv_q,2,0,0,0,2);
+DEFUN("bigint-cdiv_r",lisp_gmp_cdiv_r,2,0,0,0,2);
+DEFUN("bigint-fdiv_q",lisp_gmp_fdiv_q,2,0,0,0,2);
+DEFUN("bigint-fdiv_r",lisp_gmp_fdiv_r,2,0,0,0,2);
+DEFUN("bigint-tdiv_r",lisp_gmp_tdiv_r,2,0,0,0,2);
+DEFUN("bigint-tdiv_q",lisp_gmp_tdiv_q,2,0,0,0,2);
+DEFUN("bigint-and",lisp_gmp_and,2,0,0,0,2);
+DEFUN("bigint-ior",lisp_gmp_ior,2,0,0,0,2);
+DEFUN("bigint-xor",lisp_gmp_xor,2,0,0,0,2);
 #undef DEFUN

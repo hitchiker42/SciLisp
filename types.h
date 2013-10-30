@@ -48,6 +48,7 @@ typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
 typedef struct function_args function_args;
 typedef struct obarray obarray;
 typedef struct obarray_entry obarray_entry;
+typedef struct obarray_env obarray_env;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
@@ -116,6 +117,7 @@ enum _tag {
   _keyword = 38,
   _funarg = 39,
   _true = 40,//type of #t, singular value
+  _obarray = 41,
 };
 enum special_form{
   _def=0,
@@ -179,6 +181,7 @@ union data {//keep max size at 64 bits
   //  function_new* fnew;
   mpz_t *bigint;
   mpfr_t *bigfloat;
+  obarray* ob;
 };
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  

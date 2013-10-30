@@ -9,8 +9,8 @@
 (defun mpz-binops(op-list)
   (dolist (op op-list)
     (insert (format (concat
-"((:lname . \"bigint-%s\")(:cname . \"lisp_gmp_%s\") (:minargs . 2) "
-"(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
+"((:lname . \"bigint-%s\") (:cname . \"lisp_gmp_%s\") (:minargs . 2) \n"
+"(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))\n") op op))))
 (defvar mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "cdiv_r" "fdiv_q"
                           "fdiv_r" "tdiv_r" "tdiv_q" "and" "ior" "xor"))
 (defun mpfr-binops(op-list)
@@ -61,7 +61,7 @@
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "sum") (:cname . "lisp_sum") (:minargs . 1) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 1))
-                                        ;functions on conses
+     ;functions on conses
     ((:lname . "cons") (:cname ."Cons") (:minargs . 2) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "car") (:cname ."car") (:minargs . 1) (:maxargs . 1)
@@ -231,11 +231,45 @@
      ((:lname . "bigint") (:cname . "lisp_bigint") (:minargs . 1) (:maxargs . 1)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "bigfloat") (:cname . "lisp_bigfloat") (:minargs . 1)
-      (:maxargs . 3) (:optargs . 2) (:keyargs . 0) (:restarg . 0))))
+      (:maxargs . 3) (:optargs . 2) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-add") (:cname . "lisp_gmp_add") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-sub") (:cname . "lisp_gmp_sub") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-mul") (:cname . "lisp_gmp_mul") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-mod") (:cname . "lisp_gmp_mod") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-cdiv_q") (:cname . "lisp_gmp_cdiv_q") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-cdiv_r") (:cname . "lisp_gmp_cdiv_r") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-fdiv_q") (:cname . "lisp_gmp_fdiv_q") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-fdiv_r") (:cname . "lisp_gmp_fdiv_r") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-tdiv_r") (:cname . "lisp_gmp_tdiv_r") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-tdiv_q") (:cname . "lisp_gmp_tdiv_q") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-and") (:cname . "lisp_gmp_and") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-ior") (:cname . "lisp_gmp_ior") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "bigint-xor") (:cname . "lisp_gmp_xor") (:minargs . 2) 
+      (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))))
 ;idea, have files with constant contend then generate
 ;code for primitives, create a new file, copy the text
 ;from the constant file into the new file then add
 ;the code for the primitives(could also have a suffix file)
+(defvar initPrimsObarray-header)
+(setq initPrimsObarray-header
+"static void initPrimsObarray(obarray *ob,env* ob_env){
+")
+(defvar initPrimsObarray-suffix)
+(setq initPrimsObarray-suffix
+"}
+")
 (defvar initPrims-header)
 (setq initPrims-header
 "#define initPrims()                                                     \\
@@ -297,16 +331,23 @@ srand48(time(NULL));}
 (defun initPrims-format (prim)
   (format "DEFUN_INTERN(\"%s\",%s);\\\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))))
+(defun initPrimsObarray-format (prim)
+  (format "DEFUN_INTERN_OBARRAY(\"%s\",%s);\n"
+          (cdr (assq :lname prim))(cdr (assq :cname prim))))
 (defun generate-SciLisp-prims()
   (let ((primh (generate-new-buffer "primh"))
         (initPrims (generate-new-buffer "initPrims"))
+        (initPrimsObarray (generate-new-buffer "initPrimsObarray"))
         (primc (generate-new-buffer "primc")))
     (princ initPrims-header initPrims)
+    (princ initPrimsObarray-header initPrimsObarray)
     (dolist (prim SciLisp-prims)
       (princ (primc-format prim) primc)
       (princ (primh-format prim) primh)
-      (princ (initPrims-format prim) initPrims))
+      (princ (initPrims-format prim) initPrims)
+      (princ (initPrimsObarray-format prim) initPrimsObarray))
     (princ initPrims-suffix initPrims)
+    (princ initPrimsObarray-suffix initPrimsObarray)
     (princ primc-suffix primc)
                                         ;next should be some thing like this
                                         ;let primh.txt be the prim.h header(same for the other 3)
@@ -315,11 +356,16 @@ srand48(time(NULL));}
       (insert-file-contents "primh_header.h")
       (write-file (expand-file-name "../prim.h"))
       (kill-buffer))
-    (with-current-buffer initPrims
+    (with-current-buffer initPrimsObarray
       (indent-buffer)
       (append-to-file (point-min) (point-max) 
                       (expand-file-name "../prim.h"))
       (kill-buffer))
+    (with-current-buffer initPrims
+      (indent-buffer)
+      (append-to-file (point-min) (point-max) 
+                      (expand-file-name "../prim.h"))
+      (kill-buffer)) 
     (with-current-buffer primc
       (goto-char (point-min))
       (insert-file-contents "primc_header.c")

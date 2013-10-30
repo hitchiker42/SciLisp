@@ -3,7 +3,8 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 #include "common.h"
-//#include "env.h"
+#include "env.h"
+#include "hash_fn.h"
 local_symref getLocalSym(local_env *cur_env,CORD name);
 symref getFunctionSym(function_env *cur_env,CORD name);
 symref getSym(env *cur_env,CORD name){
@@ -107,8 +108,10 @@ sexp getKeySymSexp(CORD name){
   return (array_symref)getSym(args.enclosing,name);
   }*/
 /*obarray implementation (as usual with lisp, a name for historical reasons)*/
-obarray* obarray_init(float gthresh,unsigned long(*hash_fn)(void*,long),
-                      long size,int is_weak_hash){
+const struct timespec one_ms={.tv_nsec=1e6};
+struct timespec rmtp;
+obarray* obarray_init_custom(float gthresh,uint64_t(*hash_fn)(const void*,int),
+                             uint64_t size,int is_weak_hash){
   obarray *new_obarray=xmalloc(sizeof(obarray));
   if(gthresh <=0 || gthresh > 1){
     gthresh = 0.75;
@@ -118,19 +121,46 @@ obarray* obarray_init(float gthresh,unsigned long(*hash_fn)(void*,long),
   }
   if(!size){
     size=16;
+    //insure size is a power of 2
+  } else if(size & (size - 1)){//size == 2^n <=> size&(size-1) == 0
+    while(size & (size -1)){size=size&(size-1);}
+    size<<=1;
   }
   obarray_entry **buckets=xmalloc(sizeof(obarray_entry*)*size);
   *new_obarray=(obarray)
-    {.buckets=buckets,.size=size,.used=0,.entries=0,.avg_capacity=0.0,
-     .capicity_inc=(1/(size*10)),.gthresh=gthresh,.gfactor=2,
+    {.buckets=buckets,.size=size,.used=0,.entries=0,.capacity=0.0,
+     .capacity_inc=(1.0/(size*10)),.gthresh=gthresh,.gfactor=2,
      .is_weak_hash=is_weak_hash,.hash_fn=hash_fn};
-  return new_obarray
+  return new_obarray;
 }
-obarray* obarray_init_default(int64_t size){
+obarray* obarray_init_default(uint64_t size){
+  if(size==0){size=16;}
+  //insure size is a power of two
+  else if(size & (size - 1)){//size == 2^n <=> size&(size-1) == 0
+    while(size & (size -1)){size=size&(size-1);}
+    size<<=1;
+  }
   obarray* ob=xmalloc(sizeof(obarray));
   ob->buckets=xmalloc(size*sizeof(obarray_entry*));
   *ob=(obarray){.buckets=ob->buckets,.size=size,.used=0,.entries=0,.capacity=0.0,
-                .capacity_inc=(1/(size*10)),.gthresh=0.75,.gfactor=2,
+                .capacity_inc=(1.0/(size*10)),.gthresh=0.75,.gfactor=2,
+                .is_weak_hash=0,.hash_fn=fnv_hash};
+  return ob;
+}
+obarray* obarray_init(uint64_t size,float gthresh){
+  if(size==0){size=16;}
+  //insure size is a power of two
+  else if(size & (size - 1)){//size == 2^n <=> size&(size-1) == 0
+    while(size & (size -1)){size=size&(size-1);}
+    size<<=1;
+  }
+  if(gthresh > 1 || gthresh < 0){
+    gthresh = 0.75;
+  }
+  obarray* ob=xmalloc(sizeof(obarray));
+  ob->buckets=xmalloc(size*sizeof(obarray_entry*));
+  *ob=(obarray){.buckets=ob->buckets,.size=size,.used=0,.entries=0,.capacity=0.0,
+                .capacity_inc=(1.0/(size*10)),.gthresh=gthresh,.gfactor=2,
                 .is_weak_hash=0,.hash_fn=fnv_hash};
   return ob;
 }
@@ -140,15 +170,15 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
     hashv=cur_obarray->hash_fn(symname,CORD_len(symname));
   }
   hashv=hashv%cur_obarray->size;
-  obarray_entry bucket_head=cur_obarray->buckets[hashv];
+  obarray_entry *bucket_head=cur_obarray->buckets[hashv];
   if(!bucket_head){
     return NULL;
   }
   if(!bucket_head->next){
     return bucket_head;
   } else {
-    while(bucket_head){
-      if(!CORD_cmp(symname,bucket_head.ob_symbol->name)){
+    while(bucket_head && bucket_head != bucket_head->next){
+      if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
         return bucket_head;
       }
       bucket_head=bucket_head->next;
@@ -158,12 +188,15 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
 }
 obarray_entry* obarray_add_entry_generic
 (obarray *ob,symref new_entry,enum add_option conflict_opt,int append){
-  if(obarray->capacity>=obarray->gthresh){
+  if (ob->capacity>=ob->gthresh){
+    HERE();
     obarray_rehash(ob);
+    HERE();
   }
   uint64_t hashv=ob->hash_fn
-    (new_entry->name,CORD_len(new_entry->name));
+    (CORD_as_cstring(new_entry->name),CORD_len(new_entry->name));
   uint64_t index=hashv%ob->size;
+  obarray_entry* test=ob->buckets[index];
   if(!ob->buckets[index]){
     ob->buckets[index]=xmalloc(sizeof(obarray_entry));
     *ob->buckets[index]=(obarray_entry)
@@ -175,11 +208,11 @@ obarray_entry* obarray_add_entry_generic
   }
   obarray_entry* existing_entry;
   if(!(existing_entry=obarray_get_entry(ob,new_entry->name,hashv))||
-     conflict_op == _ignore){
+     conflict_opt == _ignore){
     //int retval=(conflict_op==_ignore)?_ignore:1;
     if(append){
       obarray_entry *cur_tail=ob->buckets[index];
-      while(cur_tail->next){cur_tail=cur_tail->next};
+      while(cur_tail->next){cur_tail=cur_tail->next;}
       cur_tail->next=xmalloc(sizeof(obarray_entry));
       cur_tail->next->prev=cur_tail;
       cur_tail->next->ob_symbol=new_entry;
@@ -190,7 +223,7 @@ obarray_entry* obarray_add_entry_generic
     } else {
       obarray_entry* cur_head=ob->buckets[index];
       obarray_entry* new_link=xmalloc(sizeof(obarray_entry));//make new entry
-      cur_head->ob_symbol=new_entry;
+      new_link->ob_symbol=new_entry;
       cur_head->hashv=hashv;
       new_link->next=cur_head;//link new entry to current list
       cur_head->prev=new_link;//llink current list to new entry
@@ -212,42 +245,56 @@ obarray_entry* obarray_add_entry_generic
     case _use_current:
       return existing_entry;
   }
+  return 0;
 }
 obarray_entry* obarray_add_entry(obarray* ob,symref new_entry){
   return obarray_add_entry_generic(ob,new_entry,_ignore,0);
 }
 int obarray_rehash(obarray *ob){
+  HERE();
   uint64_t old_len=ob->size;
   //  ob->size*=ob->gfactor;
   ob->size*=2;
   ob->capacity/=2;
   ob->capacity_inc/=2;
   ob->buckets=xrealloc(ob->buckets,(sizeof(obarray_entry*)*ob->size));
+  //suprisingly important, new memory needs to be zeroed
+  memset((void*)(ob->buckets+old_len),'\0',old_len);
   int i,j;
-  obarray_entry* bucket,temp;
+  obarray_entry *bucket,*temp,*old_bucket;
   for(i=0;i<ob->size;i++){
     bucket=ob->buckets[i];
-    while(bucket){
+    while(bucket && bucket != bucket->next){
       //hashv%ob->size is 0 or oldsize, if it's 0 we need to move it
-      if(!bucket->hashv%ob->size){
-        if(!ob->buckets[i+old_len]){
-          ob->buckets[i+old_len]=bucket;
-          temp=NULL;
-        } else {
-          temp=ob->buckets[i+old_len];
-          ob->buckets[i+old_len]=bucket;
-          temp->prev=bucket;
-        }
-        if(bucket->prev && bucket->next){
+      if(bucket->hashv%ob->size){
+        bucket=bucket->next;
+      } else {
+        old_bucket=bucket;
+        if(bucket->prev){
           bucket->prev->next=bucket->next;
+        }
+        if(bucket->next){
           bucket->next->prev=bucket->prev;
         }
-        bucket=bucket->next;
-        if(temp){
-          temp->prev->next=temp;//old bucket->next=temp;
+        if(!ob->buckets[i+old_len]){
+          ob->buckets[i+old_len]=bucket;
+          bucket=bucket->next;
+          old_bucket->prev=NULL;
+          old_bucket->next=NULL;
+          ob->used++;
+        } else {
+          temp=ob->buckets[i+old_len];//bucket n == head-> ... 
+          ob->buckets[i+old_len]=bucket;//bucket n == new
+          temp->prev=bucket;// head-> prev =new
+          bucket=bucket->next;
+          old_bucket->next=temp;//bucket n = new -> head -> ...
+          old_bucket->prev=NULL;
         }
       }
     }
+    if(!ob->buckets[i]){ob->used--;}
+    PRINT_FMT("loop iteration %d",i);
   }
+  HERE();
   return 1;
 }

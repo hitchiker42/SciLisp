@@ -1,6 +1,7 @@
 #ifndef __ENV_H__
 #define __ENV_H__
 #include<uthash.h>
+#include "common.h"
 struct symbol{
   CORD name;
   sexp val;
@@ -33,7 +34,8 @@ struct function_env{
 union symbol_ref{
   global_symref global;
   local_symref local;
-  function_args* function;
+  function_args *function;
+  obarray *ob;
 };
 union symbol_val{
   local_symbol local;
@@ -46,6 +48,7 @@ struct env{
     _local=0,
     _global=1,
     _funArgs=2,
+    _obEnv=3,
   } tag;
 };
 #define to_env (cur_env,type)\
@@ -89,11 +92,11 @@ struct obarray {
   int used;//buckets used, should usually be equal to num_buckets
   int entries;//number of obarray_entries 
   float capacity;//sum of entries per buckets for all buckets/num_buckets
-  float capicity_inc;//1/(size*10)
+  float capacity_inc;//1/(size*10)
   float gthresh;//growth threshold
   float gfactor;//growth factor
   int is_weak_hash;//only actually needs a single bit
-  unsigned long (*hash_fn)(void*,int);
+  uint64_t (*hash_fn)(const void*,int);
 };
 struct obarray_env {
   env* enclosing;
@@ -112,12 +115,13 @@ enum add_option{//conflict resolution for an existing symbol
   _overwrite=4,//explictly overwrite current entry
   _use_current=5,//keep current entry and ignore update
 };
-obarray* obarray_init(float gthresh,uint64_t(*hash_fn)(void*,long),
-                      int64_t num_buckets,int32_t is_weak_hash);
-obarray* obarray_init_default(int64_t num_buckets);
+obarray* obarray_init_custom(float gthresh,uint64_t(*hash_fn)(const void*,int),
+                      uint64_t size,int32_t is_weak_hash);
+obarray* obarray_init_default(uint64_t size);
+obarray* obarray_init(uint64_t size,float gthresh);
 obarray_entry*  obarray_add_entry_generic
 (obarray *ob,symref new_entry,enum add_option conflict_opt,int append);
-obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry{
+obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
 int obarray_rehash(obarray *ob);
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);
 obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
