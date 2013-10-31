@@ -443,8 +443,6 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
  TYPE_ERROR:
   return error_sexp("Type error");
 }
-sexp arith_driver(sexp required,sexp values,enum operator op){}
-sexp float_arith_driver(sexp required,sexp values,enum operator op){}
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen, rest arg to sum is not a list or nil");

@@ -99,8 +99,137 @@ sexp promoteNum(sexp obj1,sexp obj2){
       return lisp_bigfloat(obj2,NIL,NIL);
   }
 }
-#define mpfr_binop(op,size)
-#define gmp_binop(op,size)
+static jmp_buf cmp_err;
+int gmp_compare_generic(sexp obj1,sexp obj2){
+    if(!(BIGINTP(obj1)) || !(BIGNUMB(obj2))){
+      longjmp(cmp_err,-1);
+    }
+    mpz_t bigint1=obj1.val.bigint;
+    switch(obj2.tag){
+      case _long:
+        return mpz_cmp_si(bigint1,obj2.val.int64);
+      case _ulong:
+        return mpz_cmp_ui(bigint1,obj2.val.uint64);
+      case _double:
+        return mpz_cmp_d(bigint1,obj2.val.real64);
+      case _bigint:
+        return mpz_cmpi(bigint1,obj2.val.bigint);
+      case _bigfloat:
+        return mpz_cmp(bigint1,bigint(obj2));
+    }
+}
+int mpfr_compare_generic(sexp obj1,sexp obj2){
+    if(!(BIGFLOATP(obj1)) || !(BIGNUMB(obj2))){
+      longjmp(cmp_err,-1);
+    }
+    mpfr_t bigfloat1=obj1.val.bigfloat;
+    switch(obj2.tag){
+      case _long:
+        return mpfr_cmp_si(bigfloat1,obj2.val.int64);
+      case _ulong:
+        return mpfr_cmp_ui(bigfloat1,obj2.val.uint64);
+      case _double:
+        return mpfr_cmp_d(bigfloat1,obj2.val.real64);
+      case _bigint:
+        return mpfr_cmp_z(bigfloat1,obj2.val.bigint);
+      case _bigfloat:
+        return mpfr_cmp(bigfloat1,obj1.val.bigfloat);
+    }
+}
+#define lisp_bigfloat_cmp(name,op)                                \
+  sexp lisp_bigfloat_##name (sexp obj1,sexp obj2){                \
+    if(setjmp(cmp_err)){                                          \
+      if(mpfr_compare_generic(obj1,obj2) op 0){                   \
+        return LISP_TRUE;                                         \
+      } else {                                                    \
+        return LISP_FALSE;                                        \
+      }                                                           \
+    }                                                             \
+    return error_sexp("bigfloat compare " #name " type error");   \
+  }
+lisp_bigfloat_cmp(gt,>);
+lisp_bigfloat_cmp(eq,==);
+lisp_bigfloat_cmp(lt,<);
+lisp_bigfloat_cmp(ge,>=);
+lisp_bigfloat_cmp(le,<=);
+lisp_bigfloat_cmp(ne,!=);
+#define lisp_bigint_cmp(name,op)                                \
+  sexp lisp_bigint_##name (sexp obj1,sexp obj2){                \
+    if(setjmp(cmp_err)){                                        \
+      if(gmp_compare_generic(obj1,obj2) op 0){                  \
+        return LISP_TRUE;                                       \
+      } else {                                                  \
+        return LISP_FALSE;                                      \
+      }                                                         \
+    }                                                           \
+    return error_sexp("bigint compare " #name " type error");   \
+  }
+lisp_bigint_cmp(gt,>);
+lisp_bigint_cmp(eq,==);
+lisp_bigint_cmp(lt,<);
+lisp_bigint_cmp(ge,>=);
+lisp_bigint_cmp(le,<=);
+lisp_bigint_cmp(ne,!=);
+//generic functions on bigfloat,number
+#define mpfr_binop(op)                                                  \
+  sexp lisp_bigfloat_op(sexp obj1,sexp obj2){                           \
+    if(!(BIGFLOATP(obj1)) || !(BIGNUMB(obj2))){                         \
+      return error_sexp                                                 \
+        ("bigfloat arithmatic funcitons require numeric arguments");    \
+    }                                                                   \
+    mpfr_t bigfloat1=obj1.val.bigfloat;                                 \
+    switch(obj2.tag){                                                   \
+      case _long:                                                       \
+        return bigfloat_sexp                                            \
+          (mpfr_wrapper(mprf_##op##_si(bigfoat1,obj2.val.int64)));      \
+      case _ulong:                                                      \
+        return bigfloat_sexp                                            \
+          (mpfr_wrapper(mprf_##op##_ui(bigfoat1,obj2.val.uint64)));     \
+      case _double:                                                     \
+        return bigfloat_sexp                                            \
+          (mpfr_wrapper(mpfr_##op##_d(bigfloat1,obj2.val.real64)));     \
+      case _bigint:                                                     \
+        return bigfloat_sexp                                            \
+          (mpfr_wrapper(mpfr_##op##_z(bigfloat1,obj2.val.bigint)));     \
+      case _bigfloat:                                                   \
+        return bigfloat_sexp                                            \
+          (mpfr_wrapper(mpfr_##op(bigfloat1,obj2.val.bigfloat)));       \
+    }                                                                   \
+  }
+//gmp doesn't have functions on bigint,(long|double|bigfloat)unlike mpfr,its sad
+#define gmp_binop(op)                                                   \
+  sexp lisp_bigint_op(sexp obj1,sexp obj2){                             \
+    if(!(BIGINTP(obj1)) || !(BIGNUMB(obj2))){                           \
+      return error_sexp                                                 \
+        ("bigint arithmatic funcitons require numeric arguments");      \
+    }                                                                   \
+    mpz_t bigint1=obj1.val.bigint;                                      \
+    switch(obj2.tag){                                                   \
+      case _ulong:                                                      \
+        return bigint_sexp                                              \
+          (gmp_wrapper(gmp_##op##_ui(bigint1,obj2.val.uint64)));        \
+      case _bigint:                                                     \
+        return bigint_sexp                                              \
+          (gmp_wrapper(gmp_##op(bigint1,obj2.val.bigint)));             \
+      default:                                                          \
+        return bigint_sexp                                              \
+        (gmp_wrapper(gmp_##op(bigint1,bigint(obj2).val.bigint)))        \
+    }                                                                   \
+  }
+
+gmp_binop(add);
+gmp_binop(sub);
+gmp_binop(mul);
+gmp_binop(mod);
+gmp_binop(cdiv_q);
+gmp_binop(fdiv_q);
+gmp_binop(tdiv_q);
+mpfr_binop(add);
+mpfr_binop(sub);
+mpfr_binop(mul);
+mpfr_binop(div);
+mpfr_binop(pow);
+
 #define gmp_binop_mpz(op)                                               \
   sexp lisp_gmp_##op(sexp obj1,sexp obj2){                              \
     if(!(BIGINTP(obj1))||!(BIGINTP(obj2))){                             \

@@ -19,8 +19,9 @@
     (insert (format (concat
 "((:lname . \"bigint-%s\") (:cname . \"lisp_gmp_%s\") (:minargs . 2) \n"
 "(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))\n") op op))))
-(defvar mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "cdiv_r" "fdiv_q"
-                          "fdiv_r" "tdiv_r" "tdiv_q" "and" "ior" "xor"))
+(defvar gmp-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "cdiv_q" "tdiv_q"))
+(defvar mpz-binops-list (append gmp-binops-list 
+                                '("cdiv_r""fdiv_r" "tdiv_q" "and" "ior" "xor")))
 (defun mpfr-binops(op-list)
   (dolist (op op-list)
     (insert (format (concat
@@ -32,6 +33,10 @@
     (insert (format (concat 
 "((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 1) "
 "(:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
+(defvar mpfr-comparions (cl-loop for i in '("gt" "eq" "lt" "gt" "le" "ne")
+                                 collecting (concat "lisp_bigfloat_" i)))
+(defvar gmp-comparions (cl-loop for i in '("gt" "eq" "lt" "gt" "le" "ne")
+                                 collecting (concat "lisp_bigint_" i)))
 (defvar mpfr-unops-list '("log" "exp" "cos" "sin" "tan"))
 (defvar SciLisp-prims)
 (defvar basic-prims-list (append 
@@ -40,9 +45,14 @@
     ("!=" "lisp_ne" 2) ("=" "lisp_numeq" 2) ("++" "lisp_inc" 1) ("--" "lisp_dec" 1)
     ("cons" "Cons" 2) ("set-car!" "set_car" 2) ("set-cdr!" "set_cdr" 2) 
     ("last" "last" 1) ("push!" "push_cons" 2) ("pop!" "pop_cons" 1)
-    ("mapcar" "mapcar" 2) ("reduce" "reduce" 2))
-  (mapcar (lambda (x) (list x x 1)) *cadrs*)
-  ))
+    ("mapcar" "mapcar" 2) ("reduce" "reduce" 2)("qsort!" "qsort_cons" 2)
+    ("length" "lisp_length" 1) ("aref" "aref" 2) ("array->list" "array_to_list 1")
+    ("typName" "lisp_typeName" 1) ("print" "lisp_print" 1) 
+    ("fclose" "lisp_close" 1) ("fputs" "lisp_fputs" 2) ("fprint" "lisp_fprint" 2)
+    ("fprintln" "lisp_fprintln" 2) ("pwd" "lisp_getcwd" 0) ("eq" "lisp_eq" 2)
+    ("logxor" "lisp_xor" 2) ("logand" "lisp_logand" 2) ("logor" "lisp_logor" 2)
+    ("ash" "ash" 2) ("expt" "lisp_pow" 2) ("sqrt" "lisp_sqrt" 1))
+  (mapcar (lambda (x) (list x x 1)) *cadrs*)))
 (defvar basic-SciLisp-prims
   (dolist (f basic-prims-list)
     (let ((ls ()))
@@ -293,6 +303,9 @@
 (defvar initPrimsObarray-header)
 (setq initPrimsObarray-header
 "static void initPrimsObarray(obarray *ob,env* ob_env){
+  mpz_t *lisp_mpz_1,*lisp_mpz_0;
+  mpfr_t *lisp_mpfr_1,*lisp_mpfr,0;
+  
 ")
 (defvar initPrimsObarray-suffix)
 (setq initPrimsObarray-suffix

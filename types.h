@@ -84,20 +84,25 @@ typedef global_symbol keyword_symbol;
 #define BIGFLOATP(obj) (obj.tag == _bigfloat)
 #define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
                      obj.tag == _bigint || obj.tag == _bigfloat)
+//key point to this enum is that arathmatic types are numbered in their type
+//heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
+//new types make sure it fits in the heirachy correcty
 enum _tag {
   _error = -4,//type of errors, value is a string
   _false = -3,//type of #f, actual value is undefined
   _uninterned = -2,//type of uninterned symbols, value is symbol(var)
   _nil = -1,//type of nil, singular object,vaule is undefined
   _cons = 0,//type of cons cells(aka lisp programs), value is cons
+  //arithmatic types, room for 10 more types currently
   _byte = 1,
   _short = 2,
   _int = 3,
   _long = 4,//type of integers, vaule is int64
-  _float = 5,
-  _double = 6,//type of floating point numbers, value is real64
-  _bigint = 7,
-  _bigfloat = 8,
+  _ulong = 5,
+  _float = 6,
+  _double = 7,//type of floating point numbers, value is real64
+  _bigint = 8,
+  _bigfloat = 9,
   _char = 19,//type of chars(c type wchar_t),value is utf8_char
   _str = 20,//type of strings, value is cord
   _array = 21,//type of arrays, element type in meta, vaule is array
