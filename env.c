@@ -166,6 +166,15 @@ obarray* obarray_init(uint64_t size,float gthresh){
                 .is_weak_hash=0,.hash_fn=fnv_hash};
   return ob;
 }
+obarray* init_prim_obarray(){
+  obarray* ob=xmalloc(sizeof(obarray));
+  ob->buckets=xmalloc(128*sizeof(obarray_entry*));
+  *ob=(obarray){.buckets=ob->buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
+                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
+                .is_weak_hash=0,.hash_fn=fnv_hash};
+  return ob;
+}
+obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,obarray_entry *entry){}
 //assume a hash value of 0 is impossible(is it?)
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv){
   if(!hashv){

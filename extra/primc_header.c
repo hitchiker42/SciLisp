@@ -49,25 +49,19 @@
   { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
 //  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  function_args c_name##args=                                            \
+  function_args c_name##_args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
-  function c_name##call=                                             \
-    { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
+  function c_name##_call=                                             \
+    { .args=&c_name##_args,.lname=#l_name,.cname=#c_name,                   \
       .comp = {.f##maxargs=c_name},            \
       .type = _compiled_fun };
-#define MAKE_SYMBOL(l_name,c_name,hashv)                                \
-  symbol c_name ## _sym=                                                \
-    (symbol){.name = l_name,.val =                                      \
-             {.tag=_fun,.val={.fun = &c_name##call}},                   \
-             .symbol_env=0};                                            \
-  symref c_name ## _ptr=&c_name##_sym;                                  \
-  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=c_name ## _ptr, \
-                                    .hashv=hashv}
-
-#define DEFUN_MANY(lname,cname,minargs,maxargs)                \
-  fxn_proto cname##call=                                       \
-    { #cname, lname, minargs, -1, {.f##maxargs=cname}};
+#define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
+  symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}, \
+                           .symbol_env=0};                              \
+  symref c_name ## _ptr=0;                                              \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
+                                    .hashv=hash_v}
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -482,9 +476,9 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
   char* dllibname;
   void* dllib;
   if(CORD_cmp(CORD_substr(libname.val.cord,0,3),"lib")){
-    dllibname=CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
+    dllibname=(char*)CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
   } else {
-    dllibname=CORD_to_const_char_star
+    dllibname=(char*)CORD_to_const_char_star
       (CORD_catn(3,"lib",libname.val.cord,".so"));
   }
   dllib=dlopen(dllibname,0);
@@ -492,7 +486,11 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
 }
 sexp lisp_eq(sexp obj1,sexp obj2){
   if(BIGNUMP(obj1) && BIGNUMP(obj2)){
-    return lisp_numeq(obj1,obj2);
+    if(NUMBERP(obj1) && NUMBERP(obj2)){
+      return lisp_numeq(obj1,obj2);
+    } else {
+      return lisp_bignumeq(obj1,obj2);
+    }
   }
   if(obj1.tag != obj2.tag){
     return LISP_FALSE;
@@ -514,6 +512,7 @@ sexp lisp_eq(sexp obj1,sexp obj2){
       return LISP_FALSE;
   }
 }
+sexp lisp_eql(sexp obj1,sexp obj2)
 sexp lisp_apply(sexp fun,sexp args){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");

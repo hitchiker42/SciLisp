@@ -1,36 +1,32 @@
-(defun indent-buffer ()
-  "Indent entire buffer using indent-region"
-  (interactive)
-  (indent-region (point-min) (point-max)))
 (defvar *cadrs*
 (let ((ls ()))
   (dolist (i '("a" "d"))
     (dolist (j '("a" "d" ""))
       (dolist (k '("a" "d" ""))
         (dolist (l '("a" "d" ""))
-          (add-to-list 'ls (concat "c" i j k l "r"))))))
+          (adjoin 'ls (concat "c" i j k l "r") :test #'equal)))))
   ls))
 (defun mkPrimBasic (lname cname numargs)
-  (insert (format (concat
-"((:lname . \"%s\") (:cname . \"%s\") (:minargs . %d) (:maxargs . %d)"
-"(:optargs . 0) (:keyargs . 0) (:restarg . 0))") lname cname numargs numargs)))
+  (format (concat
+           "((:lname . \"s\") (:cname . \"~a\") (:minargs . ~d) (:maxargs . ~d)"
+           "(:optargs . 0) (:keyargs . 0) (:restarg . 0))") lname cname numargs numargs)))
 (defun mpz-binops(op-list)
   (dolist (op op-list)
     (insert (format (concat
-"((:lname . \"bigint-%s\") (:cname . \"lisp_gmp_%s\") (:minargs . 2) \n"
+"((:lname . \"bigint-~a\") (:cname . \"lisp_gmp_~a\") (:minargs . 2) \n"
 "(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))\n") op op))))
 (defvar mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "cdiv_r" "fdiv_q"
                           "fdiv_r" "tdiv_r" "tdiv_q" "and" "ior" "xor"))
 (defun mpfr-binops(op-list)
   (dolist (op op-list)
     (insert (format (concat
-"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 2)\n" 
+"((:lname . \"bigfloat-~a\")(:cname . \"lisp_mpfr_~a\") (:minargs . 2)\n" 
 "(:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 0))\n") op op))))
 (defvar mpfr-binops-list '("add" "sub" "mul" "div" "pow"))
 (defun mpfr-unops(op-list)
   (dolist (op op-list)
     (insert (format (concat 
-"((:lname . \"bigfloat-%s\")(:cname . \"lisp_mpfr_%s\") (:minargs . 1) "
+"((:lname . \"bigfloat-~a\")(:cname . \"lisp_mpfr_~s\") (:minargs . 1) "
 "(:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0))") op op))))
 (defvar mpfr-unops-list '("log" "exp" "cos" "sin" "tan"))
 (defvar SciLisp-prims)
@@ -327,23 +323,23 @@ DEFCONST(\"stdin\",lisp_stdin);                                         \\
 srand48(time(NULL));}
 #undef DEFUN
 #endif")
-(defvar primc-suffix "#undef DEFUN
-")
+(defvar primc-suffix "#undef DEFUN")
+(defun assq (key ls) (assoc key ls :test #'equal))
 (defmacro prim-val (keysym)
   `(cdr (assq ,keysym prim)))
 ;(defvar llvm-header
 ;"static name_args_pair lisp_prims[]={\n")
 (defun primc-format (prim)
   (format 
-   "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
+   "DEFUN(\"~a\",~a,~d,~d,~d,~d,~d);\n"
    (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
    (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
 (defun primc-normal-format (prim)
   (format 
-   "DEFUN(\"%s\",%s,%d,%d);\n"
+   "DEFUN(\"~a\",~a,~d,~d);\n"
    (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :maxargs)))
 (defun primc-many-format(prim)
-  (format "DEFUN_MANY(\"%s\",%s,%d,%d)\n"
+  (format "DEFUN_MANY(\"~a\",~a,~d,~d)\n"
           (cdr (assq :lname prim)) (cdr (assq :cname prim))
           (cdr (assq :minargs prim)) (1+ (cdr (assq :minargs prim)))))
 ;(defun primc-format (prim)
@@ -351,70 +347,55 @@ srand48(time(NULL));}
 ;      (primc-many-format prim)
 ;    (primc-normal-format prim)))
 (defun primh-format (prim)
-  (format "DEFUN(%s,%s);\n"
+  (format "DEFUN(~a,~a);\n"
           (cdr (assq :cname prim))
           (cdr(assq :maxargs prim))))
 ;(defun llvmh-format (prim)
-;  (format "{\"%scall\",%d}, "
+;  (format "{\"~acall\",~d}, "
 ;          (cdr (assq :cname prim))(cdr (assq :maxargs prim))))
 (defun initPrims-format (prim)
-  (format "DEFUN_INTERN(\"%s\",%s);\\\n"
+  (format "DEFUN_INTERN(\"~a\",~a);\\\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))))
 (defun initPrimsObarray-format (prim)
-  (format "DEFUN_INTERN_OBARRAY(\"%s\",%s);\n"
+  (format "DEFUN_INTERN_OBARRAY(\"~a\",~a);\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))))
 (defun makePrimSymbols-format(prim)
-  (format "MAKE_SYMBOL(\"%s\",%s,%s);\n"
+  (format "MAKE_SYMBOL(\"~a\",~a,~a);\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))
-          (shell-command-to-string (format "../fnv_hash '%s'" (cdr (assq :cname prim))))))
+;no idea how to do this in common lisp
+          (shell-command-to-string (format "../fnv_hash '~s'" 
+                                           (cdr (assq :cname prim))))))
+(makePrimSymbols-format (car SciLisp-prims))
 (defun generate-SciLisp-prims()
-  (let ((primh (generate-new-buffer "primh"))
-        (initPrims (generate-new-buffer "initPrims"))
-        (initPrimsObarray (generate-new-buffer "initPrimsObarray"))
-        (primc (generate-new-buffer "primc"))
-        (primSyms (generate-new-buffer "primSyms")))
+  (let ((primh (make-string-output-stream))
+        (initPrims (make-string-output-stream))
+        (initPrimsObarray (make-string-output-stream))
+        (primc (make-string-output-stream)))
     (princ initPrims-header initPrims)
     (princ initPrimsObarray-header initPrimsObarray)
     (dolist (prim SciLisp-prims)
       (princ (primc-format prim) primc)
       (princ (primh-format prim) primh)
       (princ (initPrims-format prim) initPrims)
-      (princ (makePrimSymbols-format prim) primSyms)
-      (princ (initPrimsObarray-format prim) initPrimsObarray))    
+      (princ (initPrimsObarray-format prim) initPrimsObarray))
     (princ initPrims-suffix initPrims)
     (princ initPrimsObarray-suffix initPrimsObarray)
     (princ primc-suffix primc)
-    (with-current-buffer primh
-      (goto-char (point-min))
-      (insert-file-contents "primh_header.h")
-      (write-file (expand-file-name "../prim.h"))
-      (kill-buffer))
-    (with-current-buffer initPrimsObarray
-      (indent-buffer)
-      (append-to-file (point-min) (point-max) 
-                      (expand-file-name "../prim.h"))
-      (kill-buffer))
-    (with-current-buffer initPrims
-      (indent-buffer)
-      (append-to-file (point-min) (point-max) 
-                      (expand-file-name "../prim.h"))
-      (kill-buffer)) 
-    (with-current-buffer primc
-      (goto-char (point-min))
-      (insert-file-contents "primc_header.c")
-      (goto-char (point-max))      
-      (insert-buffer-substring primSyms)
-      (kill-buffer primSyms)
-      (write-file (expand-file-name "../prim.c"))
-      (kill-buffer))
-    (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrims))))
-                                        ;    (with-current-buffer llvmh
-;      (goto-char (point-max))
-;      (delete-backward-char 2)
-;      (write-char ?} llvmh)
-;      (fill-region (point-min)(point-max))
-      ;;cut last comma and add closing brace
-;      (goto-char (point-min))
-;      (insert-file-contents "llvmh_header.c")
-;      (write-file "llvm_temp.h")
-;      (kill-buffer))))
+                                        ;next should be some thing like this
+                                        ;let primh.txt be the prim.h header(same for the other 3)
+    (with-open-stream
+        (prim-h (make-echo-stream
+                 (open "primh_header.h")
+                 (open "../prim.h" :direction :output :if-exists :overwrite)))
+      (read prim-h)
+      (write-string (get-output-stream-string primh) prim-h)
+      (write-string (get-output-stream-string initPrimsObarray) prim-h)
+      (write-string (get-output-stream-string initPrims prim-h))
+      (finish-output prim-h))
+    (with-open-stream 
+        (prim-c (make-echo-stream 
+                 (open "primc_header.c")
+                 (open "../prim.c":direction :output :if-exists :overwrite)))
+      (read prim-c)
+      (write-string (get-output-stream-string primc) prim-c)
+      (finish-output prim-c))
