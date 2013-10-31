@@ -49,25 +49,19 @@
   { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
 //  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  function_args c_name##args=                                            \
+  function_args c_name##_args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
-  function c_name##call=                                             \
-    { .args=&c_name##args,.lname=#l_name,.cname=#c_name,                   \
+  function c_name##_call=                                             \
+    { .args=&c_name##_args,.lname=#l_name,.cname=#c_name,                   \
       .comp = {.f##maxargs=c_name},            \
       .type = _compiled_fun };
-#define MAKE_SYMBOL(l_name,c_name,hashv)                                \
-  symbol c_name ## _sym=                                                \
-    (symbol){.name = l_name,.val =                                      \
-             {.tag=_fun,.val={.fun = &c_name##call}},                   \
-             .symbol_env=0};                                            \
-  symref c_name ## _ptr=&c_name##_sym;                                  \
-  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=c_name ## _ptr, \
-                                    .hashv=hashv}
-
-#define DEFUN_MANY(lname,cname,minargs,maxargs)                \
-  fxn_proto cname##call=                                       \
-    { #cname, lname, minargs, -1, {.f##maxargs=cname}};
+#define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
+  symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}, \
+                           .symbol_env=0};                              \
+  symref c_name ## _ptr=0;                                              \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
+                                    .hashv=hash_v}
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -482,9 +476,9 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
   char* dllibname;
   void* dllib;
   if(CORD_cmp(CORD_substr(libname.val.cord,0,3),"lib")){
-    dllibname=CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
+    dllibname=(char*)CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
   } else {
-    dllibname=CORD_to_const_char_star
+    dllibname=(char*)CORD_to_const_char_star
       (CORD_catn(3,"lib",libname.val.cord,".so"));
   }
   dllib=dlopen(dllibname,0);
@@ -650,3 +644,117 @@ DEFUN("bigfloat-mul",lisp_mpfr_mul,2,0,0,0,2);
 DEFUN("bigfloat-div",lisp_mpfr_div,2,0,0,0,2);
 DEFUN("bigfloat-pow",lisp_mpfr_pow,2,0,0,0,2);
 #undef DEFUN
+MAKE_SYMBOL("+",lisp_add,0xfe1176257ade3f65 );
+MAKE_SYMBOL("-",lisp_sub,0x62c6c42523166e74 );
+MAKE_SYMBOL("*",lisp_mul,0x21df3c258f79be90 );
+MAKE_SYMBOL("/",lisp_div,0xd2eec725627cb9a1 );
+MAKE_SYMBOL("<",lisp_lt,0x3b9b0bf59c649ce );
+MAKE_SYMBOL(">",lisp_gt,0x39aa2bf59ab8175 );
+MAKE_SYMBOL(">=",lisp_gte,0xcb439b255e6c4e30 );
+MAKE_SYMBOL("<=",lisp_lte,0x1ad100258bef2d91 );
+MAKE_SYMBOL("!=",lisp_ne,0x3b29dbf59c00ad7 );
+MAKE_SYMBOL("=",lisp_numeq,0x857a51d9ec2a1750 );
+MAKE_SYMBOL("++",lisp_inc,0x45d5e725a43814ee );
+MAKE_SYMBOL("--",lisp_dec,0xd2c5b225625990de );
+MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
+MAKE_SYMBOL("cons",Cons,0x3658069d1acdf568 );
+MAKE_SYMBOL("car",car,0xf5e305190ce49fc1 );
+MAKE_SYMBOL("cdr",cdr,0xf5ecf3190cecd5b0 );
+MAKE_SYMBOL("caar",caar,0xb5206a90e843ddfe );
+MAKE_SYMBOL("cadr",cadr,0xb5316490e85246ff );
+MAKE_SYMBOL("cddr",cddr,0xce54d590f6525240 );
+MAKE_SYMBOL("cdar",cdar,0xce4ae790f64a1c51 );
+MAKE_SYMBOL("caaar",caaar,0xa259a3aab7cc44b );
+MAKE_SYMBOL("caadr",caadr,0xa30903aab86bad2 );
+MAKE_SYMBOL("caddr",caddr,0x3564673ac3f6f7c1 );
+MAKE_SYMBOL("cdddr",cdddr,0xecc417528e219670 );
+MAKE_SYMBOL("cddar",cddar,0xecba29528e196081 );
+MAKE_SYMBOL("cdaar",cdaar,0xd38fac528013222e );
+MAKE_SYMBOL("cadar",cadar,0x356e553ac3ff2db0 );
+MAKE_SYMBOL("cdadr",cdadr,0xd3a0a65280218b2f );
+MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
+MAKE_SYMBOL("caaadr",caaadr,0xbaf452b1654165ed );
+MAKE_SYMBOL("caadar",caadar,0xd772cdb1761aa3a7 );
+MAKE_SYMBOL("caaddr",caaddr,0xd761b3b1760c0446 );
+MAKE_SYMBOL("cadaar",cadaar,0xc97ca6db0a75a451 );
+MAKE_SYMBOL("cadadr",cadadr,0xc98694db0a7dda40 );
+MAKE_SYMBOL("caddar",caddar,0xb05229dafc6f65fe );
+MAKE_SYMBOL("cadddr",cadddr,0xb06323dafc7dceff );
+MAKE_SYMBOL("cdaaar",cdaaar,0x900a262fa051dfdb );
+MAKE_SYMBOL("cdaadr",cdaadr,0x90141c2fa05a2362 );
+MAKE_SYMBOL("cdadar",cdadar,0xbb52e12fb8d44940 );
+MAKE_SYMBOL("cdaddr",cdaddr,0xbb48f32fb8cc1351 );
+MAKE_SYMBOL("cddaar",cddaar,0x5974384774e83dbe );
+MAKE_SYMBOL("cddadr",cddadr,0x5985324774f6a6bf );
+MAKE_SYMBOL("cdddar",cdddar,0x729db54782ecc911 );
+MAKE_SYMBOL("cddddr",cddddr,0x72a7a34782f4ff00 );
+MAKE_SYMBOL("set-car!",set_car,0x1901921ef1b17f2a );
+MAKE_SYMBOL("set-cdr!",set_cdr,0x18f77c1ef1a90543 );
+MAKE_SYMBOL("last",last,0x456d2ad905847d9 );
+MAKE_SYMBOL("push!",push_cons,0xdeb98901efbd89cb );
+MAKE_SYMBOL("pop!",pop_cons,0x69c73c4f15772b00 );
+MAKE_SYMBOL("mapcar",mapcar,0xc0ee7f3d3740c6c5 );
+MAKE_SYMBOL("reduce",reduce,0x2f92df0bac03dce7 );
+MAKE_SYMBOL("qsort!",qsort_cons,0x9ece1ff7e6e56498 );
+MAKE_SYMBOL("length",lisp_length,0x8f69728654de2182 );
+MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
+MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
+MAKE_SYMBOL("array->list",array_to_list,0x3dd759e226ade7d3 );
+MAKE_SYMBOL("typeName",lisp_typeName,0x3fd978c7b7c570e5 );
+MAKE_SYMBOL("typeOf",typeOf,0x6971003f4c928aa0 );
+MAKE_SYMBOL("print",lisp_print,0x4a38f2ac6b3b6ed1 );
+MAKE_SYMBOL("println",lisp_println,0x41fd0729bd308d0b );
+MAKE_SYMBOL("eval",lisp_eval,0x4be31a91624eed18 );
+MAKE_SYMBOL("fopen",lisp_open,0x9ad6eac17558fa36 );
+MAKE_SYMBOL("fclose",lisp_close,0x5fd43b5b8cc8b872 );
+MAKE_SYMBOL("fputs",lisp_fputs,0x6ea4ff6635a99296 );
+MAKE_SYMBOL("fprint",lisp_fprint,0xde93ad9559a71957 );
+MAKE_SYMBOL("fprintln",lisp_fprintln,0xd37b5eb8b9983cdd );
+MAKE_SYMBOL("cat",lisp_cat,0xef5542257341657a );
+MAKE_SYMBOL("pwd",lisp_getcwd,0x3c07edcc2db7ada8 );
+MAKE_SYMBOL("system",lisp_system,0x261ca996c6e4a97 );
+MAKE_SYMBOL("eq",lisp_eq,0x3a1a9bf59b1ac08 );
+MAKE_SYMBOL("logxor",lisp_xor,0xb1cc27255025b0d7 );
+MAKE_SYMBOL("logand",lisp_logand,0xbe33926eae30db1d );
+MAKE_SYMBOL("logor",lisp_logor,0xf6602a2681c26321 );
+MAKE_SYMBOL("ash",ash,0xe759a1190572cddf );
+MAKE_SYMBOL("expt",lisp_pow,0x6d8fca2529cc0cb0 );
+MAKE_SYMBOL("sqrt",lisp_sqrt,0x11e3ff1ab3a56bb4 );
+MAKE_SYMBOL("cos",lisp_cos,0xef262d257319d109 );
+MAKE_SYMBOL("sin",lisp_sin,0x62ef9825233928c4 );
+MAKE_SYMBOL("tan",lisp_tan,0x49151f25149e0591 );
+MAKE_SYMBOL("exp",lisp_exp,0xdd47de2568d36d09 );
+MAKE_SYMBOL("log",lisp_log,0x1a7c0e258ba7055c );
+MAKE_SYMBOL("abs",lisp_abs,0xfe2687257af0b852 );
+MAKE_SYMBOL("mod",lisp_mod,0x21cb28258f68f38a );
+MAKE_SYMBOL("min",lisp_min,0x21b63e258f56bce2 );
+MAKE_SYMBOL("max",lisp_max,0x219b28258f3fcfc8 );
+MAKE_SYMBOL("round",lisp_round,0xe7863c8b43d1dc8e );
+MAKE_SYMBOL("drand",lisp_randfloat,0xd7a3e2a6c9ca3a5d );
+MAKE_SYMBOL("lrand",lisp_randint,0xcffb580fd3c7c16 );
+MAKE_SYMBOL("consp",lisp_consp,0x13ff0f42de4882d1 );
+MAKE_SYMBOL("numberp",lisp_numberp,0x6066daab1874f889 );
+MAKE_SYMBOL("arrayp",lisp_arrayp,0x7d808d48023e869d );
+MAKE_SYMBOL("nilp",lisp_nilp,0x70c241ba833a3987 );
+MAKE_SYMBOL("stringp",lisp_stringp,0x4820d35f103b77f5 );
+MAKE_SYMBOL("symbolp",lisp_symbolp,0x82929922881de33a );
+MAKE_SYMBOL("bigint",lisp_bigint,0x6a031ae6deb3b2f9 );
+MAKE_SYMBOL("bigfloat",lisp_bigfloat,0xbf028d8fe03cb0c2 );
+MAKE_SYMBOL("bigint-add",lisp_gmp_add,0xb9ec4ea5b94e8b46 );
+MAKE_SYMBOL("bigint-sub",lisp_gmp_sub,0x34ccc0a5ff5cb3e7 );
+MAKE_SYMBOL("bigint-mul",lisp_gmp_mul,0x230c40a5f52efa33 );
+MAKE_SYMBOL("bigint-mod",lisp_gmp_mod,0x22b46ca5f4e4cf21 );
+MAKE_SYMBOL("bigint-cdiv_q",lisp_gmp_cdiv_q,0xe14affd029d00c37 );
+MAKE_SYMBOL("bigint-cdiv_r",lisp_gmp_cdiv_r,0xe14b00d029d00dea );
+MAKE_SYMBOL("bigint-fdiv_q",lisp_gmp_fdiv_q,0xf218bc8def4cbe3a );
+MAKE_SYMBOL("bigint-fdiv_r",lisp_gmp_fdiv_r,0xf218bb8def4cbc87 );
+MAKE_SYMBOL("bigint-tdiv_r",lisp_gmp_tdiv_r,0xe3aa126d8f43c255 );
+MAKE_SYMBOL("bigint-tdiv_q",lisp_gmp_tdiv_q,0xe3aa0f6d8f43bd3c );
+MAKE_SYMBOL("bigint-and",lisp_gmp_and,0xba007aa5b95f7f14 );
+MAKE_SYMBOL("bigint-ior",lisp_gmp_ior,0xff19a2a5e074a2c3 );
+MAKE_SYMBOL("bigint-xor",lisp_gmp_xor,0x92b369a634280b08 );
+MAKE_SYMBOL("bigfloat-add",lisp_mpfr_add,0xe255de7629f0c38b );
+MAKE_SYMBOL("bigfloat-sub",lisp_mpfr_sub,0x6a8aa475e681cbea );
+MAKE_SYMBOL("bigfloat-mul",lisp_mpfr_mul,0xc17a347617d5ac66 );
+MAKE_SYMBOL("bigfloat-div",lisp_mpfr_div,0xfeef5b763ae0cc63 );
+MAKE_SYMBOL("bigfloat-pow",lisp_mpfr_pow,0x51902675d8a4afa6 );

@@ -88,7 +88,7 @@ hash_fn.o: hash_fn.c hash_fn.h
 fnv_hash: fnv_hash.c
 	$(CC) $(CFLAGS) -O3 fnv_hash.c -o fnv_hash
 emacs_regex.o: emacs_regex.c emacs_regex.h
-prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h
+prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h fnv_hash
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
 #making libraries
 LIBPRIM_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3

@@ -13,21 +13,21 @@
 #define DEFUN_INTERN_OBARRAY(l_name,c_name)                             \
   symbol c_name ## _sym=                                                \
     (symbol){.name = l_name,.val =                                      \
-             {.tag=_fun,.val={.fun = &c_name##call}},                   \
+             {.tag=_fun,.val={.fun = &c_name##_call}},                   \
              .symbol_env=ob_env};                                       \
   symref c_name ## _ptr=&c_name##_sym;                                  \
   obarray_add_entry(ob,c_name##_ptr)
 #define DEFUN_INTERN(l_name,c_name)                                       \
   global_symbol c_name ## _sym=                                         \
     (global_symbol){.name = l_name,.val =                               \
-                    {.tag=_fun,.val={.fun = &c_name##call}},            \
+                    {.tag=_fun,.val={.fun = &c_name##_call}},            \
                     .symbol_env=&topLevelEnv};                           \
   global_symref c_name ## _ptr=&c_name##_sym;                             \
   addGlobalSymMacro(c_name##_ptr)
 #define INTERN_ALIAS(l_name,c_name,gensym)                                \
   global_symbol c_name ## _sym ## gensym=                                \
     (global_symbol){.name = l_name,.val =                                \
-                    {.tag=_fun,.val={.fun = &c_name##call}},            \
+                    {.tag=_fun,.val={.fun = &c_name##_call}},            \
                     .symbol_env=&topLevelEnv};                           \
   global_symref c_name ## _ptr ## gensym =&c_name##_sym##gensym;          \
   addGlobalSymMacro(c_name##_ptr##gensym)
@@ -35,6 +35,11 @@
   global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};       \
   global_symref c_name ## _ptr=&c_name##_sym;                           \
   addGlobalSymMacro(c_name##_ptr);
+#define INIT_SYMBOL(c_name)                                    \
+  c_name##_sym.val.val.fun=&c_name##_call;                     \
+  c_name##_sym.symbol_env=&ob_env;                              \
+  c_name## _ptr=&c_name##_sym;                                  \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr
 #define DEFUN_ARGS_0	(void)
 #define DEFUN_ARGS_1	(sexp)
 #define DEFUN_ARGS_2	(sexp, sexp)
