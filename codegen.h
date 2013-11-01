@@ -12,9 +12,7 @@
 #include <assert.h>
 CORD c_codegen(sexp ast);
 CORD llvm_codegen(sexp ast);
-//lazy fillin untill I add better error handling
-static void handle_error(){abort();}
-static CORD codegen(FILE* outfile,sexp ast,enum backend backend){
+static CORD codegen(sexp ast,enum backend backend){
   switch(backend){
     case 0:{
       CORD c_code=c_codegen(ast);

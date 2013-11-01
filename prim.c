@@ -62,6 +62,12 @@
   symref c_name ## _ptr=0;                                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=hash_v}
+//not sure if this has non constant initalizers or not
+#define MAKE_CONSTANT(l_name,c_name,hash_v)     \
+  symbol c_name ## _sym = {.name=l_name,.val=c_name,.symbol_env=0};      \
+  symref c_name ## _ptr = &c_name ## _sym;                              \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=&c_name##_sym, \
+                                    .hashv=hash_v}
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -86,6 +92,15 @@
       return LISP_FALSE;                                                \
     }                                                                   \
   }
+#define MK_PREDICATE4(lname,test,test2,test3,test4)                     \
+  sexp lisp_##lname (sexp obj){                                         \
+    if(obj.tag == test || obj.tag == test2 || obj.tag == test3 ||       \
+       obj.tag == test4){                                               \
+      return LISP_TRUE;                                                 \
+    } else {                                                            \
+      return LISP_FALSE;                                                \
+    }                                                                   \
+  }
 
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
@@ -100,6 +115,13 @@
     register double yy=getDoubleVal(y);                         \
     return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
   }
+#define INIT_SYMBOL(c_name)                                    \
+  c_name##_sym.val.val.fun=&c_name##_call;                     \
+  c_name##_sym.symbol_env=ob_env;                              \
+  c_name##_ptr=&c_name##_sym;                                  \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr
+#define INIT_CONST(c_name)                      \
+  c_name##_sym.symbol_env=&ob_env
 //create c functions for primitives
 //arithmatic primitives
 binop_to_fun(+,lisp_add);
@@ -437,8 +459,6 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
  TYPE_ERROR:
   return error_sexp("Type error");
 }
-sexp arith_driver(sexp required,sexp values,enum operator op){}
-sexp float_arith_driver(sexp required,sexp values,enum operator op){}
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen, rest arg to sum is not a list or nil");
@@ -486,7 +506,12 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
 }
 sexp lisp_eq(sexp obj1,sexp obj2){
   if(BIGNUMP(obj1) && BIGNUMP(obj2)){
-    return lisp_numeq(obj1,obj2);
+    if(NUMBERP(obj1) && NUMBERP(obj2)){
+      return lisp_numeq(obj1,obj2);
+    } else {
+      //define this first
+      //      return lisp_bignumeq(obj1,obj2);
+    }
   }
   if(obj1.tag != obj2.tag){
     return LISP_FALSE;
@@ -508,6 +533,7 @@ sexp lisp_eq(sexp obj1,sexp obj2){
       return LISP_FALSE;
   }
 }
+sexp lisp_eql(sexp obj1,sexp obj2);
 sexp lisp_apply(sexp fun,sexp args){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");
@@ -518,17 +544,31 @@ sexp lisp_apply(sexp fun,sexp args){
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
 */
-const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
-const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
-const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
-const sexp lisp_max_long = {.tag = _long,.val={.int64 = LONG_MAX}};
-
-MK_PREDICATE2(consp,_cons,_list);
+const sexp lisp_mach_eps = {.tag=_double,.val={.real64=1.41484755040568800000e-16}};
+const sexp lisp_pi = {.tag=_double,.val={.real64=3.14159265358979323846}};
+const sexp lisp_euler ={.tag=_double,.val={.real64=2.7182818284590452354}};
+const sexp lisp_max_long = {.tag=_long,.val={.int64=LONG_MAX}};
+const sexp lisp_double_0 = {.tag=_double,.val={.real64=0.0}};
+const sexp lisp_double_1 = {.tag=_double,.val={.real64=1.0}};
+const sexp lisp_long_0 = {.tag=_long,.val={.int64=0}};
+const sexp lisp_long_1 = {.tag=_long,.val={.int64=1}};
+//allocating static space for pointers, not actually initalizing constants
+const sexp lisp_bigint_0 = {.tag=_bigint,.val={.bigint=0}};
+const sexp lisp_bigint_1 = {.tag=_bigint,.val={.bigint=0}};
+const sexp lisp_bigfloat_0 =  {.tag=_bigfloat,.val={.bigfloat=0}};
+const sexp lisp_bigfloat_1 =  {.tag=_bigfloat,.val={.bigfloat=0}};
+MK_PREDICATE3(consp,_cons,_list,_dpair);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
 MK_PREDICATE(nilp,_nil);
 MK_PREDICATE(symbolp,_sym);
+MK_PREDICATE(bigintp,_bigint);
+MK_PREDICATE(bigfloatp,_bigfloat);
 MK_PREDICATE2(stringp,_str,_ustr);
+MK_PREDICATE4(bignump,_bigint,_bigfloat,_long,_double);
+MK_PREDICATE(errorp,_error);
+MK_PREDICATE(functionp,_fun);
+MK_PREDICATE(streamp,_stream);
 DEFUN("+",lisp_add,2,0,0,0,2);
 DEFUN("-",lisp_sub,2,0,0,0,2);
 DEFUN("*",lisp_mul,2,0,0,0,2);
@@ -543,36 +583,6 @@ DEFUN("++",lisp_inc,1,0,0,0,1);
 DEFUN("--",lisp_dec,1,0,0,0,1);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("cons",Cons,2,0,0,0,2);
-DEFUN("car",car,1,0,0,0,1);
-DEFUN("cdr",cdr,1,0,0,0,1);
-DEFUN("caar",caar,1,0,0,0,1);
-DEFUN("cadr",cadr,1,0,0,0,1);
-DEFUN("cddr",cddr,1,0,0,0,1);
-DEFUN("cdar",cdar,1,0,0,0,1);
-DEFUN("caaar",caaar,1,0,0,0,1);
-DEFUN("caadr",caadr,1,0,0,0,1);
-DEFUN("caddr",caddr,1,0,0,0,1);
-DEFUN("cdddr",cdddr,1,0,0,0,1);
-DEFUN("cddar",cddar,1,0,0,0,1);
-DEFUN("cdaar",cdaar,1,0,0,0,1);
-DEFUN("cadar",cadar,1,0,0,0,1);
-DEFUN("cdadr",cdadr,1,0,0,0,1);
-DEFUN("caaaar",caaaar,1,0,0,0,1);
-DEFUN("caaadr",caaadr,1,0,0,0,1);
-DEFUN("caadar",caadar,1,0,0,0,1);
-DEFUN("caaddr",caaddr,1,0,0,0,1);
-DEFUN("cadaar",cadaar,1,0,0,0,1);
-DEFUN("cadadr",cadadr,1,0,0,0,1);
-DEFUN("caddar",caddar,1,0,0,0,1);
-DEFUN("cadddr",cadddr,1,0,0,0,1);
-DEFUN("cdaaar",cdaaar,1,0,0,0,1);
-DEFUN("cdaadr",cdaadr,1,0,0,0,1);
-DEFUN("cdadar",cdadar,1,0,0,0,1);
-DEFUN("cdaddr",cdaddr,1,0,0,0,1);
-DEFUN("cddaar",cddaar,1,0,0,0,1);
-DEFUN("cddadr",cddadr,1,0,0,0,1);
-DEFUN("cdddar",cdddar,1,0,0,0,1);
-DEFUN("cddddr",cddddr,1,0,0,0,1);
 DEFUN("set-car!",set_car,2,0,0,0,2);
 DEFUN("set-cdr!",set_cdr,2,0,0,0,2);
 DEFUN("last",last,1,0,0,0,1);
@@ -617,32 +627,80 @@ DEFUN("max",lisp_max,2,0,0,0,2);
 DEFUN("round",lisp_round,1,0,0,0,2);
 DEFUN("drand",lisp_randfloat,0,1,0,0,1);
 DEFUN("lrand",lisp_randint,0,0,0,0,0);
-DEFUN("consp",lisp_consp,1,0,0,0,1);
-DEFUN("numberp",lisp_numberp,1,0,0,0,1);
-DEFUN("arrayp",lisp_arrayp,1,0,0,0,1);
-DEFUN("nilp",lisp_nilp,1,0,0,0,1);
-DEFUN("stringp",lisp_stringp,1,0,0,0,1);
-DEFUN("symbolp",lisp_symbolp,1,0,0,0,1);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
 DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
-DEFUN("bigint-add",lisp_gmp_add,2,0,0,0,2);
-DEFUN("bigint-sub",lisp_gmp_sub,2,0,0,0,2);
-DEFUN("bigint-mul",lisp_gmp_mul,2,0,0,0,2);
-DEFUN("bigint-mod",lisp_gmp_mod,2,0,0,0,2);
-DEFUN("bigint-cdiv_q",lisp_gmp_cdiv_q,2,0,0,0,2);
-DEFUN("bigint-cdiv_r",lisp_gmp_cdiv_r,2,0,0,0,2);
-DEFUN("bigint-fdiv_q",lisp_gmp_fdiv_q,2,0,0,0,2);
-DEFUN("bigint-fdiv_r",lisp_gmp_fdiv_r,2,0,0,0,2);
-DEFUN("bigint-tdiv_r",lisp_gmp_tdiv_r,2,0,0,0,2);
-DEFUN("bigint-tdiv_q",lisp_gmp_tdiv_q,2,0,0,0,2);
-DEFUN("bigint-and",lisp_gmp_and,2,0,0,0,2);
-DEFUN("bigint-ior",lisp_gmp_ior,2,0,0,0,2);
-DEFUN("bigint-xor",lisp_gmp_xor,2,0,0,0,2);
-DEFUN("bigfloat-add",lisp_mpfr_add,2,0,0,0,2);
-DEFUN("bigfloat-sub",lisp_mpfr_sub,2,0,0,0,2);
-DEFUN("bigfloat-mul",lisp_mpfr_mul,2,0,0,0,2);
-DEFUN("bigfloat-div",lisp_mpfr_div,2,0,0,0,2);
-DEFUN("bigfloat-pow",lisp_mpfr_pow,2,0,0,0,2);
+DEFUN("bigint-add",lisp_bigint_add,2,0,0,0,2);
+DEFUN("bigint-sub",lisp_bigint_sub,2,0,0,0,2);
+DEFUN("bigint-mul",lisp_bigint_mul,2,0,0,0,2);
+DEFUN("bigint-mod",lisp_bigint_mod,2,0,0,0,2);
+DEFUN("bigint-cdiv_q",lisp_bigint_cdiv_q,2,0,0,0,2);
+DEFUN("bigint-fdiv_q",lisp_bigint_fdiv_q,2,0,0,0,2);
+DEFUN("bigint-tdiv_q",lisp_bigint_tdiv_q,2,0,0,0,2);
+DEFUN("bigint-cdiv_r",lisp_bigint_cdiv_r,2,0,0,0,2);
+DEFUN("bigint-fdiv_r",lisp_bigint_fdiv_r,2,0,0,0,2);
+DEFUN("bigint-tdiv_r",lisp_bigint_tdiv_r,2,0,0,0,2);
+DEFUN("bigint-and",lisp_bigint_and,2,0,0,0,2);
+DEFUN("bigint-ior",lisp_bigint_ior,2,0,0,0,2);
+DEFUN("bigint-xor",lisp_bigint_xor,2,0,0,0,2);
+DEFUN("bigint-gt",lisp_bigint_gt,2,0,0,0,2);
+DEFUN("bigint-eq",lisp_bigint_eq,2,0,0,0,2);
+DEFUN("bigint-lt",lisp_bigint_lt,2,0,0,0,2);
+DEFUN("bigint-ge",lisp_bigint_ge,2,0,0,0,2);
+DEFUN("bigint-le",lisp_bigint_le,2,0,0,0,2);
+DEFUN("bigint-ne",lisp_bigint_ne,2,0,0,0,2);
+DEFUN("bigfloat-add",lisp_bigfloat_add,2,0,0,0,2);
+DEFUN("bigfloat-sub",lisp_bigfloat_sub,2,0,0,0,2);
+DEFUN("bigfloat-mul",lisp_bigfloat_mul,2,0,0,0,2);
+DEFUN("bigfloat-div",lisp_bigfloat_div,2,0,0,0,2);
+DEFUN("bigfloat-pow",lisp_bigfloat_pow,2,0,0,0,2);
+DEFUN("bigfloat-gt",lisp_bigfloat_gt,2,0,0,0,2);
+DEFUN("bigfloat-eq",lisp_bigfloat_eq,2,0,0,0,2);
+DEFUN("bigfloat-lt",lisp_bigfloat_lt,2,0,0,0,2);
+DEFUN("bigfloat-ge",lisp_bigfloat_ge,2,0,0,0,2);
+DEFUN("bigfloat-le",lisp_bigfloat_le,2,0,0,0,2);
+DEFUN("bigfloat-ne",lisp_bigfloat_ne,2,0,0,0,2);
+DEFUN("arrayp",lisp_arrayp,1,0,0,0,1);
+DEFUN("consp",lisp_consp,1,0,0,0,1);
+DEFUN("numberp",lisp_numberp,1,0,0,0,1);
+DEFUN("nilp",lisp_nilp,1,0,0,0,1);
+DEFUN("symbolp",lisp_symbolp,1,0,0,0,1);
+DEFUN("bigintp",lisp_bigintp,1,0,0,0,1);
+DEFUN("bigfloatp",lisp_bigfloatp,1,0,0,0,1);
+DEFUN("stringp",lisp_stringp,1,0,0,0,1);
+DEFUN("bignump",lisp_bignump,1,0,0,0,1);
+DEFUN("errorp",lisp_errorp,1,0,0,0,1);
+DEFUN("functionp",lisp_functionp,1,0,0,0,1);
+DEFUN("streamp",lisp_streamp,1,0,0,0,1);
+DEFUN("cdr",cdr,1,0,0,0,1);
+DEFUN("cddr",cddr,1,0,0,0,1);
+DEFUN("cdddr",cdddr,1,0,0,0,1);
+DEFUN("cddddr",cddddr,1,0,0,0,1);
+DEFUN("cdddar",cdddar,1,0,0,0,1);
+DEFUN("cddar",cddar,1,0,0,0,1);
+DEFUN("cddadr",cddadr,1,0,0,0,1);
+DEFUN("cddaar",cddaar,1,0,0,0,1);
+DEFUN("cdar",cdar,1,0,0,0,1);
+DEFUN("cdadr",cdadr,1,0,0,0,1);
+DEFUN("cdaddr",cdaddr,1,0,0,0,1);
+DEFUN("cdadar",cdadar,1,0,0,0,1);
+DEFUN("cdaar",cdaar,1,0,0,0,1);
+DEFUN("cdaadr",cdaadr,1,0,0,0,1);
+DEFUN("cdaaar",cdaaar,1,0,0,0,1);
+DEFUN("car",car,1,0,0,0,1);
+DEFUN("cadr",cadr,1,0,0,0,1);
+DEFUN("caddr",caddr,1,0,0,0,1);
+DEFUN("cadddr",cadddr,1,0,0,0,1);
+DEFUN("caddar",caddar,1,0,0,0,1);
+DEFUN("cadar",cadar,1,0,0,0,1);
+DEFUN("cadadr",cadadr,1,0,0,0,1);
+DEFUN("cadaar",cadaar,1,0,0,0,1);
+DEFUN("caar",caar,1,0,0,0,1);
+DEFUN("caadr",caadr,1,0,0,0,1);
+DEFUN("caaddr",caaddr,1,0,0,0,1);
+DEFUN("caadar",caadar,1,0,0,0,1);
+DEFUN("caaar",caaar,1,0,0,0,1);
+DEFUN("caaadr",caaadr,1,0,0,0,1);
+DEFUN("caaaar",caaaar,1,0,0,0,1);
 #undef DEFUN
 MAKE_SYMBOL("+",lisp_add,0xfe1176257ade3f65 );
 MAKE_SYMBOL("-",lisp_sub,0x62c6c42523166e74 );
@@ -658,36 +716,6 @@ MAKE_SYMBOL("++",lisp_inc,0x45d5e725a43814ee );
 MAKE_SYMBOL("--",lisp_dec,0xd2c5b225625990de );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("cons",Cons,0x3658069d1acdf568 );
-MAKE_SYMBOL("car",car,0xf5e305190ce49fc1 );
-MAKE_SYMBOL("cdr",cdr,0xf5ecf3190cecd5b0 );
-MAKE_SYMBOL("caar",caar,0xb5206a90e843ddfe );
-MAKE_SYMBOL("cadr",cadr,0xb5316490e85246ff );
-MAKE_SYMBOL("cddr",cddr,0xce54d590f6525240 );
-MAKE_SYMBOL("cdar",cdar,0xce4ae790f64a1c51 );
-MAKE_SYMBOL("caaar",caaar,0xa259a3aab7cc44b );
-MAKE_SYMBOL("caadr",caadr,0xa30903aab86bad2 );
-MAKE_SYMBOL("caddr",caddr,0x3564673ac3f6f7c1 );
-MAKE_SYMBOL("cdddr",cdddr,0xecc417528e219670 );
-MAKE_SYMBOL("cddar",cddar,0xecba29528e196081 );
-MAKE_SYMBOL("cdaar",cdaar,0xd38fac528013222e );
-MAKE_SYMBOL("cadar",cadar,0x356e553ac3ff2db0 );
-MAKE_SYMBOL("cdadr",cdadr,0xd3a0a65280218b2f );
-MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
-MAKE_SYMBOL("caaadr",caaadr,0xbaf452b1654165ed );
-MAKE_SYMBOL("caadar",caadar,0xd772cdb1761aa3a7 );
-MAKE_SYMBOL("caaddr",caaddr,0xd761b3b1760c0446 );
-MAKE_SYMBOL("cadaar",cadaar,0xc97ca6db0a75a451 );
-MAKE_SYMBOL("cadadr",cadadr,0xc98694db0a7dda40 );
-MAKE_SYMBOL("caddar",caddar,0xb05229dafc6f65fe );
-MAKE_SYMBOL("cadddr",cadddr,0xb06323dafc7dceff );
-MAKE_SYMBOL("cdaaar",cdaaar,0x900a262fa051dfdb );
-MAKE_SYMBOL("cdaadr",cdaadr,0x90141c2fa05a2362 );
-MAKE_SYMBOL("cdadar",cdadar,0xbb52e12fb8d44940 );
-MAKE_SYMBOL("cdaddr",cdaddr,0xbb48f32fb8cc1351 );
-MAKE_SYMBOL("cddaar",cddaar,0x5974384774e83dbe );
-MAKE_SYMBOL("cddadr",cddadr,0x5985324774f6a6bf );
-MAKE_SYMBOL("cdddar",cdddar,0x729db54782ecc911 );
-MAKE_SYMBOL("cddddr",cddddr,0x72a7a34782f4ff00 );
 MAKE_SYMBOL("set-car!",set_car,0x1901921ef1b17f2a );
 MAKE_SYMBOL("set-cdr!",set_cdr,0x18f77c1ef1a90543 );
 MAKE_SYMBOL("last",last,0x456d2ad905847d9 );
@@ -732,29 +760,214 @@ MAKE_SYMBOL("max",lisp_max,0x219b28258f3fcfc8 );
 MAKE_SYMBOL("round",lisp_round,0xe7863c8b43d1dc8e );
 MAKE_SYMBOL("drand",lisp_randfloat,0xd7a3e2a6c9ca3a5d );
 MAKE_SYMBOL("lrand",lisp_randint,0xcffb580fd3c7c16 );
-MAKE_SYMBOL("consp",lisp_consp,0x13ff0f42de4882d1 );
-MAKE_SYMBOL("numberp",lisp_numberp,0x6066daab1874f889 );
-MAKE_SYMBOL("arrayp",lisp_arrayp,0x7d808d48023e869d );
-MAKE_SYMBOL("nilp",lisp_nilp,0x70c241ba833a3987 );
-MAKE_SYMBOL("stringp",lisp_stringp,0x4820d35f103b77f5 );
-MAKE_SYMBOL("symbolp",lisp_symbolp,0x82929922881de33a );
 MAKE_SYMBOL("bigint",lisp_bigint,0x6a031ae6deb3b2f9 );
 MAKE_SYMBOL("bigfloat",lisp_bigfloat,0xbf028d8fe03cb0c2 );
-MAKE_SYMBOL("bigint-add",lisp_gmp_add,0xb9ec4ea5b94e8b46 );
-MAKE_SYMBOL("bigint-sub",lisp_gmp_sub,0x34ccc0a5ff5cb3e7 );
-MAKE_SYMBOL("bigint-mul",lisp_gmp_mul,0x230c40a5f52efa33 );
-MAKE_SYMBOL("bigint-mod",lisp_gmp_mod,0x22b46ca5f4e4cf21 );
-MAKE_SYMBOL("bigint-cdiv_q",lisp_gmp_cdiv_q,0xe14affd029d00c37 );
-MAKE_SYMBOL("bigint-cdiv_r",lisp_gmp_cdiv_r,0xe14b00d029d00dea );
-MAKE_SYMBOL("bigint-fdiv_q",lisp_gmp_fdiv_q,0xf218bc8def4cbe3a );
-MAKE_SYMBOL("bigint-fdiv_r",lisp_gmp_fdiv_r,0xf218bb8def4cbc87 );
-MAKE_SYMBOL("bigint-tdiv_r",lisp_gmp_tdiv_r,0xe3aa126d8f43c255 );
-MAKE_SYMBOL("bigint-tdiv_q",lisp_gmp_tdiv_q,0xe3aa0f6d8f43bd3c );
-MAKE_SYMBOL("bigint-and",lisp_gmp_and,0xba007aa5b95f7f14 );
-MAKE_SYMBOL("bigint-ior",lisp_gmp_ior,0xff19a2a5e074a2c3 );
-MAKE_SYMBOL("bigint-xor",lisp_gmp_xor,0x92b369a634280b08 );
-MAKE_SYMBOL("bigfloat-add",lisp_mpfr_add,0xe255de7629f0c38b );
-MAKE_SYMBOL("bigfloat-sub",lisp_mpfr_sub,0x6a8aa475e681cbea );
-MAKE_SYMBOL("bigfloat-mul",lisp_mpfr_mul,0xc17a347617d5ac66 );
-MAKE_SYMBOL("bigfloat-div",lisp_mpfr_div,0xfeef5b763ae0cc63 );
-MAKE_SYMBOL("bigfloat-pow",lisp_mpfr_pow,0x51902675d8a4afa6 );
+MAKE_SYMBOL("bigint-add",lisp_bigint_add,0xfce0adb9b6369069 );
+MAKE_SYMBOL("bigint-sub",lisp_bigint_sub,0x6195c3b95e6e6050 );
+MAKE_SYMBOL("bigint-mul",lisp_bigint_mul,0x65c37bb9f1e3140c );
+MAKE_SYMBOL("bigint-mod",lisp_bigint_mod,0x657877b9f1a321c6 );
+MAKE_SYMBOL("bigint-cdiv_q",lisp_bigint_cdiv_q,0xb7d4dd2abcb7212e );
+MAKE_SYMBOL("bigint-fdiv_q",lisp_bigint_fdiv_q,0xf45a3b87940c2a3 );
+MAKE_SYMBOL("bigint-tdiv_q",lisp_bigint_tdiv_q,0x591c53a0f7cdeaad );
+MAKE_SYMBOL("bigint-cdiv_r",lisp_bigint_cdiv_r,0xb7d4dc2abcb71f7b );
+MAKE_SYMBOL("bigint-fdiv_r",lisp_bigint_fdiv_r,0xf45a4b87940c456 );
+MAKE_SYMBOL("bigint-tdiv_r",lisp_bigint_tdiv_r,0x591c50a0f7cde594 );
+MAKE_SYMBOL("bigint-and",lisp_bigint_and,0xfccb89b9b623f733 );
+MAKE_SYMBOL("bigint-ior",lisp_bigint_ior,0x44d6edb9dfb9b948 );
+MAKE_SYMBOL("bigint-xor",lisp_bigint_xor,0xb13e26b98c080403 );
+MAKE_SYMBOL("bigint-gt",lisp_bigint_gt,0x3e4dec1dda30bfc1 );
+MAKE_SYMBOL("bigint-eq",lisp_bigint_eq,0x3e54db1dda36c18c );
+MAKE_SYMBOL("bigint-lt",lisp_bigint_lt,0x3e6cea1dda4b6cea );
+MAKE_SYMBOL("bigint-ge",lisp_bigint_ge,0x3e4ddb1dda30a2de );
+MAKE_SYMBOL("bigint-le",lisp_bigint_le,0x3e6cfb1dda4b89cd );
+MAKE_SYMBOL("bigint-ne",lisp_bigint_ne,0x3e65e71dda454923 );
+MAKE_SYMBOL("bigfloat-add",lisp_bigfloat_add,0x5ce208f741cde6d2 );
+MAKE_SYMBOL("bigfloat-sub",lisp_bigfloat_sub,0xd42552f784c9600b );
+MAKE_SYMBOL("bigfloat-mul",lisp_bigfloat_mul,0x7d86d2f753b9f1e7 );
+MAKE_SYMBOL("bigfloat-div",lisp_bigfloat_div,0x402c9bf730c57e72 );
+MAKE_SYMBOL("bigfloat-pow",lisp_bigfloat_pow,0xed99e0f7930df3bb );
+MAKE_SYMBOL("bigfloat-gt",lisp_bigfloat_gt,0xc379321cd0ffa27c );
+MAKE_SYMBOL("bigfloat-eq",lisp_bigfloat_eq,0xc3803b1cd105d075 );
+MAKE_SYMBOL("bigfloat-lt",lisp_bigfloat_lt,0xc39f341cd120751f );
+MAKE_SYMBOL("bigfloat-ge",lisp_bigfloat_ge,0xc379231cd0ff88ff );
+MAKE_SYMBOL("bigfloat-le",lisp_bigfloat_le,0xc39f431cd1208e9c );
+MAKE_SYMBOL("bigfloat-ne",lisp_bigfloat_ne,0xc398371cd11a5b8a );
+MAKE_SYMBOL("arrayp",lisp_arrayp,0x7d808d48023e869d );
+MAKE_SYMBOL("consp",lisp_consp,0x13ff0f42de4882d1 );
+MAKE_SYMBOL("numberp",lisp_numberp,0x6066daab1874f889 );
+MAKE_SYMBOL("nilp",lisp_nilp,0x70c241ba833a3987 );
+MAKE_SYMBOL("symbolp",lisp_symbolp,0x82929922881de33a );
+MAKE_SYMBOL("bigintp",lisp_bigintp,0xd6f93f4c6b585ecb );
+MAKE_SYMBOL("bigfloatp",lisp_bigfloatp,0xce073d7a07203e76 );
+MAKE_SYMBOL("stringp",lisp_stringp,0x4820d35f103b77f5 );
+MAKE_SYMBOL("bignump",lisp_bignump,0x5675ae7650a07788 );
+MAKE_SYMBOL("errorp",lisp_errorp,0xe2d56335abc40230 );
+MAKE_SYMBOL("functionp",lisp_functionp,0xcfa48bf2151e142e );
+MAKE_SYMBOL("streamp",lisp_streamp,0x83fb04c416f51082 );
+MAKE_SYMBOL("cdr",cdr,0xf5ecf3190cecd5b0 );
+MAKE_SYMBOL("cddr",cddr,0xce54d590f6525240 );
+MAKE_SYMBOL("cdddr",cdddr,0xecc417528e219670 );
+MAKE_SYMBOL("cddddr",cddddr,0x72a7a34782f4ff00 );
+MAKE_SYMBOL("cdddar",cdddar,0x729db54782ecc911 );
+MAKE_SYMBOL("cddar",cddar,0xecba29528e196081 );
+MAKE_SYMBOL("cddadr",cddadr,0x5985324774f6a6bf );
+MAKE_SYMBOL("cddaar",cddaar,0x5974384774e83dbe );
+MAKE_SYMBOL("cdar",cdar,0xce4ae790f64a1c51 );
+MAKE_SYMBOL("cdadr",cdadr,0xd3a0a65280218b2f );
+MAKE_SYMBOL("cdaddr",cdaddr,0xbb48f32fb8cc1351 );
+MAKE_SYMBOL("cdadar",cdadar,0xbb52e12fb8d44940 );
+MAKE_SYMBOL("cdaar",cdaar,0xd38fac528013222e );
+MAKE_SYMBOL("cdaadr",cdaadr,0x90141c2fa05a2362 );
+MAKE_SYMBOL("cdaaar",cdaaar,0x900a262fa051dfdb );
+MAKE_SYMBOL("car",car,0xf5e305190ce49fc1 );
+MAKE_SYMBOL("cadr",cadr,0xb5316490e85246ff );
+MAKE_SYMBOL("caddr",caddr,0x3564673ac3f6f7c1 );
+MAKE_SYMBOL("cadddr",cadddr,0xb06323dafc7dceff );
+MAKE_SYMBOL("caddar",caddar,0xb05229dafc6f65fe );
+MAKE_SYMBOL("cadar",cadar,0x356e553ac3ff2db0 );
+MAKE_SYMBOL("cadadr",cadadr,0xc98694db0a7dda40 );
+MAKE_SYMBOL("cadaar",cadaar,0xc97ca6db0a75a451 );
+MAKE_SYMBOL("caar",caar,0xb5206a90e843ddfe );
+MAKE_SYMBOL("caadr",caadr,0xa30903aab86bad2 );
+MAKE_SYMBOL("caaddr",caaddr,0xd761b3b1760c0446 );
+MAKE_SYMBOL("caadar",caadar,0xd772cdb1761aa3a7 );
+MAKE_SYMBOL("caaar",caaar,0xa259a3aab7cc44b );
+MAKE_SYMBOL("caaadr",caaadr,0xbaf452b1654165ed );
+MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
+mpz_t *lisp_mpz_1,*lisp_mpz_0;
+mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
+static void initPrimsObarray(obarray *ob,env* ob_env){
+
+INIT_SYMBOL(lisp_add);
+INIT_SYMBOL(lisp_sub);
+INIT_SYMBOL(lisp_mul);
+INIT_SYMBOL(lisp_div);
+INIT_SYMBOL(lisp_lt);
+INIT_SYMBOL(lisp_gt);
+INIT_SYMBOL(lisp_gte);
+INIT_SYMBOL(lisp_lte);
+INIT_SYMBOL(lisp_ne);
+INIT_SYMBOL(lisp_numeq);
+INIT_SYMBOL(lisp_inc);
+INIT_SYMBOL(lisp_dec);
+INIT_SYMBOL(lisp_sum);
+INIT_SYMBOL(Cons);
+INIT_SYMBOL(set_car);
+INIT_SYMBOL(set_cdr);
+INIT_SYMBOL(last);
+INIT_SYMBOL(push_cons);
+INIT_SYMBOL(pop_cons);
+INIT_SYMBOL(mapcar);
+INIT_SYMBOL(reduce);
+INIT_SYMBOL(qsort_cons);
+INIT_SYMBOL(lisp_length);
+INIT_SYMBOL(lisp_iota);
+INIT_SYMBOL(aref);
+INIT_SYMBOL(array_to_list);
+INIT_SYMBOL(lisp_typeName);
+INIT_SYMBOL(typeOf);
+INIT_SYMBOL(lisp_print);
+INIT_SYMBOL(lisp_println);
+INIT_SYMBOL(lisp_eval);
+INIT_SYMBOL(lisp_open);
+INIT_SYMBOL(lisp_close);
+INIT_SYMBOL(lisp_fputs);
+INIT_SYMBOL(lisp_fprint);
+INIT_SYMBOL(lisp_fprintln);
+INIT_SYMBOL(lisp_cat);
+INIT_SYMBOL(lisp_getcwd);
+INIT_SYMBOL(lisp_system);
+INIT_SYMBOL(lisp_eq);
+INIT_SYMBOL(lisp_xor);
+INIT_SYMBOL(lisp_logand);
+INIT_SYMBOL(lisp_logor);
+INIT_SYMBOL(ash);
+INIT_SYMBOL(lisp_pow);
+INIT_SYMBOL(lisp_sqrt);
+INIT_SYMBOL(lisp_cos);
+INIT_SYMBOL(lisp_sin);
+INIT_SYMBOL(lisp_tan);
+INIT_SYMBOL(lisp_exp);
+INIT_SYMBOL(lisp_log);
+INIT_SYMBOL(lisp_abs);
+INIT_SYMBOL(lisp_mod);
+INIT_SYMBOL(lisp_min);
+INIT_SYMBOL(lisp_max);
+INIT_SYMBOL(lisp_round);
+INIT_SYMBOL(lisp_randfloat);
+INIT_SYMBOL(lisp_randint);
+INIT_SYMBOL(lisp_bigint);
+INIT_SYMBOL(lisp_bigfloat);
+INIT_SYMBOL(lisp_bigint_add);
+INIT_SYMBOL(lisp_bigint_sub);
+INIT_SYMBOL(lisp_bigint_mul);
+INIT_SYMBOL(lisp_bigint_mod);
+INIT_SYMBOL(lisp_bigint_cdiv_q);
+INIT_SYMBOL(lisp_bigint_fdiv_q);
+INIT_SYMBOL(lisp_bigint_tdiv_q);
+INIT_SYMBOL(lisp_bigint_cdiv_r);
+INIT_SYMBOL(lisp_bigint_fdiv_r);
+INIT_SYMBOL(lisp_bigint_tdiv_r);
+INIT_SYMBOL(lisp_bigint_and);
+INIT_SYMBOL(lisp_bigint_ior);
+INIT_SYMBOL(lisp_bigint_xor);
+INIT_SYMBOL(lisp_bigint_gt);
+INIT_SYMBOL(lisp_bigint_eq);
+INIT_SYMBOL(lisp_bigint_lt);
+INIT_SYMBOL(lisp_bigint_ge);
+INIT_SYMBOL(lisp_bigint_le);
+INIT_SYMBOL(lisp_bigint_ne);
+INIT_SYMBOL(lisp_bigfloat_add);
+INIT_SYMBOL(lisp_bigfloat_sub);
+INIT_SYMBOL(lisp_bigfloat_mul);
+INIT_SYMBOL(lisp_bigfloat_div);
+INIT_SYMBOL(lisp_bigfloat_pow);
+INIT_SYMBOL(lisp_bigfloat_gt);
+INIT_SYMBOL(lisp_bigfloat_eq);
+INIT_SYMBOL(lisp_bigfloat_lt);
+INIT_SYMBOL(lisp_bigfloat_ge);
+INIT_SYMBOL(lisp_bigfloat_le);
+INIT_SYMBOL(lisp_bigfloat_ne);
+INIT_SYMBOL(lisp_arrayp);
+INIT_SYMBOL(lisp_consp);
+INIT_SYMBOL(lisp_numberp);
+INIT_SYMBOL(lisp_nilp);
+INIT_SYMBOL(lisp_symbolp);
+INIT_SYMBOL(lisp_bigintp);
+INIT_SYMBOL(lisp_bigfloatp);
+INIT_SYMBOL(lisp_stringp);
+INIT_SYMBOL(lisp_bignump);
+INIT_SYMBOL(lisp_errorp);
+INIT_SYMBOL(lisp_functionp);
+INIT_SYMBOL(lisp_streamp);
+INIT_SYMBOL(cdr);
+INIT_SYMBOL(cddr);
+INIT_SYMBOL(cdddr);
+INIT_SYMBOL(cddddr);
+INIT_SYMBOL(cdddar);
+INIT_SYMBOL(cddar);
+INIT_SYMBOL(cddadr);
+INIT_SYMBOL(cddaar);
+INIT_SYMBOL(cdar);
+INIT_SYMBOL(cdadr);
+INIT_SYMBOL(cdaddr);
+INIT_SYMBOL(cdadar);
+INIT_SYMBOL(cdaar);
+INIT_SYMBOL(cdaadr);
+INIT_SYMBOL(cdaaar);
+INIT_SYMBOL(car);
+INIT_SYMBOL(cadr);
+INIT_SYMBOL(caddr);
+INIT_SYMBOL(cadddr);
+INIT_SYMBOL(caddar);
+INIT_SYMBOL(cadar);
+INIT_SYMBOL(cadadr);
+INIT_SYMBOL(cadaar);
+INIT_SYMBOL(caar);
+INIT_SYMBOL(caadr);
+INIT_SYMBOL(caaddr);
+INIT_SYMBOL(caadar);
+INIT_SYMBOL(caaar);
+INIT_SYMBOL(caaadr);
+INIT_SYMBOL(caaaar);
+}

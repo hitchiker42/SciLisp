@@ -62,6 +62,12 @@
   symref c_name ## _ptr=0;                                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=hash_v}
+//not sure if this has non constant initalizers or not
+#define MAKE_CONSTANT(l_name,c_name,hash_v)     \
+  symbol c_name ## _sym = {.name=l_name,.val=c_name,.symbol_env=0};      \
+  symref c_name ## _ptr = &c_name ## _sym;                              \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=&c_name##_sym, \
+                                    .hashv=hash_v}
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -86,6 +92,15 @@
       return LISP_FALSE;                                                \
     }                                                                   \
   }
+#define MK_PREDICATE4(lname,test,test2,test3,test4)                     \
+  sexp lisp_##lname (sexp obj){                                         \
+    if(obj.tag == test || obj.tag == test2 || obj.tag == test3 ||       \
+       obj.tag == test4){                                               \
+      return LISP_TRUE;                                                 \
+    } else {                                                            \
+      return LISP_FALSE;                                                \
+    }                                                                   \
+  }
 
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
@@ -100,6 +115,13 @@
     register double yy=getDoubleVal(y);                         \
     return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
   }
+#define INIT_SYMBOL(c_name)                                    \
+  c_name##_sym.val.val.fun=&c_name##_call;                     \
+  c_name##_sym.symbol_env=ob_env;                              \
+  c_name##_ptr=&c_name##_sym;                                  \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr
+#define INIT_CONST(c_name)                      \
+  c_name##_sym.symbol_env=&ob_env
 //create c functions for primitives
 //arithmatic primitives
 binop_to_fun(+,lisp_add);
@@ -487,7 +509,8 @@ sexp lisp_eq(sexp obj1,sexp obj2){
     if(NUMBERP(obj1) && NUMBERP(obj2)){
       return lisp_numeq(obj1,obj2);
     } else {
-      return lisp_bignumeq(obj1,obj2);
+      //define this first
+      //      return lisp_bignumeq(obj1,obj2);
     }
   }
   if(obj1.tag != obj2.tag){
@@ -510,7 +533,7 @@ sexp lisp_eq(sexp obj1,sexp obj2){
       return LISP_FALSE;
   }
 }
-sexp lisp_eql(sexp obj1,sexp obj2)
+sexp lisp_eql(sexp obj1,sexp obj2);
 sexp lisp_apply(sexp fun,sexp args){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");
@@ -521,14 +544,28 @@ sexp lisp_apply(sexp fun,sexp args){
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
 */
-const sexp lisp_mach_eps = {.tag=_double,.val={.real64 = 1.41484755040568800000e-16}};
-const sexp lisp_pi = {.tag=_double,.val={.real64 = 3.14159265358979323846}};
-const sexp lisp_euler = {.tag=_double,.val={.real64 = 2.7182818284590452354}};
-const sexp lisp_max_long = {.tag = _long,.val={.int64 = LONG_MAX}};
-
-MK_PREDICATE2(consp,_cons,_list);
+const sexp lisp_mach_eps = {.tag=_double,.val={.real64=1.41484755040568800000e-16}};
+const sexp lisp_pi = {.tag=_double,.val={.real64=3.14159265358979323846}};
+const sexp lisp_euler ={.tag=_double,.val={.real64=2.7182818284590452354}};
+const sexp lisp_max_long = {.tag=_long,.val={.int64=LONG_MAX}};
+const sexp lisp_double_0 = {.tag=_double,.val={.real64=0.0}};
+const sexp lisp_double_1 = {.tag=_double,.val={.real64=1.0}};
+const sexp lisp_long_0 = {.tag=_long,.val={.int64=0}};
+const sexp lisp_long_1 = {.tag=_long,.val={.int64=1}};
+//allocating static space for pointers, not actually initalizing constants
+const sexp lisp_bigint_0 = {.tag=_bigint,.val={.bigint=0}};
+const sexp lisp_bigint_1 = {.tag=_bigint,.val={.bigint=0}};
+const sexp lisp_bigfloat_0 =  {.tag=_bigfloat,.val={.bigfloat=0}};
+const sexp lisp_bigfloat_1 =  {.tag=_bigfloat,.val={.bigfloat=0}};
+MK_PREDICATE3(consp,_cons,_list,_dpair);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
 MK_PREDICATE(nilp,_nil);
 MK_PREDICATE(symbolp,_sym);
+MK_PREDICATE(bigintp,_bigint);
+MK_PREDICATE(bigfloatp,_bigfloat);
 MK_PREDICATE2(stringp,_str,_ustr);
+MK_PREDICATE4(bignump,_bigint,_bigfloat,_long,_double);
+MK_PREDICATE(errorp,_error);
+MK_PREDICATE(functionp,_fun);
+MK_PREDICATE(streamp,_stream);

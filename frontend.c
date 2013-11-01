@@ -78,6 +78,7 @@ int parens_matched(const char* line,int parens){
 int compile(FILE* input,const char *output,FILE* c_code) __attribute__((noreturn));
 int compile(FILE* input,const char *output,FILE* c_code){
   HERE();
+  CORD generated_code;
   if(setjmp(error_buf)){
     PRINT_MSG("jumped to error");
     fputs("compilation error\n",stderr);
@@ -89,8 +90,25 @@ int compile(FILE* input,const char *output,FILE* c_code){
       exit(1);
     }
     CORD_printf("%r\n",print(XCAR(ast)));
-    //codegen(output,c_code,ast);
-    exit(0);
+
+    if(setjmp(error_buf)){
+      generated_code=codegen(ast,0);
+    } else {
+      fprintf(stderr,"compile error, current code:\n");
+      CORD_fprintf(stderr,error_str);
+      exit(5);
+    }
+    char tmpFilename[L_tmpnam];
+    tmpnam_r(tmpFilename);
+    FILE* tmpFile=fopen(tmpFilename,"w");
+    CORD_put(generated_code,tmpFile);
+    char* cc_command;
+    //need to fix this eventually
+    asprintf(&cc_command,
+             "gcc -o %s -O2 -g %s libSciLisp.so -wl,-rpath=$PWD -lgc -lm -lcord -lgmp -lmpfr",
+             output,tmpFilename);
+    int retval=system(cc_command);
+    exit(retval);
   }
 }
 /* Read interactive input using readline.
