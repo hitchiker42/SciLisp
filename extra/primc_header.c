@@ -81,6 +81,14 @@
   c_name##_ptr->symbol_env=ob_env;                              \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
+#define INIT_SYNONYM(c_name,l_name,gensym_counter)                     \
+  symref c_name##_ptr_syn ## gensym_counter= xmalloc(sizeof(symbol));    \
+  * c_name##_ptr_syn ## gensym_counter = *c_name ##_ptr;                \
+  c_name##_ptr_syn ## gensym_counter -> name = l_name;                  \
+  obarray_entry *c_name##_ob_entry##gensym_counter=xmalloc(sizeof(obarray_entry)); \
+  prim_obarray_add_entry(ob,c_name##_ptr_syn ## gensym_counter,         \
+                         c_name##_ob_entry##gensym_counter)
+  
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -540,7 +548,16 @@ sexp lisp_eq(sexp obj1,sexp obj2){
       return LISP_FALSE;
   }
 }
-sexp lisp_eql(sexp obj1,sexp obj2);
+sexp lisp_eql(sexp obj1,sexp obj2){
+  if(obj1.tag != obj2.tag){
+    return LISP_FALSE;
+  }
+  if(STRINGP(obj1) && STRINGP(obj2)){
+    return (CORD_cmp(obj1.val.cord,obj2.val.cord)==0?LISP_TRUE : LISP_FALSE);
+  } else {
+    return lisp_eq(obj1,obj2);
+  }
+} 
 sexp lisp_apply(sexp fun,sexp args){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");
