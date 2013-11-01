@@ -205,6 +205,14 @@
   (mpfr-binops mpfr-binops-list)
   (collect #'mk-predicate predicates)
   (collect  (lambda (x) (apply #'mkPrimBasic x)) *cadrs*)))
+(define SciLisp-constants
+  '(("lisp_mach_eps" . "Meps") ("lisp_pi" . "pi") ("lisp_euler" ."e") 
+    ("lisp_max_long" . "max_long") ("lisp_NIL" . "nil") ("lisp_LISP_TRUE" . "t")
+    ("lisp_LISP_FALSE" . "#f")
+    ;("stdin" . "lisp_stdin") ("stdout" . "lisp_stdout") ("stderr" . "lisp_stderr")
+    ("lisp_double_0" . "double-0") ("lisp_double_1" . "double-1")
+    ("lisp_long_0" ."long-0") ("lisp_long_1" . "long-1")))
+;    "lisp_bigfloat_0" "lisp_bigfloat_1" "lisp_bigint_0" "lisp_bigint_1"))
 ;idea, have files with constant contend then generate
 ;code for primitives, create a new file, copy the text
 ;from the constant file into the new file then add
@@ -215,15 +223,26 @@
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void initPrimsObarray(obarray *ob,env* ob_env);
 void initPrims(){
-globalObarray=init_prim_obarray();
-keywordObarray=init_prim_obarray();
+globalObarray=xmalloc(sizeof(obarray));
+obarray_entry** global_buckets=xmalloc(128*sizeof(obarray_entry*));
+*globalObarray=(obarray)
+{.buckets=global_buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
+                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
+                .is_weak_hash=0,.hash_fn=fnv_hash};
+keywordObarray=xmalloc(sizeof(obarray));
+obarray_entry** keyword_buckets=xmalloc(128*sizeof(obarray_entry*));
+*keywordObarray=(obarray)
+{.buckets=keyword_buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
+                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
+                .is_weak_hash=0,.hash_fn=fnv_hash};
 globalObarrayEnv=xmalloc(sizeof(obarray_env));
 keywordObarrayEnv=xmalloc(sizeof(obarray_env));
+topLevelEnv=xmalloc(sizeof(env));
 globalObarrayEnv->enclosing=keywordObarrayEnv->enclosing=0;
 globalObarrayEnv->head=globalObarray;
 keywordObarrayEnv->head=keywordObarray;
 initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
-topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
+*topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
@@ -236,39 +255,13 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 (setq initPrimsObarray-suffix
 "}
 ")
-(defvar initPrims-header)
-(setq initPrims-header
-"void initPrims();
-#define initPrimsOld()                                                     \\
-if(initPrimsFlag){                                                    \\
-initPrimsFlag=0;                                                      \\
-globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \\
-topLevelEnv=(env){.tag = 1,.enclosing=NULL,.head={.global = globalSymbolTable.head}}; \\
-keywordSymbols=(global_env){.enclosing=NULL,.head=NULL};\\
-mpfr_set_default_prec(256);\\
-mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);\\
-")
-(defvar initPrims-suffix)
-(setq initPrims-suffix
-"INTERN_ALIAS(\"cons?\",lisp_consp,17);                                  \\
-INTERN_ALIAS(\"array?\",lisp_arrayp,23);                                \\
-DEFCONST(\"Meps\",lisp_mach_eps);                                       \\
-DEFCONST(\"pi\",lisp_pi);                                               \\
-DEFCONST(\"e\",lisp_euler);                                             \\
-DEFCONST(\"nil\",NIL);                                                  \\
-DEFCONST(\"t\",LISP_TRUE);                                              \\
-DEFCONST(\"#f\",LISP_FALSE);                                            \\
-DEFCONST(\"MAX_LONG\",lisp_max_long);                                   \\
-DEFCONST(\"$$\",LispEmptyList);                                         \\
-DEFCONST(\"stderr\",lisp_stderr);                                       \\
-DEFCONST(\"stdout\",lisp_stdout);                                       \\
-DEFCONST(\"stdin\",lisp_stdin);                                         \\
-srand48(time(NULL));}
-#undef DEFUN
-#endif
-")
 (defvar primc-suffix "#undef DEFUN
 ")
+(defun makeConsts-format (const)
+  (format
+   "MAKE_CONSTANT(\"%s\",%s);\n" (cdr const) (car const)))
+(defun initConsts-format (const)
+  (format "INIT_CONST(%s);\n" (car const)))
 (defmacro prim-val (keysym)
   `(cdr (assq ,keysym prim)))
 ;(defvar llvm-header
@@ -278,28 +271,10 @@ srand48(time(NULL));}
    "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
    (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
    (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
-(defun primc-normal-format (prim)
-  (format
-   "DEFUN(\"%s\",%s,%d,%d);\n"
-   (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :maxargs)))
-(defun primc-many-format(prim)
-  (format "DEFUN_MANY(\"%s\",%s,%d,%d)\n"
-          (cdr (assq :lname prim)) (cdr (assq :cname prim))
-          (cdr (assq :minargs prim)) (1+ (cdr (assq :minargs prim)))))
-;(defun primc-format (prim)
-;  (if (stringp (cdr (assq :maxargs prim)))
-;      (primc-many-format prim)
-;    (primc-normal-format prim)))
 (defun primh-format (prim)
   (format "DEFUN(%s,%s);\n"
           (cdr (assq :cname prim))
           (cdr(assq :maxargs prim))))
-;(defun llvmh-format (prim)
-;  (format "{\"%scall\",%d}, "
-;          (cdr (assq :cname prim))(cdr (assq :maxargs prim))))
-(defun initPrims-format (prim)
-  (format "DEFUN_INTERN(\"%s\",%s);\\\n"
-          (cdr (assq :lname prim))(cdr (assq :cname prim))))
 (defun initPrimsObarray-format (prim)
   (format "INIT_SYMBOL(%s);\n"
           (cdr (assq :cname prim))))
@@ -309,36 +284,27 @@ srand48(time(NULL));}
           (shell-command-to-string (format "../fnv_hash '%s'" (cdr (assq :cname prim))))))
 (defun generate-SciLisp-prims()
   (let ((primh (generate-new-buffer "primh"))
-        (initPrims (generate-new-buffer "initPrims"))
         (initPrimsObarray (generate-new-buffer "initPrimsObarray"))
         (primc (generate-new-buffer "primc"))
         (primSyms (generate-new-buffer "primSyms")))
-    (princ initPrims-header initPrims)
     (princ initPrimsObarray-header initPrimsObarray)
     (dolist (prim SciLisp-prims)
       (princ (primc-format prim) primc)
       (princ (primh-format prim) primh)
-      (princ (initPrims-format prim) initPrims)
       (princ (makePrimSymbols-format prim) primSyms)
       (princ (initPrimsObarray-format prim) initPrimsObarray))
-    (princ initPrims-suffix initPrims)
+    (dolist (const SciLisp-constants)
+      (princ (makeConsts-format const) primSyms)
+      (princ (initConsts-format const) initPrimsObarray))
     (princ initPrimsObarray-suffix initPrimsObarray)
     (princ primc-suffix primc)
     (with-current-buffer primh
       (goto-char (point-min))
       (insert-file-contents "primh_header.h")
+      (goto-char (point-max))
+      (insert "#undef DEFUN\n#endif")
       (write-file (expand-file-name "../prim.h"))
       (kill-buffer))
-    (with-current-buffer initPrims
-      (indent-buffer)
-      (append-to-file (point-min) (point-max)
-                      (expand-file-name "../prim.h"))
-      (kill-buffer))
-    ;; (with-current-buffer initPrimsObarray
-    ;;   (indent-buffer)
-    ;;   (append-to-file (point-min) (point-max)
-    ;;                   (expand-file-name "../prim.h"))
-    ;;   (kill-buffer))
     (with-current-buffer primc
       (goto-char (point-min))
       (insert-file-contents "primc_header.c")
@@ -349,18 +315,7 @@ srand48(time(NULL));}
       (kill-buffer initPrimsObarray)
       (write-file (expand-file-name "../prim.c"))
       (kill-buffer))
-    (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrims))))
-                                        ;    (with-current-buffer llvmh
-;      (goto-char (point-max))
-;      (delete-backward-char 2)
-;      (write-char ?} llvmh)
-;      (fill-region (point-min)(point-max))
-      ;;cut last comma and add closing brace
-;      (goto-char (point-min))
-;      (insert-file-contents "llvmh_header.c")
-;      (write-file "llvm_temp.h")
-;      (kill-buffer))))
-
+    (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrimsObarray))))
 ;; Local Variables:
 ;; auto-async-byte-compile-display-function: (lambda (&rest args) nil)
 ;; End:

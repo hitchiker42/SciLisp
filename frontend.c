@@ -241,7 +241,7 @@ int main(int argc,char* argv[]){
         }
         ast=yyparse(file);
         while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),&topLevelEnv);
+          sexp result=eval(XCAR(ast),topLevelEnv);
           CORD_printf(print(result));puts("");
           ast=XCDR(ast);
         }
@@ -253,7 +253,7 @@ int main(int argc,char* argv[]){
         FILE* file=fopen(optarg,"r");
         ast=yyparse(file);
         while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),&topLevelEnv);
+          sexp result=eval(XCAR(ast),topLevelEnv);
           ast=XCDR(ast);
         };
         break;
@@ -271,7 +271,7 @@ int main(int argc,char* argv[]){
         while (CONSP(ast)){
           CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));
           puts("");
-          sexp result=eval(XCAR(ast),&topLevelEnv);
+          sexp result=eval(XCAR(ast),topLevelEnv);
           CORD_printf(CORD_cat("result: ",print(result)));
           puts("");
           ast=XCDR(ast);
@@ -334,7 +334,7 @@ int main(int argc,char* argv[]){
     ast=yyparse(my_pipe);
     //print
     if(!NILP(ast)){
-      result=evalFun(XCAR(ast),&topLevelEnv);
+      result=evalFun(XCAR(ast),topLevelEnv);
       CORD_printf(print(result));puts("\n");
     } else {
       result=NIL;

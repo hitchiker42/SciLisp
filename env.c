@@ -28,11 +28,8 @@ symref getSym(env *cur_env,CORD name){
   }
 }
 symref getGlobalSym(CORD name){
-  return getSym(&topLevelEnv,name);
   obarray_entry* tempsym;  
-  HERE();
   tempsym=obarray_get_entry(globalObarray,name,0);
-  HERE();
   if(tempsym){
     return tempsym->ob_symbol;
   } else {
@@ -73,12 +70,13 @@ symref addSym(env *cur_env,symref Var){
       return addLocalSym(cur_env,Var);
     case _funArgs:
       return NULL;
+    case _obEnv:
+      return addObarraySym((obarray_env*)cur_env,Var);
   }
 }
 symref getFunctionSym(function_env* cur_env,CORD name){
   function_args* args=cur_env->head;
   int i;
-  HERE();
   for(i=0;i<args->max_args;i++){
     if(!CORD_cmp(name,args->args[i].name)){
       return args->args+i;
@@ -213,7 +211,7 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
   if(!bucket_head){
     return NULL;
   }
-  while(bucket_head && bucket_head != bucket_head->next){
+  while(bucket_head && bucket_head != bucket_head->next){    
     if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
       return bucket_head;
     }
@@ -231,13 +229,14 @@ symref getObarraySym(obarray_env* ob_env,CORD name){
     return getSym(ob_env->enclosing,name);
   }
 }
-  
+symref addObarraySym(obarray_env* ob_env,symref Var){
+  obarray* ob=ob_env->head;
+  return (obarray_add_entry(ob,Var))->ob_symbol;
+}
 obarray_entry* obarray_add_entry_generic
 (obarray *ob,symref new_entry,enum add_option conflict_opt,int append){
   if (ob->capacity>=ob->gthresh){
-    HERE();
     obarray_rehash(ob);
-    HERE();
   }
   uint64_t hashv=ob->hash_fn
     (CORD_as_cstring(new_entry->name),CORD_len(new_entry->name));
@@ -297,7 +296,7 @@ obarray_entry* obarray_add_entry(obarray* ob,symref new_entry){
   return obarray_add_entry_generic(ob,new_entry,_ignore,0);
 }
 int obarray_rehash(obarray *ob){
-  HERE();
+  PRINT_MSG("Rehashing Obarray");
   uint64_t old_len=ob->size;
   //  ob->size*=ob->gfactor;
   ob->size*=2;

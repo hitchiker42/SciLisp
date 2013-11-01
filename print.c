@@ -268,12 +268,12 @@ CORD print(sexp obj){
   }
 }
 sexp lisp_print(sexp obj){
-  CORD print_string = print(eval(obj,&topLevelEnv));
+  CORD print_string = print(eval(obj,topLevelEnv));
   CORD_fprintf(stderr,"%r\n",print_string);
   return (sexp){.tag=_str,.val={.cord=print_string}};
 }
 sexp lisp_println(sexp obj){
-  CORD print_string = print(eval(obj,&topLevelEnv));
+  CORD print_string = print(eval(obj,topLevelEnv));
   print_string=CORD_cat(print_string,"\n");
   CORD_fprintf(stderr,"%r\n",print_string);
   return (sexp){.tag=_str,.val={.cord=print_string}};

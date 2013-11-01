@@ -41,7 +41,8 @@ sexp eval(sexp expr,env *cur_env){
     //a cons cell must be a function call or a special form
     case _cons:
       if(SYMBOLP(car(expr))){
-        sexp curFun=XCAR(expr).val.var->val;
+        symref funSym=getSym(cur_env,XCAR(expr).val.var->name);
+        sexp curFun=funSym->val;
         if(LAMBDAP(curFun)){
           return call_lambda(expr,cur_env);
         }
@@ -64,7 +65,8 @@ sexp eval(sexp expr,env *cur_env){
       }
     case _sym:
       tempsym = getSym(cur_env,expr.val.var->name);
-      if(tempsym){
+      PRINT_MSG(expr.val.var->name);
+      if(tempsym){         
         return eval(tempsym->val,cur_env);
       } else {
         CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
@@ -255,16 +257,17 @@ static inline sexp eval_def(sexp expr,env *cur_env){
   //should i go with the lisp standard of define only assigning
   //to a value once or not?
   symref newSym;
-  //PRINT_FMT("%s",typeName(cadr(expr)));  
-  sexp symVal=eval(caddr(expr),cur_env);
+  PRINT_FMT("%s",typeName(cadr(expr)));  
   newSym=getSym(cur_env,cadr(expr).val.var->name);
+  sexp symVal=eval(caddr(expr),cur_env);
   if(!newSym){
     newSym=xmalloc(symbolSize(cur_env));
     newSym->name=(cadr(expr).val.var->name);
-    newSym->val=symref_sexp(newSym);
+    newSym->val=symVal;
     addSym(cur_env,newSym);
+  } else {
+    newSym->val=symVal;
   }
-  newSym->val=symVal;
   return (sexp){.tag = _sym,.val={.var = newSym}};
 }
 static inline sexp eval_defun(sexp expr,env *cur_env){
@@ -274,22 +277,22 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
     handle_error();
   }
   sexp temp_lambda;
-  sexp fun_sym=XCAR(expr);  
+  sexp fun_sym=XCAR(expr);
   function *new_fun=xmalloc(sizeof(function));
-  lambda *new_lam;
-  new_lam->body=XCDDR(expr);
+  lambda *new_lam=xmalloc(sizeof(lambda));
+  new_lam->body=XCADDR(expr);
   new_lam->env=cur_env;
   new_fun->args=XCADR(expr).val.funarg;
   new_fun->lname=fun_sym.val.var->name;
   new_fun->type=_lambda_fun;
   new_fun->lam=new_lam;
-  fun_sym.val.var->val=function_sexp(new_fun);
+  fun_sym.val.var->val=function_sexp(new_fun);  
   addSym(cur_env,fun_sym.val.var);
   return fun_sym;
 }
   
-  //expr=(defun sym arglist body)
-  /*  temp_lambda.val.cons=xmalloc(sizeof(cons));
+  /*  //expr=(defun sym arglist body)
+  temp_lambda.val.cons=xmalloc(sizeof(cons));
   temp_lambda.tag=_cons;  
   XCAR(temp_lambda)=(sexp){.tag=_special,.val={.special=_lambda}};
   XCDR(temp_lambda)=cddr(expr);
@@ -302,7 +305,7 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
   XCAR(expr)=(sexp){.tag=_special,.val={.special=_def}};
   //expr = (def sym temp_lambda);
   return eval(expr,cur_env);
-}*/
+  }*/
 static inline sexp eval_if(sexp expr,env *cur_env){
   //car  cadr    caddr   car(cdddr)
   //(if .(cond . (then . (else .()))))

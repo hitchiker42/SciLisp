@@ -14,6 +14,7 @@
 #include "array.h"
 #include "print.h"
 #include "prim.h"
+#include "hash_fn.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -64,11 +65,11 @@
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=hash_v}
 //not sure if this has non constant initalizers or not
-#define MAKE_CONSTANT(l_name,c_name,hash_v)     \
-  symbol c_name ## _sym = {.name=l_name,.val=c_name,.symbol_env=0};      \
-  symref c_name ## _ptr = &c_name ## _sym;                              \
-  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=&c_name##_sym, \
-                                    .hashv=hash_v}
+#define MAKE_CONSTANT(l_name,c_name)     \
+  symbol c_name ## _sym = {.name=l_name,.val=c_name,.symbol_env=0};     \
+  symref c_name ## _ptr = 0;                                           \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,      \
+                                      .hashv=0}
 #define INIT_SYMBOL(c_name)                                    \
   c_name##_ptr=&c_name##_sym;                                  \
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
@@ -76,7 +77,10 @@
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_CONST(c_name)                      \
-  c_name##_sym.symbol_env=&ob_env
+  c_name##_ptr=&c_name##_sym;                                   \
+  c_name##_ptr->symbol_env=ob_env;                              \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
+  prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -192,7 +196,7 @@ sexp lisp_randfloat(sexp scale){
   }
   return (sexp){.tag=_double,.val={.real64=retval}};
 }
-sexp lisp_eval(sexp obj){return eval(obj,&topLevelEnv);}
+sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
 sexp lisp_length(sexp obj){
   if(obj.len){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
@@ -546,19 +550,26 @@ sexp lisp_apply(sexp fun,sexp args){
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
 */
-const sexp lisp_mach_eps = {.tag=_double,.val={.real64=1.41484755040568800000e-16}};
-const sexp lisp_pi = {.tag=_double,.val={.real64=3.14159265358979323846}};
-const sexp lisp_euler ={.tag=_double,.val={.real64=2.7182818284590452354}};
-const sexp lisp_max_long = {.tag=_long,.val={.int64=LONG_MAX}};
-const sexp lisp_double_0 = {.tag=_double,.val={.real64=0.0}};
-const sexp lisp_double_1 = {.tag=_double,.val={.real64=1.0}};
-const sexp lisp_long_0 = {.tag=_long,.val={.int64=0}};
-const sexp lisp_long_1 = {.tag=_long,.val={.int64=1}};
+#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
+#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
+#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
+#define lisp_mach_eps  {.tag=_double,.val={.real64=1.41484755040568800000e-16}}
+#define lisp_pi  {.tag=_double,.val={.real64=3.14159265358979323846}}
+#define lisp_euler {.tag=_double,.val={.real64=2.7182818284590452354}}
+#define lisp_max_long  {.tag=_long,.val={.int64=LONG_MAX}}
+#define lisp_double_0  {.tag=_double,.val={.real64=0.0}}
+#define lisp_double_1  {.tag=_double,.val={.real64=1.0}}
+#define lisp_long_0  {.tag=_long,.val={.int64=0}}
+#define lisp_long_1  {.tag=_long,.val={.int64=1}}
 //allocating static space for pointers, not actually initalizing constants
-const sexp lisp_bigint_0 = {.tag=_bigint,.val={.bigint=0}};
-const sexp lisp_bigint_1 = {.tag=_bigint,.val={.bigint=0}};
-const sexp lisp_bigfloat_0 =  {.tag=_bigfloat,.val={.bigfloat=0}};
-const sexp lisp_bigfloat_1 =  {.tag=_bigfloat,.val={.bigfloat=0}};
+#define lisp_bigint_0  {.tag=_bigint,.val={.bigint=0}}
+#define lisp_bigint_1  {.tag=_bigint,.val={.bigint=0}}
+#define lisp_bigfloat_0   {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_1   {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_NIL {.tag = -1,.val={.int64 = 0}}
+#define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
+#define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}
+
 MK_PREDICATE3(consp,_cons,_list,_dpair);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
@@ -836,19 +847,41 @@ MAKE_SYMBOL("caadar",caadar,0xd772cdb1761aa3a7 );
 MAKE_SYMBOL("caaar",caaar,0xa259a3aab7cc44b );
 MAKE_SYMBOL("caaadr",caaadr,0xbaf452b1654165ed );
 MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
+MAKE_CONSTANT("Meps",lisp_mach_eps);
+MAKE_CONSTANT("pi",lisp_pi);
+MAKE_CONSTANT("e",lisp_euler);
+MAKE_CONSTANT("max_long",lisp_max_long);
+MAKE_CONSTANT("nil",lisp_NIL);
+MAKE_CONSTANT("t",lisp_LISP_TRUE);
+MAKE_CONSTANT("#f",lisp_LISP_FALSE);
+MAKE_CONSTANT("double-0",lisp_double_0);
+MAKE_CONSTANT("double-1",lisp_double_1);
+MAKE_CONSTANT("long-0",lisp_long_0);
+MAKE_CONSTANT("long-1",lisp_long_1);
 mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void initPrimsObarray(obarray *ob,env* ob_env);
 void initPrims(){
-globalObarray=init_prim_obarray();
-keywordObarray=init_prim_obarray();
+globalObarray=xmalloc(sizeof(obarray));
+obarray_entry** global_buckets=xmalloc(128*sizeof(obarray_entry*));
+*globalObarray=(obarray)
+{.buckets=global_buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
+                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
+                .is_weak_hash=0,.hash_fn=fnv_hash};
+keywordObarray=xmalloc(sizeof(obarray));
+obarray_entry** keyword_buckets=xmalloc(128*sizeof(obarray_entry*));
+*keywordObarray=(obarray)
+{.buckets=keyword_buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
+                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
+                .is_weak_hash=0,.hash_fn=fnv_hash};
 globalObarrayEnv=xmalloc(sizeof(obarray_env));
 keywordObarrayEnv=xmalloc(sizeof(obarray_env));
+topLevelEnv=xmalloc(sizeof(env));
 globalObarrayEnv->enclosing=keywordObarrayEnv->enclosing=0;
 globalObarrayEnv->head=globalObarray;
 keywordObarrayEnv->head=keywordObarray;
 initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
-topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
+*topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
@@ -988,4 +1021,15 @@ INIT_SYMBOL(caadar);
 INIT_SYMBOL(caaar);
 INIT_SYMBOL(caaadr);
 INIT_SYMBOL(caaaar);
+INIT_CONST(lisp_mach_eps);
+INIT_CONST(lisp_pi);
+INIT_CONST(lisp_euler);
+INIT_CONST(lisp_max_long);
+INIT_CONST(lisp_NIL);
+INIT_CONST(lisp_LISP_TRUE);
+INIT_CONST(lisp_LISP_FALSE);
+INIT_CONST(lisp_double_0);
+INIT_CONST(lisp_double_1);
+INIT_CONST(lisp_long_0);
+INIT_CONST(lisp_long_1);
 }

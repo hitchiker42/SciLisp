@@ -88,6 +88,7 @@ typedef symbol keyword_symbol;
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
 enum _tag {
+  _unbound=-0xf,
   _error = -4,//type of errors, value is a string
   _false = -3,//type of #f, actual value is undefined
   _uninterned = -2,//type of uninterned symbols, value is symbol(var)
