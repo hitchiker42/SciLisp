@@ -55,9 +55,6 @@
 #define DEFUN(cname,numargs)                     \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern function cname ## _call
-#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
-#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
-#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
 static void* GC_REALLOC_3(void* ptr,size_t old,size_t new){
   return GC_REALLOC(ptr,new);
 }
@@ -86,7 +83,6 @@ DEFUN(lisp_ne,2);
 DEFUN(lisp_numeq,2);
 DEFUN(lisp_inc,1);
 DEFUN(lisp_dec,1);
-DEFUN(lisp_sum,2);
 DEFUN(Cons,2);
 DEFUN(set_car,2);
 DEFUN(set_cdr,2);
@@ -97,6 +93,7 @@ DEFUN(mapcar,2);
 DEFUN(reduce,2);
 DEFUN(qsort_cons,2);
 DEFUN(lisp_length,1);
+DEFUN(lisp_sum,2);
 DEFUN(lisp_iota,5);
 DEFUN(aref,2);
 DEFUN(array_to_list,1);

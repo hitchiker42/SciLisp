@@ -198,9 +198,10 @@ sexp lisp_randfloat(sexp scale){
 }
 sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
 sexp lisp_length(sexp obj){
-  if(obj.len){
+  if(obj.len > 0){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
   } else if (CONSP(obj)){
+    HERE();
     return cons_length(obj);
   } else {
     return error_sexp("object does not have a meaningful length field");
@@ -594,7 +595,6 @@ DEFUN("!=",lisp_ne,2,0,0,0,2);
 DEFUN("=",lisp_numeq,2,0,0,0,2);
 DEFUN("++",lisp_inc,1,0,0,0,1);
 DEFUN("--",lisp_dec,1,0,0,0,1);
-DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("cons",Cons,2,0,0,0,2);
 DEFUN("set-car!",set_car,2,0,0,0,2);
 DEFUN("set-cdr!",set_cdr,2,0,0,0,2);
@@ -605,6 +605,7 @@ DEFUN("mapcar",mapcar,2,0,0,0,2);
 DEFUN("reduce",reduce,2,0,0,0,2);
 DEFUN("qsort!",qsort_cons,2,0,0,0,2);
 DEFUN("length",lisp_length,1,0,0,0,1);
+DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("aref",aref,2,0,0,0,2);
 DEFUN("array->list",array_to_list,1,0,0,0,1);
@@ -727,7 +728,6 @@ MAKE_SYMBOL("!=",lisp_ne,0x3b29dbf59c00ad7 );
 MAKE_SYMBOL("=",lisp_numeq,0x857a51d9ec2a1750 );
 MAKE_SYMBOL("++",lisp_inc,0x45d5e725a43814ee );
 MAKE_SYMBOL("--",lisp_dec,0xd2c5b225625990de );
-MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("cons",Cons,0x3658069d1acdf568 );
 MAKE_SYMBOL("set-car!",set_car,0x1901921ef1b17f2a );
 MAKE_SYMBOL("set-cdr!",set_cdr,0x18f77c1ef1a90543 );
@@ -738,6 +738,7 @@ MAKE_SYMBOL("mapcar",mapcar,0xc0ee7f3d3740c6c5 );
 MAKE_SYMBOL("reduce",reduce,0x2f92df0bac03dce7 );
 MAKE_SYMBOL("qsort!",qsort_cons,0x9ece1ff7e6e56498 );
 MAKE_SYMBOL("length",lisp_length,0x8f69728654de2182 );
+MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
 MAKE_SYMBOL("array->list",array_to_list,0x3dd759e226ade7d3 );
@@ -901,7 +902,6 @@ INIT_SYMBOL(lisp_ne);
 INIT_SYMBOL(lisp_numeq);
 INIT_SYMBOL(lisp_inc);
 INIT_SYMBOL(lisp_dec);
-INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(Cons);
 INIT_SYMBOL(set_car);
 INIT_SYMBOL(set_cdr);
@@ -912,6 +912,7 @@ INIT_SYMBOL(mapcar);
 INIT_SYMBOL(reduce);
 INIT_SYMBOL(qsort_cons);
 INIT_SYMBOL(lisp_length);
+INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(aref);
 INIT_SYMBOL(array_to_list);

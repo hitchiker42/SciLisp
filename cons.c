@@ -125,9 +125,10 @@ sexp mapcar(sexp ls,sexp map_fn){
 static sexp len_acc(sexp ls,long n) __attribute__((pure));
 static sexp len_acc(sexp ls,long n){
   if(!CONSP(ls)){
+    PRINT_FMT("length = %d",n);
     return (sexp){.tag=_long,.val={.int64=n}};
   } else {
-    return len_acc(XCDR(ls),n++);
+    return len_acc(XCDR(ls),++n);
   }
 }
 sexp cons_length(sexp ls) {

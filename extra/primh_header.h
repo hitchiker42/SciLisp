@@ -55,9 +55,6 @@
 #define DEFUN(cname,numargs)                     \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern function cname ## _call
-#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
-#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
-#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
 static void* GC_REALLOC_3(void* ptr,size_t old,size_t new){
   return GC_REALLOC(ptr,new);
 }

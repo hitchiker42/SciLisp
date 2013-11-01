@@ -198,9 +198,10 @@ sexp lisp_randfloat(sexp scale){
 }
 sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
 sexp lisp_length(sexp obj){
-  if(obj.len){
+  if(obj.len > 0){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
   } else if (CONSP(obj)){
+    HERE();
     return cons_length(obj);
   } else {
     return error_sexp("object does not have a meaningful length field");
