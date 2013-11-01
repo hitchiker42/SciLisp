@@ -205,7 +205,8 @@ DEFUN(caadar,1);
 DEFUN(caaar,1);
 DEFUN(caaadr,1);
 DEFUN(caaaar,1);
-#define initPrims()                                                     \
+void initPrims();
+#define initPrimsOld()                                                     \
 if(initPrimsFlag){                                                    \
 initPrimsFlag=0;                                                      \
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \

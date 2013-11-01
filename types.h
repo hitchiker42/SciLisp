@@ -54,8 +54,8 @@ typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
 typedef global_symbol* global_symref;//"" global ""
 typedef local_symbol* local_symref;//"" local ""
-typedef global_symbol* keyword_symref;
-typedef global_symbol keyword_symbol;
+typedef symbol* keyword_symref;
+typedef symbol keyword_symbol;
 //typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
@@ -245,27 +245,6 @@ union funcall{
   sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*fmany)(sexp,...);
 };
-/*struct function{
-  short min_args;
-  short max_args;
-  short opt_args;
-  short renst_parameter;
-  union {
-    fxn_proto* prim;
-    lambda* lam;
-  } fun;
-  enum {
-    _primFun=0,
-    _lambdaFun=1,
-  } fxn_type;
-  };*/
-/*struct fxn_proto{
-  CORD cname;
-  CORD lispname;
-  //max_args == -1 means remaining args as a list
-  short min_args,max_args;
-  funcall fxn_call;
-  };*/
 /*#define FMAX_ARGS(fxn) fxn.val.fun->max_args
   #define FMIN_ARGS(fxn) fxn.val.fun->min_args*/
 #define FCNAME(fxn) fxn.val.fun->cname

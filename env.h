@@ -56,11 +56,13 @@ struct env{
 global_env globalSymbolTable;
 env topLevelEnv;
 global_env keywordSymbols;
-obarray globalObarray;
-obarray_env globalObarrayEnv;
+obarray *globalObarray;
+obarray_env *globalObarrayEnv;
+obarray *keywordObarray;
+obarray_env *keywordObarrayEnv;
 //basically env.h(move to seperate file?)
 local_symref getLocalSym(local_env *cur_env,CORD name);
-global_symref getGlobalSym(CORD name);
+symref getGlobalSym(CORD name);
 sexp getKeySymSexp(CORD name);
 symref getSym(env *cur_env,CORD name);
 symref addSym(env *cur_env,symref Var);
@@ -121,6 +123,7 @@ obarray* obarray_init_custom(float gthresh,uint64_t(*hash_fn)(const void*,int),
                       uint64_t size,int32_t is_weak_hash);
 obarray* obarray_init_default(uint64_t size);
 obarray* obarray_init(uint64_t size,float gthresh);
+obarray* init_prim_obarray();
 obarray_entry*  obarray_add_entry_generic
 (obarray *ob,symref new_entry,enum add_option conflict_opt,int append);
 obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
@@ -129,4 +132,6 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
 obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
 symref getObarraySym(obarray_env *ob_env,CORD name);
 int bucketLength(obarray_entry* bucket);
+obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
+                                      obarray_entry *entry);
 #endif

@@ -13,6 +13,7 @@
 #include "cons.h"
 #include "array.h"
 #include "print.h"
+#include "prim.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -68,6 +69,14 @@
   symref c_name ## _ptr = &c_name ## _sym;                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=&c_name##_sym, \
                                     .hashv=hash_v}
+#define INIT_SYMBOL(c_name)                                    \
+  c_name##_ptr=&c_name##_sym;                                  \
+  c_name##_ptr->val.val.fun=&c_name##_call;                     \
+  c_name##_ptr->symbol_env=ob_env;                              \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
+  prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
+#define INIT_CONST(c_name)                      \
+  c_name##_sym.symbol_env=&ob_env
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -115,13 +124,6 @@
     register double yy=getDoubleVal(y);                         \
     return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
   }
-#define INIT_SYMBOL(c_name)                                    \
-  c_name##_sym.val.val.fun=&c_name##_call;                     \
-  c_name##_sym.symbol_env=ob_env;                              \
-  c_name##_ptr=&c_name##_sym;                                  \
-  c_name##_ob_entry.ob_symbol=c_name##_ptr
-#define INIT_CONST(c_name)                      \
-  c_name##_sym.symbol_env=&ob_env
 //create c functions for primitives
 //arithmatic primitives
 binop_to_fun(+,lisp_add);
@@ -836,6 +838,22 @@ MAKE_SYMBOL("caaadr",caaadr,0xbaf452b1654165ed );
 MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
 mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
+static void initPrimsObarray(obarray *ob,env* ob_env);
+void initPrims(){
+globalObarray=init_prim_obarray();
+keywordObarray=init_prim_obarray();
+globalObarrayEnv=xmalloc(sizeof(obarray_env));
+keywordObarrayEnv=xmalloc(sizeof(obarray_env));
+globalObarrayEnv->enclosing=keywordObarrayEnv->enclosing=0;
+globalObarrayEnv->head=globalObarray;
+keywordObarrayEnv->head=keywordObarray;
+initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
+topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
+.head={.ob=globalObarrayEnv->head},.tag=_obEnv};
+mpfr_set_default_prec(256);
+mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+
+}
 static void initPrimsObarray(obarray *ob,env* ob_env){
 
 INIT_SYMBOL(lisp_add);

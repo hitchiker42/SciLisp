@@ -7,14 +7,12 @@
 #include "hash_fn.h"
 local_symref getLocalSym(local_env *cur_env,CORD name);
 symref getFunctionSym(function_env *cur_env,CORD name);
+symref getGlobalSym(CORD name);
 symref getSym(env *cur_env,CORD name){
+  if(!cur_env){return NULL;}
   switch(cur_env->tag){
     case _global:{
-      HERE();
-      global_symref tempsym;
-      getGlobalSymMacro(name,tempsym);
-      HERE();
-      return *(symref*)&tempsym;
+      return getGlobalSym(name);
       //return (sexp){.tag=_sym,.val={.var=tempsym}};
     }
     case _local:
@@ -29,19 +27,21 @@ symref getSym(env *cur_env,CORD name){
       exit(1);
   }
 }
-global_symref getGlobalSym(CORD name){
-  global_symref tempsym;
-  getGlobalSymMacro(name,tempsym);
-  return tempsym;
+symref getGlobalSym(CORD name){
+  return getSym(&topLevelEnv,name);
+  obarray_entry* tempsym;  
+  HERE();
+  tempsym=obarray_get_entry(globalObarray,name,0);
+  HERE();
+  if(tempsym){
+    return tempsym->ob_symbol;
+  } else {
+    return 0;
+  }
 }
 symref addGlobalSym(symref Var){
-  global_symref GlobalVar=xmalloc(sizeof(global_symbol));
-  GlobalVar->name=Var->name;
-  GlobalVar->val=Var->val;
-  GlobalVar->symbol_env=&topLevelEnv;
-  addGlobalSymMacro(GlobalVar);
-  PRINT_MSG(GlobalVar->name);
-  return toSymref(GlobalVar);
+  obarray_entry* new_var=obarray_add_entry(globalObarray,Var);
+  return new_var->ob_symbol;
 }
 local_symref getLocalSym(local_env *cur_env,CORD name){
   local_symref cur_sym=cur_env->head;
@@ -87,18 +87,19 @@ symref getFunctionSym(function_env* cur_env,CORD name){
   return getSym(cur_env->enclosing,name);
 }
 sexp getKeySymSexp(CORD name){
+  obarray_entry* key_entry=obarray_get_entry(keywordObarray,name,0);
   keyword_symref keysym;
-  getKeySymMacro(name,keysym);
-  if(keysym){PRINT_FMT("%#0d",keysym);return (sexp){.tag=_keyword,.val={.keyword=keysym}};}
+  if(key_entry){
+    keysym=key_entry->ob_symbol;
+    PRINT_FMT("%#0d",keysym);
+    return (sexp){.tag=_keyword,.val={.keyword=keysym}};
+  }
   keysym=xmalloc(sizeof(keyword_symbol));
   keysym->name=name;
-  addKeySymMacro(keysym);
+  obarray_add_entry(keywordObarray,keysym);
   PRINT_FMT("%#0d",keysym);
   return (sexp){.tag=_keyword,.val={.keyword=keysym}};
 }
-//needs to move to somewhere else.
-
-
 /*array_symref getArraySym(array_env args,CORD name){
   int i,len=args.head[0].index;
   array_symref arr=args.head;//array_symref=array_symbol*=array of array symbols
@@ -168,39 +169,63 @@ obarray* obarray_init(uint64_t size,float gthresh){
 }
 obarray* init_prim_obarray(){
   obarray* ob=xmalloc(sizeof(obarray));
-  ob->buckets=xmalloc(128*sizeof(obarray_entry*));
-  *ob=(obarray){.buckets=ob->buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
+  obarray_entry** buckets=xmalloc(128*sizeof(obarray_entry*));
+  *ob=(obarray){.buckets=buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
                 .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
                 .is_weak_hash=0,.hash_fn=fnv_hash};
   return ob;
 }
-obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,obarray_entry *entry){}
+//basically just don't test stuff
+obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
+                                      obarray_entry *entry){
+  uint64_t hashv=ob->hash_fn
+    (CORD_as_cstring(new_entry->name),CORD_len(new_entry->name));
+  uint64_t index=hashv%ob->size;
+  obarray_entry* test=ob->buckets[index];
+  if(!ob->buckets[index]){
+    /*ob->buckets[index]=xmalloc(sizeof(obarray_entry));
+    *ob->buckets[index]=(obarray_entry)
+    {.prev=0,.next=0,.ob_symbol=new_entry,.hashv=hashv};*/
+    ob->buckets[index]=entry;
+    ob->used++;
+    ob->entries++;
+    ob->capacity+=ob->capacity_inc;
+    return ob->buckets[index];
+  }
+  obarray_entry* cur_head=ob->buckets[index];
+  /*obarray_entry* new_link=xmalloc(sizeof(obarray_entry));//make new entry*/
+  /*  new_link->ob_symbol=new_entry;
+      cur_head->hashv=hashv;*/
+  entry->next=cur_head;//link new entry to current list
+  cur_head->prev=entry;//llink current list to new entry
+  ob->buckets[index]=entry;//update bucket
+  ob->entries++;
+  ob->capacity+=ob->capacity_inc;
+  return entry;  
+}
 //assume a hash value of 0 is impossible(is it?)
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv){
   if(!hashv){
     hashv=cur_obarray->hash_fn(symname,CORD_len(symname));
   }
-  hashv=hashv%cur_obarray->size;
-  obarray_entry *bucket_head=cur_obarray->buckets[hashv];
+  uint64_t index=hashv%cur_obarray->size;
+  obarray_entry *bucket_head=cur_obarray->buckets[index];
   if(!bucket_head){
     return NULL;
   }
-  if(!bucket_head->next){
-    return bucket_head;
-  } else {
-    while(bucket_head && bucket_head != bucket_head->next){
-      if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
-        return bucket_head;
-      }
-      bucket_head=bucket_head->next;
+  while(bucket_head && bucket_head != bucket_head->next){
+    if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
+      return bucket_head;
     }
+    bucket_head=bucket_head->next;
   }
-  return 0;
+return 0;
 }
 symref getObarraySym(obarray_env* ob_env,CORD name){
   obarray_entry* entry;
   entry=obarray_get_entry(ob_env->head,name,0);
   if(entry){
+    PRINT_MSG(entry->ob_symbol->name);
     return entry->ob_symbol;
   } else {
     return getSym(ob_env->enclosing,name);

@@ -54,6 +54,8 @@
 #define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
       .val={.bigfloat=bigfloat_ptr}}
 #define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
+#define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
+#define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val}}
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")

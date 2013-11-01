@@ -13,6 +13,7 @@
 #include "cons.h"
 #include "array.h"
 #include "print.h"
+#include "prim.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -68,6 +69,14 @@
   symref c_name ## _ptr = &c_name ## _sym;                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=&c_name##_sym, \
                                     .hashv=hash_v}
+#define INIT_SYMBOL(c_name)                                    \
+  c_name##_ptr=&c_name##_sym;                                  \
+  c_name##_ptr->val.val.fun=&c_name##_call;                     \
+  c_name##_ptr->symbol_env=ob_env;                              \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
+  prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
+#define INIT_CONST(c_name)                      \
+  c_name##_sym.symbol_env=&ob_env
 #define MK_PREDICATE(lname,test)                \
   sexp lisp_##lname (sexp obj){                 \
     if(obj.tag == test){                        \
@@ -115,13 +124,6 @@
     register double yy=getDoubleVal(y);                         \
     return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
   }
-#define INIT_SYMBOL(c_name)                                    \
-  c_name##_sym.val.val.fun=&c_name##_call;                     \
-  c_name##_sym.symbol_env=ob_env;                              \
-  c_name##_ptr=&c_name##_sym;                                  \
-  c_name##_ob_entry.ob_symbol=c_name##_ptr
-#define INIT_CONST(c_name)                      \
-  c_name##_sym.symbol_env=&ob_env
 //create c functions for primitives
 //arithmatic primitives
 binop_to_fun(+,lisp_add);

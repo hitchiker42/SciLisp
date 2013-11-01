@@ -213,6 +213,22 @@
 (setq initPrimsObarray-header
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
+static void initPrimsObarray(obarray *ob,env* ob_env);
+void initPrims(){
+globalObarray=init_prim_obarray();
+keywordObarray=init_prim_obarray();
+globalObarrayEnv=xmalloc(sizeof(obarray_env));
+keywordObarrayEnv=xmalloc(sizeof(obarray_env));
+globalObarrayEnv->enclosing=keywordObarrayEnv->enclosing=0;
+globalObarrayEnv->head=globalObarray;
+keywordObarrayEnv->head=keywordObarray;
+initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
+topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
+.head={.ob=globalObarrayEnv->head},.tag=_obEnv};
+mpfr_set_default_prec(256);
+mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+
+}
 static void initPrimsObarray(obarray *ob,env* ob_env){
 
 ")
@@ -222,7 +238,8 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 ")
 (defvar initPrims-header)
 (setq initPrims-header
-"#define initPrims()                                                     \\
+"void initPrims();
+#define initPrimsOld()                                                     \\
 if(initPrimsFlag){                                                    \\
 initPrimsFlag=0;                                                      \\
 globalSymbolTable=(global_env){.enclosing=NULL,.head=NULL};           \\
@@ -343,3 +360,8 @@ srand48(time(NULL));}
 ;      (insert-file-contents "llvmh_header.c")
 ;      (write-file "llvm_temp.h")
 ;      (kill-buffer))))
+
+;; Local Variables:
+;; auto-async-byte-compile-display-function: (lambda (&rest args) nil)
+;; End:
+ 

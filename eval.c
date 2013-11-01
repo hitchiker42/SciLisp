@@ -256,22 +256,40 @@ static inline sexp eval_def(sexp expr,env *cur_env){
   //to a value once or not?
   symref newSym;
   //PRINT_FMT("%s",typeName(cadr(expr)));  
-  newSym=getSym(cur_env,cadr(expr).val.var->name);
   sexp symVal=eval(caddr(expr),cur_env);
+  newSym=getSym(cur_env,cadr(expr).val.var->name);
   if(!newSym){
     newSym=xmalloc(symbolSize(cur_env));
     newSym->name=(cadr(expr).val.var->name);
-    newSym->val=symVal;
-    newSym=addSym(cur_env,newSym);
-  } else {
-    newSym->val=symVal;
+    newSym->val=symref_sexp(newSym);
+    addSym(cur_env,newSym);
   }
+  newSym->val=symVal;
   return (sexp){.tag = _sym,.val={.var = newSym}};
 }
 static inline sexp eval_defun(sexp expr,env *cur_env){
+  expr=cdr(expr);
+  if(!CONSP(expr) || !CONSP(XCDR(expr)) || !CONSP(XCDDR(expr))){
+    format_error_str("to few arguments to defun");
+    handle_error();
+  }
   sexp temp_lambda;
+  sexp fun_sym=XCAR(expr);  
+  function *new_fun=xmalloc(sizeof(function));
+  lambda *new_lam;
+  new_lam->body=XCDDR(expr);
+  new_lam->env=cur_env;
+  new_fun->args=XCADR(expr).val.funarg;
+  new_fun->lname=fun_sym.val.var->name;
+  new_fun->type=_lambda_fun;
+  new_fun->lam=new_lam;
+  fun_sym.val.var->val=function_sexp(new_fun);
+  addSym(cur_env,fun_sym.val.var);
+  return fun_sym;
+}
+  
   //expr=(defun sym arglist body)
-  temp_lambda.val.cons=xmalloc(sizeof(cons));
+  /*  temp_lambda.val.cons=xmalloc(sizeof(cons));
   temp_lambda.tag=_cons;  
   XCAR(temp_lambda)=(sexp){.tag=_special,.val={.special=_lambda}};
   XCDR(temp_lambda)=cddr(expr);
@@ -284,7 +302,7 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
   XCAR(expr)=(sexp){.tag=_special,.val={.special=_def}};
   //expr = (def sym temp_lambda);
   return eval(expr,cur_env);
-}
+}*/
 static inline sexp eval_if(sexp expr,env *cur_env){
   //car  cadr    caddr   car(cdddr)
   //(if .(cond . (then . (else .()))))
@@ -432,7 +450,7 @@ static sexp eval_dolist(sexp expr,env *cur_env){
   }
   //create environment for loop
   local_symref loop_var=alloca(sizeof(local_symbol));
-  sexp loop_list=XCADAR(expr);
+  sexp loop_list=XCDAR(expr);
   *loop_var=*(local_symref)XCAR(loop_params).val.var;
   loop_var->next=NULL;
   sexp retval=NIL;

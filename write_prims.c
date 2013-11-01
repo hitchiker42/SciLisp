@@ -1,6 +1,8 @@
 #include "common.h"
 #include "prim.h"
 #include "env.h"
+#include "hash_fn.h"
+#define SIZE 128
 /*#include <sys/mman.h>
 #define SIZE 128
 #define GTHRESH 0.75
@@ -18,7 +20,7 @@ obarray* init_prim_obarray(){
        .capacity_inc=(1.0/(SIZE*10)),.gthresh=GTHRESH,.gfactor=2,
        .is_weak_hash=0,.hash_fn=fnv_hash};
        }*/
-static int bucket_indices[SIZE]={0};
+/*static int bucket_indices[SIZE]={0};
 void add_entry_prim_obarray(obarray* ob,symref entry){
   uint64_t hashv=ob->hash_fn(CORD_as_cstring(entry->name),CORD_len(entry->name));
   uint64_t index=hashv%SIZE;
@@ -30,7 +32,7 @@ void add_entry_prim_obarray(obarray* ob,symref entry){
     (obarray_entry){.prev=prev,.next=ob->buckets[index][bucket_indices[index+1]],
                     .ob_symbol=entry,.hashv=hashv};
   bucket_indices[index]++;
-  }
+  }*/
 /*
   much more complicated than I thought
   void write_obarray_prims(){
@@ -47,9 +49,14 @@ void add_entry_prim_obarray(obarray* ob,symref entry){
   obarray *ob=mmap(NULL,needed_size,PROT_READ|PROT_WRITE,MAP_SHARED,primFile,0)
   }*/
 int main(){
-  obarray* ob=obarray_init(64,0.75);
-  env ob_env={.enclosing=NULL,.head={.ob=ob},.tag=_obEnv};
-  initPrimsObarray(ob,&ob_env);
+  HERE();  
+  initPrims();//(ob,&ob_env);
+  PRINT_MSG(print(obarray_sexp(globalObarray)));
+  obarray* ob=globalObarray;//obarray_init(64,0.75);
+  env ob_env=topLevelEnv;//{.enclosing=NULL,.head={.ob=ob},.tag=_obEnv};
+  HERE();
+  PRINT_MSG(print(obarray_sexp(ob)));
+  HERE();
   int i,bsize=0;
   obarray_entry* ent;
   for(i=0;i<ob->size;i++){
@@ -72,9 +79,21 @@ int main(){
          ob->size,ob->used,ob->entries,ob->capacity);
   sexp hello=cord_sexp("Hello, World!");
   symref print_sym=getSym(&ob_env,"print");
+  HERE();
   if(print_sym){
     if(print_sym->val.tag == _fun){
-      print_sym->val.val.fun->fun.comp.f1(hello);
+      PRINT_MSG(print_sym->name);
+      PRINT_FMT("%#0lx",fnv_hash("print",5));
+      PRINT_FMT("%#0lx",fnv_hash(print_sym->name,strlen(print_sym->name)));
+      HERE();
+      print_sym->val.val.fun->comp.f1(hello);
+      HERE();
+    } else {
+      fprintf(stderr,tag_name(print_sym->val.tag));
+      fprintf(stderr,"\n Failure\n");
     }
+  } else {
+    fprintf(stderr,"Failure");
   }
+  HERE();
 }

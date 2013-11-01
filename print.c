@@ -254,6 +254,14 @@ CORD print(sexp obj){
     case _stream:
       CORD_sprintf(&retval,"File descriptor %d",fileno(obj.val.stream));
       return retval;
+    case _obarray:{
+      obarray* ob=obj.val.ob;
+      CORD_sprintf
+        (&retval,
+         "Obarray statistics:\nsize:%d\nused:%d\nentries:%d\ncapacity:%f\n",
+         ob->size,ob->used,ob->entries,ob->capacity);
+        return retval;
+    }
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;
