@@ -42,6 +42,10 @@ sexp eval(sexp expr,env *cur_env){
     case _cons:
       if(SYMBOLP(car(expr))){
         symref funSym=getSym(cur_env,XCAR(expr).val.var->name);
+        if(!funSym){
+          format_error_str("undefined function %s",XCAR(expr).val.var->name);
+          return handle_error();
+        }
         sexp curFun=funSym->val;
         if(LAMBDAP(curFun)){
           return call_lambda(expr,cur_env);
@@ -69,6 +73,7 @@ sexp eval(sexp expr,env *cur_env){
       if(tempsym){         
         return eval(tempsym->val,cur_env);
       } else {
+      UNDEF_ERROR:
         CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
         goto ERROR;
       }

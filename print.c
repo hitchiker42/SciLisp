@@ -8,6 +8,7 @@
 #define mk_tag_name(tag,name) case tag: return #name
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){
+    mk_tag_name(_error,error);
     mk_tag_name(_uninterned,uninterned);
     mk_tag_name(_list,list);
     mk_tag_name(_nil,nil);
@@ -30,6 +31,7 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_bigint,BigInt);
     mk_tag_name(_bigfloat,BigFloat);
     mk_tag_name(_keyword,Keyword Symbol);
+    mk_tag_name(_obarray,obarray);
     default:
       return "forgot to do that one";
   }
@@ -135,9 +137,6 @@ CORD print(sexp obj){
       return obj.val.fun->lname;
     case _sym:
       return obj.val.var->name;
-      //retval=obj.val.var->name;
-      //PRINT_MSG(obj.val.var->name);
-      break;
     case _keyword:
       return obj.val.keyword->name;
     case _char:{

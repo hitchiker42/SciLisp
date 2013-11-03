@@ -150,6 +150,17 @@ void initialize_llvm(int engine){
 sexp LLVMGetFunction(sexp lambda_expr,env* cur_env){
   //assume we get passed a lambda expression
   //that should be the main use of llvm anyway
+  if(!FUNCITONP(lambda_expr)){
+      return error_sexp("expected a function");
+  }
+  function *lispFun=lambda_expr.val.fun;
+  LLVMValueRef newFun=LLVMAddFunction(SL_Module,lispFun->cname,
+                                      LispFxnTypes[lispFun->args->max_args]);
+  LLVMBasicBlockRef newFunStart=LLVMGetFirstBasicBlock(newFun);
+  LLVMPositionBuilderAtEnd(SL_Builder,newFunStart);
+  env funEnv={.enclosing=cur_env,.head={.function=newFun->args},.tag=_funArgs};
+  LLVMValueRef=EVAL(lispFun->lam->body,&funEnv);
+
 }
 sexp LLVMEval(sexp expr,env *cur_env){
   if(setjmp(jmp_to_error)){

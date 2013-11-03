@@ -62,8 +62,9 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
       init_set(_z,bigint,*);
     }
     case _bigfloat:{
-      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      init_set(,bigfloat,*);
+      //mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
+      //init_set(,bigfloat,*);
+      return init;
     }
     case _str:{
       mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
@@ -177,22 +178,29 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
 //generic functions on bigfloat,number
 #define mpfr_binop(op,unsafe)                                                 \
   sexp lisp_bigfloat_##unsafe##op(sexp obj1,sexp obj2){                 \
-    if(!(BIGFLOATP(obj1)) || !(BIGNUMP(obj2))){                         \
+    if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){                         \
       return error_sexp                                                 \
         ("bigfloat arithmatic funcitons require numeric arguments");    \
     }                                                                   \
-    mpfr_t *bigfloat1=(obj1.val.bigfloat);                             \
-    switch(obj2.tag){                                                   \
-      case _long:{                                                      \
-          mpfr_wrapper(mpfr_##op##_si,*bigfloat1,obj2.val.int64);}     \
-      case _ulong:{                                                     \
-          mpfr_wrapper(mpfr_##op##_ui,*bigfloat1,obj2.val.uint64);}    \
-      case _double:{                                                    \
-          mpfr_wrapper(mpfr_##op##_d,*bigfloat1,obj2.val.real64);}    \
-      case _bigint:{                                                    \
-          mpfr_wrapper(mpfr_##op##_z,*bigfloat1,*obj2.val.bigint);}   \
+    if(!(BIGFLOATP(obj1))&& BIGFLOATP(obj2)){                           \
+      sexp temp_obj=obj1;                                               \
+      obj1=obj2;                                                        \
+      obj2=temp_obj;                                                    \
+    } else {                                                            \
+      obj1=lisp_bigfloat(obj1,NIL,NIL);                                    \
+    }                                                                   \
+      mpfr_t *bigfloat1=(obj1.val.bigfloat);                            \
+      switch(obj2.tag){                                                 \
+        case _long:{                                                    \
+          mpfr_wrapper(mpfr_##op##_si,*bigfloat1,obj2.val.int64);}      \
+        case _ulong:{                                                   \
+          mpfr_wrapper(mpfr_##op##_ui,*bigfloat1,obj2.val.uint64);}     \
+        case _double:{                                                  \
+          mpfr_wrapper(mpfr_##op##_d,*bigfloat1,obj2.val.real64);}      \
+        case _bigint:{                                                  \
+          mpfr_wrapper(mpfr_##op##_z,*bigfloat1,*obj2.val.bigint);}     \
       case _bigfloat:{                                                  \
-          mpfr_wrapper(mpfr_##op,*bigfloat1,*obj2.val.bigfloat);}     \
+        mpfr_wrapper(mpfr_##op,*bigfloat1,*obj2.val.bigfloat);}         \
     }                                                                   \
   }
 //gmp doesn't have functions on bigint,(long|double|bigfloat)unlike mpfr,its sad
