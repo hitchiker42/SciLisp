@@ -434,7 +434,9 @@ sexp lisp_system(sexp command,sexp args){
 sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   sexp(*f)(sexp,sexp);
   sexp retval;
-  if(!(NUMBERP(required))){}
+  if(!(NUMBERP(required))){
+    return error_sexp("arathmatic type error");
+  }
   switch(op){
     case _add:
       f=lisp_add;
@@ -491,7 +493,8 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
 }
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
-    return error_sexp("this shouldn't happen, rest arg to sum is not a list or nil");
+    return error_sexp("this shouldn't happen, "
+                      "rest arg to sum is not a list or nil");
   } else {
     switch (required.tag){
       case _double:{
@@ -573,11 +576,29 @@ sexp lisp_eql(sexp obj1,sexp obj2){
     return lisp_eq(obj1,obj2);
   }
 } 
-sexp lisp_apply(sexp fun,sexp args){
+sexp lisp_equal(sexp obj1,sexp obj2){
+  return lisp_eql(obj1,obj2);
+}
+sexp lisp_apply(sexp fun,sexp args,sexp environment){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");
+  } 
+  if(NILP(environment)){
+    environment=env_sexp(topLevelEnv);
   }
-  cons* arglist=alloca(fun.val.fun->args->max_args*sizeof(sexp));
+  if(!ENVP(environment)){
+    return error_sexp("last argument to apply should be an environment or nil");
+  }
+  if(!CONSP(args)){
+    cons* one_arg=alloca(sizeof(cons));
+    one_arg->car=args;
+    one_arg->cdr=NIL;
+    args=cons_sexp(one_arg);
+  }
+  cons *funcall_code=alloca(sizeof(cons));
+  funcall_code->car=fun;
+  funcall_code->cdr=XCAR(args);
+  return lisp_funcall(cons_sexp(funcall_code),environment.val.cur_env);
 }
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
@@ -637,6 +658,19 @@ DEFUN("mapcar",mapcar,2,0,0,0,2);
 DEFUN("reduce",reduce,2,0,0,0,2);
 DEFUN("qsort!",qsort_cons,2,0,0,0,2);
 DEFUN("length",lisp_length,1,0,0,0,1);
+DEFUN("expt",lisp_pow,2,0,0,0,2);
+DEFUN("sqrt",lisp_sqrt,1,0,0,0,1);
+DEFUN("cos",lisp_cos,1,0,0,0,1);
+DEFUN("sin",lisp_sin,1,0,0,0,1);
+DEFUN("tan",lisp_tan,1,0,0,0,1);
+DEFUN("exp",lisp_exp,1,0,0,0,1);
+DEFUN("log",lisp_log,1,0,0,0,1);
+DEFUN("min",lisp_min,2,0,0,0,2);
+DEFUN("max",lisp_max,2,0,0,0,2);
+DEFUN("mod",lisp_mod,2,0,0,0,2);
+DEFUN("abs",lisp_abs,1,0,0,0,1);
+DEFUN("eql",lisp_eql,2,0,0,0,2);
+DEFUN("equal",lisp_equal,2,0,0,0,2);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("aref",aref,2,0,0,0,2);
@@ -659,22 +693,12 @@ DEFUN("logxor",lisp_xor,2,0,0,0,2);
 DEFUN("logand",lisp_logand,2,0,0,0,2);
 DEFUN("logor",lisp_logor,2,0,0,0,2);
 DEFUN("ash",ash,2,0,0,0,2);
-DEFUN("expt",lisp_pow,2,0,0,0,2);
-DEFUN("sqrt",lisp_sqrt,1,0,0,0,1);
-DEFUN("cos",lisp_cos,1,0,0,0,1);
-DEFUN("sin",lisp_sin,1,0,0,0,1);
-DEFUN("tan",lisp_tan,1,0,0,0,1);
-DEFUN("exp",lisp_exp,1,0,0,0,1);
-DEFUN("log",lisp_log,1,0,0,0,1);
-DEFUN("abs",lisp_abs,1,0,0,0,1);
-DEFUN("mod",lisp_mod,2,0,0,0,2);
-DEFUN("min",lisp_min,2,0,0,0,2);
-DEFUN("max",lisp_max,2,0,0,0,2);
 DEFUN("round",lisp_round,1,0,0,0,2);
 DEFUN("drand",lisp_randfloat,0,1,0,0,1);
 DEFUN("lrand",lisp_randint,0,0,0,0,0);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
 DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
+DEFUN("apply",lisp_apply,2,1,0,0,3);
 DEFUN("bigint-add",lisp_bigint_add,2,0,0,0,2);
 DEFUN("bigint-sub",lisp_bigint_sub,2,0,0,0,2);
 DEFUN("bigint-mul",lisp_bigint_mul,2,0,0,0,2);
@@ -770,6 +794,19 @@ MAKE_SYMBOL("mapcar",mapcar,0xc0ee7f3d3740c6c5 );
 MAKE_SYMBOL("reduce",reduce,0x2f92df0bac03dce7 );
 MAKE_SYMBOL("qsort!",qsort_cons,0x9ece1ff7e6e56498 );
 MAKE_SYMBOL("length",lisp_length,0x8f69728654de2182 );
+MAKE_SYMBOL("expt",lisp_pow,0x6d8fca2529cc0cb0 );
+MAKE_SYMBOL("sqrt",lisp_sqrt,0x11e3ff1ab3a56bb4 );
+MAKE_SYMBOL("cos",lisp_cos,0xef262d257319d109 );
+MAKE_SYMBOL("sin",lisp_sin,0x62ef9825233928c4 );
+MAKE_SYMBOL("tan",lisp_tan,0x49151f25149e0591 );
+MAKE_SYMBOL("exp",lisp_exp,0xdd47de2568d36d09 );
+MAKE_SYMBOL("log",lisp_log,0x1a7c0e258ba7055c );
+MAKE_SYMBOL("min",lisp_min,0x21b63e258f56bce2 );
+MAKE_SYMBOL("max",lisp_max,0x219b28258f3fcfc8 );
+MAKE_SYMBOL("mod",lisp_mod,0x21cb28258f68f38a );
+MAKE_SYMBOL("abs",lisp_abs,0xfe2687257af0b852 );
+MAKE_SYMBOL("eql",lisp_eql,0xdd5fd42568e7edec );
+MAKE_SYMBOL("equal",lisp_equal,0x1f9488d3ca8575ba );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
@@ -792,22 +829,12 @@ MAKE_SYMBOL("logxor",lisp_xor,0xb1cc27255025b0d7 );
 MAKE_SYMBOL("logand",lisp_logand,0xbe33926eae30db1d );
 MAKE_SYMBOL("logor",lisp_logor,0xf6602a2681c26321 );
 MAKE_SYMBOL("ash",ash,0xe759a1190572cddf );
-MAKE_SYMBOL("expt",lisp_pow,0x6d8fca2529cc0cb0 );
-MAKE_SYMBOL("sqrt",lisp_sqrt,0x11e3ff1ab3a56bb4 );
-MAKE_SYMBOL("cos",lisp_cos,0xef262d257319d109 );
-MAKE_SYMBOL("sin",lisp_sin,0x62ef9825233928c4 );
-MAKE_SYMBOL("tan",lisp_tan,0x49151f25149e0591 );
-MAKE_SYMBOL("exp",lisp_exp,0xdd47de2568d36d09 );
-MAKE_SYMBOL("log",lisp_log,0x1a7c0e258ba7055c );
-MAKE_SYMBOL("abs",lisp_abs,0xfe2687257af0b852 );
-MAKE_SYMBOL("mod",lisp_mod,0x21cb28258f68f38a );
-MAKE_SYMBOL("min",lisp_min,0x21b63e258f56bce2 );
-MAKE_SYMBOL("max",lisp_max,0x219b28258f3fcfc8 );
 MAKE_SYMBOL("round",lisp_round,0xe7863c8b43d1dc8e );
 MAKE_SYMBOL("drand",lisp_randfloat,0xd7a3e2a6c9ca3a5d );
 MAKE_SYMBOL("lrand",lisp_randint,0xcffb580fd3c7c16 );
 MAKE_SYMBOL("bigint",lisp_bigint,0x6a031ae6deb3b2f9 );
 MAKE_SYMBOL("bigfloat",lisp_bigfloat,0xbf028d8fe03cb0c2 );
+MAKE_SYMBOL("apply",lisp_apply,0x35de5e4bd0bba8ae );
 MAKE_SYMBOL("bigint-add",lisp_bigint_add,0xfce0adb9b6369069 );
 MAKE_SYMBOL("bigint-sub",lisp_bigint_sub,0x6195c3b95e6e6050 );
 MAKE_SYMBOL("bigint-mul",lisp_bigint_mul,0x65c37bb9f1e3140c );
@@ -895,6 +922,11 @@ mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void initPrimsObarray(obarray *ob,env* ob_env);
 void initPrims(){
+if(initPrimsFlag){
+initPrimsFlag=0;
+} else {
+return;
+}
 globalObarray=xmalloc(sizeof(obarray));
 obarray_entry** global_buckets=xmalloc(128*sizeof(obarray_entry*));
 *globalObarray=(obarray)
@@ -944,6 +976,19 @@ INIT_SYMBOL(mapcar);
 INIT_SYMBOL(reduce);
 INIT_SYMBOL(qsort_cons);
 INIT_SYMBOL(lisp_length);
+INIT_SYMBOL(lisp_pow);
+INIT_SYMBOL(lisp_sqrt);
+INIT_SYMBOL(lisp_cos);
+INIT_SYMBOL(lisp_sin);
+INIT_SYMBOL(lisp_tan);
+INIT_SYMBOL(lisp_exp);
+INIT_SYMBOL(lisp_log);
+INIT_SYMBOL(lisp_min);
+INIT_SYMBOL(lisp_max);
+INIT_SYMBOL(lisp_mod);
+INIT_SYMBOL(lisp_abs);
+INIT_SYMBOL(lisp_eql);
+INIT_SYMBOL(lisp_equal);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(aref);
@@ -966,22 +1011,12 @@ INIT_SYMBOL(lisp_xor);
 INIT_SYMBOL(lisp_logand);
 INIT_SYMBOL(lisp_logor);
 INIT_SYMBOL(ash);
-INIT_SYMBOL(lisp_pow);
-INIT_SYMBOL(lisp_sqrt);
-INIT_SYMBOL(lisp_cos);
-INIT_SYMBOL(lisp_sin);
-INIT_SYMBOL(lisp_tan);
-INIT_SYMBOL(lisp_exp);
-INIT_SYMBOL(lisp_log);
-INIT_SYMBOL(lisp_abs);
-INIT_SYMBOL(lisp_mod);
-INIT_SYMBOL(lisp_min);
-INIT_SYMBOL(lisp_max);
 INIT_SYMBOL(lisp_round);
 INIT_SYMBOL(lisp_randfloat);
 INIT_SYMBOL(lisp_randint);
 INIT_SYMBOL(lisp_bigint);
 INIT_SYMBOL(lisp_bigfloat);
+INIT_SYMBOL(lisp_apply);
 INIT_SYMBOL(lisp_bigint_add);
 INIT_SYMBOL(lisp_bigint_sub);
 INIT_SYMBOL(lisp_bigint_mul);

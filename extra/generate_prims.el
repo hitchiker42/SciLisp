@@ -1,3 +1,4 @@
+;;utitily functions
 (defmacro define (var defn)
   (progn
     `(defvar ,var)
@@ -11,6 +12,24 @@
   "Indent entire buffer using indent-region"
   (interactive)
   (indent-region (point-min) (point-max)))
+(defun mkPrimBasic (lname cname numargs)
+  `((:lname . ,lname) (:cname . ,cname) (:minargs . ,numargs)
+    (:maxargs . ,numargs) (:optargs . 0) (:keyargs . 0) (:restarg . 0)))
+(defun bignum-ops (op-list typename nargs)
+  (collect (lambda (op)
+`((:lname . ,(format "%s-%s" typename op))
+  (:cname . ,(format "lisp_%s_%s" typename op)) (:minargs . ,nargs) (:maxargs . ,nargs)
+  (:optargs . 0) (:keyargs . 0) (:restarg . 0))) op-list))
+(defun mpfr-binops (op-list) 
+  (bignum-ops op-list "bigfloat" 2))
+(defun mpfr-unops (op-list)
+  (bignum-ops op-list "bigfloat" 1))
+(defun mpz-binops (op-list)
+  (bignum-ops op-list "bigint" 2))
+(defun mk-predicate (name)
+  `((:lname . ,name) (:cname . ,(format "lisp_%s" name)) (:minargs . 1)
+    (:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0)))
+;;lists of primitives
 (define *cadrs*
 (let ((ls ()))
   (dolist (i '("a" "d"))
@@ -20,29 +39,12 @@
           (add-to-list
            'ls (list (concat "c" i j k l "r") (concat "c" i j k l "r") 1))))))
   ls))
-(defun mkPrimBasic (lname cname numargs)
-  `((:lname . ,lname) (:cname . ,cname) (:minargs . ,numargs)
-    (:maxargs . ,numargs) (:optargs . 0) (:keyargs . 0) (:restarg . 0)))
-(defun mpz-binops (op-list)
-  (collect (lambda (op)
-`((:lname . ,(format "bigint-%s" op))
-  (:cname . ,(format "lisp_bigint_%s" op)) (:minargs . 2) (:maxargs . 2)
-  (:optargs . 0) (:keyargs . 0) (:restarg . 0))) op-list))
-(define mpz-binops-list (append '("add" "sub" "mul" "mod" "cdiv_q" "fdiv_q" "tdiv_q")
-                                '("cdiv_r""fdiv_r" "tdiv_r" "and" "ior" "xor")
-                                '("gt" "eq" "lt" "ge" "le" "ne")))
-(defun mpfr-binops (op-list)
-  (collect (lambda (op)
-`((:lname . ,(format "bigfloat-%s" op))
-  (:cname . ,(format "lisp_bigfloat_%s" op)) (:minargs . 2) (:maxargs . 2)
-  (:optargs . 0) (:keyargs . 0) (:restarg . 0))) op-list))
+
+(define mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "fdiv_q" "tdiv_q"
+                          "cdiv_r""fdiv_r" "tdiv_r" "and" "ior" "xor"
+                          "gt" "eq" "lt" "ge" "le" "ne"))
 (define mpfr-binops-list '("add" "sub" "mul" "div" "pow"
                            "gt" "eq" "lt" "ge" "le" "ne"))
-(defun mpfr-unops (op-list)
-  (collect (lambda (op)
-`((:lname . ,(format "bigfloat-%s" op))
-  (:cname . ,(format "lisp_bigfloat_%s" op)) (:minargs . 1) (:maxargs . 1)
-  (:optargs . 0) (:keyargs . 0) (:restarg . 0))) op-list))
 (define mpfr-unops-list '("log" "exp" "cos" "sin" "tan"))
 (define basic-prims-list
   '(("+" "lisp_add" 2) ("-" "lisp_sub" 2) ("*" "lisp_mul" 2) ("/" "lisp_div" 2)
@@ -60,70 +62,15 @@
     ("cos" "lisp_cos" 1) ("sin" "lisp_sin" 1) ("tan" "lisp_tan" 1)
     ("exp" "lisp_exp" 1) ("log" "lisp_log" 1) ("min" "lisp_min" 2)
     ("max" "lisp_max" 2) ("mod" "lisp_mod" 2) ("abs" "lisp_abs" 1)
-    ("arrayp" "lisp_arrayp" 1)))
-(defun mk-predicate (name)
-  `((:lname . ,name) (:cname . ,(format "lisp_%s" name)) (:minargs . 1)
-    (:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0)))
+    ("eq" "lisp_eq" 2) ("eql" "lisp_eql" 2) ("equal" "lisp_equal" 2)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
   (collect (lambda (x) (apply #'mkPrimBasic x)) basic-prims-list))
-;  (dolist (f basic-prims-list)
-;    (let ((ls ()))
-;      (push (apply #'mkPrimBasic f) ls)
-;      ls)))
 (define SciLisp-prims (nconc
                        basic-SciLisp-prims
   '(
-;:minargs->:reqargs,add :optargs and :restarg
-;
-    ;arithmatic functions
-    ;; ((:lname . "+") (:cname ."lisp_add")   (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "-") (:cname ."lisp_sub")   (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "*") (:cname ."lisp_mul")   (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "/") (:cname ."lisp_div")   (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "<") (:cname ."lisp_lt")    (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . ">") (:cname ."lisp_gt")    (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . ">=") (:cname ."lisp_gte")   (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "<=") (:cname ."lisp_lte")   (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "!=") (:cname ."lisp_ne")    (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "=") (:cname ."lisp_numeq") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "++") (:cname . "lisp_inc")  (:minargs . 1) (:maxargs . 1)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "--") (:cname . "lisp_dec")  (:minargs . 1) (:maxargs . 1)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "sum") (:cname . "lisp_sum") (:minargs . 1) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 1))
-     ;functions on conses
-    ;; ((:lname . "cons") (:cname ."Cons") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "set-car!") (:cname ."set_car") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "set-cdr!") (:cname ."set_cdr") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "last") (:cname . "last") (:minargs . 1) (:maxargs . 1)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "push!") (:cname . "push_cons") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "pop!") (:cname . "pop_cons") (:minargs . 1) (:maxargs . 1)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "mapcar") (:cname ."mapcar") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "reduce") (:cname ."reduce") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "qsort!") (:cname . "qsort_cons") (:minargs . 2) (:maxargs . 2)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ;; ((:lname . "length") (:cname ."lisp_length") (:minargs . 1) (:maxargs . 1)
-    ;;  (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "iota") (:cname ."lisp_iota") (:minargs . 1) (:maxargs . 5)
      (:optargs . 4) (:keyargs . 0) (:restarg . 0))
                                         ;array functions
@@ -170,28 +117,6 @@
      ((:lname . "ash") (:cname ."ash") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ;math functions
-     ((:lname . "expt") (:cname ."lisp_pow") (:minargs . 2) (:maxargs . 2)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "sqrt") (:cname ."lisp_sqrt") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "cos") (:cname ."lisp_cos") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "sin") (:cname ."lisp_sin") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "tan") (:cname ."lisp_tan") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "exp") (:cname ."lisp_exp") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "log") (:cname ."lisp_log") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "abs") (:cname ."lisp_abs") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "mod") (:cname ."lisp_mod") (:minargs . 2) (:maxargs . 2)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "min") (:cname . "lisp_min") (:minargs . 2) (:maxargs . 2)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "max") (:cname . "lisp_max") (:minargs . 2) (:maxargs . 2)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "round") (:cname ."lisp_round") (:minargs . 1) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "drand") (:cname ."lisp_randfloat") (:minargs . 0) (:maxargs . 1)
@@ -201,7 +126,9 @@
      ((:lname . "bigint") (:cname . "lisp_bigint") (:minargs . 1) (:maxargs . 1)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "bigfloat") (:cname . "lisp_bigfloat") (:minargs . 1)
-      (:maxargs . 3) (:optargs . 2) (:keyargs . 0) (:restarg . 0)))
+      (:maxargs . 3) (:optargs . 2) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "apply") (:cname . "lisp_apply") (:minargs . 2) (:maxargs . 3)
+      (:optargs . 1) (:keyargs . 0) (:restarg . 0)))
   (mpz-binops mpz-binops-list)
   (mpfr-binops mpfr-binops-list)
   (collect #'mk-predicate predicates)
@@ -216,16 +143,17 @@
     ("lisp_double_0" . "double-0") ("lisp_double_1" . "double-1")
     ("lisp_long_0" ."long-0") ("lisp_long_1" . "long-1")))
 ;    "lisp_bigfloat_0" "lisp_bigfloat_1" "lisp_bigint_0" "lisp_bigint_1"))
-;idea, have files with constant contend then generate
-;code for primitives, create a new file, copy the text
-;from the constant file into the new file then add
-;the code for the primitives(could also have a suffix file)
 (defvar initPrimsObarray-header)
 (setq initPrimsObarray-header
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void initPrimsObarray(obarray *ob,env* ob_env);
 void initPrims(){
+if(initPrimsFlag){
+initPrimsFlag=0;
+} else {
+return;
+}
 globalObarray=xmalloc(sizeof(obarray));
 obarray_entry** global_buckets=xmalloc(128*sizeof(obarray_entry*));
 *globalObarray=(obarray)
@@ -267,8 +195,6 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
   (format "INIT_CONST(%s);\n" (car const)))
 (defmacro prim-val (keysym)
   `(cdr (assq ,keysym prim)))
-;(defvar llvm-header
-;"static name_args_pair lisp_prims[]={\n")
 (defun primc-format (prim)
   (format
    "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"

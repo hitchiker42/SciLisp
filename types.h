@@ -84,6 +84,7 @@ typedef symbol keyword_symbol;
 #define BIGFLOATP(obj) (obj.tag == _bigfloat)
 #define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
                      obj.tag == _bigint || obj.tag == _bigfloat)
+#define ENVP(obj)(obj.tag == _env)
 //key point to this enum is that arathmatic types are numbered in their type
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
@@ -120,11 +121,12 @@ enum _tag {
   _type = 35,//type of types, unimplemened
   _lam = 36,//type of lambda, value is lam
   _lenv = 37,//type of local environments,value is lenv
-  _keyword = 38,
-  _funarg = 39,//really need to add an s
-  _funargs=39,//but yay for c hacks, I bet yout couldn't do this in most languages
-  _true = 40,//type of #t, singular value
-  _obarray = 41,
+  _env = 38,
+  _keyword = 39,
+  _funarg = 40,//really need to add an s
+  _funargs=40,//but yay for c hacks, I bet yout couldn't do this in most languages
+  _true = 41,//type of #t, singular value
+  _obarray = 42,
 };
 enum special_form{
   _def=0,
@@ -182,6 +184,7 @@ union data {//keep max size at 64 bits
   _tag meta;
   sexp* quoted;
   local_symref lenv;
+  env *cur_env;
   regex_t* regex;
   FILE* stream;
   function_args* funarg;//really need to add an s

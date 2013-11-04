@@ -1,6 +1,6 @@
 #include "codegen.h"
 int tmp_counter=0;
-static function_args* getFunctionArgs(sexp arglist,function_args* args);
+static function_args* C_getFunctionArgs(sexp arglist,function_args* args);
 c_string get_cType(sexp obj){
   switch(obj.tag){
     case _cons:
@@ -157,7 +157,7 @@ CORD c_codegen_funcall(sexp expr,CORD code){
   }
   function *cur_fun=XCAR(expr).val.fun;
   acc=CORD_cat(cur_fun->cname,"(");
-  getFunctionArgs(XCADR(expr),cur_fun->args);
+  C_getFunctionArgs(XCADR(expr),cur_fun->args);
   int i,maxargs=cur_fun->args->max_args;
 
   return "";
@@ -165,7 +165,7 @@ CORD c_codegen_funcall(sexp expr,CORD code){
 #define setArg()                                        \
   args->args[j++].val=XCAR(arglist);      \
   arglist=XCDR(arglist)
-static function_args* getFunctionArgs(sexp arglist,function_args* args){
+static function_args* C_getFunctionArgs(sexp arglist,function_args* args){
   /*  if(args.tag != _funargs){
     handle_error();
     }*/

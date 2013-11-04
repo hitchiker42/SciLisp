@@ -235,7 +235,7 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
       return error_sexp                                                 \
         ("bigint arithmatic funcitons require numeric arguments");      \
     }                                                                   \
-    if(!(BIGINTP(obj1)) && (BIGNUMP(obj2))){                            \
+    if(!(BIGINTP(obj1)) && (BIGINTP(obj2))){                            \
       sexp temp_obj = obj1;                                             \
       obj1=obj2;                                                        \
       obj2=temp_obj;                                                    \

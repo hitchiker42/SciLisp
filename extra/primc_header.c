@@ -434,7 +434,9 @@ sexp lisp_system(sexp command,sexp args){
 sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   sexp(*f)(sexp,sexp);
   sexp retval;
-  if(!(NUMBERP(required))){}
+  if(!(NUMBERP(required))){
+    return error_sexp("arathmatic type error");
+  }
   switch(op){
     case _add:
       f=lisp_add;
@@ -491,7 +493,8 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
 }
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
-    return error_sexp("this shouldn't happen, rest arg to sum is not a list or nil");
+    return error_sexp("this shouldn't happen, "
+                      "rest arg to sum is not a list or nil");
   } else {
     switch (required.tag){
       case _double:{
@@ -573,11 +576,29 @@ sexp lisp_eql(sexp obj1,sexp obj2){
     return lisp_eq(obj1,obj2);
   }
 } 
-sexp lisp_apply(sexp fun,sexp args){
+sexp lisp_equal(sexp obj1,sexp obj2){
+  return lisp_eql(obj1,obj2);
+}
+sexp lisp_apply(sexp fun,sexp args,sexp environment){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");
+  } 
+  if(NILP(environment)){
+    environment=env_sexp(topLevelEnv);
   }
-  cons* arglist=alloca(fun.val.fun->args->max_args*sizeof(sexp));
+  if(!ENVP(environment)){
+    return error_sexp("last argument to apply should be an environment or nil");
+  }
+  if(!CONSP(args)){
+    cons* one_arg=alloca(sizeof(cons));
+    one_arg->car=args;
+    one_arg->cdr=NIL;
+    args=cons_sexp(one_arg);
+  }
+  cons *funcall_code=alloca(sizeof(cons));
+  funcall_code->car=fun;
+  funcall_code->cdr=XCAR(args);
+  return lisp_funcall(cons_sexp(funcall_code),environment.val.cur_env);
 }
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))

@@ -8,33 +8,38 @@
 #define mk_tag_name(tag,name) case tag: return #name
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){
+    mk_tag_name(_unbound,unbound);
     mk_tag_name(_error,error);
+    mk_tag_name(_false,#f);
     mk_tag_name(_uninterned,uninterned);
-    mk_tag_name(_list,list);
     mk_tag_name(_nil,nil);
     mk_tag_name(_cons,cons);
-    mk_tag_name(_double,double);
     mk_tag_name(_long,long);
+    mk_tag_name(_double,double);
+    mk_tag_name(_bigint,BigInt);
+    mk_tag_name(_bigfloat,BigFloat);
     mk_tag_name(_char,char);
     mk_tag_name(_str,string);
+    mk_tag_name(_array,array);
+    mk_tag_name(_stream,stream);
+    mk_tag_name(_list,list);
+    mk_tag_name(_dpair,dotted pair);
     mk_tag_name(_fun,function);
-    mk_tag_name(_lam,lambda);
     mk_tag_name(_sym,symbol);
     mk_tag_name(_special,special form);
     mk_tag_name(_macro,macro);
-    mk_tag_name(_array,array);
     mk_tag_name(_type,type);
-    mk_tag_name(_true,t);
+    mk_tag_name(_lam,lambda);
     mk_tag_name(_lenv,local environment);
-    mk_tag_name(_stream,stream);
-    mk_tag_name(_funargs,Function Args);
-    mk_tag_name(_bigint,BigInt);
-    mk_tag_name(_bigfloat,BigFloat);
     mk_tag_name(_keyword,Keyword Symbol);
-    mk_tag_name(_obarray,obarray);
-    
-    default:
-      return "forgot to do that one";
+    mk_tag_name(_funargs,Function Args);
+    mk_tag_name(_true,t);
+    mk_tag_name(_obarray,obarray);    
+    default:{
+      CORD retval;
+      CORD_sprintf(&retval,"don't know how to print tag number %d",obj_tag);
+      return CORD_to_char_star(retval);
+    }
   }
 }
 #undef mk_tag_name

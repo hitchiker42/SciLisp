@@ -12,8 +12,8 @@ static long lambda_counter=0;
 //static fuctions which are really just part of eval, but broken
 //up into seperate functions to modularise eval, and make it 
 //easier to write and understand, should be self explanitory
-static sexp call_builtin(sexp expr,env *cur_env);
-static sexp call_lambda(sexp expr,env *cur_env);
+sexp call_builtin(sexp expr,env *cur_env);
+sexp call_lambda(sexp expr,env *cur_env);
 static sexp eval_special(sexp expr,env *cur_env);
 static sexp eval_def(sexp expr,env *cur_env);
 static sexp eval_defun(sexp expr,env *cur_env);
@@ -397,7 +397,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
   }
   return args;
 }
-static inline sexp call_builtin(sexp expr,env *cur_env){
+sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   function_args *args=curFun.val.fun->args;
   args->args=alloca(sizeof(symbol)*args->max_args);
@@ -446,7 +446,7 @@ static inline sexp call_builtin(sexp expr,env *cur_env){
  ERROR:
   return handle_error();
 }
-static sexp call_lambda(sexp expr,env *cur_env){
+sexp call_lambda(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   lambda* curLambda=curFun.val.fun->lam;
   function_args *args=curFun.val.fun->args;
@@ -455,9 +455,10 @@ static sexp call_lambda(sexp expr,env *cur_env){
   //this is just a test, its rather inefficent
   //but it works, so it stays untill I find something else
   int i;
-  for(i=0;i<args->max_args;i++){
-    args->args[i].name=save_defaults[i].name;
-  }
+  memcpy(args->args,save_defaults,(sizeof(symbol)*args->max_args));
+         //  for(i=0;i<args->max_args;i++){
+         //    args->args[i].name=save_defaults[i].name;
+         //  }
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
     handle_error();
@@ -468,7 +469,7 @@ static sexp call_lambda(sexp expr,env *cur_env){
   args->args=save_defaults;
   return retval;
 }
-sexp eval_lambda(sexp expr,env *cur_env){
+static sexp eval_lambda(sexp expr,env *cur_env){
   //(lambda (arglist) (body))
   sexp body;
   function_args *args=cadr(expr).val.funargs;
@@ -485,4 +486,16 @@ sexp eval_lambda(sexp expr,env *cur_env){
   *retval=(function){.args=args,.lname=lambdaName,.cname=lambdaName,
                      .lam=newLambda,.type=_lambda_fun};
   return (sexp){.tag=_fun,.val={.fun=retval}};
+}
+sexp lisp_funcall(sexp fun,env *cur_env){
+  if(!FUNCTIONP(fun)){
+    return error_sexp("argument to funcall not a function");
+  } 
+  if(FUNP(fun)){
+    return call_builtin(fun,cur_env);
+  } else if (LAMBDAP(fun)){
+    return call_lambda(fun,cur_env);
+  } else {
+    return error_sexp("funcall unknown function type");
+  }
 }

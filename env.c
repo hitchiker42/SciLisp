@@ -22,7 +22,7 @@ symref getSym(env *cur_env,CORD name){
     case _obEnv:
       return (symref)getObarraySym((obarray_env*)cur_env,name);
     default:
-      fprintf(stderr,"shouldn't get here");
+      fprintf(stderr,"shouldn't get here, undefined environment");
       exit(1);
   }
 }
