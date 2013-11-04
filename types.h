@@ -200,7 +200,7 @@ struct sexp{//128 bits/16 bytes
   int quoted :1;
   int setfable :1;
   int packing :6;
-  unsigned short len;//length of a list, array or string
+  uint16_t len;//length of a list, array or string
   data val;
 };
 struct cons{//32 bytes
@@ -264,10 +264,10 @@ union funcall{
 //two loop variables, one for the index in args and one for
 //the index in num_req/opt/keyword_args
 struct function_args{
-  short num_req_args;//0-num_req_args are required
-  short num_opt_args;//num_req_args-num_req_args+num_opt_args
-  short num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
-  short has_rest_arg;//0 or 1(only one keyword allowed
+  uint16_t num_req_args;//0-num_req_args are required
+  uint16_t num_opt_args;//num_req_args-num_req_args+num_opt_args
+  uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
+  uint16_t has_rest_arg;//0 or 1(only one keyword allowed
   symbol* args;
   int max_args;//number of args in c/llvm must be max_args
 };

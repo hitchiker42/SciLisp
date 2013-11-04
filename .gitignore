@@ -15,3 +15,21 @@
 *.exe
 *.out
 *.app
+
+# Temp Files
+temp.*
+temp
+
+# Generated Documentation
+doc/*
+!doc/*.texi
+
+# Generated Files (that should be regenerated when recompiled)
+prim.ll
+prim.bc
+
+# Specific Generated Binaries
+SciLisp
+fnv_hash
+llvm-test
+write_prims
