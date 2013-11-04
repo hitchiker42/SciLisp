@@ -232,9 +232,10 @@ int main(int argc,char* argv[]){
         //PRINT_FMT("optarg[0] = %c",optarg[0]);
         FILE* file;
         if(optarg[0]=='('){
-          file=tmpfile();
-          CORD_fprintf(file,optarg);
-          fflush(file);
+          //file=tmpfile();
+          //CORD_fprintf(file,optarg);
+          //fflush(file);
+          file=fmemopen(optarg,strlen(optarg),"r");
           //lispRead(CORD_from_char_star(optarg));
         } else {
           file=fopen(optarg,"r");
