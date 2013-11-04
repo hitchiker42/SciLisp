@@ -27,11 +27,12 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_true,t);
     mk_tag_name(_lenv,local environment);
     mk_tag_name(_stream,stream);
-    mk_tag_name(_funarg,Function Args);
+    mk_tag_name(_funargs,Function Args);
     mk_tag_name(_bigint,BigInt);
     mk_tag_name(_bigfloat,BigFloat);
     mk_tag_name(_keyword,Keyword Symbol);
     mk_tag_name(_obarray,obarray);
+    
     default:
       return "forgot to do that one";
   }
@@ -124,7 +125,6 @@ inline CORD print_num(sexp obj){
   return print_num_format(obj,0);
 }
 CORD print(sexp obj){
-  //PRINT_FMT("princ for a %s object",tag_name(obj.tag));
   CORD retval,acc;
   switch (obj.tag){
     HERE();
@@ -160,7 +160,6 @@ CORD print(sexp obj){
         acc=CORD_cat(acc,")");
         retval=acc;
       }
-      PRINT_MSG(retval);
       return CORD_balance(retval);
     case _uninterned:
       switch(obj.val.meta){
@@ -191,6 +190,14 @@ CORD print(sexp obj){
       acc="(";
       function_args* args=obj.val.funarg;
       int i=0,j=0;
+      if(args->num_req_args){
+        for(i=0;i<args->num_req_args;i++){
+          acc=CORD_cat(acc,args->args[j++].name);
+          if(j != args->max_args){
+            acc=CORD_cat(acc," ");
+          }
+        }
+      }
 #define funarg_print_loop(argtype,optional_str)             \
       if(args->num_##argtype##_args){                       \
         acc=CORD_cat(acc,optional_str);                     \
@@ -201,7 +208,6 @@ CORD print(sexp obj){
           }                                                 \
         }                                                   \
       }
-      funarg_print_loop(req,"");//not sure if the 0 will work
       funarg_print_loop(opt,"&optional");
       funarg_print_loop(keyword,"&key");
       if(args->has_rest_arg){

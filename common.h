@@ -56,6 +56,11 @@
 #define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
 #define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
 #define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val}}
+#define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val}}
+#define format_error_sexp(format,args...)               \
+  format_error_str(format,args),                     \
+  error_sexp(CORD_to_char_star(error_str))
+
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")

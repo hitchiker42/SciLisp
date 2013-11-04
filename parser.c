@@ -81,17 +81,15 @@ sexp parse_cons(){
   if (yytag == TOK_SPECIAL){
     result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
   } else if(yytag==TOK_ID){
-    //    PRINT_FMT("found id %s",yylval->val.cord);
-    tmpsym = (symref)getGlobalSym(yylval->val.cord);
-    if(tmpsym){
-      //PRINT_FMT("Found prim %s",tmpsym->name);
-      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
-    } else {
+    //    tmpsym = (symref)getGlobalSym(yylval->val.cord);
+    //    if(tmpsym){
+    //      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
+    //    } else {
     tmpsym=xmalloc(sizeof(symbol));
-    tmpsym->name=yylval->val.string;
+    tmpsym->name=yylval->val.cord;
     tmpsym->val=UNBOUND;
     result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
-    }
+    //    }
   } else if(yytag==TOK_LAMBDA){//defun returns a TOK_LAMBDA as well
     sexp retval;
     retval.val.cons=xmalloc(sizeof(cons));
@@ -124,7 +122,6 @@ sexp parse_cons(){
     temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
     //this, which becomes temp->car=parse_funcion_args();
     temp->car=parse_function_args();
-    //    PRINT_MSG(tag_name(temp->car.tag));
     temp->cdr.val.cons=xmalloc(sizeof(cons));
     temp=temp->cdr.val.cons;
     temp->cdr=NIL;
@@ -149,7 +146,6 @@ sexp parse_cons(){
   sexp temp;
   cons* old_pos=result.val.cons;
   while((nextTok())!=TOK_RPAREN){
-    //PRINT_FMT("%d",yytag);
     if(yytag == TOK_LPAREN){
       cons_pos->car=parse_cons();
     } else {
@@ -202,15 +198,15 @@ sexp parse_atom(){
         return *yylval;//return anything else unevaluated
       }
     case TOK_ID:
-      tmpsym=(symref)getGlobalSym(yylval->val.string);
-      if(tmpsym){
-        return (sexp){.tag=_sym,.val={.var = tmpsym}};
-      } else {
+      //      tmpsym=(symref)getGlobalSym(yylval->val.string);
+      //      if(tmpsym){
+      //        return (sexp){.tag=_sym,.val={.var = tmpsym}};
+      //      } else {
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
         tmpsym->val=UNBOUND;
         return (sexp){.tag=_sym,.val={.var = tmpsym}};
-      }
+        //      }
       /*parse arrays
         TODO: add per element checks(as of now I only check the first)
         TODO: allow expressions in arrays (eval them to a # before use)
@@ -282,6 +278,9 @@ sexp parse_sexp(){
   if(yytag == TOK_QUOTE){
     nextTok();
     sexp retval = parse_sexp();
+    if(SYMBOLP(retval)){
+      retval.val.var->val.quoted=1;
+    }
     retval.quoted=1;
     return retval;
   } else if (yytag == TOK_QUASI){
@@ -326,7 +325,6 @@ static inline sexp parse_list(){
     cur_loc=cur_loc->cdr.val.cons;
   }
   if(yytag == TOK_DOT){
-    HERE();
     nextTok();
     //some kind of error handling needs to go here
     prev_loc->cdr=parse_sexp();
@@ -343,11 +341,12 @@ static inline sexp parse_function_args(){
   //just an inital guess, should be more than enough in most cases
   //at the moment I haven't actually put in checking for more that
   //8 args
+  //I need this to store the argument names
   symbol* args=xmalloc(16*sizeof(symbol));
-  *retval.val.funarg=(function_args)
+  *retval.val.funargs=(function_args)
     {.num_req_args=0,.num_opt_args=0,.num_keyword_args=0,
      .has_rest_arg=0,.args=args,.max_args=0};
-  retval.tag=_funarg;
+  retval.tag=_funargs;
   while(nextTok() != TOK_RPAREN){
     if(yytag != TOK_ID){
     TYPE_ERROR:format_error_str("function arguments must be identifiers");
@@ -361,21 +360,24 @@ static inline sexp parse_function_args(){
             case TOK_LPAREN:
               nextTok();
               if(yytag != TOK_ID){goto TYPE_ERROR;}
-              LAST_ARG(retval.val.funarg).name=yylval->val.cord;
+              LAST_ARG(retval.val.funargs).name=yylval->val.cord;
+              LAST_ARG(retval.val.funargs).val=UNBOUND;
               if(nextTok() != TOK_RPAREN){
                 //default arg must be an atom
-                LAST_ARG(retval.val.funarg).val=parse_atom();
-                ADD_OPT_ARG(retval.val.funarg);
+                LAST_ARG(retval.val.funargs).val=parse_atom();
+                ADD_OPT_ARG(retval.val.funargs);
                 if(nextTok() != TOK_RPAREN){
                   format_error_str
                     ("excess arguments in optional argument's default value");
                   handle_error();
                 }
               }
+              break;
             case TOK_ID:
-              LAST_ARG(retval.val.funarg).name=yylval->val.cord;
-              LAST_ARG(retval.val.funarg).val=NIL;
-              ADD_OPT_ARG(retval.val.funarg);
+              LAST_ARG(retval.val.funargs).name=yylval->val.cord;
+              LAST_ARG(retval.val.funargs).val=NIL;
+              ADD_OPT_ARG(retval.val.funargs);
+              break;
             default:
               format_error_str
                 ("optional argument must be id or cons of id and default val");
@@ -404,45 +406,21 @@ static inline sexp parse_function_args(){
          !CORD_cmp(yylval->val.cord,"&body")){
       REST_PARAM:
         if(nextTok() != TOK_ID){goto TYPE_ERROR;}
-        LAST_ARG(retval.val.funarg).name=yylval->val.cord;
-        LAST_ARG(retval.val.funarg).val=NIL;
-        ADD_REST_ARG(retval.val.funarg);
+        LAST_ARG(retval.val.funargs).name=yylval->val.cord;
+        LAST_ARG(retval.val.funargs).val=UNBOUND;
+        ADD_REST_ARG(retval.val.funargs);
         nextTok();
       }
       break;
     } else {
-      LAST_ARG(retval.val.funarg).name=yylval->val.cord;
-      LAST_ARG(retval.val.funarg).val=UNBOUND;
-      ADD_REQ_ARG(retval.val.funarg);
+      LAST_ARG(retval.val.funargs).name=yylval->val.cord;
+      LAST_ARG(retval.val.funargs).val=UNBOUND;
+      ADD_REQ_ARG(retval.val.funargs);
     }
   }
   if(yytag != TOK_RPAREN){
     format_error_str("malformed argument list");
     handle_error();
   }
-
-  return retval;
-}
-static inline sexp parse_arg_list(){
-  sexp retval;
-  int i=0;
-  retval.tag=_lenv;
-  local_symref cur_sym=retval.val.lenv=xmalloc(sizeof(local_symbol));
-  local_symref prev_sym=cur_sym;
-  while(nextTok() != TOK_RPAREN){
-    //PRINT_FMT("yytag = %d",yytag);
-    if(yytag != TOK_ID){
-      format_error_str("function arguments must be identifiers");
-      handle_error();
-    }
-    cur_sym->name=yylval->val.cord;
-    cur_sym->val=UNBOUND;
-    cur_sym->next=xmalloc(sizeof(local_symbol));
-    prev_sym=cur_sym;
-    cur_sym=cur_sym->next;
-    i++;
-  };
-  prev_sym->next=0;
-  retval.len=i;
   return retval;
 }

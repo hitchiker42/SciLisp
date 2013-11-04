@@ -18,7 +18,6 @@ symref getSym(env *cur_env,CORD name){
     case _local:
       return (symref)getLocalSym((local_env*)cur_env,name);
     case _funArgs:
-      HERE();
       return (symref)getFunctionSym((function_env*)cur_env,name);
     case _obEnv:
       return (symref)getObarraySym((obarray_env*)cur_env,name);
@@ -223,7 +222,7 @@ symref getObarraySym(obarray_env* ob_env,CORD name){
   obarray_entry* entry;
   entry=obarray_get_entry(ob_env->head,name,0);
   if(entry){
-    PRINT_MSG(entry->ob_symbol->name);
+    //PRINT_MSG(entry->ob_symbol->name);
     return entry->ob_symbol;
   } else {
     return getSym(ob_env->enclosing,name);

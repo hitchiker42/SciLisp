@@ -121,7 +121,8 @@ enum _tag {
   _lam = 36,//type of lambda, value is lam
   _lenv = 37,//type of local environments,value is lenv
   _keyword = 38,
-  _funarg = 39,
+  _funarg = 39,//really need to add an s
+  _funargs=39,//but yay for c hacks, I bet yout couldn't do this in most languages
   _true = 40,//type of #t, singular value
   _obarray = 41,
 };
@@ -183,7 +184,8 @@ union data {//keep max size at 64 bits
   local_symref lenv;
   regex_t* regex;
   FILE* stream;
-  function_args* funarg;
+  function_args* funarg;//really need to add an s
+  function_args* funargs;
   //  function_new* fnew;
   mpz_t *bigint;
   mpfr_t *bigfloat;
@@ -246,11 +248,8 @@ union funcall{
   sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*fmany)(sexp,...);
 };
-/*#define FMAX_ARGS(fxn) fxn.val.fun->max_args
-  #define FMIN_ARGS(fxn) fxn.val.fun->min_args*/
 #define FCNAME(fxn) fxn.val.fun->cname
 #define FLNAME(fxn) fxn.val.fun->lname
-/*#define F_CALL(fxn) fxn.val.fun->fxn_call*/
 //this is a better way of doing this
 //but needs work
 #define LAST_ARG(funarg) funarg->args[funarg->max_args]
@@ -258,7 +257,7 @@ union funcall{
 #define ADD_OPT_ARG(funarg) funarg->num_opt_args++;funarg->max_args++
 #define ADD_KEYWORD_ARG(funarg) funarg->num_keyword_args++;funarg->max_args++
 #define ADD_REST_ARG(funarg) funarg->has_rest_arg++;funarg->max_args++
-//the one issus with this structure is looping throgh it requires
+//the one issue with this structure is looping throgh it requires
 //two loop variables, one for the index in args and one for
 //the index in num_req/opt/keyword_args
 struct function_args{
@@ -284,11 +283,6 @@ struct function{//36 bytes
     _compiled_fun,
   } type;
 };
-/*struct lambda{
-  local_env *env;
-  short minargs,maxargs;
-  sexp body;
-  };*/
 struct lambda{
   env *env;//for closures
   sexp body;

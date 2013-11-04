@@ -78,7 +78,7 @@ sexp nappend(sexp conses){
 
 sexp reduce(sexp ls,sexp reduce_fn){
   if(!CONSP(ls) || !FUNP(reduce_fn)){
-    //error;
+    return error_sexp("reduce type error");
   }
   HERE();
   sexp result=XCAR(ls);

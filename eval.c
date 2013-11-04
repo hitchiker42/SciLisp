@@ -36,7 +36,13 @@ static sexp handle_error(void){
 //evaluate the lisp expression expr in the environment cur_env
 sexp eval(sexp expr,env *cur_env){
   symref tempsym=0;
-  if(expr.quoted){expr.quoted=0;return expr;}
+  if(expr.quoted){
+    if(SYMBOLP(expr)){
+      expr.val.var->val.quoted=0;
+    }
+    expr.quoted=0;
+    return expr;
+  }
   switch(expr.tag){
     //a cons cell must be a function call or a special form
     case _cons:
@@ -47,35 +53,38 @@ sexp eval(sexp expr,env *cur_env){
           return handle_error();
         }
         sexp curFun=funSym->val;
+        XCAR(expr).val.var=funSym;
         if(LAMBDAP(curFun)){
           return call_lambda(expr,cur_env);
-        }
-        if(!FUNP(curFun)){          
+        } else if (FUNP(curFun)){
+          return call_builtin(expr,cur_env);
+        } else {
           CORD_fprintf(stderr,"tag = %s, name = %s\n",typeName(curFun),
                        XCAR(expr).val.var->name);
           CORD_sprintf(&error_str,"%r is not a function or special form",
                        print(curFun));
           goto ERROR;
-        } else {
-          return call_builtin(expr,cur_env);
         }
       } else if(SPECP(car(expr))){        
         return eval_special(expr,cur_env);
       } else {
         format_error_str("car of unquoted list is not a function or special form"
-                         "\ncar is %s",print(car(expr)));
-        
+                         "\ncar is %s",print(car(expr)));        
         goto ERROR;
       }
     case _sym:
-      tempsym = getSym(cur_env,expr.val.var->name);
-      PRINT_MSG(expr.val.var->name);
-      if(tempsym){         
-        return eval(tempsym->val,cur_env);
+      if(expr.val.var->val.quoted){
+        expr.val.var->val.quoted=0;
+        return expr;
       } else {
-      UNDEF_ERROR:
-        CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
-        goto ERROR;
+        tempsym = getSym(cur_env,expr.val.var->name);
+        if(tempsym){
+          return eval(tempsym->val,cur_env);
+        } else {
+        UNDEF_ERROR:
+          CORD_sprintf(&error_str,"undefined variable %r used",expr.val.var->name);
+          goto ERROR;
+        }
       }
     case _fun:
       return expr;
@@ -137,92 +146,6 @@ static inline sexp eval_special(sexp expr,env *cur_env){
  error:
   return handle_error();
 }
-
-/*static sexp* get_args(sexp arglist,function fun,env *cur_env){
-  //arglist is (sexp . (sexp . (sexp ....()...)))
-  int minargs=fun.min_args;int maxargs=fun.max_args;
-  int i=0;
-  sexp *args;
-  if(maxargs < 0){//varargs function    
-    args=xmalloc(sizeof(sexp)*(minargs+1));
-    while(i<minargs && CONSP(arglist)){
-      args[i++]=eval(XCAR(arglist),cur_env);
-      arglist=XCDR(arglist);
-    }
-    args[i]=arglist;
-    return args;
-  }
-  args=xmalloc(sizeof(maxargs));
-  //fill in args
-  while(CONSP(arglist) && (i < maxargs)){
-    args[i++]=eval(XCAR(arglist),cur_env);
-    arglist=XCDR(arglist);
-  }
-  //check to make sure all required arguments are filled
-  if (i < minargs){
-    format_error_str("Too few arguments given to %s, minimum %d args",
-                     function_name(fun),minargs);
-    handle_error();
-    return 0;
-  }
-  //fill in any unfilled optional arguments
-  while(i<maxargs){
-    args[i++]=NIL;
-  }
-  return args;
-}
-static inline sexp call_builtin(sexp expr,env *cur_env){
-  sexp curFun=car(expr).val.var->val;
-  //PRINT_MSG(print(expr));
-  int i;
-  sexp cur_arg,*args;
-  long numargs;
-  if(FMAX_ARGS(curFun)< 0){
-    numargs=FMIN_ARGS(curFun) + 1;
-  } else {
-    numargs=FMAX_ARGS(curFun);
-  }
-  switch (numargs){
-    case 0:
-      if(!NILP(XCDR(expr))){
-        CORD_sprintf(&error_str,"Arguments given to %r which takes no arguments",
-                     FLNAME(curFun));
-        PRINT_MSG(print(expr));
-        return handle_error();
-      } else {
-        return F_CALL(curFun).f0();
-      }
-    case 1:
-      if(!NILP(cdr(expr)) && !NILP(cddr(expr))){
-        CORD_sprintf(&error_str,"Excess Arguments given to %r",
-                     FLNAME(curFun));
-        PRINT_MSG(print(expr));
-        return handle_error();
-      } else {
-        return F_CALL(curFun).f1((eval(cadr(expr),cur_env)));
-      }
-      //these next 3 become
-      //                                  maybe?
-      //args=get_args(cdr(expr),curFun.val.fun.args,cur_env)->args;
-    case 2:
-      args=get_args(cdr(expr),prim_to_fun(curFun.val.fun),cur_env);
-      if(!args){goto ERROR;}
-      sexp retval=F_CALL(curFun).f2(args[0],args[1]);
-      return retval;
-    case 3:
-      args=get_args(cdr(expr),prim_to_fun(curFun.val.fun),cur_env);
-      if(!args){goto ERROR;}
-      return F_CALL(curFun).f3(args[0],args[1],args[2]);
-    case 4:    
-      args=get_args(cdr(expr),prim_to_fun(curFun.val.fun),cur_env);
-      if(!args){goto ERROR;}
-      return F_CALL(curFun).f4(args[0],args[1],args[2],args[3]);
-    default:
-      goto ERROR;
-  }
- ERROR:
-  return handle_error();
-  }*/
 static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval;
@@ -242,25 +165,9 @@ static inline sexp eval_prog1(sexp expr, env *cur_env){
   }
   return retval;
 }
-/*sexp eval_lambda(sexp expr,env *cur_env){
-  //for now assume expr is a sexp of the form
-  //(lambda (args ...) (body ...))
-  sexp args,body;
-  //  PRINT_MSG(print(cdr(expr)));
-  //PRINT_MSG(tag_name(cadr(expr).tag));
-  local_env *closure=xmalloc(sizeof(local_env));
-  *closure=(local_env){.enclosing = cur_env,.head=cadr(expr).val.lenv};
-  int numargs=cadr(expr).len;
-  body=caddr(expr);
-  lambda *retval=xmalloc(sizeof(lambda));
-  retval->env=closure;
-  retval->minargs=retval->maxargs=numargs;//need to fix to allow optional args
-  retval->body=body;
-  return (sexp){.tag=_lam,.val={.lam = retval}};
-}*/
 static inline sexp eval_def(sexp expr,env *cur_env){
   //should i go with the lisp standard of define only assigning
-  //to a value once or not?
+  //to a value once or not?, for now, yes.
   symref newSym;
   PRINT_FMT("%s",typeName(cadr(expr)));  
   newSym=getSym(cur_env,cadr(expr).val.var->name);
@@ -270,9 +177,9 @@ static inline sexp eval_def(sexp expr,env *cur_env){
     newSym->name=(cadr(expr).val.var->name);
     newSym->val=symVal;
     addSym(cur_env,newSym);
-  } else {
-    newSym->val=symVal;
-  }
+  } //else {
+  //    newSym->val=symVal;
+  //  }
   return (sexp){.tag = _sym,.val={.var = newSym}};
 }
 static inline sexp eval_defun(sexp expr,env *cur_env){
@@ -287,7 +194,7 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
   lambda *new_lam=xmalloc(sizeof(lambda));
   new_lam->body=XCADDR(expr);
   new_lam->env=cur_env;
-  new_fun->args=XCADR(expr).val.funarg;
+  new_fun->args=XCADR(expr).val.funargs;
   new_fun->lname=fun_sym.val.var->name;
   new_fun->type=_lambda_fun;
   new_fun->lam=new_lam;
@@ -334,41 +241,6 @@ static inline sexp eval_while(sexp expr,env *cur_env){
   }
   return retval;
 }
-/*static inline sexp call_lambda(sexp expr,env *cur_env){
-  lambda *cur_fun = XCAR(expr).val.var->val.val.lam;
-  assert(cur_fun !=0);
-  int i=0;
-  long maxargs=cur_fun->maxargs;//maybe short?
-  long minargs=cur_fun->minargs;//""        ""
-  sexp args=cdr(expr);
-  local_symref cur_param=cur_fun->env->head;
-  assert(cur_param != 0);
-  assert(cur_param == cur_fun->env->head);
-  //PRINT_FMT("cur_param = %#0x",cur_param);
-  while((i<minargs || CONSP(args)) && cur_param != 0){
-    if(!CONSP(args)){
-      format_error_str("not enough arguments passed to function");
-      return handle_error();
-    }
-    //PRINT_MSG(print(args));
-    cur_param->val=NIL;
-    cur_param->val=eval(XCAR(args),cur_env);//set curent formal parameter
-    i++;
-    cur_param=cur_param->next;
-    args=XCDR(args);//update values
-  }
-  cur_param=cur_fun->env->head;
-  env parameters={.enclosing=cur_fun->env->enclosing,
-               .head={.local=cur_param},.tag=_local};
-  sexp retval=eval(cur_fun->body,&parameters);
-  //PRINT_MSG(print(retval));
-  //clear parameters(I think this is necessary)
-  while(cur_param!=0){
-    cur_param->val=NIL;
-    cur_param=cur_param->next;
-  }
-  return retval;
-  }*/
 static inline sexp eval_let(sexp expr,env *cur_env){
   /*syntax (let ((var def)+)(body ...))*/
   sexp vars=XCDR(expr);
@@ -578,22 +450,31 @@ static sexp call_lambda(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   lambda* curLambda=curFun.val.fun->lam;
   function_args *args=curFun.val.fun->args;
-  //  args->args=alloca(sizeof(symbol)*args->max_args);
+  symbol *save_defaults=args->args;
+  args->args=alloca(sizeof(symbol)*args->max_args);
+  //this is just a test, its rather inefficent
+  //but it works, so it stays untill I find something else
+  int i;
+  for(i=0;i<args->max_args;i++){
+    args->args[i].name=save_defaults[i].name;
+  }
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
     handle_error();
   }
-  env lambda_env=(env){.enclosing = curLambda->env,.head={.function=args},
+  env lambda_env=(env){.enclosing=curLambda->env,.head={.function=args},
                        .tag=_funArgs};
-  return eval(curLambda->body,&lambda_env);
+  sexp retval = eval(curLambda->body,&lambda_env);
+  args->args=save_defaults;
+  return retval;
 }
 sexp eval_lambda(sexp expr,env *cur_env){
   //(lambda (arglist) (body))
   sexp body;
-  function_args *args=cadr(expr).val.funarg;
+  function_args *args=cadr(expr).val.funargs;
   CORD lambdaName;
   CORD_sprintf(&lambdaName,"#<lambda%06d>",lambda_counter++);
-  PRINT_MSG(lambdaName);
+  //  PRINT_MSG(lambdaName);
   body=caddr(expr);
   function *retval=xmalloc(sizeof(function));
   lambda *newLambda=xmalloc(sizeof(lambda));

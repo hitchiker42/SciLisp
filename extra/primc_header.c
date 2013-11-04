@@ -257,7 +257,15 @@ void hello_world(){
 }
 sexp lisp_inc(sexp num){
   if(!NUMBERP(num)){
-    return error_sexp("cannot increment something that is not a number");
+    if(SYMBOLP(num)){
+      sexp retval=lisp_inc(num.val.var->val);
+      if(!ERRORP(retval)){
+        num.val.var->val=retval;
+        return retval;
+      }
+    }
+    return format_error_sexp("cannot increment a(n) %s",tag_name(num.tag));
+    //    return error_sexp("cannot increment something that is not a number");
   } else switch(num.tag){
       case _long:
         return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
@@ -269,7 +277,14 @@ sexp lisp_inc(sexp num){
 }
 sexp lisp_dec(sexp num){
   if(!NUMBERP(num)){
-    return error_sexp("cannot increment something that is not a number");
+    if(SYMBOLP(num)){
+      sexp retval=lisp_inc(num.val.var->val);
+      if(!ERRORP(retval)){
+        num.val.var->val=retval;
+        return retval;
+      }
+    }
+    return format_error_sexp("cannot decrement a(n) %s",tag_name(num.tag));
   } else switch(num.tag){
       case _long:
         num.val.int64-=1;

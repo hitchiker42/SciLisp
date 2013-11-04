@@ -158,7 +158,7 @@ CORD c_codegen_funcall(sexp expr,CORD code){
   function *cur_fun=XCAR(expr).val.fun;
   acc=CORD_cat(cur_fun->cname,"(");
   getFunctionArgs(XCADR(expr),cur_fun->args);
-  int i,maxargs=cur_fun->args->max_args-1;
+  int i,maxargs=cur_fun->args->max_args;
 
   return "";
 }

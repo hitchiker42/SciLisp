@@ -102,6 +102,8 @@ def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
 defun {LEX_MSG("lexing defun");
   yylval->tag=_special;yylval->val.special=_defun;return TOK_LAMBDA;}
+defvar {LEX_MSG("lexing defvar");
+  yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
 setq {LEX_MSG("lexing setq");
   yylval->tag=_special;yylval->val.special=_setq;return TOK_SPECIAL;}
 datatype {LEX_MSG("lexing datatype");
