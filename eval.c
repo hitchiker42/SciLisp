@@ -499,3 +499,7 @@ sexp lisp_funcall(sexp fun,env *cur_env){
     return error_sexp("funcall unknown function type");
   }
 }
+sexp lisp_macroexpand(sexp cur_macro){
+  if(!MACROP(cur_macro)){
+    return error_sexp("cannot macroexpand something which is not a macro");
+  }

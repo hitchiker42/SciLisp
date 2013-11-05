@@ -85,6 +85,7 @@ typedef symbol keyword_symbol;
 #define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
                      obj.tag == _bigint || obj.tag == _bigfloat)
 #define ENVP(obj)(obj.tag == _env)
+#define MACROP(obj) (obj.tag == _macro)
 //key point to this enum is that arathmatic types are numbered in their type
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
