@@ -45,7 +45,6 @@ obarray *globalObarray;
 obarray_env *globalObarrayEnv;
 obarray *keywordObarray;
 obarray_env *keywordObarrayEnv;
-//basically env.h(move to seperate file?)
 local_symref getLocalSym(local_env *cur_env,CORD name);
 symref getGlobalSym(CORD name);
 sexp getKeySymSexp(CORD name);
@@ -53,6 +52,8 @@ symref getSym(env *cur_env,CORD name);
 symref addSym(env *cur_env,symref Var);
 symref addGlobalSym(symref Var);
 symref addLocalSym(env *cur_env,symref Var);
+//check if name refers to a function argument, return NULL if not
+long isFunctionArg(function_env *cur_env,CORD name);
 //type punning macros
 #define toSymbol(sym) (*(symbol*)&sym)
 #define toSymref(ref) (*(symref*)&(ref))

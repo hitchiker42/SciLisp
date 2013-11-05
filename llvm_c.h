@@ -8,6 +8,8 @@
 #include "common.h"
 #include "cons.h"
 #include "prim.h"
+#include "env.h"
+#include "bignum.h"
 //include fucking everything, because why not
 #include <llvm-c/Core.h>
 #include <llvm-c/BitReader.h>
@@ -50,7 +52,9 @@ LLVMValueRef LispNIL;
 LLVMValueRef LispTRUE;
 LLVMValueRef LispFALSE;
 LLVMTypeRef LispArgs[8];
+LLVMTypeRef LongArgs[16];
 LLVMTypeRef LispFxnTypes[9];
+LLVMTypeRef LongFxnTypes[9];
 LLVMExecutionEngineRef SL_Engine;//can be jit, mcjit, or an interpreter
 void initialize_llvm(int engine);//1=jit,2=mcjit,3=interpreter
 void dump_mod();//dump SL_Module to stderr

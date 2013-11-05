@@ -10,6 +10,7 @@
 #include "array.h"
 #include "print.h"
 #include "env.h"
+#include "lisp_math.h"
 #include <time.h>
 #define DEFUN_INTERN_OBARRAY(l_name,c_name)                             \
   symbol c_name ## _sym=                                                \
@@ -176,6 +177,13 @@ DEFUN(lisp_bignump,1);
 DEFUN(lisp_errorp,1);
 DEFUN(lisp_functionp,1);
 DEFUN(lisp_streamp,1);
+DEFUN(lisp_add_driver,2);
+DEFUN(lisp_sub_driver,2);
+DEFUN(lisp_mul_driver,2);
+DEFUN(lisp_div_driver,2);
+DEFUN(lisp_pow_driver,2);
+DEFUN(lisp_min_driver,2);
+DEFUN(lisp_max_driver,2);
 DEFUN(cdr,1);
 DEFUN(cddr,1);
 DEFUN(cdddr,1);

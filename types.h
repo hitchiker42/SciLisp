@@ -313,6 +313,7 @@ static struct option long_options[] = {
   {0,0,0,0}
 };
 //literal objects for each type
+//should probably generate these or something
 #define mkTypeSym(name,mval)                                    \
   static const sexp name = {.tag=_type, .val={.meta = mval}}
 mkTypeSym(Qerror,-4);
@@ -350,10 +351,6 @@ enum backend{
   llvm=1,
   as=2,
 };
-/*static function prim_to_fun(fxn_proto *prim){
-  return (function){.min_args=prim->min_args,
-      .max_args=prim->max_args,.fun={.prim = prim},0};
-v      }*/
 #define mkTypeCase(type,tag) case tag: return type  
 static sexp typeOf(sexp obj){
   switch (obj.tag){

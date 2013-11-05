@@ -163,7 +163,7 @@ mkMathFun1(sin,lisp_sin);
 mkMathFun1(tan,lisp_tan);
 mkMathFun1(exp,lisp_exp);
 mkMathFun1(log,lisp_log);
-sexp lisp_abs(sexp x){
+/*sexp lisp_abs(sexp x){
   if(x.tag==_long){return
       (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};
   } else if(x.tag == _double){
@@ -171,7 +171,7 @@ sexp lisp_abs(sexp x){
   } else {
     return error_sexp("Argument to Abs must be a number");
   }
-}
+  }*/
 sexp lisp_mod(sexp x,sexp y){
   if((x.tag==y.tag)==_long){
     return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};

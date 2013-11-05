@@ -10,6 +10,7 @@
 #include "array.h"
 #include "print.h"
 #include "env.h"
+#include "lisp_math.h"
 #include <time.h>
 #define DEFUN_INTERN_OBARRAY(l_name,c_name)                             \
   symbol c_name ## _sym=                                                \

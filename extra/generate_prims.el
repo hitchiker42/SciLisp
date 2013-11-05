@@ -29,6 +29,9 @@
 (defun mk-predicate (name)
   `((:lname . ,name) (:cname . ,(format "lisp_%s" name)) (:minargs . 1)
     (:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0)))
+(defun arith-driver-funs (name)
+  `((:lname . ,name) (:cname . ,(format "lisp_%s_driver" name)) (:minargs . 1)
+    (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 1)))
 ;;lists of primitives
 (define *cadrs*
 (let ((ls ()))
@@ -46,6 +49,7 @@
 (define mpfr-binops-list '("add" "sub" "mul" "div" "pow"
                            "gt" "eq" "lt" "ge" "le" "ne"))
 (define mpfr-unops-list '("log" "exp" "cos" "sin" "tan"))
+(define arith-driver-funs-list '("add" "sub" "mul" "div" "pow" "min" "max"))
 (define basic-prims-list
   '(("+" "lisp_add" 2) ("-" "lisp_sub" 2) ("*" "lisp_mul" 2) ("/" "lisp_div" 2)
     ("<" "lisp_lt" 2) (">" "lisp_gt" 2) (">=" "lisp_gte" 2) ("<=" "lisp_lte" 2)
@@ -132,6 +136,7 @@
   (mpz-binops mpz-binops-list)
   (mpfr-binops mpfr-binops-list)
   (collect #'mk-predicate predicates)
+  (collect #'arith-driver-funs arith-driver-funs-list)
   (collect  (lambda (x) (apply #'mkPrimBasic x)) *cadrs*)))
 (require 'cl)
 (delete-duplicates SciLisp-prims :test #'equal)
@@ -249,3 +254,4 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 ;; auto-async-byte-compile-display-function: (lambda (&rest args) nil)
 ;; End:
  
+(generate-SciLisp-prims)

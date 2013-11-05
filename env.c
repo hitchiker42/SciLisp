@@ -83,6 +83,16 @@ symref getFunctionSym(function_env* cur_env,CORD name){
   }
   return getSym(cur_env->enclosing,name);
 }
+long isFunctionArg(function_env *cur_env,CORD name){
+  function_args* args=cur_env->head;
+  int i;
+  for(i=0;i<args->max_args;i++){
+    if(!CORD_cmp(name,args->args[i].name)){
+      return i;
+    }
+  }
+  return -1;
+}
 sexp getKeySymSexp(CORD name){
   obarray_entry* key_entry=obarray_get_entry(keywordObarray,name,0);
   keyword_symref keysym;

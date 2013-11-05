@@ -163,7 +163,7 @@ mkMathFun1(sin,lisp_sin);
 mkMathFun1(tan,lisp_tan);
 mkMathFun1(exp,lisp_exp);
 mkMathFun1(log,lisp_log);
-sexp lisp_abs(sexp x){
+/*sexp lisp_abs(sexp x){
   if(x.tag==_long){return
       (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};
   } else if(x.tag == _double){
@@ -171,7 +171,7 @@ sexp lisp_abs(sexp x){
   } else {
     return error_sexp("Argument to Abs must be a number");
   }
-}
+  }*/
 sexp lisp_mod(sexp x,sexp y){
   if((x.tag==y.tag)==_long){
     return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};
@@ -741,6 +741,13 @@ DEFUN("bignump",lisp_bignump,1,0,0,0,1);
 DEFUN("errorp",lisp_errorp,1,0,0,0,1);
 DEFUN("functionp",lisp_functionp,1,0,0,0,1);
 DEFUN("streamp",lisp_streamp,1,0,0,0,1);
+DEFUN("add",lisp_add_driver,1,0,0,1,2);
+DEFUN("sub",lisp_sub_driver,1,0,0,1,2);
+DEFUN("mul",lisp_mul_driver,1,0,0,1,2);
+DEFUN("div",lisp_div_driver,1,0,0,1,2);
+DEFUN("pow",lisp_pow_driver,1,0,0,1,2);
+DEFUN("min",lisp_min_driver,1,0,0,1,2);
+DEFUN("max",lisp_max_driver,1,0,0,1,2);
 DEFUN("cdr",cdr,1,0,0,0,1);
 DEFUN("cddr",cddr,1,0,0,0,1);
 DEFUN("cdddr",cdddr,1,0,0,0,1);
@@ -877,6 +884,13 @@ MAKE_SYMBOL("bignump",lisp_bignump,0x5675ae7650a07788 );
 MAKE_SYMBOL("errorp",lisp_errorp,0xe2d56335abc40230 );
 MAKE_SYMBOL("functionp",lisp_functionp,0xcfa48bf2151e142e );
 MAKE_SYMBOL("streamp",lisp_streamp,0x83fb04c416f51082 );
+MAKE_SYMBOL("add",lisp_add_driver,0xe5ea91f91fee8a30 );
+MAKE_SYMBOL("sub",lisp_sub_driver,0x8af1354347afa423 );
+MAKE_SYMBOL("mul",lisp_mul_driver,0x944bcddd9417d667 );
+MAKE_SYMBOL("div",lisp_div_driver,0xaed57600bbae1764 );
+MAKE_SYMBOL("pow",lisp_pow_driver,0x4b85ff031bae29c7 );
+MAKE_SYMBOL("min",lisp_min_driver,0xfcdada16e882e66d );
+MAKE_SYMBOL("max",lisp_max_driver,0x2afc6e3c3a7272cf );
 MAKE_SYMBOL("cdr",cdr,0xf5ecf3190cecd5b0 );
 MAKE_SYMBOL("cddr",cddr,0xce54d590f6525240 );
 MAKE_SYMBOL("cdddr",cdddr,0xecc417528e219670 );
@@ -1059,6 +1073,13 @@ INIT_SYMBOL(lisp_bignump);
 INIT_SYMBOL(lisp_errorp);
 INIT_SYMBOL(lisp_functionp);
 INIT_SYMBOL(lisp_streamp);
+INIT_SYMBOL(lisp_add_driver);
+INIT_SYMBOL(lisp_sub_driver);
+INIT_SYMBOL(lisp_mul_driver);
+INIT_SYMBOL(lisp_div_driver);
+INIT_SYMBOL(lisp_pow_driver);
+INIT_SYMBOL(lisp_min_driver);
+INIT_SYMBOL(lisp_max_driver);
 INIT_SYMBOL(cdr);
 INIT_SYMBOL(cddr);
 INIT_SYMBOL(cdddr);

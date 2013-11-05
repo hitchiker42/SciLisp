@@ -58,6 +58,10 @@ sexp lisp_bigfloat_lt(sexp obj1,sexp obj2);
 sexp lisp_bigfloat_ne(sexp obj1,sexp obj2);
 sexp lisp_bigfloat_ge(sexp obj1,sexp obj2);
 sexp lisp_bigfloat_le(sexp obj1,sexp obj2);
+sexp lisp_bigfloat_neg(sexp obj);
+sexp lisp_bigint_neg(sexp obj);
+sexp lisp_bigfloat_abs(sexp obj);
+sexp lisp_bigint_abs(sexp obj);
 /*
 sexp lisp_gmp_add(sexp obj1,sexp obj2);
 sexp lisp_gmp_sub(sexp obj1,sexp obj2);

@@ -9,10 +9,10 @@ LLVMValueRef GenerateSumFunction(){
   LLVMValueRef rparams[4];
   LLVMValueRef sum_arg=LLVMGetParam(sum,0);
   HERE();
-  LLVMValueRef add_temp=LLVMGetNamedGlobal(SL_Module,"lisp_addcall");
+  LLVMValueRef add_temp=LLVMGetNamedGlobal(SL_Module,"lisp_add_call");
   void* add_fn=LLVMGetPointerToGlobal(SL_Engine,add_temp);
-  sexp lisp_add_sexp=(sexp){.tag=_fun,.val={.fun=(fxn_ptr)add_fn}};
-  long* long_add_sexp=(long*)&lisp_add_sexp;
+  sexp lisp_add_sexp=function_sexp(&lisp_add_call);
+  long* long_add_sexp=(long*)lisp_add_sexp.val.fun->comp.f0;
   if(!add_temp){exit(1);}
   HERE();
   rparams[0]=LLVMBuildExtractValue(SL_Builder,sum_arg,0,"");
@@ -33,11 +33,13 @@ LLVMValueRef GenerateSumFunction(){
 }
 LLVMValueRef GenerateFMAFunction(){
   //(fma a b c) = (+ a (* b c))
-  LLVMValueRef fma = LLVMAddFunction(SL_Module,"fma",LispFxnTypes[3]);
+  LLVMValueRef fma = LLVMAddFunction(SL_Module,"fma",LongFxnTypes[3]);
   LLVMBasicBlockRef entry_block=LLVMAppendBasicBlock(fma,"");
+  LLVMValueRef *params=xmalloc(sizeof(LLVMValueRef)*LLVMCountParams(fma));
+  LLVMGetParams(fma,params);
   HERE();
   LLVMPositionBuilderAtEnd(SL_Builder,entry_block);
-  LLVMValueRef args[3]={
+  /*  LLVMValueRef args[3]={
     LLVMBuildBitCast(SL_Builder,LLVMGetParam(fma,0),LLVMSexp,""),
     LLVMBuildBitCast(SL_Builder,LLVMGetParam(fma,1),LLVMSexp,""),
     LLVMBuildBitCast(SL_Builder,LLVMGetParam(fma,2),LLVMSexp,"")};
@@ -46,14 +48,16 @@ LLVMValueRef GenerateFMAFunction(){
     LLVMBuildExtractValue(SL_Builder,args[0],0,""),
     LLVMBuildExtractValue(SL_Builder,args[0],1,""),
     LLVMBuildExtractValue(SL_Builder,args[1],0,""),
-    LLVMBuildExtractValue(SL_Builder,args[1],1,"")};
+    LLVMBuildExtractValue(SL_Builder,args[1],1,"")};*/
   HERE();
   LLVMValueRef mul_fn=LLVMGetNamedFunction(SL_Module,"lisp_mul");
-  LLVMValueRef mul_call=LLVMBuildCall(SL_Builder,mul_fn,mul_args,4,"");
+  LLVMValueRef mul_call=LLVMBuildCall(SL_Builder,mul_fn,params,4,"");
   HERE();
   LLVMValueRef add_args[4]={
-    LLVMBuildExtractValue(SL_Builder,args[2],0,""),
-    LLVMBuildExtractValue(SL_Builder,args[2],1,""),
+    //LLVMBuildExtractValue(SL_Builder,args[2],0,""),
+    //    LLVMBuildExtractValue(SL_Builder,args[2],1,""),
+    params[4],
+    params[5],
     LLVMBuildExtractValue(SL_Builder,mul_call,0,""),
     LLVMBuildExtractValue(SL_Builder,mul_call,1,"")};
   HERE();

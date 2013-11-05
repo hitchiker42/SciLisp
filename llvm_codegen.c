@@ -9,8 +9,9 @@ sexp error_val;
 #define GENSYM (++gensym_counter)
 #define void_fxn_type LispFxnTypes[0]
 char *error;
-//current prim.bc is 56288; or pg_size(4096)*13.75, for some slack...
-#define PRIM_BC_SIZE 61440//this is 15*pg_size
+static LLVMValueRef LLVMGenFunctionBody(sexp expr,env *cur_env);
+LLVMValueRef LLVMCodegenAtom(sexp expr,env *cur_env,LLVMBuilderRef builder);
+#define PRIM_BC_SIZE 147456//this is 36*pg_size
 static LLVMValueRef handle_error(){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
   return LispNIL;
@@ -60,13 +61,15 @@ void initialize_llvm(int engine){
   LispShort=LLVMInt16TypeInContext(SL_Context);
   LispChar=LLVMInt8TypeInContext(SL_Context);
   LispVoid=LLVMVoidTypeInContext(SL_Context);
-  LLVMSexp=LLVMArrayType(LispLong,2);
   LispData=LLVMGetTypeByName(SL_Module,"union.data");
   LispSexp=LLVMGetTypeByName(SL_Module,"struct.sexp");
   LispCons=LLVMGetTypeByName(SL_Module,"struct.cons");
-  LispNIL=LLVMGetNamedGlobal(SL_Module,"NIL");
+  LispNIL=LLVMGetNamedGlobal(SL_Module,"LLVMNIL");
   LispTRUE=LLVMConstInt(LLVMInt1Type(),1,0);
   LispFALSE=LLVMConstInt(LLVMInt1Type(),0,0);
+  LLVMSexp=LLVMStructCreateNamed(SL_Context,"LLVMSexp");
+  LLVMTypeRef LLVMSexpTypes[2]={LispLong,LispLong};
+  LLVMStructSetBody(LLVMSexp,LLVMSexpTypes,2,0);
   if(!LispNIL){
     HERE();
     LispNIL=LLVMGetNamedGlobal(SL_Module,"NIL");
@@ -76,10 +79,14 @@ void initialize_llvm(int engine){
   }
   for(i=0;i<8;i++){
     LispArgs[i]=LLVMSexp;
+    LongArgs[i]=LispLong;
+    LongArgs[i+8]=LispLong;
   }
   LispFxnTypes[0]=LLVMFunctionType(LLVMSexp,&LispVoid,0,0);
+  LongFxnTypes[0]=LLVMFunctionType(LLVMSexp,&LispVoid,0,0);
   for(i=1;i<9;i++){
     LispFxnTypes[i]=LLVMFunctionType(LLVMSexp,LispArgs,i,0);
+    LongFxnTypes[i]=LLVMFunctionType(LLVMSexp,LongArgs,i*2,0);
   }
   SL_Engine=xmalloc(sizeof(LLVMExecutionEngineRef)); 
   LLVMInitializeNativeTarget();
@@ -126,6 +133,11 @@ void initialize_llvm(int engine){
    LLVMAddCFGSimplificationPass(SL_Pass);
    //turn tail calls into loops
    LLVMAddTailCallEliminationPass(SL_Pass);
+   //replace agregates?
+   LLVMAddScalarReplAggregatesPass(SL_Pass);
+   LLVMAddScalarReplAggregatesPassSSA(SL_Pass);
+   LLVMAddPromoteMemoryToRegisterPass(SL_Pass);
+   LLVMAddSimplifyLibCallsPass(SL_Pass);
    //I have a fair ammount of trivial library functions that should be inlined
    //   LLVMAddFunctionInliningPass(SL_Pass);
    //   LLVMAddAlwaysInlinerPass(SL_Pass);
@@ -145,23 +157,46 @@ void initialize_llvm(int engine){
 }
 #ifdef EVAL
 #undef EVAL
-#endify
+#endif
 #define EVAL(expr,env,builder) LLVM_Codegen(expr,cur_env,builder)
-sexp LLVMGetFunction(sexp lambda_expr,env* cur_env){
+sexp LLVMGenFunction(sexp lambda_expr,env* cur_env){
   //assume we get passed a lambda expression
   //that should be the main use of llvm anyway
-  if(!FUNCITONP(lambda_expr)){
+  if(!FUNCTIONP(lambda_expr)){
       return error_sexp("expected a function");
   }
   function *lispFun=lambda_expr.val.fun;
   LLVMValueRef newFun=LLVMAddFunction(SL_Module,lispFun->cname,
-                                      LispFxnTypes[lispFun->args->max_args]);
+                                      LongFxnTypes[lispFun->args->max_args]);
+  LLVMValueRef *funArgs=xmalloc(sizeof(LLVMValueRef)*lispFun->args->max_args*2);
   LLVMBasicBlockRef newFunStart=LLVMGetFirstBasicBlock(newFun);
   LLVMPositionBuilderAtEnd(SL_Builder,newFunStart);
-  env funEnv={.enclosing=cur_env,.head={.function=newFun->args},.tag=_funArgs};
-  LLVMValueRef=EVAL(lispFun->lam->body,&funEnv);
-
+  env funEnv={.enclosing=cur_env,.head={.function=lispFun->args},.tag=_funArgs};
+  LLVMValueRef funBody=LLVMGenFunctionBody(lispFun->lam->body,&funEnv);
+  return NIL;
 }
+static LLVMValueRef LLVMGenFunctionBody
+(sexp expr,env *cur_env,LLVMValueRef* args){
+  if(CONSP(expr)){
+    if(SYMBOLP(XCAR(expr))){
+      symref LLVMSym=getSym(cur_env,XCAR(expr).val.var->name);
+      //will need to modify this to allow functions to be used before
+      //they are defined
+      if(!LLVMSym || !FUNCTIONP(LLVMSym->val)){
+        format_error_str("undefined function %s",XCAR(expr).val.var->name);
+      }
+      LLVMValueRef LLVMFuncall=LLVMGetNamedGlobal(LLVMSym->val.fun->cname);
+      if(!LLVMFuncall){
+        format_error_str("undefined function %s",XCAR(expr).val.var->name);
+      }
+      LLVMValueRef *LLVMFunArgs=alloca(sizeof(LLVMValueRef)*
+                                       LLVMCountArgs(LLVMFunCall));
+  } else if (SYMBOLP(expr)){
+  } else {
+    return LLVMCodegenAtom(expr,cur_env,SL_Builder);
+  }
+  return 0;
+}    
 sexp LLVMEval(sexp expr,env *cur_env){
   if(setjmp(jmp_to_error)){
     return error_val;
@@ -176,6 +211,31 @@ sexp LLVMEval(sexp expr,env *cur_env){
   //do something
   return NIL;
 }
+LLVMValueRef LLVMCodegenAtom(sexp expr,env *cur_env,LLVMBuilderRef builder){
+  switch(expr.tag){
+    //here down are all values which don't create a new basic block
+    case _double:
+      return LLVMConstReal(LispDouble,expr.val.real64);
+    case _long:
+      return LLVMConstInt(LispLong,expr.val.int64,0);
+    case _char:
+      return LLVMConstInt(LispWChar,expr.val.utf8_char,0);
+    case _nil:
+      return LispNIL;
+    case _str:
+      return LLVMConstString(CORD_to_char_star(expr.val.cord),CORD_len(expr.val.cord),0);
+    case _array://should this be a pointer or array?
+    case _error:
+      error_val=expr;
+      longjmp(jmp_to_error,-1);
+    default:
+      return LispNIL;
+  }
+}
+LLVMValueRef LLVM_Codegen(sexp expr,env *cur_env,LLVMBuilderRef builder){
+  return 0;
+}
+#if 0
 LLVMValueRef LLVM_Codegen(sexp expr,env *cur_env,LLVMBuilderRef builder){
   switch(expr.tag){
     case _cons:
@@ -215,23 +275,8 @@ LLVMValueRef LLVM_Codegen(sexp expr,env *cur_env,LLVMBuilderRef builder){
       }
     }
     case _fun:
-      //here down are all values which don't create a new basic block
-    case _double:
-      return LLVMConstReal(LispDouble,expr.val.real64);
-    case _long:
-      return LLVMConstInt(LispLong,expr.val.int64,0);
-    case _char:
-      return LLVMConstInt(LispWChar,expr.val.utf8_char,0);
-    case _nil:
-      return LispNIL;
-    case _str:
-      return LLVMConstString(CORD_to_char_star(expr.val.cord),CORD_len(expr.val.cord),0);
-    case _array://should this be a pointer or array?
-    case _error:
-      error_val=expr;
-      longjmp(jmp_to_error,-1);
     default:
-      return LispNIL;
+      return LLVMCodegenAtom(expr,cur_env,builder);
   }
  ERROR:
   return handle_error();
@@ -253,7 +298,7 @@ LLVMValueRef LLVM_Codegen_Special(sexp expr,env *cur_env,
       LLVMValueRef symVal=LLVM_Codegen(caddr(expr),cur_env,builder);
       if(!newSym){
         //NEED TO MAKE GENERIC
-        newSym=xmalloc(sizeof(global_symbol));
+        newSym=xmalloc(sizeof(symbol));
         newSym->name=(cadr(expr).val.var->name);
         newSym=addSym(cur_env,newSym);
         /*        newSym->val=symVal;
@@ -290,20 +335,19 @@ LLVMValueRef LLVM_Codegen_if(sexp expr,env *cur_env,
     return handle_error();
   } else {
     LLVMBasicBlockRef cur_block=LLVMGetInsertBlock(builder);
-    LLVMBasicBlockRef then_br LLVMInsertBasicBlock(cur_block,"");
-    LLVMBasicBlockRef else_br LLVMInsertBasicBlock(else_br,"");
+    LLVMBasicBlockRef then_br =LLVMInsertBasicBlock(cur_block,"");
+    LLVMBasicBlockRef else_br =LLVMInsertBasicBlock(else_br,"");
     LLVMPositionBuilderAtEnd(builder,then_br);
-    EVAL(caddr,cur_env,builder);
+    EVAL(caddr(expr),cur_env,builder);
     LLVMPositionBuilderAtEnd(builder,else_br);
-    EVAL(cadddr,cur_env,builder);
+    EVAL(cadddr(expr),cur_env,builder);
     LLVMPositionBuilderAtEnd(builder,cur_block);
-    return LLVMBuildCondBr(builder,EVAL(cadr(expr),cur_env,builder)
-                           ,then_br,else_br);
+    return LLVMBuildCondBr(builder,EVAL(cadr(expr),cur_env,builder),then_br,else_br);
   }
 }
 LLVMValueRef LLVM_Call_Function(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
-  sexp curFun=car(expr).val.var->val.fun;
+  /*  sexp curFun=car(expr).val.var->val.fun;
   //insure that curFun is a function
   LLVMValueRef curFunLLVM=LLVMGetNamedFunction(SL_Module,curFun->cname);
   int num_params=curFun->maxargs*2;
@@ -317,12 +361,13 @@ LLVMValueRef LLVM_Call_Function(sexp expr,env *cur_env,
     params[i]=LLVMConstInt(LispLong,raw_args[i],0);
   }
   LLVMValueRef retval=LLVMBuildCall(builder,curFunLLVM,params,num_params,"");
-  return retval;
+  return retval;*/
+  return 0;
 }
 LLVMValueRef* get_args(sexp arglist,function fun,env *cur_env,
                               LLVMBuilderRef builder){
   //arglist is (sexp . (sexp . (sexp ....()...)))
-  int minargs=fun.min_args;int maxargs=fun.max_args;
+  /*  int minargs=fun.min_args;int maxargs=fun.max_args;
   int i=0;
   LLVMValueRef *args;
   if(maxargs < 0){
@@ -351,7 +396,8 @@ LLVMValueRef* get_args(sexp arglist,function fun,env *cur_env,
   while(i<maxargs){
     args[i++]=LispNIL;
   }
-  return args;
+  return args;*/
+  return 0;
 }
 LLVMValueRef LLVM_Codegen_progn(sexp expr,env *cur_env,
                                        LLVMBuilderRef builder){
@@ -377,9 +423,9 @@ LLVMValueRef LLVM_Codegen_while(sexp expr,env *cur_env,
     //create a new block for testing the loop condition
     LLVMBasicBlockRef cond_block=LLVMInsertBasicBlock(cur_block,"");
     LLVMBasicBlockRef body=LLVMInsertBasicBlock(cond_block,"");//loop body
-    LLVMBasicBlockRef next_block=LLVMAddBasicBlock(body,"");//next sexp
+    LLVMBasicBlockRef next_block=LLVMInsertBasicBlock(body,"");//next sexp
     //branch to new block and move builder
-    LLVMBuildBr(cond_block);
+    LLVMBuildBr(builder,cond_block);
     LLVMPositionBuilderAtEnd(builder,cond_block);
     //construct the loop test (this will recursively build up the loop test)
     LLVMValueRef while_loop=
@@ -391,6 +437,7 @@ LLVMValueRef LLVM_Codegen_while(sexp expr,env *cur_env,
     LLVMBuildBr(cond_block);//branch back to test
     LLVMPositionBuilderAtEnd(builder,next_block);//move builder to fresh block
     return while_loop;//I'm not sure this is what I want to return
+  }
 }
 LLVMValueRef LLVM_Codegen_defun(sexp expr,env *cur_env,
                                 LLVMBuilderRef builder){
@@ -399,7 +446,7 @@ LLVMValueRef LLVM_Codegen_defun(sexp expr,env *cur_env,
 LLVMValueRef LLVM_Codegen_def(sexp expr,env *cur_env,
                               LLVMBuilderRef builder){
   //(def var body)
-  if(CONSP(caddr(expr)) && 
+  /*  if(CONSP(caddr(expr)) && 
      SPECP(XCAADDR(expr)) &&
      XCAADDR(expr).val.meta==_lambda){
     //we're defining a function
@@ -407,7 +454,7 @@ LLVMValueRef LLVM_Codegen_def(sexp expr,env *cur_env,
     //lookup newSym.. or something
     fxn_ptr newFun=xmalloc(sizeof(fxn_proto));    
     newSym.val.var->val.fun=newFun;
-    newFun->lispname=newSym.val.var->name;
+    newFun->lispname=newSym.val.var->name;*/
   return LispNIL;
 }
 LLVMValueRef LLVM_Codegen_lambda(sexp expr,env *cur_env,
@@ -432,6 +479,7 @@ LLVMValueRef LLVM_Call_Lambda(sexp expr,env *cur_env,
                                      LLVMBuilderRef builder){
   return LispNIL;
 }
+#endif
 #undef EVAL
 /*  union hack two_sexp = {.as_sexp = {.tag=_long,.len=0,.meta=0,.val={.int64=2}}};
   LLVMGenericValueRef argval[2]={LLVMCreateGenericValueOfInt(LispLong,two_sexp.as_longs[0],0),
