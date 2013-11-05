@@ -34,7 +34,7 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_keyword,Keyword Symbol);
     mk_tag_name(_funargs,Function Args);
     mk_tag_name(_true,t);
-    mk_tag_name(_obarray,obarray);    
+    mk_tag_name(_obarray,obarray);
     default:{
       CORD retval;
       CORD_sprintf(&retval,"don't know how to print tag number %d",obj_tag);
@@ -93,7 +93,7 @@ CORD print_num_format(sexp obj,CORD format){
         CORD_sprintf(&retval,"%g",(double)obj.val.real64);
       }
     } else if (INTP(obj)){
-      if(format != 0){     
+      if(format != 0){
         CORD_sprintf(&retval,format,(long)obj.val.int64);
       } else {
         CORD_sprintf(&retval,"%ld",(long)obj.val.int64);
@@ -218,8 +218,8 @@ CORD print(sexp obj){
       if(args->has_rest_arg){
         acc=CORD_catn(4,"&rest ",args->args[j],")");
       } else {
-        acc=CORD_cat(acc,")"); 
-      } 
+        acc=CORD_cat(acc,")");
+      }
       return CORD_balance(acc);
     }
 #undef funarg_print_loop

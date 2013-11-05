@@ -49,6 +49,7 @@ typedef struct function_args function_args;
 typedef struct obarray obarray;
 typedef struct obarray_entry obarray_entry;
 typedef struct obarray_env obarray_env;
+typedef struct macro macro;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol* symref;//type of generic symbol referances
@@ -161,6 +162,7 @@ enum sexp_meta{
   _double_array=1,
   _long_array=2,
   _utf8_string=3,
+  _splice_list=4,
 };
 union data {//keep max size at 64 bits
   float real32;
@@ -188,19 +190,22 @@ union data {//keep max size at 64 bits
   env *cur_env;
   regex_t* regex;
   FILE* stream;
-  function_args* funarg;//really need to add an s
+  function_args* funarg;//depreciated
   function_args* funargs;
   //  function_new* fnew;
   mpz_t *bigint;
   mpfr_t *bigfloat;
   obarray* ob;
+  macro* mac;
 };
+//meta is for mutualy exclusvie information
+//whlie the next 8 bits are for inclusive information
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  
-  sexp_meta meta : 8;//random meta data(sign bit determines quoting)
-  int quoted :1;
+  sexp_meta meta : 8;//random metadata
+  int quoted :2;
   int setfable :1;
-  int packing :6;
+  int has_comma :1;
   uint16_t len;//length of a list, array or string
   data val;
 };
@@ -221,15 +226,17 @@ enum TOKEN{
   TOK_KEYSYM=8,
   //reserved words/characters 18-30  
   TOK_QUOTE=18,
-  TOK_QUASI=19,
+  TOK_QUASI=19,//`
   TOK_SPECIAL=20,
-  TOK_COMMENT_START=21,
-  TOK_COMMENT_END=22,
+  TOK_COMMENT_START=21,//#|
+  TOK_COMMENT_END=22,//|#
   TOK_DOT=23,
   TOK_COLON=24,
-  TOK_LAMBDA=25,
-  TOK_AROBASE=26,
+  TOK_LAMBDA=25,//lambda or defun
+  TOK_AROBASE=26,//@
   TOK_COMMA=27,
+  TOK_LIST_SPLICE=28,//,@
+  TOK_MACRO=29,
   //Types 40-50
   TOK_TYPEDEF=40,
   TOK_TYPEINFO=41,
@@ -250,7 +257,7 @@ union funcall{
   sexp(*f5)(sexp,sexp,sexp,sexp,sexp);
   sexp(*f6)(sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
-  sexp(*fmany)(sexp,...);
+  sexp(*fmany)(sexp,...);//really there's no need for this
 };
 #define FCNAME(fxn) fxn.val.fun->cname
 #define FLNAME(fxn) fxn.val.fun->lname
@@ -286,6 +293,11 @@ struct function{//36 bytes
     _lambda_fun,
     _compiled_fun,
   } type;
+};
+struct macro{
+  function_args* args;
+  CORD lname;
+  sexp body;
 };
 struct lambda{
   env *env;//for closures

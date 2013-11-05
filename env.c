@@ -57,7 +57,7 @@ symref addLocalSym(env *cur_env,symref Var){
   LocalVar->next=cur_lenv->head;
   LocalVar->name=Var->name;
   LocalVar->val=Var->val;
-  LocalVar->symbol_env=cur_env;
+  //  LocalVar->symbol_env=cur_env;
   cur_lenv->head=LocalVar;
   return toSymref(LocalVar);
 }

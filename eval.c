@@ -38,9 +38,9 @@ sexp eval(sexp expr,env *cur_env){
   symref tempsym=0;
   if(expr.quoted){
     if(SYMBOLP(expr)){
-      expr.val.var->val.quoted=0;
+      expr.val.var->val.quoted-=1;
     }
-    expr.quoted=0;
+    expr.quoted-=1;
     return expr;
   }
   switch(expr.tag){

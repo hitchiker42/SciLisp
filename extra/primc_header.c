@@ -59,26 +59,25 @@
       .comp = {.f##maxargs=c_name},            \
       .type = _compiled_fun };
 #define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
-  symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}, \
-                           .symbol_env=0};                              \
+  symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}}; \
   symref c_name ## _ptr=0;                                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=hash_v}
 //not sure if this has non constant initalizers or not
 #define MAKE_CONSTANT(l_name,c_name)     \
-  symbol c_name ## _sym = {.name=l_name,.val=c_name,.symbol_env=0};     \
+  symbol c_name ## _sym = {.name=l_name,.val=c_name};                  \
   symref c_name ## _ptr = 0;                                           \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,      \
                                       .hashv=0}
+//  c_name##_ptr->symbol_env=ob_env;                             
+//  c_name##_ptr->symbol_env=ob_env;                             
 #define INIT_SYMBOL(c_name)                                    \
   c_name##_ptr=&c_name##_sym;                                  \
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
-  c_name##_ptr->symbol_env=ob_env;                              \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_CONST(c_name)                      \
   c_name##_ptr=&c_name##_sym;                                   \
-  c_name##_ptr->symbol_env=ob_env;                              \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_SYNONYM(c_name,l_name,gensym_counter)                     \

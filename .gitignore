@@ -27,9 +27,16 @@ doc/*
 # Generated Files (that should be regenerated when recompiled)
 prim.ll
 prim.bc
+prims.dat #I forget what this was for
 
 # Specific Generated Binaries
 SciLisp
 fnv_hash
 llvm-test
 write_prims
+
+#gc files
+gc/gc_config.stamp
+gc/include
+gc/lib
+gc/share
