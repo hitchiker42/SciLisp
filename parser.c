@@ -78,70 +78,116 @@ sexp parse_cons(){
   cons* cons_pos=result.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
   //  sexp cons_pos=result.val.cons->cdr;
   //at this point there's no difference between any macro, special form or function
-  if (yytag == TOK_SPECIAL){
-    result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
-  } else if(yytag==TOK_ID){
-    //    tmpsym = (symref)getGlobalSym(yylval->val.cord);
-    //    if(tmpsym){
-    //      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
-    //    } else {
-    tmpsym=xmalloc(sizeof(symbol));
-    tmpsym->name=yylval->val.cord;
-    tmpsym->val=UNBOUND;
-    result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
-    //    }
-  } else if(yytag==TOK_LAMBDA){//defun returns a TOK_LAMBDA as well
-    sexp retval;
-    retval.val.cons=xmalloc(sizeof(cons));
-    retval.tag=_cons;
-    retval.val.cons->car=*yylval;
-    sexp fake_retval=retval;
-    //fake_retval because if we have, for a defun and lambda
-    //retval=(defun . fake_retval= (var . (args) . (body)))
-    //retval=fake_retval=(lambda . ( (args) . (body )))
-    //this goto seems unecessary
-  TEST_ARG_LIST:if(nextTok() != TOK_LPAREN){
-      if(retval.val.cons->car.val.special == _defun){
-        //because defun is (defun var (args) (body))
-        //and lambda is (lambda (args) (body)) we need to parse
-        //the var in defun seperately(that's what this is)
-        retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
-        fake_retval=XCDR(retval);
-        symref tempSym=xmalloc(sizeof(symbol));
-        tempSym->name=yylval->val.string;
-        tempSym->val=UNBOUND;
-        XCAR(fake_retval)=(sexp){.tag=_sym,.val={.var=tempSym}};
-        goto TEST_ARG_LIST;
-      }  else {
-      format_error_str("expected argument list following lambda or defun");
-      handle_error();
+  switch (yytag){
+    case TOK_SPECIAL:{
+      result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
+      break;
+    }
+    case TOK_ID:{
+      //    tmpsym = (symref)getGlobalSym(yylval->val.cord);
+      //    if(tmpsym){
+      //      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
+      //    } else {
+      tmpsym=xmalloc(sizeof(symbol));
+      tmpsym->name=yylval->val.cord;
+      tmpsym->val=UNBOUND;
+      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
+      break;
+      //    }
+    } 
+    case TOK_LAMBDA:{//defun returns a TOK_LAMBDA as well
+      sexp retval;
+      retval.val.cons=xmalloc(sizeof(cons));
+      retval.tag=_cons;
+      XCAR(retval)=*yylval;
+      sexp fake_retval=retval;
+      //fake_retval because if we have, for a defun and lambda
+      //retval=(defun . fake_retval= (var . (args) . (body)))
+      //retval=fake_retval=(lambda . ( (args) . (body )))
+      //this goto seems unecessary
+    TEST_ARG_LIST:if(nextTok() != TOK_LPAREN){
+        if(retval.val.cons->car.val.special == _defun){
+          //because defun is (defun var (args) (body))
+          //and lambda is (lambda (args) (body)) we need to parse
+          //the var in defun seperately(that's what this is)
+          retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+          fake_retval=XCDR(retval);
+          symref tempSym=xmalloc(sizeof(symbol));
+          tempSym->name=yylval->val.string;
+          tempSym->val=UNBOUND;
+          XCAR(fake_retval)=(sexp){.tag=_sym,.val={.var=tempSym}};
+          goto TEST_ARG_LIST;
+        }  else {
+          format_error_str("expected argument list following lambda or defun");
+          handle_error();
+        }
       }
+      //with the new args the only thing that changes is 
+      cons* temp;
+      temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+      //this, which becomes temp->car=parse_funcion_args();
+      temp->car=parse_function_args();
+      temp->cdr.val.cons=xmalloc(sizeof(cons));
+      temp=temp->cdr.val.cons;
+      temp->cdr=NIL;
+      //parse the function body
+      if(nextTok() == TOK_LPAREN){
+        temp->car=parse_list();
+        temp->car.tag=_cons;
+      } else {
+        temp->car=parse_atom();
+      }
+      if(nextTok() != TOK_RPAREN){
+        error_val=error_sexp("error, missing closing parentheses in function defination");
+        handle_error();
+      }
+      return retval;
     }
-    //with the new args the only thing that changes is 
-    cons* temp;
-    temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
-    //this, which becomes temp->car=parse_funcion_args();
-    temp->car=parse_function_args();
-    temp->cdr.val.cons=xmalloc(sizeof(cons));
-    temp=temp->cdr.val.cons;
-    temp->cdr=NIL;
-    //parse the function body
-    if(nextTok() == TOK_LPAREN){
-      temp->car=parse_list();
-      temp->car.tag=_cons;
-    } else {
-      temp->car=parse_atom();
+    case TOK_MACRO:{
+      //(defmacro name (args) (body))
+      sexp retval,location;
+      retval.val.cons=xmalloc(sizeof(cons));
+      retval.tag=_cons;
+      XCAR(retval)=*yylval;
+      if(nextTok() != TOK_ID){
+        format_error_str("invaid macro name");
+        handle_error();
+      }
+      XCDR(retval).val.cons=xmalloc(sizeof(cons));
+      XCADR(retval)=*yylval;
+      if(nextTok() != TOK_LPAREN){
+        format_error_str("macro defination is missing argument list");
+        handle_error();
+      }
+      XCDDR(retval).val.cons=xmalloc(sizeof(cons));
+      XCADDR(retval)=parse_function_args();
+      XCDDDR(retval).val.cons=xmalloc(sizeof(cons));
+      XCDDDDR(retval)=NIL;
+      nextTok();
+      switch(yytag){
+        case TOK_LPAREN:
+          XCADDDR(retval)=parse_list();
+          XCADDDR(retval).tag=_cons;//since the list isn't quoted 
+          break;
+        case TOK_QUASI:
+          XCADDDR(retval)=parse_macro();
+          break;
+        case TOK_QUOTE:
+          XCADDDR(retval)=parse_list();
+          break;
+        default:
+          XCADDDR(retval)=parse_atom();
+          break;
+      }
+      return retval;
     }
-    if(nextTok() != TOK_RPAREN){
-      error_val=error_sexp("error, missing closing parentheses in function defination");
-      handle_error();
-    }
-    return retval;
-  } else {//an unquoted list that's not a function call or special form
-    //should probably be a parse error, but I'm not totally confidient
-    //in things to do that yet
-    return parse_list();
-  }
+    default: {//an unquoted list that's not a function call or special form
+      //should probably be a parse error, but I'm not totally confidient
+      //in things to do that yet
+      return parse_list();
+    } 
+  }  
+  //if we get here we have a function call or special form
   //implicit progn basically, keep parsing tokens until we get a close parens
   sexp temp;
   cons* old_pos=result.val.cons;
@@ -304,14 +350,38 @@ sexp lispRead(CORD code) {
 sexp parse_macro(){
   nextTok();
   if(yytag != TOK_LPAREN){
-    if(yytag == TOK_COMMA){
-      return parse_sexp();
-    } else {
-      //make quoted
-      return parse_sexp();
-    }
+    sexp retval=parse_atom();
+    retval.quoted=1;
+    return retval;
+  } else {
+    sexp retval;
+    cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
+    cons* prev_loc=cur_loc;
+    do {
+      switch(yytag){
+        case TOK_COMMA:{
+          cur_loc->car=parse_sexp();
+          cur_loc->car.has_comma=1;
+          cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+          prev_loc=cur_loc;
+          cur_loc=cur_loc->cdr.val.cons;
+        } 
+        case TOK_LIST_SPLICE: {
+          cur_loc->car.meta=_splice_list;
+          /*fall through*/
+        }
+        default: {
+          cur_loc->car=parse_sexp();
+          cur_loc->car.quoted+=1;
+          cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+          prev_loc=cur_loc;
+          cur_loc=cur_loc->cdr.val.cons;
+        }
+      }
+    } while (nextTok() != TOK_RPAREN && yytag != TOK_DOT);
+    return retval;
   }
-  handle_error();
+  handle_error();//should never get here
 }
 static inline sexp parse_list(){
   sexp retval;

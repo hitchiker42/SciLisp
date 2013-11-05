@@ -139,7 +139,7 @@ eval {LEX_MSG("lexing eval");
 main {LEX_MSG("lexing mainl");
   yylval->tag=_special;yylval->val.special=_main;return TOK_SPECIAL;}
 defmacro {LEX_MSG("lexing defmacro");
-  yylval->tag=_special;yylval->val.special=_defmacro;return TOK_SPECIAL;}
+  yylval->tag=_special;yylval->val.special=_defmacro;return TOK_MACRO;}
 or {LEX_MSG("lexing or");
   yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
 and {LEX_MSG("lexing and");
@@ -163,6 +163,7 @@ and {LEX_MSG("lexing and");
 "#f" {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
 {ID} {LEX_MSG("lexing ID");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
+",@" {LEX_MSG("lexing ,@");return TOK_LIST_SPLICE;}
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}
 "[" {LEX_MSG("lexing [");return TOK_LBRACE;}

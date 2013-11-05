@@ -4,12 +4,12 @@
 struct symbol{
   CORD name;
   sexp val;
-  env* symbol_env;
+  //  env* symbol_env;
 };
 struct local_symbol{
   CORD name;
   sexp val;
-  env* symbol_env;
+  //  env* symbol_env;
   local_symref next;
 };
 struct local_env{
