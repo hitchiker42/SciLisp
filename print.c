@@ -142,6 +142,8 @@ CORD print(sexp obj){
       return obj.val.fun->lname;
     case _sym:
       return obj.val.var->name;
+    case _macro:
+      return obj.val.mac->lname;
     case _keyword:
       return obj.val.keyword->name;
     case _char:{
@@ -153,18 +155,23 @@ CORD print(sexp obj){
     case _list:
     case _cons:
       acc="(";
+      HERE();
       while(CONSP(obj)){
         acc=CORD_cat(acc,print(car(obj)));
         obj=cdr(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
         //CORD_fprintf(stderr,acc);fputs("\n",stderr);
+        PRINT_MSG(acc);
       }
+      HERE();
+      PRINT_MSG(tag_name(obj.tag));
       if(!NILP(obj)){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
-        acc=CORD_cat(acc,")");
+        acc=CORD_cat(acc,")");        
         retval=acc;
       }
+      PRINT_MSG(retval);
       return CORD_balance(retval);
     case _uninterned:
       switch(obj.val.meta){

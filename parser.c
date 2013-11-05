@@ -10,6 +10,7 @@ sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
 TOKEN yytag;//current token
 jmp_buf ERROR;//location of error handling function
+static int inside_backquote=0;//global flag to determine how to handle a comma
 sexp parse_atom();
 sexp parse_cons();
 sexp parse_sexp();
@@ -48,19 +49,20 @@ sexp yyparse(FILE* input){
     cons* prev_pos;
     yylval=malloc(sizeof(sexp));
     while((nextTok()) != -1){
-      if(yytag == TOK_LPAREN){
-        cur_pos->car=parse_cons();
-        cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
-        cur_pos->cdr.tag=_cons;
-        prev_pos=cur_pos;
-        cur_pos=cur_pos->cdr.val.cons;
-      } else {
+      /*      if(yytag == TOK_LPAREN){
+              cur_pos->car=parse_cons();*/
+      cur_pos->car=parse_sexp();
+      cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
+      cur_pos->cdr.tag=_cons;
+      prev_pos=cur_pos;
+      cur_pos=cur_pos->cdr.val.cons;
+        /*      } else {
         cur_pos->car=parse_atom();
         cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
         cur_pos->cdr.tag=_cons;
         prev_pos=cur_pos;
         cur_pos=cur_pos->cdr.val.cons;
-      }
+        }*/
     }
     if(yylval){free(yylval);}
     prev_pos->cdr=NIL;
@@ -144,7 +146,6 @@ sexp parse_cons(){
       return retval;
     }
     case TOK_MACRO:{
-      HERE();
       //(defmacro name (args) (body))
       sexp retval,location;
       retval.val.cons=xmalloc(sizeof(cons));
@@ -161,18 +162,21 @@ sexp parse_cons(){
         handle_error();
       }
       XCDDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADDR(retval)=parse_function_args();
+      XCADDR(retval)=parse_function_args();      
       XCDDDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCDDDDR(retval)=NIL;
+      //      XCDDDDR(retval)=NIL;
       nextTok();
-      switch(yytag){
+      XCADDDR(retval)=parse_sexp();
+      //      XCDDDDR(retval)=NIL;
+      /*      switch(yytag){
         case TOK_LPAREN:
           XCADDDR(retval)=parse_list();
           XCADDDR(retval).tag=_cons;//since the list isn't quoted 
           break;
         case TOK_QUASI:
-          HERE();
+          inside_backquote=1;
           XCADDDR(retval)=parse_macro();
+          inside_backquote=0;
           break;
         case TOK_QUOTE:
           XCADDDR(retval)=parse_list();
@@ -180,7 +184,7 @@ sexp parse_cons(){
         default:
           XCADDDR(retval)=parse_atom();
           break;
-      }
+          }*/
       return retval;
     }
     default: {//an unquoted list that's not a function call or special form
@@ -319,8 +323,9 @@ sexp parse_atom(){
     case TOK_SPECIAL:
       return *yylval;//I dont' know how well this'll work
     default:
-      CORD_sprintf(&error_str,"Error, expected literal atom recieved %r\n"
-                   "Tag value recieved was %r\n",print(*yylval),token_name(yytag));
+      format_error_str("Error, expected literal atom recieved %r\n"
+                       "Tag value recieved was %r\n",
+                       print(*yylval),token_name(yytag));
       handle_error();
   }
 }
@@ -335,8 +340,24 @@ sexp parse_sexp(){
       retval.quoted=1;
       return retval;
     }
+    case TOK_COMMA:{
+      if(!inside_backquote){
+        format_error_str("Error, Commma not inside a backquote");
+        handle_error();
+      } else {
+        inside_backquote=0;
+        nextTok();
+        sexp retval=parse_sexp();
+        retval.has_comma=1;
+        inside_backquote=1;
+        return retval;
+      }
+    }
     case TOK_QUASI:{
-      return parse_macro();
+      inside_backquote=1;
+      sexp retval = parse_macro();
+      inside_backquote=0;
+      return retval;
     }
     case TOK_LPAREN:{
       return parse_cons();
@@ -373,9 +394,11 @@ sexp parse_macro(){
       switch(yytag){
         case TOK_LIST_SPLICE: {
           cur_loc->car.meta=_splice_list;
+          nextTok();//eat up ,;@ gets removed in the next case
           /*fall through*/
         }
         case TOK_COMMA:{
+          nextTok();
           cur_loc->car=parse_sexp();
           cur_loc->car.has_comma=1;
           cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
@@ -395,6 +418,7 @@ sexp parse_macro(){
     } while (nextTok() != TOK_RPAREN && yytag != TOK_DOT);
     return retval;
   }
+  format_error_str("Shouldn't get here, end of parse macro");
   handle_error();//should never get here
 }
 static inline sexp parse_list(){

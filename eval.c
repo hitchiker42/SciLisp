@@ -14,6 +14,7 @@ static long lambda_counter=0;
 //easier to write and understand, should be self explanitory
 sexp call_builtin(sexp expr,env *cur_env);
 sexp call_lambda(sexp expr,env *cur_env);
+static sexp call_macro(sexp expr,env *cur_env);
 static sexp eval_special(sexp expr,env *cur_env);
 static sexp eval_def(sexp expr,env *cur_env);
 static sexp eval_defun(sexp expr,env *cur_env);
@@ -26,6 +27,7 @@ static sexp eval_do(sexp expr,env *cur_env);
 static sexp eval_let(sexp expr,env *cur_env);
 static sexp eval_and(sexp expr,env *cur_env);
 static sexp eval_or(sexp expr,env *cur_env);
+static sexp eval_defmacro(sexp expr,env *cur_env);
 //standard error handling function
 static sexp handle_error(void){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
@@ -60,6 +62,8 @@ sexp eval(sexp expr,env *cur_env){
           return call_lambda(expr,cur_env);
         } else if (FUNP(curFun)){
           return call_builtin(expr,cur_env);
+        } else if (MACROP(curFun)){
+          return call_macro(expr,cur_env);
         } else {
           CORD_fprintf(stderr,"tag = %s, name = %s\n",typeName(curFun),
                        XCAR(expr).val.var->name);
@@ -142,10 +146,13 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_and(expr,cur_env);
     case _or:
       return eval_or(expr,cur_env);
-    default:
+    case _defmacro:
+      return eval_defmacro(expr,cur_env);
+    default:      
       goto error;
   }
  error:
+  format_error_str("unknown special form");
   return handle_error();
 }
 static inline sexp eval_progn(sexp expr, env *cur_env){
@@ -485,17 +492,22 @@ static sexp eval_lambda(sexp expr,env *cur_env){
 }
 static sexp eval_defmacro(sexp expr,env *cur_env){
   //(defmacro name (args) (body))
-  macro *mac=xmalloc(sizeof(macro));
   if(!CONSP(expr) || !(CONSP(XCDR(expr))) ||
      !(CONSP(XCDDR(expr))) || !(CONSP(XCDDDR(expr)))){
     return error_sexp("malformed defmacro expression");
   }
+  HERE();
+  PRINT_MSG(print(expr));
+  macro *mac=xmalloc(sizeof(macro));
   expr=XCDR(expr);
   sexp macro_sym=XCAR(expr);
   mac->lname=macro_sym.val.var->name;
   mac->args=XCADR(expr).val.funargs;
   mac->body=XCDDR(expr);
+  PRINT_MSG(print(mac->body));
   macro_sym.val.var->val=macro_sexp(mac);
+  addSym(cur_env,macro_sym.val.var);
+  PRINT_MSG(print(funargs_sexp(mac->args)));
   return macro_sym;
 }
 static sexp quote_sexp(sexp expr){
@@ -504,9 +516,9 @@ static sexp quote_sexp(sexp expr){
 }
 static sexp call_macro(sexp expr,env *cur_env){
   //expr is typed checked before we call this
-  sexp cur_macro=expr.val.var->val;
+  sexp cur_macro=car(expr).val.var->val;
   macro *mac=cur_macro.val.mac;
-
+  PRINT_MSG(print(mac->body));
   function_args *args=mac->args;
   symbol *save_defaults=args->args;
   args->args=alloca(sizeof(symbol)*args->max_args);
@@ -523,7 +535,10 @@ static sexp call_macro(sexp expr,env *cur_env){
     handle_error();
   }
   env macro_env={.enclosing=cur_env,.head={.function=args},.tag=_funArgs};
+  HERE();
   sexp expanded_macro=lisp_macroexpand(cur_macro,&macro_env);
+  HERE();
+  PRINT_MSG(print(expanded_macro));
   return eval(expanded_macro,cur_env);
 }
 
@@ -570,6 +585,8 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     //quasi quoted
     mac->body.quoted--;
     while(CONSP(macro_body)){
+      HERE();
+      PRINT_MSG(print(macro_body));
       if(XCAR(macro_body).has_comma){
         if(XCAR(macro_body).meta == _splice_list){
           //(... ,@list next ...) save next in current_cdr
@@ -577,6 +594,7 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
           //(... (car list) ... (car (last list)) next)
           //macro_body is set to next
           sexp list_to_splice=XCAR(macro_body);
+          XCAR(macro_body).has_comma=0;
           sexp current_cdr=XCDR(macro_body);
           XCAR(macro_body)=XCAR(list_to_splice);
           XCDR(last(macro_body))=current_cdr;
@@ -589,6 +607,7 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
           } else {
             //I'm not sure what to do here
           }
+          XCAR(macro_body).has_comma=0;
           macro_body=XCDR(macro_body);
         } else {
           XCAR(macro_body)=eval(XCAR(macro_body),cur_env);//maybe??
