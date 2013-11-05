@@ -58,6 +58,7 @@
 #define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val}}
 #define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val}}
 #define env_sexp(env_val) (sexp) {.tag=_env,.val={.cur_env=env_val}}
+#define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val}}
 #define format_error_sexp(format,args...)               \
   format_error_str(format,args),                     \
   error_sexp(CORD_to_char_star(error_str))
@@ -96,6 +97,7 @@ extern sexp call_builtin(sexp expr,env *cur_env);
 extern sexp call_lambda(sexp expr,env *cur_env);
 extern sexp lisp_funcall(sexp expr,env *cur_env);
 extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
+extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
 static c_string output_file=NULL;
 static inline double getDoubleVal(sexp x){

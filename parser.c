@@ -144,6 +144,7 @@ sexp parse_cons(){
       return retval;
     }
     case TOK_MACRO:{
+      HERE();
       //(defmacro name (args) (body))
       sexp retval,location;
       retval.val.cons=xmalloc(sizeof(cons));
@@ -154,7 +155,7 @@ sexp parse_cons(){
         handle_error();
       }
       XCDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADR(retval)=*yylval;
+      XCADR(retval)=parse_atom();
       if(nextTok() != TOK_LPAREN){
         format_error_str("macro defination is missing argument list");
         handle_error();
@@ -170,6 +171,7 @@ sexp parse_cons(){
           XCADDDR(retval).tag=_cons;//since the list isn't quoted 
           break;
         case TOK_QUASI:
+          HERE();
           XCADDDR(retval)=parse_macro();
           break;
         case TOK_QUOTE:
@@ -192,12 +194,14 @@ sexp parse_cons(){
   sexp temp;
   cons* old_pos=result.val.cons;
   while((nextTok())!=TOK_RPAREN){
-    if(yytag == TOK_LPAREN){
+    temp=parse_sexp();
+    cons_pos->car=temp;
+    /*    if(yytag == TOK_LPAREN){
       cons_pos->car=parse_cons();
     } else {
       temp=parse_atom();
       cons_pos->car=temp;
-    }
+      }*/
     cons_pos->cdr.val.cons=xmalloc(sizeof(cons));
     old_pos=cons_pos;
     cons_pos=cons_pos->cdr.val.cons;
@@ -321,20 +325,25 @@ sexp parse_atom(){
   }
 }
 sexp parse_sexp(){
-  if(yytag == TOK_QUOTE){
-    nextTok();
-    sexp retval = parse_sexp();
-    if(SYMBOLP(retval)){
-      retval.val.var->val.quoted=1;
+  switch(yytag){
+    case TOK_QUOTE:{
+      nextTok();
+      sexp retval = parse_sexp();
+      if(SYMBOLP(retval)){
+        retval.val.var->val.quoted=1;
+      }
+      retval.quoted=1;
+      return retval;
     }
-    retval.quoted=1;
-    return retval;
-  } else if (yytag == TOK_QUASI){
-    return parse_macro();
-  } else if(yytag == TOK_LPAREN){
-    return parse_cons();
-  } else{
-    return parse_atom();
+    case TOK_QUASI:{
+      return parse_macro();
+    }
+    case TOK_LPAREN:{
+      return parse_cons();
+    }
+    default:{
+      return parse_atom();
+    }
   }
 }
 
@@ -355,27 +364,32 @@ sexp parse_macro(){
     return retval;
   } else {
     sexp retval;
+    //in this instance let comma+quoted == backquoted
+    retval.quoted=1;
+    retval.has_comma=1;
     cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
     cons* prev_loc=cur_loc;
     do {
       switch(yytag){
+        case TOK_LIST_SPLICE: {
+          cur_loc->car.meta=_splice_list;
+          /*fall through*/
+        }
         case TOK_COMMA:{
           cur_loc->car=parse_sexp();
           cur_loc->car.has_comma=1;
           cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
           prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
+          break;
         } 
-        case TOK_LIST_SPLICE: {
-          cur_loc->car.meta=_splice_list;
-          /*fall through*/
-        }
         default: {
           cur_loc->car=parse_sexp();
-          cur_loc->car.quoted+=1;
+          //          cur_loc->car.quoted+=1;
           cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
           prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
+          break;
         }
       }
     } while (nextTok() != TOK_RPAREN && yytag != TOK_DOT);

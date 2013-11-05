@@ -203,7 +203,7 @@ union data {//keep max size at 64 bits
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  
   sexp_meta meta : 8;//random metadata
-  int quoted :2;
+  unsigned int quoted :2;
   int setfable :1;
   int has_comma :1;
   uint16_t len;//length of a list, array or string
