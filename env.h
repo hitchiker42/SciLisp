@@ -58,6 +58,11 @@ symref getSym(env *cur_env,CORD name);
 symref addSym(env *cur_env,symref Var);
 symref addGlobalSym(symref Var);
 symref addLocalSym(env *cur_env,symref Var);
+//functions to look for a  symbol in a specific environment only
+symref getSymLocalOnly(local_env *cur_env,CORD name);
+symref getSymFunctionOnly(function_env* cur_env,CORD name);
+symref getSymObarrayOnly(obarray_env* ob_env,CORD name);
+symref getSymNotGlobal(env *cur_env,CORD name);
 //check if name refers to a function argument, return NULL if not
 long isFunctionArg(function_env *cur_env,CORD name);
 //type punning macros

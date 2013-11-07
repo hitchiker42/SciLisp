@@ -34,6 +34,7 @@ void dump_mod(){
   return;
 }
 //um, well I don't really need most of this now
+//why not?
 void initialize_llvm(int engine){
   int i;
     SL_Registry=LLVMGetGlobalPassRegistry();
@@ -50,7 +51,6 @@ void initialize_llvm(int engine){
   LLVMInitializeIPA(SL_Registry);
   LLVMInitializeCodeGen(SL_Registry);
   LLVMInitializeTarget(SL_Registry);
-
   SL_Module=*(Parse_Prim_bc("prim.bc"));
   SL_Context=LLVMGetModuleContext(SL_Module);
   SL_Builder=LLVMCreateBuilderInContext(SL_Context);
@@ -88,7 +88,7 @@ void initialize_llvm(int engine){
     LispFxnTypes[i]=LLVMFunctionType(LLVMSexp,LispArgs,i,0);
     LongFxnTypes[i]=LLVMFunctionType(LLVMSexp,LongArgs,i*2,0);
   }
-  SL_Engine=xmalloc(sizeof(LLVMExecutionEngineRef)); 
+  SL_Engine=xmalloc(sizeof(LLVMExecutionEngineRef));
   LLVMInitializeNativeTarget();
   switch(engine){
     case 1:
@@ -182,21 +182,54 @@ static LLVMValueRef LLVMGenFunctionBody
       symref LLVMSym=getSym(cur_env,XCAR(expr).val.var->name);
       //will need to modify this to allow functions to be used before
       //they are defined
-      if(!LLVMSym || !FUNCTIONP(LLVMSym->val)){
+      if(!LLVMSym||!FUNCTIONP(LLVMSym->val)){
         format_error_str("undefined function %s",XCAR(expr).val.var->name);
-      }
-      LLVMValueRef LLVMFuncall=LLVMGetNamedGlobal(LLVMSym->val.fun->cname);
+        handle_error();
+      }        
+      LLVMValueRef LLVMFuncall=LLVMGetNamedGlobal(SL_Module,LLVMSym->val.fun->cname);
+      function *LLVMFun=LLVMSym.val.val.fun;
       if(!LLVMFuncall){
         format_error_str("undefined function %s",XCAR(expr).val.var->name);
+        handle_error();
       }
-      LLVMValueRef *LLVMFunArgs=alloca(sizeof(LLVMValueRef)*
-                                       LLVMCountArgs(LLVMFunCall));
-  } else if (SYMBOLP(expr)){
-  } else {
-    return LLVMCodegenAtom(expr,cur_env,SL_Builder);
+      LLVMValueRef *LLVMFunArgs=alloca(sizeof(LLVMValueRef)*LLVMFun->args->max_args);
+      int i;
+      expr=XCDR(expr);
+      for(i=0;i<LLVMFun->args->max_args-LLVMFUN->args->hash_rest_arg;i++){
+        if(!CONSP(expr)){
+          if(i<LLVMFun->args->num_req_args){
+            format_error_string("Not enough arguments to %s",LLVMFun->cname);
+          } else {
+            for(;i<LLVMFun->args->max_args;i++){
+              LLVMFunArgs[i]=LispNIL;
+            }
+          }
+        } else {
+          //FIXME; this mas major issues
+          LLVMFunArgs[i]=LLVMCodegenAtom(expr,cur_env,SL_Builder);
+          expr=XCDR(expr);
+        }
+      } if(CONSP(expr)){
+      }
+    } else if (SYMBOLP(expr)){
+      symref sym=getSymNotGlobal(cur_env,expr.val.var->name);
+      if(symref){
+        return LLMVCodegenAtom(symref->val,cur_env,SL_Builder);
+      } else {
+        //globals are in a dynamic scope
+        LLVMValueRef LLVMGetGlobal=LLVMGetNamedGlobal(SL_Module,"GetGlobalSym");
+        LLVMValueRef globalName[1];
+        globalName[0]=LLVMConstStringInContext(SL_Context,expr.val.var->name,
+                                               CORD_len(expr.val.var->name),0);
+        return LLVMGlobalVal=
+          LLVMBuildCall(SL_Builder,LLVMGetGlobal,globalName,1,"");
+      }
+    } else {
+      return LLVMCodegenAtom(expr,cur_env,SL_Builder);
+    }
+    return 0;
   }
-  return 0;
-}    
+}
 sexp LLVMEval(sexp expr,env *cur_env){
   if(setjmp(jmp_to_error)){
     return error_val;
@@ -432,7 +465,7 @@ LLVMValueRef LLVM_Codegen_while(sexp expr,env *cur_env,
       LLVMBuildCondBr(builder,EVAL(cadr(expr))/*this should be an i1 value...*/,
                       cur_env,builder,body,next_block);
     //build body of loop recursively
-    LLVMPositionBuilderAtEnd(builder,body);  
+    LLVMPositionBuilderAtEnd(builder,body);
     EVAL(caddr(expr),cur_env,builder);
     LLVMBuildBr(cond_block);//branch back to test
     LLVMPositionBuilderAtEnd(builder,next_block);//move builder to fresh block
@@ -446,13 +479,13 @@ LLVMValueRef LLVM_Codegen_defun(sexp expr,env *cur_env,
 LLVMValueRef LLVM_Codegen_def(sexp expr,env *cur_env,
                               LLVMBuilderRef builder){
   //(def var body)
-  /*  if(CONSP(caddr(expr)) && 
+  /*  if(CONSP(caddr(expr)) &&
      SPECP(XCAADDR(expr)) &&
      XCAADDR(expr).val.meta==_lambda){
     //we're defining a function
     sexp newSym=cadr(expr);
     //lookup newSym.. or something
-    fxn_ptr newFun=xmalloc(sizeof(fxn_proto));    
+    fxn_ptr newFun=xmalloc(sizeof(fxn_proto));
     newSym.val.var->val.fun=newFun;
     newFun->lispname=newSym.val.var->name;*/
   return LispNIL;

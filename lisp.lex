@@ -150,8 +150,7 @@ and {LEX_MSG("lexing and");
   yylval->tag=_special;yylval->val.special=_quasi;return TOK_QUASI;}
 "," {LEX_MSG("Lexing comma");
   yylval->tag=_special;yylval->val.special=_comma;return TOK_COMMA;}
-{TYPENAME} {LEX_MSG("lexing typename");yylval->tag=_str;
-  yylval->val.cord=CORD_strdup(&yytext[2]);
+{TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
 <comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
   if(YY_START != comment){BEGIN(comment);}comment_depth+=1;}

@@ -5,9 +5,6 @@
 #include "common.h"
 #include "env.h"
 #include "hash_fn.h"
-local_symref getLocalSym(local_env *cur_env,CORD name);
-symref getFunctionSym(function_env *cur_env,CORD name);
-symref getGlobalSym(CORD name);
 symref getSym(env *cur_env,CORD name){
   if(!cur_env){return NULL;}
   switch(cur_env->tag){
@@ -26,13 +23,36 @@ symref getSym(env *cur_env,CORD name){
       exit(1);
   }
 }
+symref getSymNotGlobal(env *cur_env,CORD name){
+  symref retval=NULL;
+  while(cur_env->enclosing != topLevelEnv){
+    switch(cur_env->tag){
+      case _local:
+        retval=getSymLocalOnly((local_env*)cur_env,name);
+        break;
+      case _funArgs:
+        retval=getSymFunctionOnly((function_env*)cur_env,name);
+        break;
+      case _obEnv:
+        retval=getSymObarrayOnly((obarray_env*)cur_env,name);
+      default:
+        fprintf(stderr,"shouldn't get here, undefined environment");
+        exit(1);
+    }
+    if(retval){
+      return retval;
+    }
+  }
+  return NULL;
+}
+
 symref getGlobalSym(CORD name){
   obarray_entry* tempsym;
   tempsym=obarray_get_entry(globalObarray,name,0);
   if(tempsym){
     return tempsym->ob_symbol;
   } else {
-    return 0;
+    return NULL;
   }
 }
 symref addGlobalSym(symref Var){
@@ -48,6 +68,16 @@ local_symref getLocalSym(local_env *cur_env,CORD name){
     cur_sym=cur_sym->next;
   }
   return (local_symref)getSym(cur_env->enclosing,name);
+}
+symref getSymLocalOnly(local_env *cur_env,CORD name){
+  local_symref cur_sym=cur_env->head;
+  while(cur_sym != NULL){
+    if(!CORD_cmp(cur_sym->name,name)){
+      return (symref)cur_sym;
+    }
+    cur_sym=cur_sym->next;
+  }
+  return NULL;
 }
 //perhaps I should check to see if variables exist
 //and redifine them
@@ -82,6 +112,16 @@ symref getFunctionSym(function_env* cur_env,CORD name){
     }
   }
   return getSym(cur_env->enclosing,name);
+}
+symref getSymFunctionOnly(function_env* cur_env,CORD name){
+  function_args* args=cur_env->head;
+  int i;
+  for(i=0;i<args->max_args;i++){
+    if(!CORD_cmp(name,args->args[i].name)){
+      return args->args+i;
+    }
+  }
+  return NULL;
 }
 long isFunctionArg(function_env *cur_env,CORD name){
   function_args* args=cur_env->head;
@@ -242,6 +282,11 @@ symref getObarraySym(obarray_env* ob_env,CORD name){
   } else {
     return getSym(ob_env->enclosing,name);
   }
+}
+symref getSymObarrayOnly(obarray_env* ob_env,CORD name){
+  obarray_entry* entry;
+  entry=obarray_get_entry(ob_env->head,name,0);
+  return entry->ob_symbol;
 }
 symref addObarraySym(obarray_env* ob_env,symref Var){
   obarray* ob=ob_env->head;

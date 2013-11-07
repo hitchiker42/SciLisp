@@ -1157,116 +1157,115 @@ YY_RULE_SETUP
 case 34:
 YY_RULE_SETUP
 #line 153 "lisp.lex"
-{LEX_MSG("lexing typename");yylval->tag=_str;
-  yylval->val.cord=CORD_strdup(&yytext[2]);
+{LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 156 "lisp.lex"
+#line 155 "lisp.lex"
 {LEX_MSG("lexing open comment");
   if(YY_START != comment){BEGIN(comment);}comment_depth+=1;}
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 158 "lisp.lex"
+#line 157 "lisp.lex"
 {LEX_MSG("lexing close comment"); comment_depth-=1;
   if(comment_depth == 0){BEGIN(0);}}
 	YY_BREAK
 case 37:
 /* rule 37 can match eol */
 YY_RULE_SETUP
-#line 160 "lisp.lex"
+#line 159 "lisp.lex"
 
 	YY_BREAK
 case 38:
 /* rule 38 can match eol */
 YY_RULE_SETUP
-#line 161 "lisp.lex"
+#line 160 "lisp.lex"
 
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 162 "lisp.lex"
+#line 161 "lisp.lex"
 {LEX_MSG("lexing true literal");return TOK_LISP_TRUE;}
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 163 "lisp.lex"
+#line 162 "lisp.lex"
 {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 164 "lisp.lex"
+#line 163 "lisp.lex"
 {LEX_MSG("lexing ID");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 166 "lisp.lex"
+#line 165 "lisp.lex"
 {LEX_MSG("lexing ,@");return TOK_LIST_SPLICE;}
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 167 "lisp.lex"
+#line 166 "lisp.lex"
 {LEX_MSG("lexing (");return TOK_LPAREN;}
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 168 "lisp.lex"
+#line 167 "lisp.lex"
 {LEX_MSG("lexing )");return TOK_RPAREN;}
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 169 "lisp.lex"
+#line 168 "lisp.lex"
 {LEX_MSG("lexing [");return TOK_LBRACE;}
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 170 "lisp.lex"
+#line 169 "lisp.lex"
 {LEX_MSG("lexing ]");return TOK_RBRACE;}
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 171 "lisp.lex"
+#line 170 "lisp.lex"
 {LEX_MSG("lexing {");return TOK_LCBRACE;}
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 172 "lisp.lex"
+#line 171 "lisp.lex"
 {LEX_MSG("lexing }");return TOK_RCBRACE;}
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 173 "lisp.lex"
+#line 172 "lisp.lex"
 {LEX_MSG("lexing .");return TOK_DOT;}
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 174 "lisp.lex"
+#line 173 "lisp.lex"
 {LEX_MSG("lexing :");return TOK_COLON;}
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 175 "lisp.lex"
+#line 174 "lisp.lex"
 {LEX_MSG("lexing @");return TOK_AROBASE;}
 	YY_BREAK
 /*because really what else could I use, atsign, atmark, really?*/
 case 52:
 /* rule 52 can match eol */
 YY_RULE_SETUP
-#line 177 "lisp.lex"
+#line 176 "lisp.lex"
 /*whitespace*/
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 178 "lisp.lex"
+#line 177 "lisp.lex"
 /*one line comments*/
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(comment):
 case YY_STATE_EOF(quasiquote):
-#line 179 "lisp.lex"
+#line 178 "lisp.lex"
 return -1;
 	YY_BREAK
 /*(defun special (name) (insert (format "\n%s {LEX_MSG(\"lexing %s\");
@@ -1275,10 +1274,10 @@ return -1;
 (dolist (name '("define" "defun" "setq" "datatype" "union" "enum" "struct" "go" "tagbody" "lamdba" "progn" "if" "let" "do" "quasiquote" "eval" "defmacro")) (special name))*/
 case 54:
 YY_RULE_SETUP
-#line 185 "lisp.lex"
+#line 184 "lisp.lex"
 ECHO;
 	YY_BREAK
-#line 1282 "lex.yy.c"
+#line 1281 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2270,4 +2269,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 185 "lisp.lex"
+#line 184 "lisp.lex"

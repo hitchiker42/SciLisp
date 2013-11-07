@@ -547,7 +547,7 @@ _tag parse_tagname(CORD tagname){
     mkTypeCase(0xf9d0c88f42834344, _long);//typename == int64
     mkTypeCase(0xcde8c9ad70d16733, _long);//typename == long
     mkTypeCase(0x54d746c609966d93, _ulong);//typename == uint64
-    mkTypeCase(0x27ff5150e0955ae4, _float);//
+    //    mkTypeCase(0x27ff5150e0955ae4, _float);//
     mkTypeCase(0x5da874f342c0395f, _double);//typename == real64
     mkTypeCase(0xa0880a9ce131dea8, _double);//typename == double
     mkTypeCase(0x102f3138836b306a, _bigint);//typename == bigint
