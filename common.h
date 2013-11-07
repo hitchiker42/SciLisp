@@ -90,15 +90,17 @@ static int initPrimsFlag=1;
 //sexp llvmEvalJIT(sexp expr,env cur_env);
 //void initialize_llvm();
 extern sexp yyparse(FILE* input);
-//only function externed from eval, so I just put it here
+extern _tag parse_tagname(CORD tagname);
+//maybe I need an eval.h?
 extern sexp eval(sexp expr,env *cur_env);
-//or not
 extern sexp call_builtin(sexp expr,env *cur_env);
 extern sexp call_lambda(sexp expr,env *cur_env);
 extern sexp lisp_funcall(sexp expr,env *cur_env);
 extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
 extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
+//I don't need to pull in all of the hash functions
+extern uint64_t fnv_hash(const void* key,int keylen);
 static c_string output_file=NULL;
 static inline double getDoubleVal(sexp x){
   switch(x.tag){

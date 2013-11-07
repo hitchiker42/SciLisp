@@ -532,3 +532,49 @@ static inline sexp parse_function_args(){
   }
   return retval;
 }
+//exported function
+/*
+(defun fnv-hash (str) 
+  (shell-command (concat "/home/tucker/Repo/SciLisp/fnv_hash " str) t))
+*/
+#define mkTypeCase(hash,name)                   \
+  case hash: return name
+_tag parse_tagname(CORD tagname){
+  uint64_t taghash=fnv_hash(tagname,CORD_len(tagname));
+  switch(taghash){
+    //    mkTypeCase(0x74b7d17aa973b4f5,_false);
+    mkTypeCase(0xbca0591195d8188 , _cons);//typename == cons
+    mkTypeCase(0xf9d0c88f42834344, _long);//typename == int64
+    mkTypeCase(0xcde8c9ad70d16733, _long);//typename == long
+    mkTypeCase(0x54d746c609966d93, _ulong);//typename == uint64
+    mkTypeCase(0x27ff5150e0955ae4, _float);//
+    mkTypeCase(0x5da874f342c0395f, _double);//typename == real64
+    mkTypeCase(0xa0880a9ce131dea8, _double);//typename == double
+    mkTypeCase(0x102f3138836b306a, _bigint);//typename == bigint
+    mkTypeCase(0xf7de010e01156121, _bigfloat);//typename == bigfloat
+    mkTypeCase(0xf2a393910b5b3ebd, _char);//typename == char
+    mkTypeCase(0x704be0d8faaffc58, _str);//typename == string
+    mkTypeCase(0x4f9e14b634c6b026, _array);//typename == array
+    mkTypeCase(0x613e0b076b7b0259, _ustr);//typename ==  ustring
+    mkTypeCase(0xbc35a7f3228f2b18, _regex);//typename == regex
+    mkTypeCase(0x4f6a36d8e8907985, _stream);//typename == stream
+    //    mkTypeCase(0xe85fdaf4496b4ebb,_matrix);
+    mkTypeCase(0xbf779aad69748141, _list);//typename == list
+    mkTypeCase(0x7fb88ddaf3474073, _dpair);//typename == dpair
+    mkTypeCase(0x826b4caaf325324a, _fun);//typename == lambda
+    mkTypeCase(0xe81b0096bc73f511, _sym);//typname == symbol
+    mkTypeCase(0x12c837a52b5d72b3, _macro);//typename == macro
+    //    mkTypeCase(0x28f23a5007ad556e,_type);
+    //    mkTypeCase(0xedd5fa43656c3778,_lam);
+    //    mkTypeCase(0x6b3f9c85427b90b9,_lenv);
+    //    mkTypeCase(0x3daa8643932b5bc1,_env);
+    //    mkTypeCase(0xfa31bb89bdf2b84d,_keyword);
+    //    mkTypeCase(0x651f3fe3023c9cc9,_funarg);
+    //    mkTypeCase(0x10b648bcccfe500e,_funargs);
+    //    mkTypeCase(0x5436f750202bd962,_true);
+    //    mkTypeCase(0x7967fcf0e2e57dd8,_obarray);
+    default:
+      return _error;
+  }
+}
+

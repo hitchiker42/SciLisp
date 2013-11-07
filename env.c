@@ -27,7 +27,7 @@ symref getSym(env *cur_env,CORD name){
   }
 }
 symref getGlobalSym(CORD name){
-  obarray_entry* tempsym;  
+  obarray_entry* tempsym;
   tempsym=obarray_get_entry(globalObarray,name,0);
   if(tempsym){
     return tempsym->ob_symbol;
@@ -208,7 +208,7 @@ obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
   ob->buckets[index]=entry;//update bucket
   ob->entries++;
   ob->capacity+=ob->capacity_inc;
-  return entry;  
+  return entry;
 }
 //assume a hash value of 0 is impossible(is it?)
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv){
@@ -220,9 +220,14 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
   if(!bucket_head){
     return NULL;
   }
-  while(bucket_head && bucket_head != bucket_head->next){    
-    if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
-      return bucket_head;
+  /*check that the hashes match, but since we can't be 100% sure
+    of unique hashes do a string comparison as well, its still 
+    better that doing all string compairsons*/
+  while(bucket_head && bucket_head != bucket_head->next){
+    if(hashv == bucket_head->hashv){
+      if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
+        return bucket_head;
+      }
     }
     bucket_head=bucket_head->next;
   }
@@ -337,7 +342,7 @@ int obarray_rehash(obarray *ob){
           old_bucket->next=NULL;
           ob->used++;
         } else {
-          temp=ob->buckets[i+old_len];//bucket n == head-> ... 
+          temp=ob->buckets[i+old_len];//bucket n == head-> ...
           ob->buckets[i+old_len]=bucket;//bucket n == new
           temp->prev=bucket;// head-> prev =new
           bucket=bucket->next;

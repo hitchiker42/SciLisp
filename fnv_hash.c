@@ -21,7 +21,9 @@ int main(int argc,char* argv[]){
     if (!(strcmp(argv[1],"-i"))){
       interactive=1;
       argv=argv+1;
-    }
+    } else if (!strcmp(argv[1],"-h")){
+      puts("fnv_hash -ih [string]*\n-i = interactive, print extra information");
+    }  
   }
   char* data=argv[1];
   int i=1,len;
@@ -31,7 +33,8 @@ int main(int argc,char* argv[]){
     hashv=fnv_hash(data,len);
     printf("%#0lx ",hashv);
     if(interactive){
-      printf("\n%d\n",hashv%128);
+      puts(data);
+      printf("bucket number %d/128\n",hashv%128);
     }
     data=argv[++i];
   }

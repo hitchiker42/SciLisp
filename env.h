@@ -6,6 +6,11 @@ struct symbol{
   sexp val;
   //  env* symbol_env;
 };
+struct typed_symbol{
+  CORD name;
+  sexp val;
+  _tag type;
+};
 struct local_symbol{
   CORD name;
   sexp val;

@@ -2,10 +2,8 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
-#define uthash_malloc(sz) GC_MALLOC(sz)
-#define uthash_free(ptr,sz) GC_FREE(ptr)
-#define HASH_USING_NO_STRICT_ALIASING
-#define HASH_FUNCTION HASH_MUR
+//Don't include this file directly, it's included by common.h
+
 //including cord.h is weird, it includes "cord_pos.h" which isn't
 //automatically installed for some reason so we specify the actual
 //file we're including explicitly, as thats the easiest way to fix things
@@ -38,13 +36,13 @@ typedef struct local_symbol local_symbol;//type of symbol used in local envs
 typedef struct global_symbol global_symbol;//type of symbol used in global envs
 typedef struct env env;//generic symbol namespace
 typedef struct local_env local_env;//linked list representing a local namespace
-typedef struct global_env global_env;//hash table representing global namespace
 typedef struct function_env function_env;//Actually used for function arguments
 typedef struct lambda lambda;//type of lambda expressions
 typedef struct lambda_new lambda_new;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef struct function_new function_new;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
+typedef struct typed_symbol typed_symbol;
 typedef struct function_args function_args;
 typedef struct obarray obarray;
 typedef struct obarray_entry obarray_entry;
@@ -52,11 +50,11 @@ typedef struct obarray_env obarray_env;
 typedef struct macro macro;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
-typedef symbol* symref;//type of generic symbol referances
-typedef global_symbol* global_symref;//"" global ""
-typedef local_symbol* local_symref;//"" local ""
-typedef symbol* keyword_symref;
+typedef symbol *symref;//type of generic symbol referances
+typedef local_symbol *local_symref;//"" local ""
+typedef symbol *keyword_symref;
 typedef symbol keyword_symbol;
+typedef typed_symbol *typed_symref;
 //typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
@@ -329,25 +327,30 @@ static struct option long_options[] = {
 //should probably generate these or something
 #define mkTypeSym(name,mval)                                    \
   static const sexp name = {.tag=_type, .val={.meta = mval}}
-mkTypeSym(Qerror,-4);
-mkTypeSym(Qfalse,-3);
-mkTypeSym(Quninterned,-2);
-mkTypeSym(Qnil,-1);
-mkTypeSym(Qcons,0);
-mkTypeSym(Qdouble,1);
-mkTypeSym(Qlong,2);
-mkTypeSym(Qchar,3);
-mkTypeSym(Qstr,4);
-mkTypeSym(Qfun,5);
-mkTypeSym(Qsym,6);
-mkTypeSym(Qspec,7);
-mkTypeSym(Qmacro,8);
-mkTypeSym(Qtype,9);
-mkTypeSym(Qarr,10);
-mkTypeSym(Qtrue,11);
-mkTypeSym(Qlist,12);
-mkTypeSym(Qlam,13);
-mkTypeSym(Qlenv,14);
+mkTypeSym(Qerror,_error);
+mkTypeSym(Qfalse,_false);
+mkTypeSym(Quninterned,_uninterned);
+mkTypeSym(Qnil,_nil);
+mkTypeSym(Qcons,_cons);
+mkTypeSym(Qdouble,_double);
+mkTypeSym(Qlong,_long);
+mkTypeSym(Qbigint,_bigint);
+mkTypeSym(Qbigfloat,_bigfloat);
+mkTypeSym(Qchar,_char);
+mkTypeSym(Qstr,_str);
+mkTypeSym(Qfun,_fun);
+mkTypeSym(Qsym,_sym);
+mkTypeSym(Qspec,_special);
+mkTypeSym(Qmacro,_macro);
+mkTypeSym(Qtype,_type);
+mkTypeSym(Qdpair,_dpair);
+mkTypeSym(Qarr,_array);
+mkTypeSym(Qtrue,_true);
+mkTypeSym(Qlist,_list);
+mkTypeSym(Qlenv,_lenv);
+mkTypeSym(Qenv,_env);
+mkTypeSym(Qobarray,_obarray);
+mkTypeSym(Qfunargs,_funargs);
 //static const sexp typeArray[NUM_TYPES-1] = {Quninterned,Qnil,Qcons,Qdouble,Qlong,Qchar,Qstr,Qfun,Qsym,Qspec,Qmacro,Qtype,Qarr,Qtrue};
 //static sexp typeOf(sexp obj){
 //  return typeArray[obj.tag+2];
@@ -365,30 +368,37 @@ enum backend{
   as=2,
 };
 #define mkTypeCase(type,tag) case tag: return type  
-static sexp typeOf(sexp obj){
-  switch (obj.tag){
-    mkTypeCase(Qerror,-4);
-    mkTypeCase(Qfalse,-3);
-    mkTypeCase(Quninterned,-2);
-    mkTypeCase(Qnil,-1);
-    mkTypeCase(Qcons,0);
-    mkTypeCase(Qdouble,1);
-    mkTypeCase(Qlong,2);
-    mkTypeCase(Qchar,3);
-    mkTypeCase(Qstr,4);
-    mkTypeCase(Qfun,5);
-    mkTypeCase(Qsym,6);
-    mkTypeCase(Qspec,7);
-    mkTypeCase(Qmacro,8);
-    mkTypeCase(Qtype,9);
-    mkTypeCase(Qarr,10);
-    mkTypeCase(Qtrue,11);
-    mkTypeCase(Qlist,12);
-    mkTypeCase(Qlam,13);
-    mkTypeCase(Qlenv,14);
+static sexp typeOfTag(_tag tag){
+  switch (tag){
+    mkTypeCase(Qerror,_error);
+    mkTypeCase(Qfalse,_false);
+    mkTypeCase(Quninterned,_uninterned);
+    mkTypeCase(Qnil,_nil);
+    mkTypeCase(Qcons,_cons);
+    mkTypeCase(Qdouble,_double);
+    mkTypeCase(Qlong,_long);
+    mkTypeCase(Qbigint,_bigint);
+    mkTypeCase(Qbigfloat,_bigfloat);
+    mkTypeCase(Qchar,_char);
+    mkTypeCase(Qstr,_str);
+    mkTypeCase(Qfun,_fun);
+    mkTypeCase(Qsym,_sym);
+    mkTypeCase(Qspec,_special);
+    mkTypeCase(Qmacro,_macro);
+    mkTypeCase(Qtype,_type);
+    mkTypeCase(Qdpair,_dpair);
+    mkTypeCase(Qarr,_array);
+    mkTypeCase(Qtrue,_true);
+    mkTypeCase(Qlist,_list);
+    mkTypeCase(Qlenv,_lenv);
+    mkTypeCase(Qenv,_env);
+    mkTypeCase(Qobarray,_obarray);
+    mkTypeCase(Qfunargs,_funargs);
   }
 }
-
+static sexp typeOf(sexp obj){
+  return typeOfTag(obj.tag);
+}
 enum operator{
   _add,
   _sub,
@@ -452,3 +462,5 @@ enum operator{
   env* enclosing;
   array_symref head;
   };*/
+#undef mkTypeCase
+#undef mkTypeSym
