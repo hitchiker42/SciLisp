@@ -64,6 +64,8 @@ LLVMModuleRef* Parse_Prim_bc(const char* name);//create a module from prim.bc
  * so for top level evaluation we need to create a dummy function to call */
 LLVMValueRef LLVM_Codegen(sexp expr,env *cur_env,LLVMBuilderRef builder);
 sexp LLVMEval(sexp expr,env *cur_env);
+LLVMValueRef LLVMCodegenAtom(sexp expr,env *cur_env,LLVMBuilderRef builder);
+sexp LLVMGenFunction(sexp lambda_expr,env* cur_env);
 LLVMValueRef LLVM_Codegen_Special(sexp expr,env *cur_env,
                                   LLVMBuilderRef builder);
 LLVMValueRef LLVM_Codegen_if(sexp expr,env *cur_env,

@@ -162,8 +162,8 @@ void initialize_llvm(int engine){
 sexp LLVMGenFunction(sexp lambda_expr,env* cur_env){
   //assume we get passed a lambda expression
   //that should be the main use of llvm anyway
-  if(!FUNCTIONP(lambda_expr)){
-      return error_sexp("expected a function");
+  if(!LAMBDAP(lambda_expr)){
+    return error_sexp("expected a lambda function");
   }
   function *lispFun=lambda_expr.val.fun;
   LLVMValueRef newFun=LLVMAddFunction(SL_Module,lispFun->cname,
@@ -173,63 +173,99 @@ sexp LLVMGenFunction(sexp lambda_expr,env* cur_env){
   LLVMPositionBuilderAtEnd(SL_Builder,newFunStart);
   env funEnv={.enclosing=cur_env,.head={.function=lispFun->args},.tag=_funArgs};
   LLVMValueRef funBody=LLVMGenFunctionBody(lispFun->lam->body,&funEnv);
-  return NIL;
+  //I think it should be ok to reuse tha memory for the lambda function
+  LLVMRunFunctionPassManager(SL_Pass,newFun);
+  lispFun->comp.f0=LLVMGetPointerToGlobal(SL_Engine,newFun);
+  lispFun->type=_compiled_fun;
+  return (sexp){.tag=_fun,.val={.fun=lispFun}};
+}
+sexp LLVM_eval(sexp expr,env *cur_env){
+  //could be a bit more efficent but eh
+  if(CONSP(expr)){
+    if(LAMBDAP(XCAR(expr))){
+      //we have a lambda, which we would normally just call
+      //instead compile it and change it's type to that of a compiled function
+      XCAR(expr)=LLVMGenFunction(XCAR(expr),cur_env);
+      //now call that compiled function, in theory if that function gets
+      //used again it'll already be compiled
+      return eval(expr,cur_env);
+    }
+  }
+  return eval(expr,cur_env);
 }
 static LLVMValueRef LLVMGenFunctionBody
-(sexp expr,env *cur_env,LLVMValueRef* args){
-  if(CONSP(expr)){
-    if(SYMBOLP(XCAR(expr))){
-      symref LLVMSym=getSym(cur_env,XCAR(expr).val.var->name);
-      //will need to modify this to allow functions to be used before
-      //they are defined
-      if(!LLVMSym||!FUNCTIONP(LLVMSym->val)){
-        format_error_str("undefined function %s",XCAR(expr).val.var->name);
-        handle_error();
-      }        
-      LLVMValueRef LLVMFuncall=LLVMGetNamedGlobal(SL_Module,LLVMSym->val.fun->cname);
-      function *LLVMFun=LLVMSym.val.val.fun;
-      if(!LLVMFuncall){
-        format_error_str("undefined function %s",XCAR(expr).val.var->name);
-        handle_error();
-      }
-      LLVMValueRef *LLVMFunArgs=alloca(sizeof(LLVMValueRef)*LLVMFun->args->max_args);
-      int i;
-      expr=XCDR(expr);
-      for(i=0;i<LLVMFun->args->max_args-LLVMFUN->args->hash_rest_arg;i++){
-        if(!CONSP(expr)){
-          if(i<LLVMFun->args->num_req_args){
-            format_error_string("Not enough arguments to %s",LLVMFun->cname);
-          } else {
-            for(;i<LLVMFun->args->max_args;i++){
-              LLVMFunArgs[i]=LispNIL;
-            }
-          }
-        } else {
-          //FIXME; this mas major issues
-          LLVMFunArgs[i]=LLVMCodegenAtom(expr,cur_env,SL_Builder);
-          expr=XCDR(expr);
+(sexp expr,env *cur_env){
+  switch(expr.tag){
+    case _cons:
+      if(SYMBOLP(XCAR(expr))){
+        symref LLVMSym=getSym(cur_env,XCAR(expr).val.var->name);
+        //will need to modify this to allow functions to be used before
+        //they are defined
+        if(!LLVMSym||!FUNCTIONP(LLVMSym->val)){
+          format_error_str("undefined function %s",XCAR(expr).val.var->name);
+          handle_error();
+        }        
+        LLVMValueRef LLVMFunCall=LLVMGetNamedGlobal
+          (SL_Module,LLVMSym->val.val.fun->cname);
+        function *LLVMFun=LLVMSym->val.val.fun;
+        if(!LLVMFunCall){
+          format_error_str("undefined function %s",XCAR(expr).val.var->name);
+          handle_error();
         }
-      } if(CONSP(expr)){
+        LLVMValueRef *LLVMFunArgs=alloca(sizeof(LLVMValueRef)*LLVMFun->args->max_args);
+        int i;
+        expr=XCDR(expr);
+        for(i=0;i<LLVMFun->args->max_args -
+              LLVMFun->args->has_rest_arg;i++){
+          if(!CONSP(expr)){
+            if(i<LLVMFun->args->num_req_args){
+              format_error_str("Not enough arguments to %s",LLVMFun->lname);
+              handle_error();
+            } else {
+              for(;i<LLVMFun->args->max_args;i++){
+                LLVMFunArgs[i]=LispNIL;
+              }
+            }
+          } else {
+            //FIXME; this mas major issues
+            LLVMFunArgs[i]=LLVMGenFunctionBody(expr,cur_env);
+            expr=XCDR(expr);
+          }
+        } if(CONSP(expr)){
+          if(!LLVMFun->args->has_rest_arg){
+            format_error_str("Excess arguments to %s",LLVMFun->lname);
+            handle_error();
+          }
+          //add later
+        }
+        return LLVMBuildCall(SL_Builder,LLVMFunCall,
+                             LLVMFunArgs,LLVMFun->args->max_args,"");
       }
-    } else if (SYMBOLP(expr)){
+    case _sym:{
       symref sym=getSymNotGlobal(cur_env,expr.val.var->name);
-      if(symref){
-        return LLMVCodegenAtom(symref->val,cur_env,SL_Builder);
+      if(sym){
+        LLVMValueRef retval=LLVMCodegenAtom(sym->val,cur_env,SL_Builder);
+        LLVMInsertIntoBuilder(SL_Builder,retval);
+        return retval;
       } else {
         //globals are in a dynamic scope
         LLVMValueRef LLVMGetGlobal=LLVMGetNamedGlobal(SL_Module,"GetGlobalSym");
         LLVMValueRef globalName[1];
         globalName[0]=LLVMConstStringInContext(SL_Context,expr.val.var->name,
                                                CORD_len(expr.val.var->name),0);
-        return LLVMGlobalVal=
+        return 
           LLVMBuildCall(SL_Builder,LLVMGetGlobal,globalName,1,"");
       }
-    } else {
-      return LLVMCodegenAtom(expr,cur_env,SL_Builder);
     }
-    return 0;
+    default:{
+      LLVMValueRef retval=LLVMCodegenAtom(expr,cur_env,SL_Builder);
+      LLVMInsertIntoBuilder(SL_Builder,retval);
+        return retval;
+    }
+      return 0;
   }
 }
+
 sexp LLVMEval(sexp expr,env *cur_env){
   if(setjmp(jmp_to_error)){
     return error_val;
