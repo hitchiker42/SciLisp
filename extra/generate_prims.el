@@ -70,7 +70,7 @@
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
   (collect (lambda (x) (apply #'mkPrimBasic x)) basic-prims-list))
-(define SciLisp-prims (nconc
+(define SciLisp-prims (append
                        basic-SciLisp-prims
   '(
     ((:lname . "sum") (:cname . "lisp_sum") (:minargs . 1) (:maxargs . 2)
@@ -133,7 +133,6 @@
       (:maxargs . 3) (:optargs . 2) (:keyargs . 0) (:restarg . 0))
      ((:lname . "apply") (:cname . "lisp_apply") (:minargs . 2) (:maxargs . 3)
       (:optargs . 1) (:keyargs . 0) (:restarg . 0)))
-  (mpz-binops mpz-binops-list)
   (mpfr-binops mpfr-binops-list)
   (collect #'mk-predicate predicates)
   (collect #'arith-driver-funs arith-driver-funs-list)

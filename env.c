@@ -229,6 +229,7 @@ obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
     (CORD_as_cstring(new_entry->name),CORD_len(new_entry->name));
   uint64_t index=hashv%ob->size;
   obarray_entry* test=ob->buckets[index];
+  entry->hashv=hashv;
   if(!ob->buckets[index]){
     /*ob->buckets[index]=xmalloc(sizeof(obarray_entry));
     *ob->buckets[index]=(obarray_entry)
@@ -252,9 +253,9 @@ obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
 }
 //assume a hash value of 0 is impossible(is it?)
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv){
-  if(!hashv){
+  //  if(!hashv){
     hashv=cur_obarray->hash_fn(symname,CORD_len(symname));
-  }
+    //  }
   uint64_t index=hashv%cur_obarray->size;
   obarray_entry *bucket_head=cur_obarray->buckets[index];
   if(!bucket_head){
@@ -264,11 +265,11 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
     of unique hashes do a string comparison as well, its still 
     better that doing all string compairsons*/
   while(bucket_head && bucket_head != bucket_head->next){
-    if(hashv == bucket_head->hashv){
+    //    if(hashv == bucket_head->hashv){
       if(!CORD_cmp(symname,bucket_head->ob_symbol->name)){
         return bucket_head;
       }
-    }
+      //    }
     bucket_head=bucket_head->next;
   }
 return 0;

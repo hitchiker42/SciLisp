@@ -332,13 +332,16 @@ sexp parse_atom(){
 sexp parse_sexp(){
   switch(yytag){
     case TOK_QUOTE:{
-      nextTok();
-      sexp retval = parse_sexp();
-      if(SYMBOLP(retval)){
-        retval.val.var->val.quoted=1;
+      if(nextTok() == TOK_LPAREN){
+        return parse_list();
+      } else {
+        sexp retval = parse_sexp();
+        if(SYMBOLP(retval)){
+          retval.val.var->val.quoted=1;
+        }
+        retval.quoted=1;
+        return retval;
       }
-      retval.quoted=1;
-      return retval;
     }
     case TOK_COMMA:{
       if(!inside_backquote){
@@ -360,6 +363,7 @@ sexp parse_sexp(){
       return retval;
     }
     case TOK_LPAREN:{
+      HERE();
       return parse_cons();
     }
     default:{

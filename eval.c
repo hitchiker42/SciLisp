@@ -193,23 +193,31 @@ static inline sexp eval_def(sexp expr,env *cur_env){
 }
 static inline sexp eval_defun(sexp expr,env *cur_env){
   expr=cdr(expr);
-  if(!CONSP(expr) || !CONSP(XCDR(expr)) || !CONSP(XCDDR(expr))){
-    format_error_str("to few arguments to defun");
-    handle_error();
-  }
   sexp temp_lambda;
-  sexp fun_sym=XCAR(expr);
+  symref fun_sym=getSym(cur_env,car(expr).val.var->name);
+  if(!fun_sym){
+    fun_sym=xmalloc(symbolSize(cur_env));
+    fun_sym->name=(XCAR(expr).val.var->name);
+  }
+  //eval lambda
   function *new_fun=xmalloc(sizeof(function));
   lambda *new_lam=xmalloc(sizeof(lambda));
-  new_lam->body=XCADDR(expr);
-  new_lam->env=cur_env;
-  new_fun->args=XCADR(expr).val.funargs;
-  new_fun->lname=fun_sym.val.var->name;
-  new_fun->type=_lambda_fun;
-  new_fun->lam=new_lam;
-  fun_sym.val.var->val=function_sexp(new_fun);
-  addSym(cur_env,fun_sym.val.var);
-  return fun_sym;
+  env* closure = xmalloc(sizeof(env));
+  function_args *args=cadr(expr).val.funargs;
+  CORD funname;
+  *closure=*cur_env;
+  new_lam->body=caddr(expr);
+  new_lam->env=closure;
+  funname=fun_sym->name;
+  *new_fun=(function){.args=args,.lname=funname,.cname=funname,
+                      .lam=new_lam,.type=_lambda_fun};
+
+  fun_sym->val=function_sexp(new_fun);
+  addSym(cur_env,fun_sym);
+  //test code
+  symref test=getSym(cur_env,car(expr).val.var->name);
+  PRINT_MSG(print(symref_sexp(test)));
+  return symref_sexp(fun_sym);
 }
 
   /*  //expr=(defun sym arglist body)
@@ -343,7 +351,7 @@ static sexp eval_dolist(sexp expr,env *cur_env){
   *loop_var=*(local_symref)XCAR(loop_params).val.var;
   loop_var->next=NULL;
   sexp retval=NIL;
-  env *loop_scope=alloca(sizeof(env));
+  env *loop_scope=xmalloc(sizeof(env));
   *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
   while(CONSP(loop_list)){
     loop_var->val=unsafe_pop(loop_list);
@@ -460,7 +468,7 @@ sexp call_lambda(sexp expr,env *cur_env){
   lambda* curLambda=curFun.val.fun->lam;
   function_args *args=curFun.val.fun->args;
   symbol *save_defaults=args->args;
-  args->args=alloca(sizeof(symbol)*args->max_args);
+  args->args=xmalloc(sizeof(symbol)*args->max_args);
   memcpy(args->args,save_defaults,(sizeof(symbol)*args->max_args));
   args=getFunctionArgs(cdr(expr),args,cur_env);
   if(!args){
