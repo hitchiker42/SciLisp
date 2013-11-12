@@ -19,6 +19,9 @@ static c_string current_version="0.01";
 static c_string banner=
   "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+";
+static c_string SciLisp_Banner;
+static int no_banner;
+static int no_copyright;
 #ifdef NDEBUG
 int quiet_signals=1;
 #else
@@ -310,7 +313,12 @@ int main(int argc,char* argv[]){
   rl_set_signals();
   rl_variable_bind("blink-matching-paren","on");
   #endif
-  puts(banner);
+  if(!no_banner){
+    puts(SciLisp_Banner);
+  }
+  if(!no_copyright){
+    puts(banner);
+  }
   sexp ast,result;
  REPL:while(1){
     if(setjmp(error_buf)){
@@ -379,3 +387,12 @@ static void SciLisp_version(int exitCode){
   puts(Make_SciLisp_verson_string(current_version));
   exit(exitCode);
 }
+/*just to note I didn't write this I got it from
+  http://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=SciLisp*/
+static c_string SciLisp_Banner=
+"    ____      _  __    _          \n"
+"   / __/____ (_)/ /   (_)___  ___ \n"
+"  _\\ \\ / __// // /__ / /(_-< / _ \\\n"
+" /___/ \\__//_//____//_//___// .__/\n"
+"                           /_/     ";
+
