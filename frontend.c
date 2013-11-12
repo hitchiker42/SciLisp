@@ -20,8 +20,21 @@ static c_string banner=
   "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+";
 static c_string SciLisp_Banner;
-static int no_banner;
-static int no_copyright;
+static int no_banner=0;
+static int no_copyright=0;
+static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
+#if defined(MULTI_THREADED)
+static int pthread_prims_initialized=0;
+static pthread_mutex_t init_prims_mutex=PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t init_prims_cond=PTHREAD_COND_INITIALIZER;
+static void* initPrims_pthread(void*);
+static void ensure_prims_initialized();
+static void* SciLisp_getopt_pthread(void *getopt_args);
+#define GC_REDIRECT_TO_LOCAL
+#define ENSURE_PRIMS_INITIALIZED() ensure_prims_initialized()
+#else
+#define ENSURE_PRIMS_INITIALIZED()
+#endif
 #ifdef NDEBUG
 int quiet_signals=1;
 #else
@@ -29,10 +42,17 @@ int quiet_signals=0;
 #endif
 int evalError=0;
 static char *line_read;
+static void SciLisp_getopt(int argc,char *argv[]);
 void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
   if(!quiet_signals){
+#if defined(MULTI_THREADED)
+    fprintf(stderr,
+            "recieved segfault in thread number %ul, printing bactrace\n",
+            pthread_self());
+#else
     fprintf(stderr,"recieved segfault, printing bactrace\n");
+#endif
     print_trace();
   }
   exit(1);
@@ -212,97 +232,35 @@ int lispGetLine(FILE* outfile,char* filename){
   }
   return start_pos;
 }
+struct thread_args {
+  int argc;
+  char **argv;
+};
 int main(int argc,char* argv[]){
   //setup handler for sigsegv, so we can exit gracefully on a segfault
   sigaction(SIGSEGV,sigsegv_action,NULL);
-  initPrims(); //read primitives into syntax table, this really should just
-  // read a binary file containing a prepopulaed syntax table;
-  int c;
+  GC_init();
+#if defined (MULTI_THREADED)
+  pthread_t initPrims_thread;
+  pthread_t getopt_thread;
+  if((pthread_create(&initPrims_thread,NULL,initPrims_pthread,NULL))){
+    perror("Program error, exiting:\nthread creation failed");
+    exit(4);
+  }
+  struct thread_args *getopt_args=xmalloc(sizeof(struct thread_args));
+  getopt_args->argc=argc;
+  getopt_args->argv=argv;
+  //  initPrims(); //read primitives into symbol table
+  if((pthread_create(&getopt_thread,NULL,SciLisp_getopt_pthread,getopt_args))){
+    perror("Program error, exiting:\nthread creation failed");
+    exit(4);
+  }
+  PRINT_FMT("thread number %lu",pthread_self());
+#else
+  initPrims();
+  SciLisp_getopt(argc,argv);
+#endif
   sexp(*evalFun)(sexp,env*)=eval;
-  while(1){
-    c=getopt_long(argc,argv,"e:hl:o:qvtb:",long_options,NULL);
-    if(c==-1){break;}
-    switch(c){
-      case 'o':
-        output_file=optarg;
-        break;
-      case 'v':
-        SciLisp_version(0);
-      case 'h':
-        SciLisp_help(0);
-      case 'e':{
-        sexp ast;
-        //PRINT_FMT("optarg[0] = %c",optarg[0]);
-        FILE* file;
-        if(optarg[0]=='('){
-          //file=tmpfile();
-          //CORD_fprintf(file,optarg);
-          //fflush(file);
-          file=fmemopen(optarg,strlen(optarg),"r");
-          //lispRead(CORD_from_char_star(optarg));
-        } else {
-          file=fopen(optarg,"r");
-        }
-        ast=yyparse(file);
-        while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),topLevelEnv);
-          CORD_printf(print(result));puts("");
-          ast=XCDR(ast);
-        }
-        exit(0);
-      }
-      case 'l':{
-        initPrims();
-        sexp ast;
-        FILE* file=fopen(optarg,"r");
-        ast=yyparse(file);
-        while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),topLevelEnv);
-          ast=XCDR(ast);
-        };
-        break;
-      }
-        /*      case 'q':{
-        FILE* devnull = fopen("/dev/null","w");
-        debug_stream=devnull;
-        break;
-        }*/
-      case 't':{
-        FILE* file=fopen("test.lisp","r");
-        sexp ast=yyparse(file);
-        PRINT_MSG(print(ast));
-        puts("Testing:");
-        while (CONSP(ast)){
-          CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));
-          puts("");
-          sexp result=eval(XCAR(ast),topLevelEnv);
-          CORD_printf(CORD_cat("result: ",print(result)));
-          puts("");
-          ast=XCDR(ast);
-        }
-        exit(0);
-      }
-      case 'b':
-        switch(optarg[0]){
-          case 'l':
-            //            evalFun=llvmEvalJIT;
-            //initialize_llvm();
-          default:
-            break;
-        }
-      default:
-        printf("invalid option %c\n",c);
-        SciLisp_help(1);
-    }
-  }
-  if(optind < argc){
-    output_file = (output_file == NULL?"a.out":output_file);
-    FILE* file=fopen(argv[optind],"r");
-    compile(file,output_file,NULL);
-  } else if (output_file){
-    printf("error: -o|--output requires a file of SciLisp code to compile\n");
-    exit(2);
-  }
   static char *line_read =(char *)NULL;
   int parens,start_pos;
   char tmpFile[L_tmpnam];
@@ -313,6 +271,11 @@ int main(int argc,char* argv[]){
   rl_set_signals();
   rl_variable_bind("blink-matching-paren","on");
   #endif
+#ifdef MULTI_THREADED
+  pthread_join(initPrims_thread,NULL);
+  pthread_join(getopt_thread,NULL);
+  pthread_mutex_destroy(&init_prims_mutex);
+#endif
   if(!no_banner){
     puts(SciLisp_Banner);
   }
@@ -395,4 +358,118 @@ static c_string SciLisp_Banner=
 "  _\\ \\ / __// // /__ / /(_-< / _ \\\n"
 " /___/ \\__//_//____//_//___// .__/\n"
 "                           /_/     ";
-
+#ifdef MULTI_THREADED
+static void* initPrims_pthread(void* x __attribute__((unused))){
+  PRINT_FMT("thread number %lu",pthread_self());
+  initPrims();
+  pthread_mutex_lock(&init_prims_mutex);
+  pthread_prims_initialized=1;
+  pthread_cond_broadcast(&init_prims_cond);
+  pthread_mutex_unlock(&init_prims_mutex);
+  pthread_cond_destroy(&init_prims_cond);
+  return 0;
+}
+static void ensure_prims_initialized(){
+  pthread_mutex_lock(&init_prims_mutex);
+  while(!pthread_prims_initialized){
+    HERE();
+    pthread_cond_wait(&init_prims_cond,&init_prims_mutex);
+  }
+  pthread_mutex_unlock(&init_prims_mutex);
+}
+static void* SciLisp_getopt_pthread(void *getopt_args){
+  PRINT_FMT("thread number %lu",pthread_self());
+  struct thread_args *args=(struct thread_args *)getopt_args;
+  int argc=args->argc;
+  char **argv=args->argv;
+  SciLisp_getopt(argc,argv);
+  return 0;
+}
+#endif
+static void SciLisp_getopt(int argc,char *argv[]){
+  int c;
+  while(1){
+    c=getopt_long(argc,argv,"e:hl:o:qvtb:",long_options,NULL);
+    if(c==-1){break;}
+    switch(c){
+      case 'o':
+        output_file=optarg;
+        break;
+      case 'v':
+        SciLisp_version(0);
+      case 'h':
+        SciLisp_help(0);
+      case 'e':{
+        sexp ast;
+        //PRINT_FMT("optarg[0] = %c",optarg[0]);
+        FILE* file;
+        if(optarg[0]=='('){
+          //file=tmpfile();
+          //CORD_fprintf(file,optarg);
+          //fflush(file);
+          file=fmemopen(optarg,strlen(optarg),"r");
+          //lispRead(CORD_from_char_star(optarg));
+        } else {
+          file=fopen(optarg,"r");
+        }
+        ENSURE_PRIMS_INITIALIZED();
+        ast=yyparse(file);
+        while (CONSP(ast)){
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          CORD_printf(print(result));puts("");
+          ast=XCDR(ast);
+        }
+        exit(0);
+      }
+      case 'l':{
+        initPrims();
+        sexp ast;
+        FILE* file=fopen(optarg,"r");
+        ENSURE_PRIMS_INITIALIZED();
+        ast=yyparse(file);
+        while (CONSP(ast)){
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          ast=XCDR(ast);
+        };
+        break;
+      }
+      case 't':{
+        FILE* file=fopen("test.lisp","r");
+        ENSURE_PRIMS_INITIALIZED();
+        sexp ast=yyparse(file);
+        
+        //        PRINT_MSG(print(ast));
+        puts("Testing:");
+        while (CONSP(ast)){
+          CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));
+          puts("");
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          CORD_printf(CORD_cat("result: ",print(result)));
+          puts("");
+          ast=XCDR(ast);
+        }
+        exit(0);
+      }
+      case 'b':
+        switch(optarg[0]){
+          case 'l':
+            //            evalFun=llvmEvalJIT;
+            //initialize_llvm();
+          default:
+            break;
+        }
+      default:
+        printf("invalid option %c\n",c);
+        SciLisp_help(1);
+    }
+  }
+  if(optind < argc){
+    output_file = (output_file == NULL?"a.out":output_file);
+    FILE* file=fopen(argv[optind],"r");
+    ENSURE_PRIMS_INITIALIZED();
+    compile(file,output_file,NULL);
+  } else if (output_file){
+    printf("error: -o|--output requires a file of SciLisp code to compile\n");
+    exit(2);
+  }
+}

@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <dlfcn.h>
 #define GC_THREADS
+#define GC_PTHREADS
 #include "gc/include/gc/gc.h"
 #include <ctype.h>
 #include <unistd.h>
@@ -34,6 +35,8 @@
 //#include "lex.yy.h"
 //enable/disable debugging/lexing output
 #define HERE_ON
+//enable/disable SciLisp multithreading (gc is always multithreaded)
+//#define MULTI_THREADED
 //#define VERBOSE_LEXING
 #include "debug.h"
 //common macros, & memory allocation macros
@@ -44,6 +47,7 @@
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
+//type_sexp macros for convience
 #define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
 #define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
@@ -69,12 +73,12 @@
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 #define NIL_MACRO() {.tag = -1,.val={.int64 = 0}}
 //lisp constants needed in c
-static const sexp NIL={.tag = -1,.val={.int64 = 0}};
+static const sexp NIL={.tag = -1,.val={.meta = -1}};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
-static cons EmptyList={.car={.tag = -1,.val={.int64 = 0}},
-                             .cdr={.tag = -1,.val={.int64 = 0}}};
+static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
+                             .cdr={.tag = -1,.val={.meta = -1}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
 //global variables
 sexp* yylval;

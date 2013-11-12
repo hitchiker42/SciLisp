@@ -208,7 +208,7 @@ sexp lisp_length(sexp obj){
   if(obj.len > 0){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
   } else if (CONSP(obj)){
-    HERE();
+    //    HERE();
     return cons_length(obj);
   } else {
     return error_sexp("object does not have a meaningful length field");
@@ -381,7 +381,7 @@ sexp lisp_system_simple(sexp command){
 }
 #define SHELL "/bin/bash"
 sexp lisp_system(sexp command,sexp args){
-  HERE();
+  //  HERE();
   if(!STRINGP(command)){
   string_error:
     return error_sexp("arguments to system must be strings");
@@ -395,9 +395,9 @@ sexp lisp_system(sexp command,sexp args){
   argv[2]=CORD_as_cstring(command.val.cord);
   int i=3,maxargs=16;
   while(1){
-    HERE();
+    //    HERE();
     while(CONSP(args) && i<maxargs){
-      HERE();
+      //      HERE();
       if(!STRINGP(XCAR(args))){goto string_error;}
       argv[i]=CORD_as_cstring(XCAR(args).val.cord);
       args=XCDR(args);

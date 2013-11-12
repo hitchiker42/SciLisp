@@ -157,8 +157,8 @@ CORD print(sexp obj){
     case _cons:
       acc="(";
       while(CONSP(obj)){
-        acc=CORD_cat(acc,print(car(obj)));
-        obj=cdr(obj);
+        acc=CORD_cat(acc,print(XCAR(obj)));
+        obj=XCDR(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
         //CORD_fprintf(stderr,acc);fputs("\n",stderr);
         //PRINT_MSG(acc);

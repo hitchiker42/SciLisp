@@ -170,7 +170,8 @@ gc/gc_config.stamp:
 	touch gc/gc_config.stamp
 gc: gc/gc_config.stamp gc/bdwgc/autogen.sh gc/libatomic_ops/autogen.sh
 	cd gc/bdwgc && ./configure --with-threads=posix --disable-java-finalization \
-	--enable-parallel-mark --enable-cplusplus --prefix=$$PWD/.. && $(MAKE) install
+	CFLAGS='-DGC_LINUX_THREADS -DPARALLEL_MARK -DTHREAD_LOCAL_ALLOC'		\
+	--enable-parallel-mark --enable-cplusplus --prefix=$$PWD/.. && $(MAKE) install 
 	cp gc/bdwgc/include/cord_pos.h gc/include/gc
 gmp: bignum/gmp/configure
 	cd bignum/gmp && ./configure --enable-alloca=alloca --prefix=$$PWD/.. \

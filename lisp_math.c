@@ -170,7 +170,7 @@ sexp arith_driver(sexp required,sexp values,enum operator op){
     while(CONSP(values)){
       if(XCAR(values).tag > type){
         CORD retval;
-        CORD_sprintf(&retval,"arithmatic type error, cant convert a %r to a %r",
+        CORD_sprintf(&retval,"arithmatic type error, can't convert a %r to a %r",
                      tag_name(XCAR(values).tag),tag_name(type));
         return error_sexp(retval);
       }

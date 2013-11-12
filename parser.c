@@ -34,38 +34,32 @@ sexp yyparse(FILE* input){
       CORD_fprintf(stderr,error_str);
       fputs("\n",stderr);
     }
-    if(yylval){free(yylval);}
     if(!NILP(error_val)){
       sexp temp=error_val;
       error_val=NIL;
       return temp;
     }
-    longjmp(error_buf,-1);
+    longjmp(error_buf,-1);    
     return NIL;
   } else{//normal parsing
     yyin=input;
     ast.tag=_cons;
     cons* cur_pos=ast.val.cons=xmalloc(sizeof(cons));
-    cons* prev_pos;
-    yylval=malloc(sizeof(sexp));
+    cons* prev_pos=cur_pos;
+    yylval=xmalloc(sizeof(sexp));
     while((nextTok()) != -1){
-      /*      if(yytag == TOK_LPAREN){
-              cur_pos->car=parse_cons();*/
       cur_pos->car=parse_sexp();
       cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
       cur_pos->cdr.tag=_cons;
       prev_pos=cur_pos;
       cur_pos=cur_pos->cdr.val.cons;
-        /*      } else {
-        cur_pos->car=parse_atom();
-        cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
-        cur_pos->cdr.tag=_cons;
-        prev_pos=cur_pos;
-        cur_pos=cur_pos->cdr.val.cons;
-        }*/
     }
-    if(yylval){free(yylval);}
-    prev_pos->cdr=NIL;
+    //    xfree(cur_pos);
+    GC_gcollect();
+    prev_pos->cdr.tag=_nil;
+    HERE();
+    prev_pos->cdr.val.meta=_nil;
+    HERE();
     return ast;
   }
   handle_error();
@@ -86,10 +80,6 @@ sexp parse_cons(){
       break;
     }
     case TOK_ID:{
-      //    tmpsym = (symref)getGlobalSym(yylval->val.cord);
-      //    if(tmpsym){
-      //      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
-      //    } else {
       tmpsym=xmalloc(sizeof(symbol));
       tmpsym->name=yylval->val.cord;
       tmpsym->val=UNBOUND;

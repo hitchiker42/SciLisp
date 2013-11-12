@@ -10,7 +10,7 @@
 #define HERE_MSG(string) fprintf(stderr,"here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
 #define PRINT_MSG(string) CORD_fprintf(stderr,string);fputs("\n",stderr)
-#define PRINT_FMT(string,fmt...) CORD_fprintf(stderr,string,##fmt);fputs("\n",stderr)
+#define PRINT_FMT(string,fmt...) CORD_fprintf(stderr,string "\n",##fmt)
 #else
 #define HERE()
 #define HERE_MSG(string)
@@ -19,7 +19,7 @@
 #endif
 #if defined (VERBOSE_LEXING) && !(defined (QUIET_LEXING))
 #define LEX_MSG(string) fputs(string,stderr);fputs("\n",stderr)
-#define LEX_FMT(string,fmt...) fprintf(stderr,string,##fmt);fputs("\n",stderr)
+#define LEX_FMT(string,fmt...) fprintf(stderr,string "\n",##fmt)
 #else
 #define LEX_MSG(string)
 #define LEX_FMT(string,fmt...)
