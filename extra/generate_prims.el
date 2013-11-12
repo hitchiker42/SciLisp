@@ -77,11 +77,13 @@
      (:optargs . 0) (:keyargs . 0) (:restarg . 1))
     ((:lname . "iota") (:cname ."lisp_iota") (:minargs . 1) (:maxargs . 5)
      (:optargs . 4) (:keyargs . 0) (:restarg . 0))
-                                        ;array functions
+    ;array functions
     ((:lname . "aref") (:cname ."aref") (:minargs . 2) (:maxargs . 2)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "array->list") (:cname ."array_to_list") (:minargs . 1)
      (:maxargs . 1) (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+    ((:lname "array-iota") (:cname . "array_iota") (:minargs . 1)
+     (:maxargs . 4) (:optargs . 3) (:keyargs . 0) (:restarg . 0))
      ;meta information/ read eval print / system ctl
     ((:lname . "typeName") (:cname ."lisp_typeName") (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))

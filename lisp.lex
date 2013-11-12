@@ -55,8 +55,14 @@ DIGIT [0-9]
 HEX_DIGIT [0-9a-fA-f]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
 ID [A-Za-z%+*!\-_^$/<>=/&][A-Za-z%+*!?\-_^$&<>0-9=/]*
-TYPENAME "::"[A-z_a-z][A-Z_a-z0-9]*
+TYPENAME "::"{ID}
+QUALIFIED_ID {ID}":"{ID}
+QUALIFIED_ID_ALL {ID}":."{ID}
+INVALID_ID_TOKENS [\][#|:;.2''`(){}]
 QUOTE "'"|quote
+/*this is kinda special, note that the catchall case of this is a negated 
+  character class, this means any raw bytes (128-255) will be matched, letting
+  us scan unicode characters*/
 UCHAR "?"("\\?"|"\\\\"|"\\x"([0-9a-fA-F]{2})|"\\u"([0-9a-fA-F]{4})|[^?\\])
 KEYSYM ":"{ID}
 /*
@@ -144,6 +150,10 @@ or {LEX_MSG("lexing or");
   yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
 and {LEX_MSG("lexing and");
   yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}
+return {LEX_MSG("lexing return");
+  yylval->tag=_special;yylval->val.special=_return;return TOK_SPECIAL;}
+dotimes {LEX_MSG("lexing dotimes");
+  yylval->tag=_special;yylval->val.special=_dotimes;return TOK_SPECIAL;}
 {QUOTE} {LEX_MSG("Lexing quote");
   yylval->tag=_special;yylval->val.special=_quote;return TOK_QUOTE;}
 "quasiquote"|"`" {LEX_MSG("lexing quasiquote");
@@ -176,6 +186,7 @@ and {LEX_MSG("lexing and");
 [ \t\n]+ /*whitespace*/
 ";"[^\n]* /*one line comments*/
 <<EOF>> return -1;
+. {LEX_MSG("unknown token");PRINT_MSG("Error, unknown token");return TOK_UNKN;}
 
  /*(defun special (name) (insert (format "\n%s {LEX_MSG(\"lexing %s\");
    yylval->tag=_special;yylval->val.string=\"%s\"

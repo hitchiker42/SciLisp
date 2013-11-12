@@ -24,6 +24,8 @@ static sexp eval_lambda(sexp expr,env *cur_env);
 static sexp eval_progn(sexp expr,env *cur_env);
 static sexp eval_prog1(sexp expr,env *cur_env);
 static sexp eval_do(sexp expr,env *cur_env);
+static sexp eval_dolist(sexp expr,env *cur_env);
+static sexp eval_dotimes(sexp expr,env *cur_env);
 static sexp eval_let(sexp expr,env *cur_env);
 static sexp eval_and(sexp expr,env *cur_env);
 static sexp eval_or(sexp expr,env *cur_env);
@@ -132,6 +134,8 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_if(expr,cur_env);
     case _do:
       return eval_do(expr,cur_env);
+    case _dolist:
+      return eval_dolist(expr,cur_env);
     case _while:
       return eval_while(expr,cur_env);
     case _defun:
@@ -148,6 +152,8 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_or(expr,cur_env);
     case _defmacro:
       return eval_defmacro(expr,cur_env);
+    case _dotimes:
+      return eval_dotimes(expr,cur_env);
     default:      
       goto error;
   }
@@ -286,6 +292,42 @@ static inline sexp eval_let(sexp expr,env *cur_env){
 }
 static inline sexp eval_do(sexp expr,env *cur_env){
   /*syntax (do (var init step end) body)*/
+  //expands to (do (var (setq var init) (setq var step) end)
+  //for now body must be a single sexp(ie use explict progn)
+  expr=cdr(expr);//we don't need the do anymore
+  sexp loop_params=car(expr);//(var init step end)
+  if(!CONSP(loop_params) || !CONSP(XCDR(loop_params)) ||
+     !CONSP(XCDDR(loop_params)) || !CONSP(XCDDDR(loop_params))){
+    return error_sexp("incomplete paramenter list for do expression");
+  }
+  //create environment for loop
+  local_symref loop_var=alloca(sizeof(local_symbol));
+  *loop_var=*(local_symref)XCAR(loop_params).val.var;
+  loop_var->next=NULL;
+  sexp retval=NIL;
+  env *loop_scope=alloca(sizeof(env));
+  *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
+  //initialize loop var
+  cons memory[3];
+  sexp loop_step_expr=cons_sexp(memory);
+  XCAR(loop_step_expr)=spec_sexp(_setq);
+  XCDR(loop_step_expr)=cons_sexp(memory+1);
+  XCADR(loop_step_expr)=symref_sexp((symref)loop_var);
+  XCDDR(loop_step_expr)=cons_sexp(memory+2);
+  XCADDR(loop_step_expr)=XCADR(loop_params);
+  XCDDDR(loop_step_expr)=NIL;
+  eval(loop_step_expr,loop_scope);
+  XCADDR(loop_step_expr)=XCADDR(loop_params);
+  loop_params=XCDDR(loop_params);//(step end)
+  while(isTrue(eval(XCADR(loop_params),loop_scope))){//test loop end condition
+    retval=eval(XCADR(expr),loop_scope);//execute loop body
+    //run loop step function
+    eval(loop_step_expr,loop_scope);//I'm not sure if this will work
+  }
+  return retval;
+}
+static inline sexp eval_dotimes(sexp expr,env *cur_env){
+  /*syntax (dotimes (var times) body)*/
   //for now body must be a single sexp(ie use explict progn)
   expr=cdr(expr);//we don't need the do anymore
   sexp loop_params=car(expr);//(var init step end)
@@ -304,9 +346,37 @@ static inline sexp eval_do(sexp expr,env *cur_env){
   eval(XCADR(loop_params),loop_scope);
   loop_params=XCDDR(loop_params);//(step end)
   while(isTrue(eval(XCADR(loop_params),loop_scope))){//test loop end condition
-    retval=eval(cadr(expr),loop_scope);//execute loop body
+    retval=eval(XCADR(expr),loop_scope);//execute loop body
     //run loop step function
     eval(XCAR(loop_params),loop_scope);//I'm not sure if this will work
+  }
+  return retval;
+}
+static sexp eval_dolist(sexp expr,env *cur_env){
+  //(dolist (var list) body)
+  expr=cdr(expr);
+  sexp loop_params=car(expr);//(var list)
+  if(!CONSP(loop_params) || !CONSP(XCDR(loop_params))){
+    return error_sexp("incomplete paramenter list for dolist expression");
+  }
+  //create environment for loop
+  local_symref loop_var=alloca(sizeof(local_symbol));
+  *loop_var=*(local_symref)XCAR(loop_params).val.var;
+  loop_var->next=NULL;
+  sexp loop_list;//=eval(XCDR(loop_params),cur_env);
+  if(LISTP(XCADR(loop_params))){
+    HERE();
+    loop_list=XCADR(loop_params);
+  } else {
+    loop_list=eval(XCADR(loop_params),cur_env);
+  }
+  sexp retval=NIL;
+  env *loop_scope=xmalloc(sizeof(env));
+  *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
+  while(CONSP(loop_list)){
+    loop_var->val=XCAR(loop_list);
+    loop_list=XCDR(loop_list);
+    retval=eval(XCADR(expr),loop_scope);//execute loop body
   }
   return retval;
 }
@@ -337,27 +407,6 @@ static sexp eval_or(sexp expr,env *cur_env){
     }
   }
   return LISP_FALSE;
-}
-static sexp eval_dolist(sexp expr,env *cur_env){
-  //(dolist (var list) body)
-  expr=cdr(expr);
-  sexp loop_params=car(expr);//(var list)
-  if(!CONSP(loop_params) || !CONSP(XCDR(loop_params))){
-    return error_sexp("incomplete paramenter list for dolist expression");
-  }
-  //create environment for loop
-  local_symref loop_var=alloca(sizeof(local_symbol));
-  sexp loop_list=XCDAR(expr);
-  *loop_var=*(local_symref)XCAR(loop_params).val.var;
-  loop_var->next=NULL;
-  sexp retval=NIL;
-  env *loop_scope=xmalloc(sizeof(env));
-  *loop_scope=(env){.enclosing=cur_env,.head={.local=loop_var},.tag=_local};
-  while(CONSP(loop_list)){
-    loop_var->val=unsafe_pop(loop_list);
-    retval=eval(XCDR(expr),loop_scope);//execute loop body
-  }
-  return retval;
 }
 #define setArg()                                        \
   args->args[j++].val=eval(XCAR(arglist),cur_env);      \

@@ -8,6 +8,7 @@
 (def ls3 (iota -1 1 0.1))
 (def arr [1 2 3 4 5 7 8 9 0])
 (def arr2 [1.0 4.0 8.9 3 0.9])
+(def arr-iota (iota 0 10 1 1))
 (defun sum (x)(reduce x +))
 (define prod (lambda (x) (reduce x +)))
 #|(sum ls);issue here
@@ -46,6 +47,7 @@
 (lrand)
 (drand)
 (drand 1000)
+(aref arr-iota 4)
 (length ls)
 (length arr)
 (consp arr)
@@ -86,8 +88,9 @@
 (system "cat temp.temp")
 (def i 15)
 (print i)
-(do (i (setq i 0)(setq i (++ i))(<= i 10)) (print i))
+(do (i 0 (++ i) (<= i 10)) (print i))
 (print i)
+(dolist (i '(1 2 3 4 5 6 7 8 9 10)) (print i))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

@@ -363,7 +363,6 @@ sexp parse_sexp(){
       return retval;
     }
     case TOK_LPAREN:{
-      HERE();
       return parse_cons();
     }
     default:{

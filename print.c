@@ -54,6 +54,7 @@ c_string specialForm_name(sexp obj){
     spec_to_string(if);
     spec_to_string(let);
     spec_to_string(do);
+    spec_to_string(dolist);
     spec_to_string(lambda);
     spec_to_string(progn);
     spec_to_string(go);
@@ -155,23 +156,22 @@ CORD print(sexp obj){
     case _list:
     case _cons:
       acc="(";
-      HERE();
       while(CONSP(obj)){
         acc=CORD_cat(acc,print(car(obj)));
         obj=cdr(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
         //CORD_fprintf(stderr,acc);fputs("\n",stderr);
-        PRINT_MSG(acc);
+        //PRINT_MSG(acc);
       }
-      HERE();
-      PRINT_MSG(tag_name(obj.tag));
+      //      HERE();
+      //      PRINT_MSG(tag_name(obj.tag));
       if(!NILP(obj)){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
         acc=CORD_cat(acc,")");        
         retval=acc;
       }
-      PRINT_MSG(retval);
+      //      PRINT_MSG(retval);
       return CORD_balance(retval);
     case _uninterned:
       switch(obj.val.meta){

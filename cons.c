@@ -215,21 +215,22 @@ sexp qsort_cons(sexp ls,sexp sort_fn){
   f=sort_fn.val.fun->comp.f2;
   return qsort_acc(ls,f);
 }
-/*sexp assoc(sexp ls,sexp obj,sexp eq_fn){
+sexp assoc(sexp obj,sexp ls,sexp eq_fn){
   if(!CONSP(ls)){
-    return error_sexp("argument 1 of assoc must be an alist");
+    return error_sexp("argument 2 of assoc must be an alist");
   }
   if(NILP(eq_fn)){
-    eq_fn=lisp_eq;
+    eq_fn=function_sexp(&lisp_eq_call);
   }
+  sexp(*eq_fxn)(sexp,sexp)=eq_fn.val.fun->comp.f2;
   while(CONSP(ls)){
-    if(isTrue(eq_fn(XCAR(ls),obj))){
+    if(isTrue(eq_fxn(XCAR(ls),obj))){
       return XCAR(ls);
     } 
     ls=XCDR(ls);
   }
   return NIL;
-  }*/
-/*sexp assq(sexp ls, sexp obj){
-  return assoc(ls,obj,lisp_eq);
-  }*/
+}
+sexp assq(sexp ls, sexp obj){
+  return assoc(ls,obj,NIL);
+}

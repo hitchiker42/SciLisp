@@ -111,6 +111,7 @@ DEFUN(lisp_sum,2);
 DEFUN(lisp_iota,5);
 DEFUN(aref,2);
 DEFUN(array_to_list,1);
+DEFUN(array_iota,4);
 DEFUN(lisp_typeName,1);
 DEFUN(typeOf,1);
 DEFUN(lisp_print,1);

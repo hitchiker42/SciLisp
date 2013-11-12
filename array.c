@@ -6,7 +6,8 @@
 #include "prim.h"
 sexp aref(sexp obj,sexp ind){
   if(!ARRAYP(obj)){
-    return error_sexp("aref type error");
+    format_error_str("aref type error, expected array, got %s",typeName(obj));
+    return error_sexp(error_str);
   } else if(ind.val.int64 > obj.len || ind.val.int64<0){
       return error_sexp("aref bounds error");
   } else {

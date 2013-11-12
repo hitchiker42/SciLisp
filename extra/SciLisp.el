@@ -5,15 +5,9 @@
 (define-derived-mode SciLisp-mode lisp-mode "SciLisp"
   (setq lisp-mode-hook (lambda nil nil)))
 (defalias 'scilisp-mode 'SciLisp-mode)
-;;; lisp-mode.el --- Lisp mode, and its idiosyncratic commands  -*- coding: utf-8 -*-
+;;; SciLisp-mode.el --- Lisp mode, and its idiosyncratic commands  -*- coding: utf-8 -*-
 
-;; Copyright (C) 1985-1986, 1999-2013 Free Software Foundation, Inc.
-
-;; Maintainer: FSF
-;; Keywords: lisp, languages
-;; Package: emacs
-
-;; This file is part of GNU Emacs.
+;; This file is not part of GNU Emacs.
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by

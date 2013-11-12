@@ -62,7 +62,7 @@
 #define format_error_sexp(format,args...)               \
   format_error_str(format,args),                     \
   error_sexp(CORD_to_char_star(error_str))
-
+#define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")

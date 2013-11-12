@@ -59,6 +59,7 @@ typedef typed_symbol *typed_symref;
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
 #define CONSP(obj) (obj.tag == _cons || obj.tag == _list || obj.tag == _dpair)
+#define LISTP(obj) (obj.tag == _list)
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
 #define FLOATP(obj) (obj.tag == _double)
 #define AS_DOUBLE(obj) (obj.val.real64)
@@ -154,13 +155,15 @@ enum special_form{
   _while=22,
   _prog1=23,
   _dolist=24,
+  _dotimes=25,
+  _return=26,
 };
 //sign bit determines quoting
 enum sexp_meta{
-  _double_array=1,
-  _long_array=2,
-  _utf8_string=3,
-  _splice_list=4,
+  _double_array=_double,
+  _long_array=_long,
+  _utf8_string=_char,
+  _splice_list=_list,
 };
 union data {//keep max size at 64 bits
   float real32;
@@ -212,6 +215,7 @@ struct cons{//32 bytes
   sexp cdr;
 };
 enum TOKEN{
+  TOK_UNKN=-2,
   TOK_EOF=-1,
   //literals|ID 0-20
   TOK_INT=1,
@@ -235,6 +239,7 @@ enum TOKEN{
   TOK_COMMA=27,
   TOK_LIST_SPLICE=28,//,@
   TOK_MACRO=29,
+  TOK_RETURN=30,
   //Types 40-50
   TOK_TYPEDEF=40,
   TOK_TYPEINFO=41,
