@@ -72,6 +72,7 @@
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 #define NIL_MACRO() {.tag = -1,.val={.int64 = 0}}
+#define format_error_str(format,args...) CORD_sprintf(&error_str,format,##args)
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.meta = -1}};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
@@ -90,6 +91,9 @@ CORD error_str;
 jmp_buf error_buf;
 sexp error_val;
 static int initPrimsFlag=1;
+//functions to print (or not print) debug info
+static void (*debug_printf)(const char*,...)=default_debug_printf;
+static void (*CORD_debug_printf)(cord,...)=default_CORD_debug_printf;
 //from C++ code for llvm
 //sexp llvmEvalJIT(sexp expr,env cur_env);
 //void initialize_llvm();

@@ -322,6 +322,7 @@ static struct option long_options[] = {
   {"eval"   ,1,0,'e'},
   {"help"   ,0,0,'h'},
   {"load"   ,1,0,'l'},
+  {"no-debug",0,0,'n'},
   {"output" ,1,0,'o'},
   {"quiet"  ,0,0,'q'},
   {"test"   ,0,0,'t'},

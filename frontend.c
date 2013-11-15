@@ -389,7 +389,7 @@ static void* SciLisp_getopt_pthread(void *getopt_args){
 static void SciLisp_getopt(int argc,char *argv[]){
   int c;
   while(1){
-    c=getopt_long(argc,argv,"e:hl:o:qvtb:",long_options,NULL);
+    c=getopt_long(argc,argv,"e:hl:o:qvtb:n",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
@@ -399,6 +399,10 @@ static void SciLisp_getopt(int argc,char *argv[]){
         SciLisp_version(0);
       case 'h':
         SciLisp_help(0);
+      case 'n':
+        CORD_debug_printf=CORD_ndebug_printf;
+        debug_printf=ndebug_printf;
+        break;
       case 'e':{
         sexp ast;
         //PRINT_FMT("optarg[0] = %c",optarg[0]);
