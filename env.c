@@ -415,3 +415,13 @@ int bucketLength(obarray_entry* bucket){
     return len;
   }
 }
+//call stack, needs a lot of work, but it's something I probably should add
+#define STACK_SIZE 128
+function call_stack[STACK_SIZE];
+function *stack_ptr=call_stack;
+#define push_fun(fun) *stack_ptr=fun;stack_ptr++
+#define get_fun(fun) fun=*stack_ptr
+#define pop_fun(fun) stack_ptr--
+#define peek_fun() (*stack_ptr)
+#define check_underflow() (if (stack_ptr<call_stack){handle_error();}
+#define check_overflow() (if (stack_ptr>(call_stack+STACK_SIZE)){handle_error()};
