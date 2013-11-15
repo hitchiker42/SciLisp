@@ -422,7 +422,6 @@ static void SciLisp_getopt(int argc,char *argv[]){
         exit(0);
       }
       case 'l':{
-        initPrims();
         sexp ast;
         FILE* file=fopen(optarg,"r");
         ENSURE_PRIMS_INITIALIZED();
@@ -436,8 +435,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
       case 't':{
         FILE* file=fopen("test.lisp","r");
         ENSURE_PRIMS_INITIALIZED();
-        sexp ast=yyparse(file);
-        
+        sexp ast=yyparse(file);        
         //        PRINT_MSG(print(ast));
         puts("Testing:");
         while (CONSP(ast)){

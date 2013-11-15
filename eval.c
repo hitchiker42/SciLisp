@@ -53,6 +53,7 @@ sexp eval(sexp expr,env *cur_env){
     //a cons cell must be a function call or a special form
     case _cons:
       if(SYMBOLP(car(expr))){
+        PRINT_MSG(XCAR(expr).val.var->name);
         symref funSym=getSym(cur_env,XCAR(expr).val.var->name);
         if(!funSym){
           format_error_str("undefined function %s",XCAR(expr).val.var->name);

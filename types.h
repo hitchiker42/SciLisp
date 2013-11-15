@@ -9,7 +9,7 @@
 //file we're including explicitly, as thats the easiest way to fix things
 #include "gc/include/gc/cord.h"
 #include <string.h>
-#include "include/uthash.h"
+#include <setjmp.h>
 #include <wchar.h>
 #include <stdint.h>
 #include <getopt.h>
@@ -86,6 +86,11 @@ typedef typed_symbol *typed_symref;
                      obj.tag == _bigint || obj.tag == _bigfloat)
 #define ENVP(obj)(obj.tag == _env)
 #define MACROP(obj) (obj.tag == _macro)
+#define INT8P(obj) (obj.tag == _byte)
+#define INT16P(obj) (obj.tag == _short)
+#define INT32P(obj) (obj.tag == _int)
+#define INT64P(obj) (obj.tag == _long)
+#define REAL32P(obj) (obj.tag == _float)
 //key point to this enum is that arathmatic types are numbered in their type
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
@@ -96,16 +101,19 @@ enum _tag {
   _uninterned = -2,//type of uninterned symbols, value is symbol(var)
   _nil = -1,//type of nil, singular object,vaule is undefined
   _cons = 0,//type of cons cells(aka lisp programs), value is cons
-  //arithmatic types, room for 10 more types currently
+  //arithmatic types, room for 7 more types currently
   _byte = 1,
-  _short = 2,
-  _int = 3,
-  _long = 4,//type of integers, vaule is int64
-  _ulong = 5,
-  _float = 6,
-  _double = 7,//type of floating point numbers, value is real64
-  _bigint = 8,
-  _bigfloat = 9,
+  _ubyte = 2,
+  _short = 3,
+  _ushort = 4,
+  _int = 5,
+  _uint = 6,
+  _long = 7,//type of integers, vaule is int64
+  _ulong = 8,
+  _float = 9,
+  _double = 10,//type of floating point numbers, value is real64
+  _bigint = 11,
+  _bigfloat = 12,
   _char = 19,//type of chars(c type wchar_t),value is utf8_char
   _str = 20,//type of strings, value is cord
   _array = 21,//type of arrays, element type in meta, vaule is array
@@ -128,6 +136,8 @@ enum _tag {
   _funargs=40,//but yay for c hacks, I bet yout couldn't do this in most languages
   _true = 41,//type of #t, singular value
   _obarray = 42,
+  _label = 43,//a c jmp_buf, in lisp a target for return or go
+  _cptr=44,//opaque c pointer
 };
 enum special_form{
   _def=0,
@@ -157,8 +167,10 @@ enum special_form{
   _dolist=24,
   _dotimes=25,
   _return=26,
+  _unwind_protect=27,
+  _block=28,
+  
 };
-//sign bit determines quoting
 enum sexp_meta{
   _double_array=_double,
   _long_array=_long,
@@ -169,8 +181,11 @@ union data {//keep max size at 64 bits
   float real32;
   double real64;
   int8_t int8;
+  uint8_t uint8;
   int16_t int16;
+  uint16_t uint16;
   int32_t int32;
+  uint32_t uint32;
   int64_t int64;
   uint64_t uint64;
   wchar_t utf8_char;//depreciated
@@ -178,26 +193,28 @@ union data {//keep max size at 64 bits
   wchar_t *ustr;
   c_string string;
   CORD cord;
-  cons* cons;
+  cons *cons;
   symref var;
   keyword_symref keyword;
-  function* fun;
-  lambda* lam;
+  function *fun;
+  lambda *lam;
   special_form special;
-  data* array;
+  data *array;
   _tag meta;
-  sexp* quoted;
+  sexp *quoted;
   local_symref lenv;
   env *cur_env;
-  regex_t* regex;
-  FILE* stream;
+  regex_t *regex;
+  FILE *stream;
   function_args* funarg;//depreciated
   function_args* funargs;
   //  function_new* fnew;
   mpz_t *bigint;
   mpfr_t *bigfloat;
   obarray* ob;
-  macro* mac;
+  macro *mac;
+  jmp_buf *label;
+  void *cptr;
 };
 //meta is for mutualy exclusvie information
 //whlie the next 8 bits are for inclusive information
@@ -416,6 +433,8 @@ enum operator{
   _logior,
   _logxor,
 };
+
+
 #define getVal(obj)                                             \
   (obj.tag == _error ? obj.val.cord  :                          \
    (obj.tag == _false ? -3  :                                   \
