@@ -10,8 +10,8 @@
 #define HERE_MSG(string) debug_printf("here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
 #define HERE_FMT(string,fmt...) debug_printf(string "\n",##fmt);HERE()
-#define PRINT_MSG(string) CORD_debug_printf(string "\n")
-#define PRINT_FMT(string,fmt...) CORD_debug_printf(string "\n",##fmt)
+#define PRINT_MSG(string) CORD_debug_printf(string);CORD_debug_printf("\n")
+#define PRINT_FMT(string,fmt...) CORD_debug_printf(string,##fmt);CORD_debug_printf("\n")
 #else
 #define HERE()
 #define HERE_MSG(string)
@@ -37,19 +37,19 @@ static void print_trace(void){
   }
   free(strings);
 }
-static void CORD_ndebug_printf(cord fmt __attribute__((unused)),...){
+static void CORD_ndebug_printf(CORD fmt __attribute__((unused)),...){
   return;
 }
-static void ndebug_printf(cord fmt __attribute__((unused)),...){
+static void ndebug_printf(CORD fmt __attribute__((unused)),...){
   return;
 }
-static void default_CORD_debug_printf(cord fmt,...){
+static void default_CORD_debug_printf(CORD fmt,...){
   va_list ap;
   va_start(ap,fmt);
   CORD_vfprintf(stderr,fmt,ap);
   return;
 }
-static void default_debug_printf(cord fmt,...){
+static void default_debug_printf(CORD fmt,...){
   va_list ap;
   va_start(ap,fmt);
   vfprintf(stderr,fmt,ap);

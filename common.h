@@ -92,7 +92,7 @@ sexp error_val;
 static int initPrimsFlag=1;
 //functions to print (or not print) debug info
 static void (*debug_printf)(const char*,...)=default_debug_printf;
-static void (*CORD_debug_printf)(cord,...)=default_CORD_debug_printf;
+static void (*CORD_debug_printf)(CORD,...)=default_CORD_debug_printf;
 //from C++ code for llvm
 //sexp llvmEvalJIT(sexp expr,env cur_env);
 //void initialize_llvm();
