@@ -31,6 +31,7 @@
 #include "env.h"
 #include "print.h"
 #include "bignum.h"
+#include "cffi.h"
 //#include "lex.yy.h"
 //enable/disable debugging/lexing output
 #define HERE_ON
@@ -46,32 +47,44 @@
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
-//type_sexp macros for convience
-#define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
-#define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
-#define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
-#define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
-#define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
-#define cord_sexp(cord_val) string_sexp(cord_val)
-#define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
+//type_sexp macros for convience (kinda like constructors I suppose)
+#define array_sexp(array_val,array_len,array_type)\
+  (sexp){.tag=_array,.meta=_##type##_array,.len=array_len,      \
+      .val={.array=array_val}}
 #define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
       .val={.bigfloat=bigfloat_ptr}}
-#define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
-#define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
-#define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val}}
-#define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val}}
+#define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
+#define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
+#define cord_sexp(cord_val) string_sexp(cord_val)
+#define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
 #define env_sexp(env_val) (sexp) {.tag=_env,.val={.cur_env=env_val}}
+#define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
+#define float_sexp(float_val) (sexp){.tag=_float,.val={.real32=float_val}}
+#define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val}}
+#define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val}}
+#define int_n_sexp(int_n_val,n) (sexp) {.tag=_int##n,\
+      .val={.int##n=int_n_val}}
+#define uint_n_sexp(uint_n_val,n) (sexp) {.tag=_uint##n,\
+      .val={.uint##n=uint_n_val}}
+#define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
+
 #define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val}}
-#define format_error_sexp(format,args...)               \
-  format_error_str(format,args),                     \
-  error_sexp(CORD_to_char_star(error_str))
+#define meta_sexp(meta_val) (sexp) {.tag =_meta,.val={.meta=meta_val}}
+#define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
+#define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val}}
 #define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
+#define stream_sexp(stream_val (sexp){.tag=_env,.val={.stream=stream_val}}
+#define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
+#define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 #define NIL_MACRO() {.tag = -1,.val={.meta = -1}}
 #define format_error_str(format,args...) CORD_sprintf(&error_str,format,##args)
+#define format_error_sexp(format,args...)            \
+  format_error_str(format,args),                     \
+    error_sexp(CORD_to_char_star(error_str))
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.meta = -1}};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
@@ -103,7 +116,7 @@ extern sexp eval(sexp expr,env *cur_env);
 extern sexp call_builtin(sexp expr,env *cur_env);
 extern sexp call_lambda(sexp expr,env *cur_env);
 extern sexp lisp_funcall(sexp expr,env *cur_env);
-extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
+2extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
 extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
 //I don't need to pull in all of the hash functions

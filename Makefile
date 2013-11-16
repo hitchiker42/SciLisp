@@ -187,4 +187,6 @@ mpfr.tar.xz:
 	&& mv mpfr-3.1.2.tar.xz mpfr.tar.xz
 write_prims: write_prims.c libSciLisp.so
 	gcc -o write_prims -std=gnu99 write_prims.c -lgc -lcord -lgmp libSciLisp.so -Wl,-rpath=$$PWD -L$$PWD -lm
+gen_cffi: gen_cffi.c gen_cffi.h
+	gcc -o gen_cffi -lgc -lcord -lclang -O2 -g gen_cffi.c -std=gnu99
 #http://physics.nist.gov/cuu/Constants/Table/allascii.txt

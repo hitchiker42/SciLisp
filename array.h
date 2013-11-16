@@ -43,4 +43,19 @@ static sexp array_to_list(sexp obj){
 }
 sexp array_iota(sexp start,sexp stop,sexp step,sexp rnd);
 sexp array_from_list(sexp ls);
+static int array_typecheck(int len,sexp arr,sexp_meta elem_type){
+  if(ARRAYP(arr)){
+    if(len==0 || arr.val.len == len){//allow for dynamic arrays or something
+      if(arr.val.meta == elem_type){
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+//this is so much of a hack
+#define static_array_typecheck_env(_0_length_0_,_0_type_0_)     \
+  static_array_typecheck
+#define static_array_typecheck(_arr_)                   \
+  array_typecheck(_0_length_0_,_arr_,_0_type_0_)
 #endif

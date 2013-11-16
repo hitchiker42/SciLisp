@@ -48,6 +48,8 @@ typedef struct obarray obarray;
 typedef struct obarray_entry obarray_entry;
 typedef struct obarray_env obarray_env;
 typedef struct macro macro;
+typedef struct ctype ctype;
+typedef struct c_ptr c_ptr;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -63,6 +65,7 @@ typedef typed_symbol *typed_symref;
 #define NUMBERP(obj) (obj.tag == _double || obj.tag == _long)
 #define FLOATP(obj) (obj.tag == _double)
 #define AS_DOUBLE(obj) (obj.val.real64)
+//this may change if I actually implement shorter int types
 #define INTP(obj) (obj.tag == _long)
 #define AS_LONG(obj) (obj.val.int64)
 #define SYMBOLP(obj) (obj.tag == _sym)
@@ -102,24 +105,26 @@ enum _tag {
   _nil = -1,//type of nil, singular object,vaule is undefined
   _cons = 0,//type of cons cells(aka lisp programs), value is cons
   //arithmatic types, room for 7 more types currently
-  _byte = 1,
-  _ubyte = 2,
-  _short = 3,
-  _ushort = 4,
-  _int = 5,
-  _uint = 6,
-  _long = 7,//type of integers, vaule is int64
-  _ulong = 8,
-  _float = 9,
-  _double = 10,//type of floating point numbers, value is real64
-  _bigint = 11,
-  _bigfloat = 12,
-  _char = 19,//type of chars(c type wchar_t),value is utf8_char
-  _str = 20,//type of strings, value is cord
+  //unlike some other enum aliases these are both meant to be useable
+  //they exist for convience
+  _byte = 1,_int8 = 1,
+  _ubyte = 2,_uint8 = 2,
+  _short = 3,_int16 = 3,
+  _ushort = 4,_uint16 = 4,
+  _int = 5,_int32 = 5,
+  _uint = 6,_uint32 = 6,
+  _long = 7,_int64 = 7,//type of integers, vaule is int64
+  _ulong = 8,_uint64 = 8,
+  _float = 9,_real32 = 9,
+  _double = 10,_real64 = 10,//type of floating point numbers, value is real64
+  _bigint = 11,_mpz=11,
+  _bigfloat = 12,_mpfr=12,
+  _char = 19,_uchar=19,//type of chars(c type wchar_t),value is utf8_char
+  _str = 20,_cord=20,//type of strings, value is cord
   _array = 21,//type of arrays, element type in meta, vaule is array
   _ustr = 22,//utf8 string
   _regex = 23,//compiled regular expression
-  _stream = 24,//type of input/output streams, corrsponds to c FILE*
+  _stream = 24,_file=24,//type of input/output streams, corrsponds to c FILE*
   _matrix =25,//array for mathematical calculations
   _list = 26,//type of lists,value is cons
   _dpair = 27,
@@ -132,12 +137,13 @@ enum _tag {
   _lenv = 37,//type of local environments,value is lenv
   _env = 38,
   _keyword = 39,
-  _funarg = 40,//really need to add an s
-  _funargs=40,//but yay for c hacks, I bet yout couldn't do this in most languages
+  _funarg = 40,_funargs=40,
   _true = 41,//type of #t, singular value
   _obarray = 42,
   _label = 43,//a c jmp_buf, in lisp a target for return or go
-  _cptr=44,//opaque c pointer
+  _ctype=44,//c ffi type
+  _cptr=45,//c pointer (a struct w/ type info about said pointer)
+  _opaque=46,//generic opaque c struct/union
 };
 enum special_form{
   _def=0,
@@ -178,43 +184,44 @@ enum sexp_meta{
   _splice_list=_list,
 };
 union data {//keep max size at 64 bits
-  float real32;
-  double real64;
-  int8_t int8;
-  uint8_t uint8;
-  int16_t int16;
-  uint16_t uint16;
-  int32_t int32;
-  uint32_t uint32;
-  int64_t int64;
-  uint64_t uint64;
-  wchar_t utf8_char;//depreciated
-  wchar_t uchar;//try to change all utf8_chars to this
-  wchar_t *ustr;
-  c_string string;
   CORD cord;
-  cons *cons;
-  symref var;
-  keyword_symref keyword;
-  function *fun;
-  lambda *lam;
-  special_form special;
-  data *array;
-  _tag meta;
-  sexp *quoted;
-  local_symref lenv;
-  env *cur_env;
-  regex_t *regex;
   FILE *stream;
+  _tag meta;
+  c_ptr *c_ptr;
+  c_string string;//unused I think
+  cons *cons;
+  ctype *ctype;
+  data *array;
+  double real64;
+  env *cur_env;
+  float real32;
+  function *fun;
   function_args* funarg;//depreciated
   function_args* funargs;
-  //  function_new* fnew;
-  mpz_t *bigint;
-  mpfr_t *bigfloat;
-  obarray* ob;
-  macro *mac;
+  int16_t int16;
+  int32_t int32;
+  int64_t int64;
+  int8_t int8;
   jmp_buf *label;
-  void *cptr;
+  keyword_symref keyword;
+  lambda *lam;
+  local_symref lenv;
+  macro *mac;
+  mpfr_t *bigfloat;
+  mpz_t *bigint;
+  obarray* ob;
+  regex_t *regex;
+  sexp *quoted;
+  special_form special;
+  symref var;
+  uint16_t uint16;
+  uint32_t uint32;
+  uint64_t uint64;
+  uint8_t uint8;
+  void *opaque;
+  wchar_t *ustr;
+  wchar_t uchar;//try to change all utf8_chars to this
+  wchar_t utf8_char;//depreciated
 };
 //meta is for mutualy exclusvie information
 //whlie the next 8 bits are for inclusive information
