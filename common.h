@@ -12,7 +12,6 @@
 #include <pthread.h>
 #include <sched.h>
 #include <sys/wait.h>
-#include <dlfcn.h>
 #define GC_THREADS
 #define GC_PTHREADS
 #include "gc/include/gc/gc.h"
@@ -67,7 +66,7 @@
 #define uint_n_sexp(uint_n_val,n) (sexp) {.tag=_uint##n,\
       .val={.uint##n=uint_n_val}}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
-
+#define ulong_sexp(ulong_val) (sexp){.tag=_ulong,.val={.uint64=ulong_val}}
 #define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val}}
 #define meta_sexp(meta_val) (sexp) {.tag =_meta,.val={.meta=meta_val}}
 #define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}

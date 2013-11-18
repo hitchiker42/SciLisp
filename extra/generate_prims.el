@@ -113,6 +113,8 @@
       (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 1))
      ((:lname . "eq") (:cname . "lisp_eq") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "ccall") (:cname . "ccall") (:minargs . 5) (:maxargs . 5)
+      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ;bit twiddling
      ((:lname . "logxor") (:cname ."lisp_xor") (:minargs . 2) (:maxargs . 2)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))

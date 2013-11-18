@@ -14,7 +14,14 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_uninterned,uninterned);
     mk_tag_name(_nil,nil);
     mk_tag_name(_cons,cons);
-    mk_tag_name(_long,long);
+    mk_tag_name(_int8,int8);
+    mk_tag_name(_int16,int16);
+    mk_tag_name(_int32,int32);
+    mk_tag_name(_int64,int64);
+    mk_tag_name(_uint8,uint8);
+    mk_tag_name(_uint16,uint16);
+    mk_tag_name(_uint32,uint32);
+    mk_tag_name(_uint64,uint64);
     mk_tag_name(_double,double);
     mk_tag_name(_bigint,BigInt);
     mk_tag_name(_bigfloat,BigFloat);

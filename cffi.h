@@ -1,6 +1,7 @@
 #ifndef CFFI_H
 #define CFFI_H
 typedef union ctype_val ctype_val;
+typedef struct c_data c_data;
 enum ctype_kind {
   _ctype_int8 = 1,
   _ctype_int16 = 3,
@@ -35,14 +36,15 @@ union ctype_val{
   mpz_t *ctype_mpz;
   mpfr_t *ctype_mpfr;
   void *ctype_struct;
-  ctype_val *pointer;
+  ctype_val *pointer;  
 };
-struct c_ptr {
-  ctype_val *c_data;//actual pointer value
-  int depth;//degree of inderection(*=1,**=2,etc)
-  enum ctype_kind type;//actual type,
+struct c_data {
+  ctype_val val;//actual pointer value
+  enum ctype_kind type;//actual type
+  int ptr_depth;//degree of inderection(*=1,**=2,etc)
 };
-sexp dereference_c_ptr(c_ptr *pointer);
+sexp dereference_c_ptr(c_data *pointer);
 int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type);
 sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args);
+sexp get_c_type(sexp ctype_keysym);
 #endif

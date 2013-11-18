@@ -1,6 +1,6 @@
 #include "common.h"
 //not sure the point of this
-void fill_c_ptr(c_ptr *pointer,ctype_val ctype_data){
+/*void fill_c_ptr(c_ptr *pointer,ctype_val ctype_data){
   ctype_val *pointers=xmalloc(sizeof(pointer->depth));
   int i,n=pointer->depth-1;
   for(i=0;i<n;i++){
@@ -9,17 +9,17 @@ void fill_c_ptr(c_ptr *pointer,ctype_val ctype_data){
   pointers[n]=ctype_data;
   pointer->c_data=pointers;
   return;
-}
-static ctype_val dereference_c_ptr_helper(ctype_val *c_data,int depth){
+  }*/
+static ctype_val dereference_c_ptr_helper(ctype_val *ptr_data,int depth){
   if(depth>1){
-    return dereference_c_ptr_helper((*(c_data->pointer)).pointer,depth-1);
+    return dereference_c_ptr_helper((*(ptr_data->pointer)).pointer,depth-1);
   } else {
-    return *(c_data->pointer);
+    return *(ptr_data->pointer);
   }
 }
-sexp dereference_c_ptr(c_ptr *pointer){
+sexp dereference_c_ptr(c_data *pointer){
   ctype_val value=
-    dereference_c_ptr_helper(pointer->c_data,pointer->depth);
+    dereference_c_ptr_helper(&pointer->val,pointer->ptr_depth);
   switch(pointer->type){
     case _ctype_int8:
       return int_n_sexp(value.ctype_int8,8);
@@ -52,9 +52,9 @@ sexp dereference_c_ptr(c_ptr *pointer){
   }
 }
 int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type){
-  if(pointer.tag == _cptr){
-    c_ptr *ptr=pointer.val.c_ptr;
-    if(ptr->depth == depth){
+  if(pointer.tag == _cdata){
+    c_data *ptr=pointer.val.c_val;
+    if(ptr->ptr_depth == depth){
       if(ptr->type == type){
         return 1;
       }
@@ -62,35 +62,123 @@ int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type){
   }
   return 0;
 }
-//just call a c function, unsafe, no typechecking and not very user frendly
-//argtypes should be keyword symbols
-//maybe make a global list of currently loaded libraries?
-sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
-  if(!STRINGP(function) || !(STRINGP(libname)) || !(CONSP(argtypes))
-     || !(CONSP(args))){
-    return error_sexp("type error in ccall");
+//I wrote all of this, but it's probably not necessary
+#include "regex.h"
+sexp get_c_type(sexp ctype_keysym){
+  if(!KEYWORDP(ctype_keysym)){
+    return error_sexp("argument to get_c_type must be a keyword symbol");
   }
-  char* dllibname;
-  void* dllib;
-  void* dlfun;
-  //really basic option parsing
-  if(!CORD_ncmp(libname.val.cord,0,"-l",0,2)){
-    dllibname=(char*)CORD_to_const_char_star
-      (CORD_catn(3,"lib",CORD_substr
-                 (libname.val.cord,2,CORD_len(libname.val.cord)-2),".s0"));
+  re_set_syntax(0);
+  size_t typename_len=CORD_len(ctype_keysym.val.keyword->name)-1;
+  const char *typename=CORD_to_char_star
+    (CORD_substr(ctype_keysym.val.keyword->name,1,typename_len));
+  regex_t *c_type_regex=xmalloc(sizeof(regex_t));
+  uint32_t num_registers=8;
+  struct re_registers match_data;
+  //1=real<x>_ptr?;2=<x>;3=_ptr?;4=u?int<x>_ptr?;5=u?;6=<x>;7=_ptr?
+  const char *c_type_pattern="\\([rR]eal\\(64\\|32\\)\\(_ptr\\)?\\)\\|"
+    "\\(\\([uU]\\)?[iI]nt\\(8\\|16\\|32\\|64\\)\\(_ptr\\)?\\)";
+  size_t pat_len=strlen(c_type_pattern);
+  const char *re_error=re_compile_pattern(c_type_pattern,pat_len,c_type_regex);
+  if(re_error){
+    regfree(c_type_regex);
+    return error_sexp(CORD_from_char_star(re_error));
   }
-  if(!CORD_ncmp(libname.val.cord,0,"lib",0,3)){
-    dllibname=(char*)CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
-  } else {
-    dllibname=(char*)CORD_to_const_char_star(libname.val.cord);
+  //  regoff_t *re_starts=malloc(num_registers+1*sizeof(regoff_t));
+  //  regoff_t *re_ends=malloc(num_registers+1*sizeof(regoff_t));
+  //we do this because by default the register data gets allocated with malloc
+  //and that conflicts with gc(the pattern is malloced too, but theres a function
+  //to clean it up(
+  //  re_set_registers(c_type_regex,match_data,num_registers,re_starts,re_ends);
+  size_t match_len=re_match(c_type_regex,typename,strlen(typename),0,&match_data);
+  if(match_len != typename_len){    
+    HERE();
+    goto FAIL;
   }
-  dllib=dlopen(dllibname,RTLD_LAZY);
-  if(!dllib){
-    return error_sexp(CORD_from_char_star(dlerror()));
+  sexp retval;
+  if(match_data.start[1] != -1){//matched a real
+    if(match_data.start[3] != -1){
+      if(match_data.end[1] != 11){goto FAIL;}        
+      //return pointer
+    } else {
+      if((match_data.end[1]) != 6){
+        printf("start=%zu\n",match_data.start[1]);
+        printf("end=%zu\n",match_data.end[1]);
+        HERE();goto FAIL;}
+      switch(typename[match_data.start[2]]){
+        case '3':
+          retval=QReal32;
+          break;
+        case '6':
+          retval=QReal64;
+          break;
+        default:
+          HERE();
+          goto FAIL;
+      }
+      //      free(re_starts);
+      //      free(re_ends);
+      free(match_data.start);
+      free(match_data.end);
+      regfree(c_type_regex);
+      return retval;
+    }
+  } else if(match_data.start[4] != -1){
+    if(match_data.start[7] != -1){
+    } else {
+      if(match_data.start[5] != -1){
+        switch(typename[match_data.start[6]]){
+          case '8':
+            if(match_data.end[4]!=5){goto FAIL;}
+            retval=QUInt8;
+            break;
+          case '1':
+            if(match_data.end[4]!=6){goto FAIL;}
+            retval=QUInt16;
+            break;
+          case '3':
+            if(match_data.end[4]!=6){goto FAIL;}
+            retval=QUInt32;
+            break;
+          case '6':
+            if(match_data.end[4]!=6){goto FAIL;}
+            retval=QUInt64;
+          default:
+            HERE();
+            goto FAIL;
+        }
+        //        free(re_starts);
+        //        free(re_ends);
+        free(match_data.start);
+        free(match_data.end);
+        regfree(c_type_regex);
+        return retval;
+      } else {
+        switch(typename[match_data.start[6]]){
+          case '8':
+            if(match_data.end[4]!=4){goto FAIL;}
+            return QInt8;
+          case '1':
+            if(match_data.end[4]!=5){goto FAIL;}
+            return QInt16;
+          case '3':
+            if(match_data.end[4]!=5){goto FAIL;}
+            return QInt32;
+          case '6':
+            if(match_data.end[4]!=5){goto FAIL;}
+            return QInt64;
+          default:
+            HERE();
+            goto FAIL;
+        }
+      }
+    }
   }
-  dlfun=dlsym(dllib,CORD_to_const_char_star(function.val.cord));
-  if(!dlfun){
-    return error_sexp(CORD_from_char_star(dlerror()));
-  }
-  return NIL;
+ FAIL:
+  //  free(re_starts);
+  //  free(re_ends);
+  free(match_data.start);
+  free(match_data.end);
+  regfree(c_type_regex);
+  return error_sexp("invalid typename passed to get_c_type");
 }

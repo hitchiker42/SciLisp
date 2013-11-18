@@ -49,7 +49,7 @@ typedef struct obarray_entry obarray_entry;
 typedef struct obarray_env obarray_env;
 typedef struct macro macro;
 typedef struct ctype ctype;
-typedef struct c_ptr c_ptr;
+typedef struct c_data c_data;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -99,6 +99,9 @@ typedef wchar_t char32_t;
 #define INT32P(obj) (obj.tag == _int)
 #define INT64P(obj) (obj.tag == _long)
 #define REAL32P(obj) (obj.tag == _float)
+#define KEYWORDP(obj) (obj.tag == _keyword)
+#define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
+#define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
 //key point to this enum is that arathmatic types are numbered in their type
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
@@ -147,7 +150,7 @@ enum _tag {
   _obarray = 42,
   _label = 43,//a c jmp_buf, in lisp a target for return or go
   _ctype=44,//c ffi type
-  _cptr=45,//c pointer (a struct w/ type info about said pointer)
+  _cdata=45,//c value and typeinfo(includes c pointer types)
   _opaque=46,//generic opaque c struct/union
 };
 enum special_form{
@@ -192,7 +195,7 @@ union data {//keep max size at 64 bits
   CORD cord;
   FILE *stream;
   _tag meta;
-  c_ptr *c_ptr;
+  c_data *c_val;
   c_string string;//unused I think
   cons *cons;
   ctype *ctype;
@@ -370,6 +373,16 @@ mkTypeSym(Qnil,_nil);
 mkTypeSym(Qcons,_cons);
 mkTypeSym(Qdouble,_double);
 mkTypeSym(Qlong,_long);
+mkTypeSym(QInt8,_int8);
+mkTypeSym(QInt16,_int16);
+mkTypeSym(QInt32,_int32);
+mkTypeSym(QInt64,_int64);
+mkTypeSym(QUInt8,_uint8);
+mkTypeSym(QUInt16,_uint16);
+mkTypeSym(QUInt32,_uint32);
+mkTypeSym(QUInt64,_uint64);
+mkTypeSym(QReal32,_real32);
+mkTypeSym(QReal64,_real64);
 mkTypeSym(Qbigint,_bigint);
 mkTypeSym(Qbigfloat,_bigfloat);
 mkTypeSym(Qchar,_char);

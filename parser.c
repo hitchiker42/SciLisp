@@ -58,9 +58,7 @@ sexp yyparse(FILE* input){
     //    xfree(cur_pos);
     GC_gcollect();
     prev_pos->cdr.tag=_nil;
-    HERE();
     prev_pos->cdr.val.meta=_nil;
-    HERE();
     return ast;
   }
   handle_error();

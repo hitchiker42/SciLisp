@@ -208,6 +208,7 @@ extern char *yytext;
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
 #define comment 1
+#define typename 2
 
 #endif
 
@@ -311,8 +312,8 @@ extern int yylex (void);
 #undef YY_DECL
 #endif
 
-#line 193 "lisp.lex"
+#line 195 "lisp.lex"
 
-#line 317 "lex.yy.h"
+#line 318 "lex.yy.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

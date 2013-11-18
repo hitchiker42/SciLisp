@@ -35,9 +35,11 @@ LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
-	hash_fn.c lisp_math.c cffi.c
+	hash_fn.c lisp_math.c cffi.c ccall.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
-	hash_fn.o lisp_math.o cffi.o
+	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o
+#STD_LIB
+#STD_LIB_SRC:=
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -79,6 +81,7 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 cffi.o:cffi.h $(COMMON_HEADERS)
+ccall.o:cffi.h $(COMMON_HEADERS)
 llvm_codegen.o:llvm_codegen.c codegen.h $(COMMON_HEADERS) prim.h cons.h llvm_c.h
 	$(compile_llvm)
 llvm_test.o: llvm_test.c llvm_c.h

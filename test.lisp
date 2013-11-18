@@ -103,6 +103,8 @@
 (let ((x 5))
   (defun add5 (y) (+ x y)))
 (add5 6)
+(ccall "gsl_sf_fact" "libgsl" :real64 '(:uint32) '(4))
+(ccall "gsl_sf_poch" "libgsl" :real64 '(:real64 :real64) '(4. 5.))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

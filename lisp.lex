@@ -78,8 +78,10 @@ union data {
 /*%option bison-bridge*/
 %option header-file="lex.yy.h"
 %option noyywrap
-   /*start conditon for scanning nested comments*/
+   /*start condition for scanning nested comments*/
 %x comment
+   /*start condition for matching typenames*/ 
+%x typename
 %%
    /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;

@@ -126,6 +126,7 @@ DEFUN(lisp_cat,2);
 DEFUN(lisp_getcwd,0);
 DEFUN(lisp_system,2);
 DEFUN(lisp_eq,2);
+DEFUN(ccall,5);
 DEFUN(lisp_xor,2);
 DEFUN(lisp_logand,2);
 DEFUN(lisp_logor,2);
