@@ -392,6 +392,7 @@ mkTypeSym(Qfunargs,_funargs);
 //  return typeArray[obj.tag+2];
 //}
 //defines what values are considered false
+//the empty string should probably be here
 #define isTrue(x)                                            \
   (x.tag == _false ? 0 :                                     \
     (x.tag == _nil ? 0 :                                     \

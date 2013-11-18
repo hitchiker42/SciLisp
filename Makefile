@@ -21,7 +21,6 @@ QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing -fmax-errors=30 -Wmissing-braces -Wcomment
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	-flto -rdynamic #-fstrict-aliasing
-COMMON_CXXFLAGS:= -D_GNU_SOURCE -fno-strict-aliasing -fno-strict-enums -Wno-write-strings -I$(shell pwd)/gc/include/gc
 INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include \
 	-I$(shell pwd)/bignum/include
 #-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
@@ -42,9 +41,8 @@ BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
-LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs` $(OPT_FLAG) \
-	-Wl,-rpath=$(shell pwd)/llvm/llvm/libs
-CXXFLAGS:=$(CXXFLAGS) `$(LLVM_CONFIG) --cppflags` -flto -g
+LLVM_FLAGS:=`$(LLVM_CONFIG) --cflags --ldflags --libs` \
+	 $(OPT_FLAG) -Wl,-rpath=$(shell pwd)/llvm/llvm/libs
 define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
@@ -55,8 +53,8 @@ endef
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
-	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) \
-	$(XLDFLAGS) llvm_codegen.o -o $@
+	$(CXX) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) \
+	$(XLDFLAGS) $(COMMON_CFLAGS) llvm_codegen.o -o $@
 llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	 $(CXX)	llvm_codegen.o llvm_test.o \
 	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
@@ -96,6 +94,8 @@ prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
 #making libraries
 LIBSCILISP_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
+lib_files:
+	mkdir -p lib_files
 #should be a way to do this in less lines
 define start_libSciLisp =
 	$(eval CC_TEMP:=$(CC) $(LIBSCILISP_FLAGS))#$(QUIET_FLAGS) 
@@ -109,7 +109,7 @@ define start_libSciLisp =
 	$(CC_TEMP) -o lib_files/libSciLisp_hash_fn.o -c hash_fn.c
 	$(CC_TEMP) -o lib_files/libSciLisp_math.o -c lisp_math.c
 endef
-libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c
+libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c lib_files
 define libSciLisp_files :=
 lib_files/libSciLisp_prim.o lib_files/libSciLisp_env.o lib_files/libSciLisp_cons.o \
 	lib_files/libSciLisp_array.o lib_files/libSciLisp_eval.o  \
@@ -130,7 +130,7 @@ libSciLisp.so: libSciLisp_reqs
 	$(libSciLisp_files) -o $@
 libs: libSciLisp.a libSciLisp.so
 prim.bc: prim.c eval.c print.c env.c cons.c array.c bignum.c
-	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
+	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS) -w)
 	$(CC) -S -emit-llvm -fno-asm $^;\
 	llvm-link prim.s cons.s eval.s array.s env.s print.s -o prim.bc;\
 	rm prim.s cons.s eval.s array.s env.s print.s
