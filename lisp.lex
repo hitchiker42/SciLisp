@@ -80,8 +80,6 @@ union data {
 %option noyywrap
    /*start conditon for scanning nested comments*/
 %x comment
-   /*start condition for scaning "`" quoted sexps*/
-%x quasiquote 
 %%
    /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
@@ -133,7 +131,7 @@ prog1 {LEX_MSG("lexing prog1");
 if {LEX_MSG("lexing if");
   yylval->tag=_special;yylval->val.special=_if;return TOK_SPECIAL;}
 let {LEX_MSG("lexing let");
-  yylval->tag=_special;yylval->val.special=_let;return TOK_SPECIAL;}
+  yylval->tag=_special;yylval->val.special=_let;return TOK_LET;}
 do {LEX_MSG("lexing do");
   yylval->tag=_special;yylval->val.special=_do;return TOK_SPECIAL;}
 dolist {LEX_MSG("lexing dolist");

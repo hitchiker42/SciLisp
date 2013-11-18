@@ -6,6 +6,9 @@
 #include <execinfo.h>
 #if defined (HERE_ON) && !(defined (HERE_OFF))\
   || (defined (DEBUG)) && !(defined (NDEBUG))
+#ifndef DEBUG
+#define DEBUG
+#endif
 #define HERE() debug_printf("here at %s,line %d\n",__FILE__,__LINE__)
 #define HERE_MSG(string) debug_printf("here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
@@ -54,27 +57,4 @@ static void default_debug_printf(CORD fmt,...){
   va_start(ap,fmt);
   vfprintf(stderr,fmt,ap);
   return;
-}  
-#if 0
-#if defined (HERE_ON) && !(defined (HERE_OFF))\
-  || (defined (DEBUG)) && !(defined (NDEBUG))
-#define HERE() fprintf(stderr,"here at %s,line %d\n",__FILE__,__LINE__)
-#define HERE_MSG(string) fprintf(stderr,"here at %s,line %d\n%s\n"\
-                                 ,__FILE__,__LINE__,string)
-#define PRINT_MSG(string) CORD_fprintf(stderr,string);fputs("\n",stderr)
-#define PRINT_FMT(string,fmt...) CORD_fprintf(stderr,string "\n",##fmt)
-#else
-#define HERE()
-#define HERE_MSG(string)
-#define PRINT_MSG(string)
-#define PRINT_FMT(string,fmt...)
-#endif
-#if defined (VERBOSE_LEXING) && !(defined (QUIET_LEXING))
-#define LEX_MSG(string) fputs(string,stderr);fputs("\n",stderr)
-#define LEX_FMT(string,fmt...) fprintf(stderr,string "\n",##fmt)
-#else
-#define LEX_MSG(string)
-#define LEX_FMT(string,fmt...)
-#endif
-#define format_error_str(format,args...) CORD_sprintf(&error_str,format,##args)
-#endif
+}

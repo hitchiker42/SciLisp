@@ -31,9 +31,11 @@ prims.dat #I forget what this was for
 
 # Specific Generated Binaries
 SciLisp
+SciLisp_llvm
 fnv_hash
 llvm-test
 write_prims
+gen_cffi
 
 #gc files
 gc/gc_config.stamp

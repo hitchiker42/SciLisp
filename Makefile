@@ -13,7 +13,7 @@ WARNING_FLAGS:=-w
 else
 CC:=gcc
 CXX:=g++
-OPT_FLAGS:=-Og
+OPT_FLAGS:=-O
 endif
 CC:=$(CC) -fPIC #position independent code, for everything
 OPT_FLAGS:=$(OPT_FLAGS) -g
@@ -28,21 +28,22 @@ INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include \
 XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
 	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib \
 	-Wl,-rpath=$(shell pwd)/bignum/lib \
-	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr
+	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr -ldl
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS) 
 LEX:=flex
-SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h
+SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
-	hash_fn.c lisp_math.c
+	hash_fn.c lisp_math.c cffi.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
-	hash_fn.o lisp_math.o
+	hash_fn.o lisp_math.o cffi.o
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
-LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs core engine` $(OPT_FLAG)
+LLVM_FLAGS:=`$(LLVM_CONFIG) --ldflags --cxxflags --libs` $(OPT_FLAG) \
+	-Wl,-rpath=$(shell pwd)/llvm/llvm/libs
 CXXFLAGS:=$(CXXFLAGS) `$(LLVM_CONFIG) --cppflags` -flto -g
 define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
@@ -54,7 +55,8 @@ endef
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
-	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) \
+	$(XLDFLAGS) llvm_codegen.o -o $@
 llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	 $(CXX)	llvm_codegen.o llvm_test.o \
 	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
@@ -76,6 +78,7 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 	$(CC) $(XCFLAGS) -c c_codegen.c -o codegen.o
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 c_codegen.o:codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
+cffi.o:cffi.h $(COMMON_HEADERS)
 llvm_codegen.o:llvm_codegen.c codegen.h $(COMMON_HEADERS) prim.h cons.h llvm_c.h
 	$(compile_llvm)
 llvm_test.o: llvm_test.c llvm_c.h
@@ -92,35 +95,39 @@ emacs_regex.o: emacs_regex.c emacs_regex.h
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h fnv_hash
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
 #making libraries
-LIBPRIM_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
+LIBSCILISP_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
 #should be a way to do this in less lines
-define start_libprim =
-	$(eval CC_TEMP:=$(CC) $(LIBPRIM_FLAGS))#$(QUIET_FLAGS) 
-	$(CC_TEMP) -o libprim_prim.o -c prim.c
-	$(CC_TEMP) -o libprim_cons.o -c  cons.c
-	$(CC_TEMP) -o libprim_array.o -c array.c
-	$(CC_TEMP) -o libprim_eval.o -c eval.c
-	$(CC_TEMP) -o libprim_print.o -c print.c
-	$(CC_TEMP) -o libprim_env.o -c env.c
-	$(CC_TEMP) -o libprim_bignum.o -c bignum.c
-	$(CC_TEMP) -o libprim_hash_fn.o -c hash_fn.c
+define start_libSciLisp =
+	$(eval CC_TEMP:=$(CC) $(LIBSCILISP_FLAGS))#$(QUIET_FLAGS) 
+	$(CC_TEMP) -o lib_files/libSciLisp_prim.o -c prim.c
+	$(CC_TEMP) -o lib_files/libSciLisp_cons.o -c  cons.c
+	$(CC_TEMP) -o lib_files/libSciLisp_array.o -c array.c
+	$(CC_TEMP) -o lib_files/libSciLisp_eval.o -c eval.c
+	$(CC_TEMP) -o lib_files/libSciLisp_print.o -c print.c
+	$(CC_TEMP) -o lib_files/libSciLisp_env.o -c env.c
+	$(CC_TEMP) -o lib_files/libSciLisp_bignum.o -c bignum.c
+	$(CC_TEMP) -o lib_files/libSciLisp_hash_fn.o -c hash_fn.c
+	$(CC_TEMP) -o lib_files/libSciLisp_math.o -c lisp_math.c
 endef
-libprim_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c
-define libprim_files :=
-libprim_prim.o libprim_env.o libprim_cons.o libprim_array.o libprim_eval.o\
-	 libprim_print.o libprim_bignum.o libprim_hash_fn.o
+libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c
+define libSciLisp_files :=
+lib_files/libSciLisp_prim.o lib_files/libSciLisp_env.o lib_files/libSciLisp_cons.o \
+	lib_files/libSciLisp_array.o lib_files/libSciLisp_eval.o  \
+	lib_files/libSciLisp_print.o lib_files/libSciLisp_bignum.o \
+	lib_files/libSciLisp_hash_fn.o lib_files/libSciLisp_math.o
 endef
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
-libprim.o: libprim_reqs
-	$(start_libprim)
-	$(CC) -o libprim.o $(LIBPRIM_FLAGS) -lm -lgc -lcord
-libSciLisp.a: libprim_reqs
-	$(start_libprim)
-	ar rcs $@ $(libprim_files)
-	rm $(libprim_files)
-libSciLisp.so: libprim_reqs
-	$(start_libprim)
-	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) $(libprim_files) -o $@
+libSciLisp.o: libSciLisp_reqs
+	$(start_libSciLisp)
+	$(CC) -o libSciLisp.o $(LIBSCILISP_FLAGS) -lm -lgc -lcord
+libSciLisp.a: libSciLisp_reqs
+	$(start_libSciLisp)
+	ar rcs $@ $(libSciLisp_files)
+	rm $(libSciLisp_files)
+libSciLisp.so: libSciLisp_reqs
+	$(start_libSciLisp)
+	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) \
+	$(libSciLisp_files) -o $@
 libs: libSciLisp.a libSciLisp.so
 prim.bc: prim.c eval.c print.c env.c cons.c array.c bignum.c
 	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS))
@@ -188,5 +195,5 @@ mpfr.tar.xz:
 write_prims: write_prims.c libSciLisp.so
 	gcc -o write_prims -std=gnu99 write_prims.c -lgc -lcord -lgmp libSciLisp.so -Wl,-rpath=$$PWD -L$$PWD -lm
 gen_cffi: gen_cffi.c gen_cffi.h
-	gcc -o gen_cffi -lgc -lcord -lclang -O2 -g gen_cffi.c -std=gnu99
+	gcc -o gen_cffi $(XLDFLAGS) -lclang -O2 -g gen_cffi.c -std=gnu99
 #http://physics.nist.gov/cuu/Constants/Table/allascii.txt

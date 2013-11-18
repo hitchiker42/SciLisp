@@ -3,6 +3,7 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************|#
+#|SciLisp regression tests|#
 (def ls '(1 23 34 56 78))
 (def ls2 (iota 10))
 (def ls3 (iota -1 1 0.1))
@@ -10,9 +11,9 @@
 (def arr2 [1.0 4.0 8.9 3 0.9])
 (def arr-iota (iota 0 10 1 1))
 (defun sum (x)(reduce x +))
-(define prod (lambda (x) (reduce x +)))
-#|(sum ls);issue here
-#|(print ls)
+(define prod (lambda (x) (reduce x *)))
+(sum ls);issue here
+(print ls)
 (sum ls2);and here |#
 (prod ls3);and here |#
 (car ls)
@@ -86,11 +87,22 @@
 " file)
 (fclose file)
 (system "cat temp.temp")
+(system "rm temp.temp")
 (def i 15)
 (print i)
 (do (i 0 (++ i) (<= i 10)) (print i))
 (print i)
 (dolist (i '(1 2 3 4 5 6 7 8 9 10)) (print i))
+(let ((x 5)) (print x))
+(let ((x '(1 3 5))) (print x))
+(let ((x 5)
+      (y 6))
+  (progn 
+    (print x)
+    (print y)))
+(let ((x 5))
+  (defun add5 (y) (+ x y)))
+(add5 6)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

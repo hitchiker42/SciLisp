@@ -518,24 +518,6 @@ sexp lisp_sum(sexp required,sexp values){
     }
   }
 }
-//just call a c function, unsafe, no typechecking and not very user frendly
-//argtypes should be either keyword symbols or literal types
-sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
-  if(!STRINGP(function) || !(STRINGP(libname)) || !(CONSP(argtypes))
-     || !(CONSP(args))){
-    return error_sexp("type error in ccall");
-  }
-  char* dllibname;
-  void* dllib;
-  if(CORD_cmp(CORD_substr(libname.val.cord,0,3),"lib")){
-    dllibname=(char*)CORD_to_const_char_star(CORD_cat(libname.val.cord,".so"));
-  } else {
-    dllibname=(char*)CORD_to_const_char_star
-      (CORD_catn(3,"lib",libname.val.cord,".so"));
-  }
-  dllib=dlopen(dllibname,0);
-  return NIL;
-}
 sexp lisp_eq(sexp obj1,sexp obj2){
   if(BIGNUMP(obj1) && BIGNUMP(obj2)){
     if(NUMBERP(obj1) && NUMBERP(obj2)){

@@ -155,7 +155,7 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_defmacro(expr,cur_env);
     case _dotimes:
       return eval_dotimes(expr,cur_env);
-    default:      
+    default:
       goto error;
   }
  error:
@@ -201,7 +201,7 @@ static inline sexp eval_def(sexp expr,env *cur_env){
 static inline sexp eval_defun(sexp expr,env *cur_env){
   expr=cdr(expr);
   sexp temp_lambda;
-  symref fun_sym=getSym(cur_env,car(expr).val.var->name);
+  symref fun_sym=getGlobalSym(car(expr).val.var->name);
   if(!fun_sym){
     fun_sym=xmalloc(symbolSize(cur_env));
     fun_sym->name=(XCAR(expr).val.var->name);
@@ -220,10 +220,10 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
                       .lam=new_lam,.type=_lambda_fun};
 
   fun_sym->val=function_sexp(new_fun);
-  addSym(cur_env,fun_sym);
+  addGlobalSym(fun_sym);
   //test code
-  symref test=getSym(cur_env,car(expr).val.var->name);
-  PRINT_MSG(print(symref_sexp(test)));
+  //  symref test=getGlobalSym(car(expr).val.var->name);
+  //  PRINT_MSG(print(symref_sexp(test)));
   return symref_sexp(fun_sym);
 }
 
@@ -265,31 +265,66 @@ static inline sexp eval_while(sexp expr,env *cur_env){
   }
   return retval;
 }
+//can parallize this,(i.e the binding of variables bit)
 static inline sexp eval_let(sexp expr,env *cur_env){
-  /*syntax (let ((var def)+)(body ...))*/
-  sexp vars=XCDR(expr);
+  /*syntax (let ((var def)*)(body ...))*/
+  sexp vars=XCADR(expr);
   if(!CONSP(vars)){
     return error_sexp("empty let expression");
   }
+  sexp cur_expr;
   local_symref cur_var=xmalloc(sizeof(local_symbol));
   local_symref last_var=cur_var;
   env *scope = xmalloc(sizeof(env));
   *scope=(env){.enclosing = cur_env,.head = {.local = cur_var},.tag=_local};
-  while(CONSP(XCAR(vars))){//for each cons cell in the let expression
+  //for each cons cell in the let expression
+  while(CONSP(vars) && CONSP((cur_expr=XCAR(vars)))){
     //take the name from the car(assuming it's a symbol)
-    cur_var->name=XCAAR(vars).val.var->name;//I think...
+    cur_var->name=XCAR(cur_expr).val.var->name;//I think...
+    PRINT_FMT("current let var is %s",cur_var->name);
     //set the value to eval(cdr)
-    cur_var->val=eval(XCDAR(vars),cur_env);
+    cur_var->val=eval(XCADR(cur_expr),cur_env);
     //allocate next variable
     cur_var->next=xmalloc(sizeof(local_symbol));
     last_var=cur_var;
     cur_var=cur_var->next;
     vars=XCDR(vars);
-    if(!CONSP(vars)){return error_sexp("malformed let expression");}
+  }
+  if(!NILP(vars)){
+    return error_sexp("malformed let expression");
   }
   last_var->next=0;
-  return eval(cddr(expr),scope);
-  return error_sexp("let unimplemented");
+  return eval(caddr(expr),scope);
+}
+static inline sexp eval_flet(sexp expr,env *cur_env){
+  /*syntax (flet ((var (arglist) def)*)(body ...))*/
+  sexp vars=XCADR(expr);
+  if(!CONSP(vars)){
+    return error_sexp("empty let expression");
+  }
+  sexp cur_expr;
+  local_symref cur_var=xmalloc(sizeof(local_symbol));
+  local_symref last_var=cur_var;
+  env *scope = xmalloc(sizeof(env));
+  *scope=(env){.enclosing = cur_env,.head = {.local = cur_var},.tag=_local};
+  //for each cons cell in the let expression
+  while(CONSP(vars) && CONSP((cur_expr=XCAR(vars)))){
+    //take the name from the car(assuming it's a symbol)
+    cur_var->name=XCAR(cur_expr).val.var->name;//I think...
+    PRINT_FMT("current let var is %s",cur_var->name);
+    //set the value to eval(cdr)
+    cur_var->val=eval(XCADR(cur_expr),cur_env);
+    //allocate next variable
+    cur_var->next=xmalloc(sizeof(local_symbol));
+    last_var=cur_var;
+    cur_var=cur_var->next;
+    vars=XCDR(vars);
+  }
+  if(!NILP(vars)){
+    return error_sexp("malformed let expression");
+  }
+  last_var->next=0;
+  return eval(caddr(expr),scope);
 }
 static inline sexp eval_do(sexp expr,env *cur_env){
   /*syntax (do (var init step end) body)*/
@@ -623,7 +658,7 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
   }
   if(!(mac->body.quoted)){
     if(SYMBOLP(mac->body)){
-      //need to double check lisp macro semantics for these 
+      //need to double check lisp macro semantics for these
       if((argnum=isFunctionArg
           ((function_env*)cur_env,mac->body.val.var->name))){
         return cur_env->head.function->args[argnum].val;
@@ -678,4 +713,3 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     return mac->body;
   }
 }
-

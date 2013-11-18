@@ -84,36 +84,47 @@ clang_test(CXCursor cursor,CXCursor parent,CXClientData data){
   puts("\n---------------------");
   return CXChildVisit_Recurse;
 }
+CORD temp_fun;
 //collect a list of all function definations in the ast pointed to by cursor
 enum CXChildVisitResult
 clang_find_functions(CXCursor cursor,CXCursor parent,CXClientData data){
   if(!clang_isFunctionDecl(cursor)){
+    HERE();
     return CXChildVisit_Continue;
   } else {
     SciLisp_Data* SL_data=(SciLisp_Data*)data;
     SciLisp_Function *curFun=xmalloc(sizeof(SciLisp_Function));
     curFun->function_decl=cursor;
     if(SL_data->num_fxns==0){
+      HERE();
       SL_data->head=curFun;
       SL_data->tail=curFun;
       SL_data->num_fxns++;
-      (CORD_printf
+      (CORD_sprintf,&temp_fun,
        (clangStringToCORD
         (clang_getTypeSpelling
          (clang_getCanonicalType
           (clang_getCursorType(cursor))))));
+      if(temp_fun){
+        CORD_fprintf(stderr,temp_fun);
+        return CXChildVisit_Continue;
+      } else {
+        fprintf(stderr,"didn't get function\n");
+        exit(1);
+      }
+    } else {
+      HERE();
+      SL_data->num_fxns++;
+      SL_data->tail->next=curFun;//set next pointer for current tail;
+      curFun->prev=SL_data->tail;//set prev pointer for curFun
+      SL_data->tail=curFun;//set tail to curFun
+      (CORD_fprintf,stderr,
+       (clangStringToCORD
+        (clang_getTypeSpelling
+         (clang_getCanonicalType
+          (clang_getCursorType(SL_data->tail->function_decl))))));
       return CXChildVisit_Continue;
     }
-    SL_data->num_fxns++;
-    SL_data->tail->next=curFun;//set next pointer for current tail;
-    curFun->prev=SL_data->tail;//set prev pointer for curFun
-    SL_data->tail=curFun;//set tail to curFun
-    (CORD_printf
-     (clangStringToCORD
-      (clang_getTypeSpelling
-       (clang_getCanonicalType
-        (clang_getCursorType(SL_data->tail->function_decl))))));
-    return CXChildVisit_Continue;
   }
 }
 //NOTE: function arguments start at 1 not 0
@@ -137,10 +148,13 @@ CORD makeSciLispFunction(SciLisp_Function *data){
     if(!curType){HERE();
       continue;}
     typechecks=buildTypeChecks(typechecks,curType,i,numArgs,funType);
+    HERE();
     CORD_fprintf(stderr,typechecks);
     declarations=buildDeclarations(declarations,curType,i);
+    HERE();
     CORD_fprintf(stderr,declarations);
     funcall=buildFunCall(funcall,i,numArgs,funType);
+    HERE();
     CORD_fprintf(stderr,funcall);
   }
   lfun=CORD_catn(4,lfun,typechecks,declarations,funcall);
@@ -159,13 +173,13 @@ CORD buildFunCall(CORD funcall,int curArg,
       return funcall;
     }
   }
-  funcall=CORD_cat(funcall,"c_obj");
+  funcall=CORD_cat_char_star(funcall,"c_obj",5);
   CORD_cat_char(funcall,(char)(curArg+48));
   if(curArg==maxArg){
-    funcall=CORD_cat(funcall,"));\n}\n");
+    funcall=CORD_cat_char_star(funcall,"));\n}\n",6);
     return funcall;
   } else {
-    funcall=CORD_cat(funcall,", ");
+    funcall=CORD_cat_char_star(funcall,", ",2);
     return funcall;
   }
 }
@@ -175,15 +189,12 @@ CORD buildDeclarations(CORD decls,SciLisp_Type *curType,int curArg){
   //this one's a bit easy, theres nothing special about the first or last
   //argument
   decls=CORD_cat(decls,curType->ctype);
-  decls=CORD_cat(decls," c_obj");
+  decls=CORD_cat_char_star(decls," c_obj",6);
   decls=CORD_cat_char(decls,(char)(curArg+48));
   if(curType->useFxnAccessor){
-    HERE();
     decls=CORD_catn(4,decls,"= ",curType->fxnAccessor,"(obj");
-    HERE();
     decls=CORD_cat_char(decls,(char)(curArg+48));
-    HERE();
-    decls=CORD_cat(decls,");\n");
+    decls=CORD_cat_char_star(decls,");\n",3);
     return decls;
   } else {
     decls=CORD_cat(decls,"= obj");
@@ -191,7 +202,6 @@ CORD buildDeclarations(CORD decls,SciLisp_Type *curType,int curArg){
     decls=CORD_cat(decls,".val.");
     decls=CORD_cat(decls,curType->fieldName);
     decls=CORD_cat(decls,";\n");
-    HERE();
     CORD_fprintf(stderr,decls);
     return decls;
   }
@@ -331,11 +341,20 @@ CORD get_std_type(CXType type){
 }
 int main(int argc,char *argv[]){
   //get filenames, if only inputfile name output file lisp_filename.c
-  inFileName=argv[1];//placeholder for argument parsing
+  if(!argv[1]){
+    printf
+      ("requires 1-2 arguments specifying an input and optional output file\n");
+    return 0;
+  }
+  inFileName=argv[1];//placeholder for argument parsing  
   CORD outFile_cord;
-  CORD_sprintf(&outFile_cord,"lisp_%s.c",
-               CORD_substr(inFileName,0,CORD_len(inFileName)-2));
-  outFile=fopen(CORD_to_char_star(outFile_cord),"w");
+  if(argv[2]){
+    outFile=fopen(argv[2],"w");
+  } else {
+    CORD_sprintf(&outFile_cord,"lisp_%s.c",
+                 CORD_substr(inFileName,0,CORD_len(inFileName)-2));
+    outFile=fopen(CORD_to_char_star(outFile_cord),"w");
+  }
   //get AST from Clang
   CXIndex clang_index=clang_createIndex(1,0);
   CXTranslationUnit clang_trans_unit=clang_parseTranslationUnit
@@ -350,9 +369,6 @@ int main(int argc,char *argv[]){
   CORD SciLisp_Code;
   CORD_sprintf(&SciLisp_Code,
                "%s//this file was created using %s\n",SciLisp_Header,inFileName);
-  CORD_printf
-    (clangStringToCORD
-     (clang_getCursorDisplayName(entry_point)));
   //test code
   //  clang_visitChildren(entry_point,clang_test,NULL);
   //  return 0;

@@ -73,7 +73,7 @@
 #define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
 #define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val}}
 #define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
-#define stream_sexp(stream_val (sexp){.tag=_env,.val={.stream=stream_val}}
+#define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
 #define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
 #define CORD_strdup(str) CORD_from_char_star(str)
@@ -104,8 +104,8 @@ jmp_buf error_buf;
 sexp error_val;
 static int initPrimsFlag=1;
 //functions to print (or not print) debug info
-static void (*debug_printf)(const char*,...)=default_debug_printf;
-static void (*CORD_debug_printf)(CORD,...)=default_CORD_debug_printf;
+void (*debug_printf)(const char*,...);
+void (*CORD_debug_printf)(CORD,...);
 //from C++ code for llvm
 //sexp llvmEvalJIT(sexp expr,env cur_env);
 //void initialize_llvm();
@@ -116,7 +116,7 @@ extern sexp eval(sexp expr,env *cur_env);
 extern sexp call_builtin(sexp expr,env *cur_env);
 extern sexp call_lambda(sexp expr,env *cur_env);
 extern sexp lisp_funcall(sexp expr,env *cur_env);
-2extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
+extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
 extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
 //I don't need to pull in all of the hash functions

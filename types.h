@@ -57,6 +57,11 @@ typedef local_symbol *local_symref;//"" local ""
 typedef symbol *keyword_symref;
 typedef symbol keyword_symbol;
 typedef typed_symbol *typed_symref;
+//typedefs akin to the ones in stdint.h and sml
+typedef float real32_t;
+typedef double real64_t;
+typedef char char8_t;
+typedef wchar_t char32_t;
 //typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
 #define NILP(obj) (obj.tag == _nil)
@@ -192,9 +197,7 @@ union data {//keep max size at 64 bits
   cons *cons;
   ctype *ctype;
   data *array;
-  double real64;
   env *cur_env;
-  float real32;
   function *fun;
   function_args* funarg;//depreciated
   function_args* funargs;
@@ -210,6 +213,8 @@ union data {//keep max size at 64 bits
   mpfr_t *bigfloat;
   mpz_t *bigint;
   obarray* ob;
+  real32_t real32;
+  real64_t real64;
   regex_t *regex;
   sexp *quoted;
   special_form special;
@@ -264,6 +269,7 @@ enum TOKEN{
   TOK_LIST_SPLICE=28,//,@
   TOK_MACRO=29,
   TOK_RETURN=30,
+  TOK_LET=31,
   //Types 40-50
   TOK_TYPEDEF=40,
   TOK_TYPEINFO=41,

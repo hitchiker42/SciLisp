@@ -45,8 +45,8 @@ sexp array_iota(sexp start,sexp stop,sexp step,sexp rnd);
 sexp array_from_list(sexp ls);
 static int array_typecheck(int len,sexp arr,sexp_meta elem_type){
   if(ARRAYP(arr)){
-    if(len==0 || arr.val.len == len){//allow for dynamic arrays or something
-      if(arr.val.meta == elem_type){
+    if(len==0 || arr.len == len){//allow for dynamic arrays or something
+      if(arr.meta == elem_type){
         return 1;
       }
     }

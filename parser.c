@@ -9,7 +9,7 @@
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
 TOKEN yytag;//current token
-jmp_buf ERROR;//location of error handling function
+static jmp_buf ERROR;//location of error handling function
 static int inside_backquote=0;//global flag to determine how to handle a comma
 sexp parse_atom();
 sexp parse_cons();
@@ -19,6 +19,7 @@ static sexp parse_list();
 static sexp parse_arg_list();
 static sexp parse_function_args();
 sexp error_val=NIL_MACRO();
+static void error_recovery();
 static void handle_error() __attribute__((noreturn));
 static void handle_error(){
   evalError=1;
@@ -39,7 +40,7 @@ sexp yyparse(FILE* input){
       error_val=NIL;
       return temp;
     }
-    longjmp(error_buf,-1);    
+    longjmp(error_buf,-1);
     return NIL;
   } else{//normal parsing
     yyin=input;
@@ -76,17 +77,40 @@ sexp parse_cons(){
   //at this point there's no difference between any macro, special form or function
   switch (yytag){
     case TOK_SPECIAL:{
-      result.val.cons->car=(sexp){.tag=_special,.val={.special = yylval->val.special}};
+      XCAR(result)=(sexp){.tag=_special,.val={.special = yylval->val.special}};
       break;
     }
     case TOK_ID:{
       tmpsym=xmalloc(sizeof(symbol));
       tmpsym->name=yylval->val.cord;
       tmpsym->val=UNBOUND;
-      result.val.cons->car=(sexp){.tag=_sym,.val={.var =tmpsym}};
+      XCAR(result)=(sexp){.tag=_sym,.val={.var =tmpsym}};
       break;
       //    }
-    } 
+    }
+      //this feels like a really bad hack is it?
+    case TOK_LET:{
+      XCAR(result)=*yylval;
+      XCDR(result).val.cons=xmalloc(sizeof(cons));
+      XCDDR(result).val.cons=xmalloc(sizeof(cons));
+      if(nextTok() != TOK_LPAREN){
+        format_error_str("empty let expression");
+        handle_error();
+      }
+      XCADR(result)=parse_list();
+      if(nextTok() == TOK_RPAREN){
+        format_error_str("missing bindings list in let expression");
+        handle_error();
+      }
+      //for now let expressions need a progn
+      XCADDR(result)=parse_sexp();
+      XCDDDR(result)=NIL;
+      if(nextTok() != TOK_RPAREN){
+        format_error_str("missing bindings list in let expression");
+        handle_error();
+      }
+      return result;
+    }
     case TOK_LAMBDA:{//defun returns a TOK_LAMBDA as well
       sexp retval;
       retval.val.cons=xmalloc(sizeof(cons));
@@ -114,7 +138,7 @@ sexp parse_cons(){
           handle_error();
         }
       }
-      //with the new args the only thing that changes is 
+      //with the new args the only thing that changes is
       cons* temp;
       temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
       //this, which becomes temp->car=parse_funcion_args();
@@ -152,7 +176,7 @@ sexp parse_cons(){
         handle_error();
       }
       XCDDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADDR(retval)=parse_function_args();      
+      XCADDR(retval)=parse_function_args();
       XCDDDR(retval).val.cons=xmalloc(sizeof(cons));
       //      XCDDDDR(retval)=NIL;
       nextTok();
@@ -161,7 +185,7 @@ sexp parse_cons(){
       /*      switch(yytag){
         case TOK_LPAREN:
           XCADDDR(retval)=parse_list();
-          XCADDDR(retval).tag=_cons;//since the list isn't quoted 
+          XCADDDR(retval).tag=_cons;//since the list isn't quoted
           break;
         case TOK_QUASI:
           inside_backquote=1;
@@ -181,21 +205,18 @@ sexp parse_cons(){
       //should probably be a parse error, but I'm not totally confidient
       //in things to do that yet
       return parse_list();
-    } 
-  }  
+    }
+  }
   //if we get here we have a function call or special form
   //implicit progn basically, keep parsing tokens until we get a close parens
+  //  XCDR(result)=parse_list();
+  //  HERE();
+  //  return result;
   sexp temp;
   cons* old_pos=result.val.cons;
   while((nextTok())!=TOK_RPAREN){
     temp=parse_sexp();
     cons_pos->car=temp;
-    /*    if(yytag == TOK_LPAREN){
-      cons_pos->car=parse_cons();
-    } else {
-      temp=parse_atom();
-      cons_pos->car=temp;
-      }*/
     cons_pos->cdr.val.cons=xmalloc(sizeof(cons));
     old_pos=cons_pos;
     cons_pos=cons_pos->cdr.val.cons;
@@ -398,7 +419,7 @@ sexp parse_macro(){
           prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
           break;
-        } 
+        }
         default: {
           cur_loc->car=parse_sexp();
           //          cur_loc->car.quoted+=1;
@@ -409,6 +430,11 @@ sexp parse_macro(){
         }
       }
     } while (nextTok() != TOK_RPAREN && yytag != TOK_DOT);
+    if(yytag == TOK_DOT){
+      format_error_str("erorr, macro body must be a proper list");
+
+      handle_error();
+    }
     return retval;
   }
   format_error_str("Shouldn't get here, end of parse macro");
@@ -420,7 +446,11 @@ static inline sexp parse_list(){
   cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
   cons* prev_loc=cur_loc;
   while(nextTok() != TOK_RPAREN && yytag != TOK_DOT){
-    cur_loc->car=parse_sexp();
+    if(yytag == TOK_LPAREN){
+      cur_loc->car=parse_list();
+    } else {
+      cur_loc->car=parse_sexp();
+    }
     cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
     prev_loc=cur_loc;
     cur_loc=cur_loc->cdr.val.cons;
@@ -527,7 +557,7 @@ static inline sexp parse_function_args(){
 }
 //exported function
 /*
-(defun fnv-hash (str) 
+(defun fnv-hash (str)
   (shell-command (concat "/home/tucker/Repo/SciLisp/fnv_hash " str) t))
 */
 #define mkTypeCase(hash,name)                   \
@@ -570,4 +600,3 @@ _tag parse_tagname(CORD tagname){
       return _error;
   }
 }
-

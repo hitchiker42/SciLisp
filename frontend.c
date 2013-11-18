@@ -238,6 +238,10 @@ struct thread_args {
 };
 int main(int argc,char* argv[]){
   //setup handler for sigsegv, so we can exit gracefully on a segfault
+  #ifdef DEBUG
+  debug_printf=default_debug_printf;
+  CORD_debug_printf=default_CORD_debug_printf;
+  #endif
   sigaction(SIGSEGV,sigsegv_action,NULL);
   GC_init();
 #if defined (MULTI_THREADED)
@@ -405,20 +409,25 @@ static void SciLisp_getopt(int argc,char *argv[]){
         break;
       case 'e':{
         sexp ast;
-        //PRINT_FMT("optarg[0] = %c",optarg[0]);
         FILE* file;
         if(optarg[0]=='('){
-          //file=tmpfile();
-          //CORD_fprintf(file,optarg);
-          //fflush(file);
           file=fmemopen(optarg,strlen(optarg),"r");
-          //lispRead(CORD_from_char_star(optarg));
         } else {
           file=fopen(optarg,"r");
         }
         ENSURE_PRIMS_INITIALIZED();
+        if(setjmp(error_buf)){
+          printf("parsing failed exiting\n");
+          exit(1);
+        }
         ast=yyparse(file);
-        while (CONSP(ast)){
+        while(CONSP(ast)){
+          if(setjmp(error_buf)){
+            PRINT_MSG("jumped to error");
+            ast=XCDR(ast);
+            continue;
+            //printf(error_str);
+          }
           sexp result=eval(XCAR(ast),topLevelEnv);
           CORD_printf(print(result));puts("");
           ast=XCDR(ast);
@@ -437,10 +446,11 @@ static void SciLisp_getopt(int argc,char *argv[]){
         break;
       }
       case 't':{
+        CORD_debug_printf=CORD_ndebug_printf;
+        debug_printf=ndebug_printf;
         FILE* file=fopen("test.lisp","r");
         ENSURE_PRIMS_INITIALIZED();
         sexp ast=yyparse(file);        
-        //        PRINT_MSG(print(ast));
         puts("Testing:");
         while (CONSP(ast)){
           CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));
