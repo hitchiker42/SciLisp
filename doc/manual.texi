@@ -131,9 +131,75 @@ cindices([[Floating Point Numbers]],[[Integers]],[[Numbers]],
 @end menu
 @node Numbers
 @subsection Numbers
+@subsubsection Standandard Numerical Types
+The standard numerical types in SciLisp correspond exactly to C
+floating point types and the C integer types from stdint.h. The naming
+comvention for SciLisp types is modeled after the naming conventions
+used in standard ml, specifically the standard ml basis
+library. Integers are named Int<X> for signed integers and UInt<X> for
+unsigned integers, where X is the size of the integer in bits, thus
+Uint32 is a 32 bit unsigned integer. The default unadorned Int type
+corresponds to a signed 64 bit integer. Floating point numbers in
+SciLisp are either Real32 or Real64 corresponding to a C float and a C
+double, the default Real type is Real64.
+@subsubsection Arbitrary Precision Types
+Beyond the standard C numerical types SciLisp provides support for
+arbitrary precision arithmetic by way of the gmp and mpfr
+libraries. Naming conventions are again taken from standard ml, with
+arbitrary precision integers having the type bigint and arbitrary
+precision floats having the type bigfloat. Bigint and bigfloat numbers
+can be created using the @code{bigint} and @code{bigfloat}
+functions. While the bigint and bigfloat types correspond to pointer
+types in C (mpz_t* and mpfr_t*) they are treated as value types in
+SciLisp, every primitive function with bigint or bigfloat operands
+creates an internal copy of their arguments.
+@defun bigint number-or-string
+@defunx bigfloat number-or-string
+The @code{bigint} and @code{bigfloat} functions convert a number (of
+any numeric type) or string into an arbitrary precision integer or
+floating point number respectively. @var{number-or-string} can be a
+literal integer or floating point number, or a varible representing
+any numeric type, including bigint or bigfloat, or a string, which
+allows numbers which would not fit into a standard numeric type to be
+created. 
+@end defun
+@subsubsection Promotion Rules
+SciLisp numberical types are aranged in a hierarchy according to the
+range of numbers representable in that type. At the top are the bigint
+and bigfloat types, which can be freely interconverted, with bigfloats
+being rounded to fit into a bigint. Next are the floating point
+numbers, Real64 followed by Real32. Integers form two seperate
+branches for the signed vs unsigned types arranged accordnig to their
+size in bits (64,32,16.8). Signed and unsigned
+integers are implictly cast between each other where necssary, however
+and error is raised if this is not possible. A number can
+be implicly cast to any type that is higher up in the type
+heirachy. Generally functions named by a symbol (+,-,|,&,etc) will
+only work on the primitive numeric types while functions named by a
+word (add,sub,iorb,andb,etc) act on any numeric type. Conventions for
+named mathmatical functions(log,cos,exp,etc) have yet to be decided.
 @node Booleans
+There are two values of the boolean type, #t represents true and #f
+false. These are the result of any boolean expression and can be used
+if a literal true or false is needed, however all SciLisp values can
+be used where a boolean is expected. A value of 0 or nil (and probaly
+the empty string) is false while any other value is considered
+true. There is one quirk to keep in mind abount this, a 0 value must
+be in a standard numeric type, thus a bigint 0 would be considered true.
 @node Cons
 @section Cons
+@c Incomplete
+The cons type in SciLisp acts the same as it does in most other
+lisps. A cons is logically a pair of values, the first of which is
+refered to as the car which the second is the cdr. A literal cons cell
+is represented as @code{(car . cdr)}, this is generally known as a
+dotted pair. Cons cells are generally used to create a list, using the
+dotted pair syntax a list 1,2,3 would be written as 
+@code{(1 . ( 2 . (3 . nil)))}, where @code{nil} is the value used to
+indicate the end of a list. Since lists are used so commonly and the
+dotted pair syntax is rather cumbersome the same list can be written
+more conviently as @code{(1 2 3)} which means exactly the same thing
+as the dotted pair syntax.
 @node Functions
 @section Functions
 @node Macros
@@ -190,15 +256,53 @@ The SciLisp grammar in EBNF form.
 @item program :=
 %nothing | @code{program},@code{sexp}
 @item sexp :=
-@code{atom} | @code{cons}
+@code{atom} | @code{cons} | @code{quasiquoted sexp}
 @item atom :=
-@code{literal} | @code{special form} | @code{symbol}
+@code{literal} | @code{special form} | @code{symbol} | @code{nil}
 @item cons :=
-'(',@code{sexp},@{@code{sexp}@},['.',@code{sexp}]')' | '('')'
+'(',@code{sexp},@{@code{sexp}@},['.',@code{sexp}]')' | @code{list}
+@item list :=
+'(' @code{sexp}* ')'
+@item literal :=
+@code{number} | @code{character} | @code{string} | @code{quoted sexp}
+@item quoted sexp :=
+''' @code{sexp}
+@item number :=
+@code{float} | @code{int} | @code{hex int}
+@item int :=
+[+-]? [0-9]+
+@item hex int :=
+[+-]? [0-9a-fA-F]+
+@item float :=
+[+-]? [0-9]+('.'[0-9]*|('.'[0-9]*)?'e'[0-9]+)
+@item character :=
+'?'<unicode character> | '?\?' | '?\\' | '?x[0-9]{2}' | '?u[0-9]{4}'
+@item string :=
+'"'<unicode character>*'"'
+@item symbol :=
+@code{keysym} | @code{identifier}
+@item keysym :=
+':' @code{identifier}
+@item identifier :=
+@c I'll do this later
+@item special form :=
+@c I'll do this later
+@item quasiquoted sexp :=
+@c later
 @end table
 
 @node Standard Library
 @chapter Standard Library
+@menu
+* Conses::
+* Numbers::
+* Arrays::
+* Strings::
+* Regular Expressions::
+* I/O::
+* System Interface::
+@end menu
+@section Conses
 @c defination example
 @defun car cons-cell
 @defunx cdr cons-cell
