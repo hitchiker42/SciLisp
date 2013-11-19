@@ -45,6 +45,8 @@
 (mod 39.88 8.8)
 (ash 344 4)
 (ash 344 -4)
+(add (bigfloat "1e77") (bigint "1003847") 83 11.0 00.1 99)
+(sub (bigfloat "1e999") (bigint "10294857") 884 11.0 110.9 93.9)
 (lrand)
 (drand)
 (drand 1000)

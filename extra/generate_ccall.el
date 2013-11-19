@@ -1,0 +1,17 @@
+(defun real-arg(i) (format "REAL_ARG(%d)" i))
+(defun uint-arg(i) (format "UINT_ARG(%d)" i))
+(defun float-test(i) (format "if(IS_FLOAT_TYPE(c_argtypes[%d]){\n" i))
+(defun make-return(n,f)
+  (let ((str "return get_sexp(fp("))
+  (do (i 0) (< i n))
+  (if (eq n i)
+      (concat str (f i) "));\n")
+    (concat str (f i) ","))))
+  (let ((buf (generate-new-buffer "*temp*")))
+    (with-current-buffer buf
+      (do (i 0) (< i n) 
+        (insert float-test(i))
+        (do (j (1+ i)) (< j n)
+          (insert float-test(j))
+          (if (eq j n)
+              (insert 
