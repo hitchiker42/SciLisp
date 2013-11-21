@@ -9,11 +9,10 @@
 #include "cons.h"
 jmp_buf error_buf;
 static long lambda_counter=0;
-//static fuctions which are really just part of eval, but broken
-//up into seperate functions to modularise eval, and make it
-//easier to write and understand, should be self explanitory
 sexp call_builtin(sexp expr,env *cur_env);
 sexp call_lambda(sexp expr,env *cur_env);
+//lisp special forms and builtin macros
+//see the definitions for documentation
 static sexp call_macro(sexp expr,env *cur_env);
 static sexp eval_special(sexp expr,env *cur_env);
 static sexp eval_def(sexp expr,env *cur_env);
@@ -53,7 +52,6 @@ sexp eval(sexp expr,env *cur_env){
     //a cons cell must be a function call or a special form
     case _cons:
       if(SYMBOLP(car(expr))){
-        PRINT_MSG(XCAR(expr).val.var->name);
         symref funSym=getSym(cur_env,XCAR(expr).val.var->name);
         if(!funSym){
           format_error_str("undefined function %s",XCAR(expr).val.var->name);
@@ -198,7 +196,10 @@ static inline sexp eval_def(sexp expr,env *cur_env){
   //  }
   return (sexp){.tag = _sym,.val={.var = newSym}};
 }
+/*define a possibly recursive named function
+ *syntax: (defun name (arglist) (body))*/
 static inline sexp eval_defun(sexp expr,env *cur_env){
+
   expr=cdr(expr);
   sexp temp_lambda;
   symref fun_sym=getGlobalSym(car(expr).val.var->name);
@@ -226,22 +227,6 @@ static inline sexp eval_defun(sexp expr,env *cur_env){
   //  PRINT_MSG(print(symref_sexp(test)));
   return symref_sexp(fun_sym);
 }
-
-  /*  //expr=(defun sym arglist body)
-  temp_lambda.val.cons=xmalloc(sizeof(cons));
-  temp_lambda.tag=_cons;
-  XCAR(temp_lambda)=(sexp){.tag=_special,.val={.special=_lambda}};
-  XCDR(temp_lambda)=cddr(expr);
-  //temp_lambda = (lambda arglist body)
-  //temp_lambda=eval(temp_lambda,cur_env);
-  XCDDR(expr).val.cons=xmalloc(sizeof(cons));
-  XCADDR(expr)=temp_lambda;
-  XCDDDR(expr)=NIL;
-  //expr = (defun sym temp_lambda)
-  XCAR(expr)=(sexp){.tag=_special,.val={.special=_def}};
-  //expr = (def sym temp_lambda);
-  return eval(expr,cur_env);
-  }*/
 static inline sexp eval_if(sexp expr,env *cur_env){
   //car  cadr    caddr   car(cdddr)
   //(if .(cond . (then . (else .()))))
@@ -266,8 +251,9 @@ static inline sexp eval_while(sexp expr,env *cur_env){
   return retval;
 }
 //can parallize this,(i.e the binding of variables bit)
+/*create and bind a set of local variables in parallel
+ *syntax (let ((var def)*)(body ...))*/
 static inline sexp eval_let(sexp expr,env *cur_env){
-  /*syntax (let ((var def)*)(body ...))*/
   sexp vars=XCADR(expr);
   if(!CONSP(vars)){
     return error_sexp("empty let expression");
@@ -326,10 +312,13 @@ static inline sexp eval_flet(sexp expr,env *cur_env){
   last_var->next=0;
   return eval(caddr(expr),scope);
 }
+/* equivalant to a for loop in c
+ * syntax (do (var init step end) body)
+ * bind var to init and repeat body, setting var to step each iteration
+ * until end returns true. return result of last iteration
+ * expands to (do (var (setq var init) (setq var step) 
+ * for now body must be a single sexp(ie use explict progn)*/
 static inline sexp eval_do(sexp expr,env *cur_env){
-  /*syntax (do (var init step end) body)*/
-  //expands to (do (var (setq var init) (setq var step) end)
-  //for now body must be a single sexp(ie use explict progn)
   expr=cdr(expr);//we don't need the do anymore
   sexp loop_params=car(expr);//(var init step end)
   if(!CONSP(loop_params) || !CONSP(XCDR(loop_params)) ||
@@ -362,9 +351,14 @@ static inline sexp eval_do(sexp expr,env *cur_env){
   }
   return retval;
 }
+/*simplified version of do for the most common case
+ *set a variable to 0 and increment it by 1 a specified number of times
+ *evaluating the body each iteration
+ *syntax (dotimes (var times) body)
+ *expands to (do (var 0 (++ var) (< var times)) body)
+ *for now body must be a single sexp(ie use explict progn)*/
 static inline sexp eval_dotimes(sexp expr,env *cur_env){
-  /*syntax (dotimes (var times) body)*/
-  //for now body must be a single sexp(ie use explict progn)
+
   expr=cdr(expr);//we don't need the do anymore
   sexp loop_params=car(expr);//(var init step end)
   if(!CONSP(loop_params) || !CONSP(XCDR(loop_params)) ||
@@ -388,8 +382,9 @@ static inline sexp eval_dotimes(sexp expr,env *cur_env){
   }
   return retval;
 }
+/*iterate over a list with a variable bound to each element of the list in turn
+ *syntax: (dolist (var list) body)*/
 static sexp eval_dolist(sexp expr,env *cur_env){
-  //(dolist (var list) body)
   expr=cdr(expr);
   sexp loop_params=car(expr);//(var list)
   if(!CONSP(loop_params) || !CONSP(XCDR(loop_params))){
@@ -416,9 +411,11 @@ static sexp eval_dolist(sexp expr,env *cur_env){
   }
   return retval;
 }
+/* evaluate a list of sexp's, if all are true return value of last sexp
+ * otherwise return false
+ * syntax: (and sexp*) */
 static sexp eval_and(sexp expr,env *cur_env){
-  //(and sexp*) if all sexp's are true return value of last sexp
-  //otherwise return false
+
   expr=cdr(expr);//discard and
   sexp retval=NIL;
   while(CONSP(expr)){
@@ -431,6 +428,9 @@ static sexp eval_and(sexp expr,env *cur_env){
   }
   return retval;
 }
+/* evaluate a list of sexp's, return the first value that evalueates to true
+ * if all values are false return false
+ * syntax: (or sexp*) */
 static sexp eval_or(sexp expr,env *cur_env){
   expr=cdr(expr);
   sexp retval=NIL;
@@ -444,6 +444,7 @@ static sexp eval_or(sexp expr,env *cur_env){
   }
   return LISP_FALSE;
 }
+/*internal procedure to bind function arguments to parameter names*/
 #define setArg()                                        \
   args->args[j++].val=eval(XCAR(arglist),cur_env);      \
   arglist=XCDR(arglist)
@@ -499,6 +500,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
   }
   return args;
 }
+/* internal procedure to call a builtin c function*/
 sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   function_args *args=curFun.val.fun->args;
@@ -548,7 +550,9 @@ sexp call_builtin(sexp expr,env *cur_env){
  ERROR:
   return handle_error();
 }
+/* internal procedure to call a lisp function*/
 sexp call_lambda(sexp expr,env *cur_env){
+  PRINT_FMT("calling %r",car(expr).val.var->name);
   sexp curFun=car(expr).val.var->val;
   lambda* curLambda=curFun.val.fun->lam;
   function_args *args=curFun.val.fun->args;
@@ -562,16 +566,20 @@ sexp call_lambda(sexp expr,env *cur_env){
   env lambda_env=(env){.enclosing=curLambda->env,.head={.function=args},
                        .tag=_funArgs};
   sexp retval = eval(curLambda->body,&lambda_env);
+  PRINT_FMT("return value: %r",print(retval));
   args->args=save_defaults;
   return retval;
 }
+/* generate a new unnamed function
+ * syntax (lambda (arglist) (body))
+ * function can be bound to variable and called, but can not be recursive
+ * i.e (def fact (lambda (n) (if (< n 1) 1 (* n (fact (-- n))))))
+ * would fail, one would instead do (defun fact (n) ...)*/
 static sexp eval_lambda(sexp expr,env *cur_env){
-  //(lambda (arglist) (body))
   sexp body;
   function_args *args=cadr(expr).val.funargs;
   CORD lambdaName;
   CORD_sprintf(&lambdaName,"#<lambda%06d>",lambda_counter++);
-  //  PRINT_MSG(lambdaName);
   body=caddr(expr);
   function *retval=xmalloc(sizeof(function));
   lambda *newLambda=xmalloc(sizeof(lambda));
@@ -583,8 +591,11 @@ static sexp eval_lambda(sexp expr,env *cur_env){
                      .lam=newLambda,.type=_lambda_fun};
   return (sexp){.tag=_fun,.val={.fun=retval}};
 }
+/* define a lisp macro, what exactly a lisp macro is and how it works
+ * is not something that would eaisly fit into a simple comment
+ * syntax: (defmacro name (args) (body))
+ * where body is usually `(body)*/
 static sexp eval_defmacro(sexp expr,env *cur_env){
-  //(defmacro name (args) (body))
   if(!CONSP(expr) || !(CONSP(XCDR(expr))) ||
      !(CONSP(XCDDR(expr))) || !(CONSP(XCDDDR(expr)))){
     return error_sexp("malformed defmacro expression");
@@ -607,6 +618,7 @@ static sexp quote_sexp(sexp expr){
   expr.quoted++;
   return expr;
 }
+/*internal procedure to call a macro, eventually calls macroexpand*/
 static sexp call_macro(sexp expr,env *cur_env){
   //expr is typed checked before we call this
   sexp cur_macro=car(expr).val.var->val;
@@ -634,7 +646,8 @@ static sexp call_macro(sexp expr,env *cur_env){
   PRINT_MSG(print(expanded_macro));
   return eval(expanded_macro,cur_env);
 }
-
+/*external procudure to call a generic function(generic in that it doesn't
+ *matter if the function was defined in lisp or c*/
 sexp lisp_funcall(sexp fun,env *cur_env){
   if(!FUNCTIONP(fun)){
     return error_sexp("argument to funcall not a function");
@@ -647,6 +660,7 @@ sexp lisp_funcall(sexp fun,env *cur_env){
     return error_sexp("funcall unknown function type");
   }
 }
+/*expand a macro into lisp code*/
 sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
   macro* mac=cur_macro.val.mac;
   sexp macro_body=mac->body;

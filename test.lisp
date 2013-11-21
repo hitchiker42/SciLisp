@@ -4,18 +4,25 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************|#
 #|SciLisp regression tests|#
+#|definations|#
+(defun fact-acc (acc n) (if (<= n 1) acc (fact-acc (* n acc) (-- n))))
+(defun sum (x)(reduce x +))
+(defun is-even (n) (if (= 0 n) #t (is-odd (-- n))))
+(defun is-odd (n) (if (= 0 n) #f (is-even (--n ))))
+(define prod (lambda (x) (reduce x *)))
 (def ls '(1 23 34 56 78))
 (def ls2 (iota 10))
 (def ls3 (iota -1 1 0.1))
 (def arr [1 2 3 4 5 7 8 9 0])
 (def arr2 [1.0 4.0 8.9 3 0.9])
 (def arr-iota (iota 0 10 1 1))
-(defun sum (x)(reduce x +))
-(define prod (lambda (x) (reduce x *)))
-(sum ls);issue here
+(let ((x 5))
+  (defun add5 (y) (+ x y)))
+#|tests of functions|#
+(sum ls)
 (print ls)
-(sum ls2);and here |#
-(prod ls3);and here |#
+(sum ls2)
+(prod ls3)
 (car ls)
 (cdr ls2)
 (cdddr ls3)
@@ -54,10 +61,32 @@
 (length ls)
 (length arr)
 (consp arr)
-;(cons? ls4)
-;(cons? '(3 3 4 5 5))
+(add5 6)
 (nilp (car arr))
 (nilp ls3)
+(ccall "gsl_sf_fact" "libgsl" :real64 '(:uint32) '(4))
+(ccall "gsl_sf_poch" "libgsl" :real64 '(:real64 :real64) '(4. 5.))
+(fact-acc 1 4)
+(fact-acc 1.0 15.0)
+;(cons? ls4)
+;(cons? '(3 3 4 5 5))
+
+;(setq copyright-literal ?©)
+(setq utf8-copyright ?\u00a9)
+(print ?\?)
+(print ?\x3f)
+#|(print copyright-literal)|#
+(print utf8-copyright)
+(pwd)
+(system "ls")
+(system "touch temp.temp")
+(def file (fopen "temp.temp" "w"))
+(fputs "Hello, World!
+" file)
+(fclose file)
+(system "cat temp.temp")
+(system "rm temp.temp")
+#|tests of special forms|#
 (setq i 10)
 (while (> i 0)
   (setq i (- i 1)))
@@ -75,21 +104,6 @@
     (prog1
         88
       (+ 2 8)))
-;(setq copyright-literal ?©)
-(setq utf8-copyright ?\u00a9)
-(print ?\?)
-(print ?\x3f)
-#|(print copyright-literal)|#
-(print utf8-copyright)
-(pwd)
-(system "ls")
-(system "touch temp.temp")
-(def file (fopen "temp.temp" "w"))
-(fputs "Hello, World!
-" file)
-(fclose file)
-(system "cat temp.temp")
-(system "rm temp.temp")
 (def i 15)
 (print i)
 (do (i 0 (++ i) (<= i 10)) (print i))
@@ -102,11 +116,16 @@
   (progn 
     (print x)
     (print y)))
-(let ((x 5))
-  (defun add5 (y) (+ x y)))
-(add5 6)
-(ccall "gsl_sf_fact" "libgsl" :real64 '(:uint32) '(4))
-(ccall "gsl_sf_poch" "libgsl" :real64 '(:real64 :real64) '(4. 5.))
+(and (print "should print") 
+     (print "should print") #f 
+     (print "shouldn't print"))
+(or (progn (print "should print") #f) 
+    (print "should print") 
+    (print "shouldn't print"))
+(is-even 17)
+(is-odd 17)
+(is-even 8)
+(is-odd 8)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

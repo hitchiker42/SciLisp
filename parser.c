@@ -63,6 +63,47 @@ sexp yyparse(FILE* input){
   }
   handle_error();
 }
+sexp parse_sexp(){
+  switch(yytag){
+    case TOK_QUOTE:{
+      if(nextTok() == TOK_LPAREN){
+        return parse_list();
+      } else {
+        sexp retval = parse_sexp();
+        if(SYMBOLP(retval)){
+          retval.val.var->val.quoted=1;
+        }
+        retval.quoted=1;
+        return retval;
+      }
+    }
+    case TOK_COMMA:{
+      if(!inside_backquote){
+        format_error_str("Error, Commma not inside a backquote");
+        handle_error();
+      } else {
+        inside_backquote=0;
+        nextTok();
+        sexp retval=parse_sexp();
+        retval.has_comma=1;
+        inside_backquote=1;
+        return retval;
+      }
+    }
+    case TOK_QUASI:{
+      inside_backquote=1;
+      sexp retval = parse_macro();
+      inside_backquote=0;
+      return retval;
+    }
+    case TOK_LPAREN:{
+      return parse_cons();
+    }
+    default:{
+      return parse_atom();
+    }
+  }
+}
 sexp parse_cons(){
   //sexp* result=xmalloc(sizeof(sexp));
   nextTok();
@@ -104,7 +145,7 @@ sexp parse_cons(){
       XCADDR(result)=parse_sexp();
       XCDDDR(result)=NIL;
       if(nextTok() != TOK_RPAREN){
-        format_error_str("missing bindings list in let expression");
+        format_error_str("excess args to let expression");
         handle_error();
       }
       return result;
@@ -145,16 +186,23 @@ sexp parse_cons(){
       temp=temp->cdr.val.cons;
       temp->cdr=NIL;
       //parse the function body
+      TOKEN body_start=nextTok();
+      temp->car=parse_sexp();
+      if(body_start == TOK_LPAREN){
+        if(nextTok() != TOK_RPAREN){
+          error_val=error_sexp
+            ("error, missing closing parentheses in function defination");
+          handle_error();
+        }
+      }
+      return retval;
       if(nextTok() == TOK_LPAREN){
         temp->car=parse_list();
         temp->car.tag=_cons;
       } else {
         temp->car=parse_atom();
       }
-      if(nextTok() != TOK_RPAREN){
-        error_val=error_sexp("error, missing closing parentheses in function defination");
-        handle_error();
-      }
+
       return retval;
     }
     case TOK_MACRO:{
@@ -331,6 +379,8 @@ sexp parse_atom(){
       return *yylval;
     case TOK_SPECIAL:
       return *yylval;//I dont' know how well this'll work
+    case TOK_LET:
+      return *yylval;//I dont' know how well this'll work
     default:
       format_error_str("Error, expected literal atom recieved %r\n"
                        "Tag value recieved was %r\n",
@@ -338,47 +388,7 @@ sexp parse_atom(){
       handle_error();
   }
 }
-sexp parse_sexp(){
-  switch(yytag){
-    case TOK_QUOTE:{
-      if(nextTok() == TOK_LPAREN){
-        return parse_list();
-      } else {
-        sexp retval = parse_sexp();
-        if(SYMBOLP(retval)){
-          retval.val.var->val.quoted=1;
-        }
-        retval.quoted=1;
-        return retval;
-      }
-    }
-    case TOK_COMMA:{
-      if(!inside_backquote){
-        format_error_str("Error, Commma not inside a backquote");
-        handle_error();
-      } else {
-        inside_backquote=0;
-        nextTok();
-        sexp retval=parse_sexp();
-        retval.has_comma=1;
-        inside_backquote=1;
-        return retval;
-      }
-    }
-    case TOK_QUASI:{
-      inside_backquote=1;
-      sexp retval = parse_macro();
-      inside_backquote=0;
-      return retval;
-    }
-    case TOK_LPAREN:{
-      return parse_cons();
-    }
-    default:{
-      return parse_atom();
-    }
-  }
-}
+
 
 sexp lispRead(CORD code) {
   PRINT_MSG(code);

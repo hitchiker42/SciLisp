@@ -170,8 +170,9 @@ int lispReadLine(FILE* outfile,char* filename){
       }
       line_read=readline(">");
       if(line_read == NULL){
-        HERE();
-        exit(0);
+        puts("");
+        evalError=1;
+        goto MAIN_LOOP;
       }
       if (line_read && *line_read){
         add_history (line_read);
@@ -218,8 +219,9 @@ int lispGetLine(FILE* outfile,char* filename){
       fputs(">",stdout);
       len=getline(&line_read,NULL,stdin);
       if(line_read == NULL){
-        HERE();
-        exit(0);
+        puts("");
+        evalError=1;
+        goto MAIN_LOOP;
       }
       parens=parens_matched(line_read,parens);
       if(line_read[len-1] == '\n'){
@@ -428,8 +430,9 @@ static void SciLisp_getopt(int argc,char *argv[]){
             continue;
             //printf(error_str);
           }
+          CORD_printf("evaluating: %r\n",print(XCAR(ast)));
           sexp result=eval(XCAR(ast),topLevelEnv);
-          CORD_printf(print(result));puts("");
+          CORD_printf("result: %r\n",print(result));
           ast=XCDR(ast);
         }
         exit(0);

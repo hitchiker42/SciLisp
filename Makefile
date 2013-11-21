@@ -13,7 +13,7 @@ WARNING_FLAGS:=-w
 else
 CC:=gcc
 CXX:=g++
-OPT_FLAGS:=-O
+OPT_FLAGS:=-Og
 endif
 CC:=$(CC) -fPIC #position independent code, for everything
 OPT_FLAGS:=$(OPT_FLAGS) -g
@@ -21,11 +21,10 @@ QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing -fmax-errors=30 -Wmissing-braces -Wcomment
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	-flto -rdynamic #-fstrict-aliasing
-INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/llvm/llvm/include \
-	-I$(shell pwd)/bignum/include
+#-I$(shell pwd)/llvm/llvm/include 
+INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/bignum/include
 #-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
 XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
-	-Wl,-rpath=$(shell pwd)/llvm/llvm/lib \
 	-Wl,-rpath=$(shell pwd)/bignum/lib \
 	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr -ldl
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
@@ -43,8 +42,8 @@ BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
-LLVM_FLAGS:=`$(LLVM_CONFIG) --cflags --ldflags --libs` \
-	 $(OPT_FLAG) -Wl,-rpath=$(shell pwd)/llvm/llvm/libs
+LLVM_FLAGS:=$(OPT_FLAG) -Wl,-rpath=$(shell pwd)/llvm/Release/lib \
+	-L$$PWD/llvm/Release/lib -lLLVM-3.4svn
 define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
@@ -55,10 +54,10 @@ endef
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
-	$(CXX) $(LLVM_FLAGS) $(FRONTEND) $(BACKEND) \
+	$(CXX) $(LLVM_FLAGS) -DUSE_LLVM $(FRONTEND) $(BACKEND) \
 	$(XLDFLAGS) $(COMMON_CFLAGS) llvm_codegen.o -o $@
 llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
-	 $(CXX)	llvm_codegen.o llvm_test.o \
+	 $(CXX)	llvm_codegen.o llvm_test.o -DUSE_LLVM \
 	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
 	 $(XLDFLAGS) $(COMMON_CFLAGS) -L$(shell pwd) \
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -g -o llvm-test
@@ -171,7 +170,10 @@ readline: readline/configure
 llvm:  llvm/configure
 	cd llvm && mkdir -p llvm && ./configure --prefix=$$PWD/llvm \
 	--enable-optimized --enable-shared\
-	 --with-python=$(PYTHON2) && $(MAKE) install
+	 --with-python=$(PYTHON2) && $(MAKE) -k install
+clang: llvm/tools/clang
+llnm/tools/clang:
+	cd llvm/tools && git clone http://llvm.org/git/clang.git
 gc/gc_config.stamp:
 	if [ ! -f gc/bdwgc/configure ];then cd gc/bdwgc && ./autogen.sh; fi
 	if [ ! -f gc/libatomic_ops/configure ];then cd gc/libatomic_ops && autogen.sh;fi

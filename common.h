@@ -31,6 +31,7 @@
 #include "print.h"
 #include "bignum.h"
 #include "cffi.h"
+#include "llvm_externs.h"
 //#include "lex.yy.h"
 //enable/disable debugging/lexing output
 #define HERE_ON
@@ -105,9 +106,8 @@ static int initPrimsFlag=1;
 //functions to print (or not print) debug info
 void (*debug_printf)(const char*,...);
 void (*CORD_debug_printf)(CORD,...);
-//from C++ code for llvm
-//sexp llvmEvalJIT(sexp expr,env cur_env);
-//void initialize_llvm();
+//allow for error handler to be changed at runtime
+sexp (*handle_error_fp)();
 extern sexp yyparse(FILE* input);
 extern _tag parse_tagname(CORD tagname);
 //maybe I need an eval.h?

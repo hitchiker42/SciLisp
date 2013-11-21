@@ -210,7 +210,6 @@ union data {//keep max size at 64 bits
   int8_t int8;
   jmp_buf *label;
   keyword_symref keyword;
-  lambda *lam;
   local_symref lenv;
   macro *mac;
   mpfr_t *bigfloat;

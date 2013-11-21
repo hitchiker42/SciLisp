@@ -31,11 +31,11 @@
 #define mkLisp_cmp(op,cname)                                    \
   sexp cname(sexp x,sexp y){                                    \
     if((x.tag == y.tag)==_long){                                \
-      return (x.val.int64 op y.val.int64 ? LISP_TRUE : NIL);    \
+      return (x.val.int64 op y.val.int64 ? LISP_TRUE : LISP_FALSE);    \
     } else if(NUMBERP(x)&&NUMBERP(y)){                          \
       register double xx=getDoubleVal(x);                       \
       register double yy=getDoubleVal(y);                       \
-      return (xx op yy ? LISP_TRUE : NIL);                      \
+      return (xx op yy ? LISP_TRUE : LISP_FALSE);                      \
     } else {                                                    \
       return error_sexp("type error in "#op);                   \
     }                                                           \
@@ -50,6 +50,8 @@
   fxn_proto cname##call=                                        \
   { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
 //  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};
+//NOTE: Most of these macros are non hygenic and rely on the presense
+//of an obarray named ob, used outside of this file at your own risk
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
   function_args c_name##_args=                                            \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
@@ -80,12 +82,14 @@
   c_name##_ptr=&c_name##_sym;                                   \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
-#define INIT_SYNONYM(c_name,l_name,gensym_counter)                     \
-  symref c_name##_ptr_syn ## gensym_counter= xmalloc(sizeof(symbol));    \
+#define INIT_SYNONYM(c_name,l_name,gensym_counter)                      \
+  symref c_name##_ptr_syn ##gensym_counter= xmalloc(sizeof(symbol));    \
   * c_name##_ptr_syn ## gensym_counter = *c_name ##_ptr;                \
   c_name##_ptr_syn ## gensym_counter -> name = l_name;                  \
-  obarray_entry *c_name##_ob_entry##gensym_counter=xmalloc(sizeof(obarray_entry)); \
-  prim_obarray_add_entry(ob,c_name##_ptr_syn ## gensym_counter,         \
+  obarray_entry *c_name##_ob_entry##gensym_counter=                     \
+    xmalloc(sizeof(obarray_entry));                                     \
+  c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter;        \
+  prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter,         \
                          c_name##_ob_entry##gensym_counter)
   
 #define MK_PREDICATE(lname,test)                \
@@ -203,7 +207,9 @@ sexp lisp_randfloat(sexp scale){
   }
   return (sexp){.tag=_double,.val={.real64=retval}};
 }
-sexp lisp_eval(sexp obj){return eval(obj,topLevelEnv);}
+sexp lisp_eval(sexp obj,sexp env){
+  return eval(obj,topLevelEnv);
+}
 sexp lisp_length(sexp obj){
   if(obj.len > 0){
     return (sexp){.tag=_long,.val={.int64 = obj.len}};
@@ -241,8 +247,46 @@ sexp lisp_round(sexp float_num,sexp mode){
     }
   }
 }
-//should make this lisp_iota(a,b,c,d)
-//where d is a switch to decide between a list or an array
+sexp lisp_evenp(sexp obj){
+  if(!BIGNUMP(obj)){
+    return error_sexp("even? type error, expected a number");
+  } else {
+    switch(obj.tag){
+      case _int64:
+        return (obj.val.int64 &1 ? LISP_FALSE : LISP_TRUE);
+      case _real64:
+        return (obj.val.real64 == (lisp_round(obj,NIL)).val.int64 ?
+                ((lisp_round(obj,NIL)).val.int64 &1 ? LISP_FALSE :LISP_TRUE): 
+                LISP_FALSE);
+      case _bigint:
+        return (mpz_tstbit(*obj.val.bigint,0) ? LISP_FALSE :LISP_TRUE);
+      case _bigfloat:
+        return LISP_FALSE;//too lazy to do this now
+      default:
+        return error_sexp("even? unimplemented numeric type");
+    }
+  }
+}
+sexp lisp_oddp(sexp obj){
+  if(!BIGNUMP(obj)){
+    return error_sexp("even? type error, expected a number");
+  } else {
+    switch(obj.tag){
+      case _int64:
+        return (obj.val.int64 &1 ? LISP_TRUE : LISP_FALSE);
+      case _real64:
+        return (obj.val.real64 == (lisp_round(obj,NIL)).val.int64 ? 
+                ((lisp_round(obj,NIL)).val.int64 &1 ? LISP_TRUE : LISP_FALSE) :
+                LISP_FALSE);
+      case _bigint:
+        return (mpz_tstbit(*obj.val.bigint,0) ? LISP_TRUE : LISP_FALSE);
+      case _bigfloat:
+        return LISP_FALSE;//too lazy to do this now
+      default:
+        return error_sexp("even? unimplemented numeric type");
+    }
+  }
+}
 sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist,sexp rnd){
   if(NILP(arrayorlist)){
     return list_iota(start, stop, step);
@@ -310,6 +354,12 @@ sexp lisp_max(sexp a,sexp b){
   } else {
     return (getDoubleVal(a) < getDoubleVal(b)?a:b);
   }
+}
+sexp lisp_zerop(sexp obj){
+  if(!BIGNUMP(obj)){
+    return error_sexp("error expected an number");
+  }
+  return lisp_numeq(obj,long_sexp(0));
 }
 sexp lisp_open(sexp filename,sexp mode){
   if(NILP(mode)){
@@ -652,6 +702,9 @@ DEFUN("mod",lisp_mod,2,0,0,0,2);
 DEFUN("abs",lisp_abs,1,0,0,0,1);
 DEFUN("eql",lisp_eql,2,0,0,0,2);
 DEFUN("equal",lisp_equal,2,0,0,0,2);
+DEFUN("even?",lisp_evenp,1,0,0,0,1);
+DEFUN("odd?",lisp_oddp,1,0,0,0,1);
+DEFUN("zero?",lisp_zerop,1,0,0,0,1);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("aref",aref,2,0,0,0,2);
@@ -661,7 +714,7 @@ DEFUN("typeName",lisp_typeName,1,0,0,0,1);
 DEFUN("typeOf",typeOf,1,0,0,0,1);
 DEFUN("print",lisp_print,1,0,0,0,1);
 DEFUN("println",lisp_println,1,0,0,0,1);
-DEFUN("eval",lisp_eval,1,0,0,0,1);
+DEFUN("eval",lisp_eval,1,1,0,0,2);
 DEFUN("fopen",lisp_open,1,1,0,0,2);
 DEFUN("fclose",lisp_close,1,0,0,0,1);
 DEFUN("fputs",lisp_fputs,2,0,0,0,2);
@@ -778,6 +831,9 @@ MAKE_SYMBOL("mod",lisp_mod,0x21cb28258f68f38a );
 MAKE_SYMBOL("abs",lisp_abs,0xfe2687257af0b852 );
 MAKE_SYMBOL("eql",lisp_eql,0xdd5fd42568e7edec );
 MAKE_SYMBOL("equal",lisp_equal,0x1f9488d3ca8575ba );
+MAKE_SYMBOL("even?",lisp_evenp,0x21a5dd09fa96af36 );
+MAKE_SYMBOL("odd?",lisp_oddp,0x47fc16c1d7638f61 );
+MAKE_SYMBOL("zero?",lisp_zerop,0x37aa5afe019ffb4c );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
@@ -911,7 +967,7 @@ initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
-
+INIT_SYNONYM(lisp_consp,"cons?",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){
 
@@ -950,6 +1006,9 @@ INIT_SYMBOL(lisp_mod);
 INIT_SYMBOL(lisp_abs);
 INIT_SYMBOL(lisp_eql);
 INIT_SYMBOL(lisp_equal);
+INIT_SYMBOL(lisp_evenp);
+INIT_SYMBOL(lisp_oddp);
+INIT_SYMBOL(lisp_zerop);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(aref);

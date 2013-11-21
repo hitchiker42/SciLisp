@@ -66,7 +66,8 @@
     ("cos" "lisp_cos" 1) ("sin" "lisp_sin" 1) ("tan" "lisp_tan" 1)
     ("exp" "lisp_exp" 1) ("log" "lisp_log" 1) ("min" "lisp_min" 2)
     ("max" "lisp_max" 2) ("mod" "lisp_mod" 2) ("abs" "lisp_abs" 1)
-    ("eq" "lisp_eq" 2) ("eql" "lisp_eql" 2) ("equal" "lisp_equal" 2)))
+    ("eq" "lisp_eq" 2) ("eql" "lisp_eql" 2) ("equal" "lisp_equal" 2)
+    ("even?" "lisp_evenp" 1)("odd?" "lisp_oddp" 1)("zero?" "lisp_zerop" 1)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
   (collect (lambda (x) (apply #'mkPrimBasic x)) basic-prims-list))
@@ -93,8 +94,8 @@
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "println") (:cname ."lisp_println") (:minargs . 1) (:maxargs . 1)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "eval") (:cname ."lisp_eval") (:minargs . 1) (:maxargs . 1)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "eval") (:cname ."lisp_eval") (:minargs . 1) (:maxargs . 2)
+      (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ((:lname . "fopen") (:cname . "lisp_open") (:minargs . 1) (:maxargs . 2)
       (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ((:lname . "fclose") (:cname . "lisp_close") (:minargs . 1) (:maxargs . 1)
@@ -185,7 +186,7 @@ initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
-
+INIT_SYNONYM(lisp_consp,\"cons?\",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){
 

@@ -237,7 +237,7 @@ CORD print(sexp obj){
       return CORD_balance(acc);
     }
 #undef funarg_print_loop
-    case _lam:
+    case _lam://depricated type
       /*      acc="(lambda ";
       acc=CORD_catn(5,acc,
                     print((sexp){.tag=_lenv,.val=
@@ -343,7 +343,11 @@ CORD token_name(TOKEN token){
     mk_tok_name(TOK_RBRACE);
     mk_tok_name(TOK_LCBRACE);
     mk_tok_name(TOK_RCBRACE);
+    mk_tok_name(TOK_LET);
     default:
       return "forgot to implemnt that token";
   }
 }
+CORD pprint(sexp obj);//print readably after a newline
+CORD prin1(sexp obj);//print readably
+CORD princ(sexp obj);//pretty print
