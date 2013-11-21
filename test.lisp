@@ -128,6 +128,15 @@
 (is-odd 8)
 (qsort '(1 4 2 9 3 8 4 0 274 49 1 929 99 2 37 4 82 3 8 39 2 39 9) >)
 (qsort '(1 4 2 9 3 8 4 0 274 49 1 929 99 2 37 4 82 3 8 39 2 39 9) <=)
+(def re-test1 (re-compile "\(real\([0-9]*\)\)\|\(int\([0-9]*\)\)"))
+(def re-test2 (re-compile "\(const\)?[[:space:]]*char\(\*\)?"))
+(def match1 (re-match re-test1 "real99"))
+(print match1)
+(if match1 
+    (print (re-subexpr match1 1))
+    nil)
+(def match2 (re-match re-test1 "int88"))
+(if match2 (print (re-subexpr match2 4))nil)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

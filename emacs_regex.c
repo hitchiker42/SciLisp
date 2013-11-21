@@ -126,6 +126,7 @@
 
 #include <unistd.h>
 #include "gc/include/gc/gc.h"
+#include "gc/include/gc/cord.h"
 //hack in gc support
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC
@@ -133,11 +134,11 @@
 # ifdef malloc
 #  undef malloc
 # endif
-# define malloc xmalloc
+# define malloc GC_MALLOC
 # ifdef realloc
 #  undef realloc
 # endif
-# define realloc xrealloc
+# define realloc GC_REALLOC
 # include <stdbool.h>
 # include <string.h>
 
@@ -278,23 +279,11 @@ init_syntax_once (void)
 # define REGEX_FREE(arg) ((void)0) /* Do nothing!  But inhibit gcc warning.  */
 
 /* Define how to allocate the failure stack.  */
-
-#if defined REL_ALLOC && defined REGEX_MALLOC
-
-# define REGEX_ALLOCATE_STACK(size)				\
-  r_alloc (&failure_stack_ptr, (size))
-# define REGEX_REALLOCATE_STACK(source, osize, nsize)		\
-  r_re_alloc (&failure_stack_ptr, (nsize))
-# define REGEX_FREE_STACK(ptr)					\
-  r_alloc_free (&failure_stack_ptr)
-
-#else /* not using relocating allocator */
-
 # ifdef REGEX_MALLOC
 
-#  define REGEX_ALLOCATE_STACK malloc
-#  define REGEX_REALLOCATE_STACK(source, osize, nsize) realloc (source, nsize)
-#  define REGEX_FREE_STACK free
+#  define REGEX_ALLOCATE_STACK GC_MALLOC
+#  define REGEX_REALLOCATE_STACK(source, osize, nsize) GC_REALLOC (source, nsize)
+#  define REGEX_FREE_STACK GC_FREE
 
 # else /* not REGEX_MALLOC */
 
@@ -306,7 +295,6 @@ init_syntax_once (void)
 #  define REGEX_FREE_STACK(arg) ((void)0)
 
 # endif /* not REGEX_MALLOC */
-#endif /* not using relocating allocator */
 
 
 /* True if `size1' is non-NULL and PTR is pointing anywhere inside
@@ -316,8 +304,8 @@ init_syntax_once (void)
   (size1 && string1 <= (ptr) && (ptr) <= string1 + size1)
 
 /* (Re)Allocate N items of type T using malloc, or fail.  */
-#define TALLOC(n, t) ((t *) malloc ((n) * sizeof (t)))
-#define RETALLOC(addr, n, t) ((addr) = (t *) realloc (addr, (n) * sizeof (t)))
+#define TALLOC(n, t) ((t *) xmalloc ((n) * sizeof (t)))
+#define RETALLOC(addr, n, t) ((addr) = (t *) xrealloc (addr, (n) * sizeof (t)))
 #define REGEX_TALLOC(n, t) ((t *) REGEX_ALLOCATE ((n) * sizeof (t)))
 
 #define BYTEWIDTH 8 /* In bits.  */
@@ -874,31 +862,6 @@ print_partial_compiled_pattern (re_char *start, re_char *end)
 	  fprintf (stderr, "/%d", mcnt);
 	  break;
 
-# ifdef emacs
-	case before_dot:
-	  fprintf (stderr, "/before_dot");
-	  break;
-
-	case at_dot:
-	  fprintf (stderr, "/at_dot");
-	  break;
-
-	case after_dot:
-	  fprintf (stderr, "/after_dot");
-	  break;
-
-	case categoryspec:
-	  fprintf (stderr, "/categoryspec");
-	  mcnt = *p++;
-	  fprintf (stderr, "/%d", mcnt);
-	  break;
-
-	case notcategoryspec:
-	  fprintf (stderr, "/notcategoryspec");
-	  mcnt = *p++;
-	  fprintf (stderr, "/%d", mcnt);
-	  break;
-# endif /* emacs */
 
 	case begbuf:
 	  fprintf (stderr, "/begbuf");
@@ -917,7 +880,231 @@ print_partial_compiled_pattern (re_char *start, re_char *end)
 
   fprintf (stderr, "%td:\tend of pattern.\n", p - start);
 }
+#if 0
+CORD print_partial_compiled_pattern_to_CORD (re_char *start, re_char *end) {
+  int mcnt, mcnt2;
+  re_char *p = start;
+  re_char *pend = end;
+  CORD retval="";
+  CORD fmt;
+  if (start == NULL)
+    {
+      retval=CORD_cat(retval,"(null)\n");
+      return retval;
+    }
 
+  /* Loop over pattern commands.  */
+  while (p < pend)
+    {
+      CORD_sprintf (&fmt, "%td:\t", p - start);
+      CORD_cat(retval,fmt);
+      switch ((re_opcode_t) *p++) {
+	case no_op:
+          retval=CORD_cat(retval,"/no_op");
+	  break;
+	case succeed:
+          retval=CORD_cat(retval,"/succeed");
+	  break;
+	case exactn:
+	  mcnt = *p++;
+	  CORD_sprintf(&fmt,"/exactn/%d",mcnt);
+          retval=CORD_cat(retval,fmt);
+	  do
+	    {
+	      retval=CORD_cat(retval, "/%c", *p++);
+	    }
+	  while (--mcnt);
+	  break;
+
+	case start_memory:
+	  retval=CORD_cat(retval, "/start_memory/%d", *p++);
+	  break;
+
+	case stop_memory:
+	  retval=CORD_cat(retval, "/stop_memory/%d", *p++);
+	  break;
+
+	case duplicate:
+	  retval=CORD_cat(retval, "/duplicate/%d", *p++);
+	  break;
+
+	case anychar:
+	  retval=CORD_cat(retval, "/anychar");
+	  break;
+
+	case charset:
+	case charset_not:
+	  {
+	    register int c, last = -100;
+	    register int in_range = 0;
+	    int length = CHARSET_BITMAP_SIZE (p - 1);
+	    int has_range_table = CHARSET_RANGE_TABLE_EXISTS_P (p - 1);
+
+	    retval=CORD_cat(retval, "/charset [%s",
+		     (re_opcode_t) *(p - 1) == charset_not ? "^" : "");
+
+	    if (p + *p >= pend)
+	      retval=CORD_cat(retval, " !extends past end of pattern! ");
+
+	    for (c = 0; c < 256; c++)
+	      if (c / 8 < length
+		  && (p[1 + (c/8)] & (1 << (c % 8))))
+		{
+		  /* Are we starting a range?  */
+		  if (last + 1 == c && ! in_range)
+		    {
+		      retval=CORD_cat(retval, "-");
+		      in_range = 1;
+		    }
+		  /* Have we broken a range?  */
+		  else if (last + 1 != c && in_range)
+		    {
+		      retval=CORD_cat(retval, "%c", last);
+		      in_range = 0;
+		    }
+
+		  if (! in_range)
+		    retval=CORD_cat(retval, "%c", c);
+
+		  last = c;
+	      }
+
+	    if (in_range)
+	      retval=CORD_cat(retval, "%c", last);
+
+	    retval=CORD_cat(retval, "]");
+
+	    p += 1 + length;
+
+	    if (has_range_table)
+	      {
+		int count;
+		retval=CORD_cat(retval, "has-range-table");
+
+		/* ??? Should print the range table; for now, just skip it.  */
+		p += 2;		/* skip range table bits */
+		EXTRACT_NUMBER_AND_INCR (count, p);
+		p = CHARSET_RANGE_TABLE_END (p, count);
+	      }
+	  }
+	  break;
+
+	case begline:
+	  retval=CORD_cat(retval, "/begline");
+	  break;
+
+	case endline:
+	  retval=CORD_cat(retval, "/endline");
+	  break;
+
+	case on_failure_jump:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  retval=CORD_cat(retval, "/on_failure_jump to %td", p + mcnt - start);
+	  break;
+
+	case on_failure_keep_string_jump:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  retval=CORD_cat(retval, "/on_failure_keep_string_jump to %td",
+		   p + mcnt - start);
+	  break;
+
+	case on_failure_jump_nastyloop:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  retval=CORD_cat(retval, "/on_failure_jump_nastyloop to %td",
+		   p + mcnt - start);
+	  break;
+
+	case on_failure_jump_loop:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  retval=CORD_cat(retval, "/on_failure_jump_loop to %td",
+		   p + mcnt - start);
+	  break;
+
+	case on_failure_jump_smart:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  retval=CORD_cat(retval, "/on_failure_jump_smart to %td",
+		   p + mcnt - start);
+	  break;
+
+	case jump:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  retval=CORD_cat(retval, "/jump to %td", p + mcnt - start);
+	  break;
+
+	case succeed_n:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  EXTRACT_NUMBER_AND_INCR (mcnt2, p);
+	  retval=CORD_cat(retval, "/succeed_n to %td, %d times",
+		   p - 2 + mcnt - start, mcnt2);
+	  break;
+
+	case jump_n:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  EXTRACT_NUMBER_AND_INCR (mcnt2, p);
+	  retval=CORD_cat(retval, "/jump_n to %td, %d times",
+		   p - 2 + mcnt - start, mcnt2);
+	  break;
+
+	case set_number_at:
+	  EXTRACT_NUMBER_AND_INCR (mcnt, p);
+	  EXTRACT_NUMBER_AND_INCR (mcnt2, p);
+	  retval=CORD_cat(retval, "/set_number_at location %td to %d",
+		   p - 2 + mcnt - start, mcnt2);
+	  break;
+
+	case wordbound:
+	  retval=CORD_cat(retval, "/wordbound");
+	  break;
+
+	case notwordbound:
+	  retval=CORD_cat(retval, "/notwordbound");
+	  break;
+
+	case wordbeg:
+	  retval=CORD_cat(retval, "/wordbeg");
+	  break;
+
+	case wordend:
+	  retval=CORD_cat(retval, "/wordend");
+	  break;
+
+	case symbeg:
+	  retval=CORD_cat(retval, "/symbeg");
+	  break;
+
+	case symend:
+	  retval=CORD_cat(retval, "/symend");
+	  break;
+
+	case syntaxspec:
+	  retval=CORD_cat(retval, "/syntaxspec");
+	  mcnt = *p++;
+	  retval=CORD_cat(retval, "/%d", mcnt);
+	  break;
+
+	case notsyntaxspec:
+	  retval=CORD_cat(retval, "/notsyntaxspec");
+	  mcnt = *p++;
+	  retval=CORD_cat(retval, "/%d", mcnt);
+	  break;
+	case begbuf:
+	  retval=CORD_cat(retval, "/begbuf");
+	  break;
+
+	case endbuf:
+	  retval=CORD_cat(retval, "/endbuf");
+	  break;
+
+	default:
+	  retval=CORD_cat(retval, "?%d", *(p-1));
+	}
+
+      retval=CORD_cat(retval, "\n");
+    }
+
+  retval=CORD_cat(retval, "%td:\tend of pattern.\n", p - start);
+}
+#endif
 
 static void
 print_compiled_pattern (struct re_pattern_buffer *bufp)
@@ -1082,10 +1269,6 @@ static const char *re_error_msgid[] =
    Note that if REL_ALLOC is defined, matching would not use malloc for the
    failure stack, but we would still use it for the register vectors;
    so REL_ALLOC should not affect this.  */
-#if defined REGEX_MALLOC && defined emacs
-# undef MATCH_MAY_ALLOCATE
-#endif
-
 
 /* Failure stack declarations and macros; both re_compile_fastmap and
    re_match_2 use a failure stack.  These have to be macros because of
@@ -1591,17 +1774,8 @@ typedef struct
 /* The next available element.  */
 #define COMPILE_STACK_TOP (compile_stack.stack[compile_stack.avail])
 
-/* Explicit quit checking is needed for Emacs, which uses polling to
-   process input events.  */
-#ifdef emacs
-# define IMMEDIATE_QUIT_CHECK			\
-    do {					\
-      if (immediate_quit) QUIT;			\
-    } while (0)
-#else
 # define IMMEDIATE_QUIT_CHECK    ((void)0)
-#endif
-
+
 /* Structure to manage work area for range table.  */
 struct range_table_work_area
 {
@@ -1611,41 +1785,11 @@ struct range_table_work_area
   int bits;			/* flag to record character classes */
 };
 
-#ifdef emacs
-
-/* Make sure that WORK_AREA can hold more N multibyte characters.
-   This is used only in set_image_of_range and set_image_of_range_1.
-   It expects WORK_AREA to be a pointer.
-   If it can't get the space, it returns from the surrounding function.  */
-
-#define EXTEND_RANGE_TABLE(work_area, n)				\
-  do {									\
-    if (((work_area).used + (n)) * sizeof (int) > (work_area).allocated) \
-      {									\
-        extend_range_table_work_area (&work_area);			\
-        if ((work_area).table == 0)					\
-          return (REG_ESPACE);						\
-      }									\
-  } while (0)
-
-#define SET_RANGE_TABLE_WORK_AREA_BIT(work_area, bit)		\
-  (work_area).bits |= (bit)
-
-/* Set a range (RANGE_START, RANGE_END) to WORK_AREA.  */
-#define SET_RANGE_TABLE_WORK_AREA(work_area, range_start, range_end)	\
-  do {									\
-    EXTEND_RANGE_TABLE ((work_area), 2);				\
-    (work_area).table[(work_area).used++] = (range_start);		\
-    (work_area).table[(work_area).used++] = (range_end);		\
-  } while (0)
-
-#endif /* emacs */
-
 /* Free allocated memory for WORK_AREA.  */
 #define FREE_RANGE_TABLE_WORK_AREA(work_area)	\
   do {						\
     if ((work_area).table)			\
-      free ((work_area).table);			\
+      GC_FREE ((work_area).table);			\
   } while (0)
 
 #define CLEAR_RANGE_TABLE_WORK_USED(work_area) ((work_area).used = 0, (work_area).bits = 0)
@@ -1776,47 +1920,8 @@ static void
 extend_range_table_work_area (struct range_table_work_area *work_area)
 {
   work_area->allocated += 16 * sizeof (int);
-  work_area->table = realloc (work_area->table, work_area->allocated);
+  work_area->table = GC_REALLOC (work_area->table, work_area->allocated);
 }
-
-#ifndef MATCH_MAY_ALLOCATE
-
-/* If we cannot allocate large objects within re_match_2_internal,
-   we make the fail stack and register vectors global.
-   The fail stack, we grow to the maximum size when a regexp
-   is compiled.
-   The register vectors, we adjust in size each time we
-   compile a regexp, according to the number of registers it needs.  */
-
-static fail_stack_type fail_stack;
-
-/* Size with which the following vectors are currently allocated.
-   That is so we can make them bigger as needed,
-   but never make them smaller.  */
-static int regs_allocated_size;
-
-static re_char **     regstart, **     regend;
-static re_char **best_regstart, **best_regend;
-
-/* Make the register vectors big enough for NUM_REGS registers,
-   but don't make them smaller.  */
-
-static
-regex_grow_registers (int num_regs)
-{
-  if (num_regs > regs_allocated_size)
-    {
-      RETALLOC_IF (regstart,	 num_regs, re_char *);
-      RETALLOC_IF (regend,	 num_regs, re_char *);
-      RETALLOC_IF (best_regstart, num_regs, re_char *);
-      RETALLOC_IF (best_regend,	 num_regs, re_char *);
-
-      regs_allocated_size = num_regs;
-    }
-}
-
-#endif /* not MATCH_MAY_ALLOCATE */
-
 static boolean group_in_compile_stack (compile_stack_type compile_stack,
 				       regnum_t regnum);
 
@@ -1850,7 +1955,7 @@ do {									\
 #define FREE_STACK_RETURN(value)		\
   do {							\
     FREE_RANGE_TABLE_WORK_AREA (range_table_work);	\
-    free (compile_stack.stack);				\
+    GC_FREE (compile_stack.stack);				\
     return value;					\
   } while (0)
 
@@ -2336,7 +2441,6 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
 
                         if (p == pend) FREE_STACK_RETURN (REG_EBRACK);
 
-#ifndef emacs
 			for (ch = 0; ch < (1 << BYTEWIDTH); ++ch)
 			  if (re_iswctype (btowc (ch), cc))
 			    {
@@ -2344,40 +2448,6 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
 			      if (c < (1 << BYTEWIDTH))
 				SET_LIST_BIT (c);
 			    }
-#else  /* emacs */
-			/* Most character classes in a multibyte match
-			   just set a flag.  Exceptions are is_blank,
-			   is_digit, is_cntrl, and is_xdigit, since
-			   they can only match ASCII characters.  We
-			   don't need to handle them for multibyte.
-			   They are distinguished by a negative wctype.  */
-
-			/* Setup the gl_state object to its buffer-defined
-			   value.  This hardcodes the buffer-global
-			   syntax-table for ASCII chars, while the other chars
-			   will obey syntax-table properties.  It's not ideal,
-			   but it's the way it's been done until now.  */
-			SETUP_BUFFER_SYNTAX_TABLE ();
-
-			for (ch = 0; ch < 256; ++ch)
-			  {
-			    c = RE_CHAR_TO_MULTIBYTE (ch);
-			    if (! CHAR_BYTE8_P (c)
-				&& re_iswctype (c, cc))
-			      {
-				SET_LIST_BIT (ch);
-				c1 = TRANSLATE (c);
-				if (c1 == c)
-				  continue;
-				if (ASCII_CHAR_P (c1))
-				  SET_LIST_BIT (c1);
-				else if ((c1 = RE_CHAR_TO_UNIBYTE (c1)) >= 0)
-				  SET_LIST_BIT (c1);
-			      }
-			  }
-			SET_RANGE_TABLE_WORK_AREA_BIT
-			  (range_table_work, re_wctype_to_bit (cc));
-#endif	/* emacs */
 			/* In most cases the matching rule for char classes
 			   only uses the syntax table for multibyte chars,
 			   so that the content of the syntax-table it is not
@@ -2410,13 +2480,7 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
 
 		    /* Fetch the character which ends the range. */
 		    PATFETCH (c1);
-#ifdef emacs
-		    if (CHAR_BYTE8_P (c1)
-			&& ! ASCII_CHAR_P (c) && ! CHAR_BYTE8_P (c))
-		      /* Treat the range from a multibyte character to
-			 raw-byte character as empty.  */
-		      c = c1 + 1;
-#endif	/* emacs */
+
 		  }
 		else
 		  /* Range from C to C. */
@@ -2430,7 +2494,6 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
 		  }
 		else
 		  {
-#ifndef emacs
 		    /* Set the range into bitmap */
 		    for (; c <= c1; c++)
 		      {
@@ -2438,34 +2501,6 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
 			if (ch < (1 << BYTEWIDTH))
 			  SET_LIST_BIT (ch);
 		      }
-#else  /* emacs */
-		    if (c < 128)
-		      {
-			ch = MIN (127, c1);
-			SETUP_ASCII_RANGE (range_table_work, c, ch);
-			c = ch + 1;
-			if (CHAR_BYTE8_P (c1))
-			  c = BYTE8_TO_CHAR (128);
-		      }
-		    if (c <= c1)
-		      {
-			if (CHAR_BYTE8_P (c))
-			  {
-			    c = CHAR_TO_BYTE8 (c);
-			    c1 = CHAR_TO_BYTE8 (c1);
-			    for (; c <= c1; c++)
-			      SET_LIST_BIT (c);
-			  }
-			else if (multibyte)
-			  {
-			    SETUP_MULTIBYTE_RANGE (range_table_work, c, c1);
-			  }
-			else
-			  {
-			    SETUP_UNIBYTE_RANGE (range_table_work, c, c1);
-			  }
-		      }
-#endif /* emacs */
 		  }
 	      }
 
@@ -2907,38 +2942,6 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
 	       else
 		 goto normal_char;
 
-#ifdef emacs
-	    /* There is no way to specify the before_dot and after_dot
-	       operators.  rms says this is ok.  --karl  */
-	    case '=':
-	      laststart = b;
-	      BUF_PUSH (at_dot);
-	      break;
-
-	    case 's':
-	      laststart = b;
-	      PATFETCH (c);
-	      BUF_PUSH_2 (syntaxspec, syntax_spec_code[c]);
-	      break;
-
-	    case 'S':
-	      laststart = b;
-	      PATFETCH (c);
-	      BUF_PUSH_2 (notsyntaxspec, syntax_spec_code[c]);
-	      break;
-
-	    case 'c':
-	      laststart = b;
-	      PATFETCH (c);
-	      BUF_PUSH_2 (categoryspec, c);
-	      break;
-
-	    case 'C':
-	      laststart = b;
-	      PATFETCH (c);
-	      BUF_PUSH_2 (notcategoryspec, c);
-	      break;
-#endif /* emacs */
 
 
 	    case 'w':
@@ -3131,24 +3134,6 @@ regex_compile (const_re_char *pattern, size_t size, reg_syntax_t syntax,
     }
   debug--;
 #endif /* DEBUG */
-
-#ifndef MATCH_MAY_ALLOCATE
-  /* Initialize the failure stack to the largest possible stack.  This
-     isn't necessary unless we're trying to avoid calling alloca in
-     the search and match routines.  */
-  {
-    int num_regs = bufp->re_nsub + 1;
-
-    if (fail_stack.size < re_max_failures * TYPICAL_FAILURE_SIZE)
-      {
-	fail_stack.size = re_max_failures * TYPICAL_FAILURE_SIZE;
-	falk_stack.stack = realloc (fail_stack.stack,
-				    fail_stack.size * sizeof *falk_stack.stack);
-      }
-
-    regex_grow_registers (num_regs);
-  }
-#endif /* not MATCH_MAY_ALLOCATE */
 
   FREE_STACK_RETURN (REG_NOERROR);
 } /* regex_compile */
@@ -3398,98 +3383,17 @@ analyse_first (const_re_char *p, const_re_char *pend, char *fastmap,
 	       j >= 0; j--)
 	    if (!!(p[j / BYTEWIDTH] & (1 << (j % BYTEWIDTH))) ^ not)
 	      fastmap[j] = 1;
-
-#ifdef emacs
-	  if (/* Any leading code can possibly start a character
-		 which doesn't match the specified set of characters.  */
-	      not
-	      ||
-	      /* If we can match a character class, we can match any
-		 multibyte characters.  */
-	      (CHARSET_RANGE_TABLE_EXISTS_P (&p[-2])
-	       && CHARSET_RANGE_TABLE_BITS (&p[-2]) != 0))
-
-	    {
-	      if (match_any_multibyte_characters == false)
-		{
-		  for (j = MIN_MULTIBYTE_LEADING_CODE;
-		       j <= MAX_MULTIBYTE_LEADING_CODE; j++)
-		    fastmap[j] = 1;
-		  match_any_multibyte_characters = true;
-		}
-	    }
-
-	  else if (!not && CHARSET_RANGE_TABLE_EXISTS_P (&p[-2])
-		   && match_any_multibyte_characters == false)
-	    {
-	      /* Set fastmap[I] to 1 where I is a leading code of each
-		 multibyte character in the range table. */
-	      int c, count;
-	      unsigned char lc1, lc2;
-
-	      /* Make P points the range table.  `+ 2' is to skip flag
-		 bits for a character class.  */
-	      p += CHARSET_BITMAP_SIZE (&p[-2]) + 2;
-
-	      /* Extract the number of ranges in range table into COUNT.  */
-	      EXTRACT_NUMBER_AND_INCR (count, p);
-	      for (; count > 0; count--, p += 3)
-		{
-		  /* Extract the start and end of each range.  */
-		  EXTRACT_CHARACTER (c, p);
-		  lc1 = CHAR_LEADING_CODE (c);
-		  p += 3;
-		  EXTRACT_CHARACTER (c, p);
-		  lc2 = CHAR_LEADING_CODE (c);
-		  for (j = lc1; j <= lc2; j++)
-		    fastmap[j] = 1;
-		}
-	    }
-#endif
 	  break;
 
 	case syntaxspec:
 	case notsyntaxspec:
 	  if (!fastmap) break;
-#ifndef emacs
 	  not = (re_opcode_t)p[-1] == notsyntaxspec;
 	  k = *p++;
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if ((SYNTAX (j) == (enum syntaxcode) k) ^ not)
 	      fastmap[j] = 1;
 	  break;
-#else  /* emacs */
-	  /* This match depends on text properties.  These end with
-	     aborting optimizations.  */
-	  return -1;
-
-	case categoryspec:
-	case notcategoryspec:
-	  if (!fastmap) break;
-	  not = (re_opcode_t)p[-1] == notcategoryspec;
-	  k = *p++;
-	  for (j = (1 << BYTEWIDTH); j >= 0; j--)
-	    if ((CHAR_HAS_CATEGORY (j, k)) ^ not)
-	      fastmap[j] = 1;
-
-	  /* Any leading code can possibly start a character which
-	     has or doesn't has the specified category.  */
-	  if (match_any_multibyte_characters == false)
-	    {
-	      for (j = MIN_MULTIBYTE_LEADING_CODE;
-		   j <= MAX_MULTIBYTE_LEADING_CODE; j++)
-		fastmap[j] = 1;
-	      match_any_multibyte_characters = true;
-	    }
-	  break;
-
-      /* All cases after this match the empty string.  These end with
-	 `continue'.  */
-
-	case before_dot:
-	case at_dot:
-	case after_dot:
-#endif /* !emacs */
 	case no_op:
 	case begline:
 	case endline:
@@ -3738,32 +3642,12 @@ re_search_2 (struct re_pattern_buffer *bufp, const char *str1, size_t size1,
 	range = 0;
     }
 
-#ifdef emacs
-  /* In a forward search for something that starts with \=.
-     don't keep searching past point.  */
-  if (bufp->used > 0 && (re_opcode_t) bufp->buffer[0] == at_dot && range > 0)
-    {
-      range = PT_BYTE - BEGV_BYTE - startpos;
-      if (range < 0)
-	return -1;
-    }
-#endif /* emacs */
-
   /* Update the fastmap now if not correct already.  */
   if (fastmap && !bufp->fastmap_accurate)
     re_compile_fastmap (bufp);
 
   /* See whether the pattern is anchored.  */
   anchored_start = (bufp->buffer[0] == begline);
-
-#ifdef emacs
-  gl_state.object = re_match_object; /* Used by SYNTAX_TABLE_BYTE_TO_CHAR. */
-  {
-    ssize_t charpos = SYNTAX_TABLE_BYTE_TO_CHAR (POS_AS_IN_BUFFER (startpos));
-
-    SETUP_SYNTAX_TABLE_FOR_OBJECT (re_match_object, charpos, 1);
-  }
-#endif
 
   /* Loop through the string, looking for a place to start matching.  */
   for (;;)
@@ -4014,27 +3898,7 @@ static int bcmp_translate (re_char *s1, re_char *s2,
    || WORDCHAR_P (d - 1) != WORDCHAR_P (d))
 #endif
 
-/* Free everything we malloc.  */
-#ifdef MATCH_MAY_ALLOCATE
-# define FREE_VAR(var)							\
-  do {									\
-    if (var)								\
-      {									\
-	REGEX_FREE (var);						\
-	var = NULL;							\
-      }									\
-  } while (0)
-# define FREE_VARIABLES()						\
-  do {									\
-    REGEX_FREE_STACK (fail_stack.stack);				\
-    FREE_VAR (regstart);						\
-    FREE_VAR (regend);							\
-    FREE_VAR (best_regstart);						\
-    FREE_VAR (best_regend);						\
-  } while (0)
-#else
 # define FREE_VARIABLES() ((void)0) /* Do nothing!  But inhibit gcc warning.  */
-#endif /* not MATCH_MAY_ALLOCATE */
 
 
 /* Optimization routines.  */
@@ -4068,10 +3932,6 @@ skip_one_char (const_re_char *p)
 
     case syntaxspec:
     case notsyntaxspec:
-#ifdef emacs
-    case categoryspec:
-    case notcategoryspec:
-#endif /* emacs */
       p++;
       break;
 
@@ -4294,14 +4154,6 @@ mutually_exclusive_p (struct re_pattern_buffer *bufp, const_re_char *p1,
       return (((re_opcode_t) *p1 == notsyntaxspec
 	       || (re_opcode_t) *p1 == syntaxspec)
 	      && p1[1] == Sword);
-
-#ifdef emacs
-    case categoryspec:
-      return ((re_opcode_t) *p1 == notcategoryspec && p1[1] == p2[1]);
-    case notcategoryspec:
-      return ((re_opcode_t) *p1 == categoryspec && p1[1] == p2[1]);
-#endif /* emacs */
-
     default:
       ;
     }
@@ -4313,7 +4165,6 @@ mutually_exclusive_p (struct re_pattern_buffer *bufp, const_re_char *p1,
 
 /* Matching routines.  */
 
-#ifndef emacs	/* Emacs never uses this.  */
 /* re_match is like re_match_2 except it takes only a single string.  */
 
 regoff_t
@@ -4325,13 +4176,7 @@ re_match (struct re_pattern_buffer *bufp, const char *string,
   return result;
 }
 WEAK_ALIAS (__re_match, re_match)
-#endif /* not emacs */
 
-#ifdef emacs
-/* In Emacs, this is the string or buffer in which we
-   are matching.  It is used for looking up syntax properties.  */
-Lisp_Object re_match_object;
-#endif
 
 /* re_match_2 matches the compiled pattern in BUFP against the
    the (virtual) concatenation of STRING1 and STRING2 (of length SIZE1
@@ -4352,13 +4197,6 @@ re_match_2 (struct re_pattern_buffer *bufp, const char *string1,
 	    struct re_registers *regs, ssize_t stop)
 {
   regoff_t result;
-
-#ifdef emacs
-  ssize_t charpos;
-  gl_state.object = re_match_object; /* Used by SYNTAX_TABLE_BYTE_TO_CHAR. */
-  charpos = SYNTAX_TABLE_BYTE_TO_CHAR (POS_AS_IN_BUFFER (pos));
-  SETUP_SYNTAX_TABLE_FOR_OBJECT (re_match_object, charpos, 1);
-#endif
 
   result = re_match_2_internal (bufp, (re_char*) string1, size1,
 				(re_char*) string2, size2,
@@ -4415,19 +4253,10 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
      registers, and, finally, two char *'s.  The first char * is where
      to resume scanning the pattern; the second one is where to resume
      scanning the strings.  */
-#ifdef MATCH_MAY_ALLOCATE /* otherwise, this is global.  */
   fail_stack_type fail_stack;
-#endif
 #ifdef DEBUG_COMPILES_ARGUMENTS
   unsigned nfailure_points_pushed = 0, nfailure_points_popped = 0;
 #endif
-
-#if defined REL_ALLOC && defined REGEX_MALLOC
-  /* This holds the pointer to the failure stack, when
-     it is allocated relocatably.  */
-  fail_stack_elt_t *failure_stack_ptr;
-#endif
-
   /* We fill all the registers internally, independent of what we
      return, for use in backreferences.  The number here includes
      an element for register zero.  */
@@ -4440,18 +4269,14 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
      matching and the regnum-th regend points to right after where we
      stopped matching the regnum-th subexpression.  (The zeroth register
      keeps track of what the whole pattern matches.)  */
-#ifdef MATCH_MAY_ALLOCATE /* otherwise, these are global.  */
   re_char **regstart, **regend;
-#endif
 
   /* The following record the register info as found in the above
      variables when we find a match better than any we've seen before.
      This happens as we backtrack through the failure points, which in
      turn happens only if we have not yet matched the entire string. */
   unsigned best_regs_set = false;
-#ifdef MATCH_MAY_ALLOCATE /* otherwise, these are global.  */
   re_char **best_regstart, **best_regend;
-#endif
 
   /* Logically, this is `best_regend[0]'.  But we don't want to have to
      allocate space for that if we're not allocating space for anything
@@ -4471,8 +4296,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
   DEBUG_PRINT ("\n\nEntering re_match_2.\n");
 
   INIT_FAIL_STACK ();
-
-#ifdef MATCH_MAY_ALLOCATE
   /* Do not bother to initialize all the register variables if there are
      no groups in the pattern, as it takes a fair amount of time.  If
      there are groups, we include space for register 0 (the whole
@@ -4484,7 +4307,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
       regend = REGEX_TALLOC (num_regs, re_char *);
       best_regstart = REGEX_TALLOC (num_regs, re_char *);
       best_regend = REGEX_TALLOC (num_regs, re_char *);
-
       if (!(regstart && regend && best_regstart && best_regend))
 	{
 	  FREE_VARIABLES ();
@@ -4497,8 +4319,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	 `FREE_VARIABLES' doesn't try to free them.  */
       regstart = regend = best_regstart = best_regend = NULL;
     }
-#endif /* MATCH_MAY_ALLOCATE */
-
   /* The starting position is bogus.  */
   if (pos < 0 || pos > size1 + size2)
     {
@@ -4573,12 +4393,14 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
   /* This loops over pattern commands.  It exits by returning from the
      function if the match is complete, or it drops through if the match
      fails at this starting point in the input data.  */
+ 
   for (;;)
     {
       DEBUG_PRINT ("\n%p: ", p);
-
+      
       if (p == pend)
 	{
+
 	  ptrdiff_t dcnt;
 
 	  /* End of pattern means we might have succeeded.  */
@@ -4692,7 +4514,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		     warning under GCC when assert expands to nothing.  */
 		  assert (bufp->regs_allocated == REGS_FIXED);
 		}
-
 	      /* Convert the pointer data in `regstart' and `regend' to
 		 indices.  Register zero has to be set differently,
 		 since we haven't kept track of any info for it.  */
@@ -4736,7 +4557,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	  FREE_VARIABLES ();
 	  return dcnt;
 	}
-
       /* Otherwise match next pattern command.  */
       switch (*p++)
 	{
@@ -4759,8 +4579,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 
 	  /* Remember the start point to rollback upon failure.  */
 	  dfail = d;
-
-#ifndef emacs
 	  /* This is written out as an if-else so we don't waste time
 	     testing `translate' inside the loop.  */
 	  if (RE_TRANSLATE_P (translate))
@@ -4786,72 +4604,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		  }
 	      }
 	    while (--mcnt);
-#else  /* emacs */
-	  /* The cost of testing `translate' is comparatively small.  */
-	  if (target_multibyte)
-	    do
-	      {
-		int pat_charlen, buf_charlen;
-		int pat_ch, buf_ch;
-
-		PREFETCH ();
-		if (multibyte)
-		  pat_ch = STRING_CHAR_AND_LENGTH (p, pat_charlen);
-		else
-		  {
-		    pat_ch = RE_CHAR_TO_MULTIBYTE (*p);
-		    pat_charlen = 1;
-		  }
-		buf_ch = STRING_CHAR_AND_LENGTH (d, buf_charlen);
-
-		if (TRANSLATE (buf_ch) != pat_ch)
-		  {
-		    d = dfail;
-		    goto fail;
-		  }
-
-		p += pat_charlen;
-		d += buf_charlen;
-		mcnt -= pat_charlen;
-	      }
-	    while (mcnt > 0);
-	  else
-	    do
-	      {
-		int pat_charlen;
-		int pat_ch, buf_ch;
-
-		PREFETCH ();
-		if (multibyte)
-		  {
-		    pat_ch = STRING_CHAR_AND_LENGTH (p, pat_charlen);
-		    pat_ch = RE_CHAR_TO_UNIBYTE (pat_ch);
-		  }
-		else
-		  {
-		    pat_ch = *p;
-		    pat_charlen = 1;
-		  }
-		buf_ch = RE_CHAR_TO_MULTIBYTE (*d);
-		if (! CHAR_BYTE8_P (buf_ch))
-		  {
-		    buf_ch = TRANSLATE (buf_ch);
-		    buf_ch = RE_CHAR_TO_UNIBYTE (buf_ch);
-		    if (buf_ch < 0)
-		      buf_ch = *d;
-		  }
-		else
-		  buf_ch = *d;
-		if (buf_ch != pat_ch)
-		  {
-		    d = dfail;
-		    goto fail;
-		  }
-		p += pat_charlen;
-		d++;
-	      }
-	    while (--mcnt);
-#endif
 	  break;
 
 
@@ -4951,22 +4703,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		    && p[1 + c / BYTEWIDTH] & (1 << (c % BYTEWIDTH)))
 		  not = !not;
 	      }
-#ifdef emacs
-	    else if (range_table_exists)
-	      {
-		int class_bits = CHARSET_RANGE_TABLE_BITS (&p[-1]);
 
-		if (  (class_bits & BIT_LOWER && ISLOWER (c))
-		    | (class_bits & BIT_MULTIBYTE)
-		    | (class_bits & BIT_PUNCT && ISPUNCT (c))
-		    | (class_bits & BIT_SPACE && ISSPACE (c))
-		    | (class_bits & BIT_UPPER && ISUPPER (c))
-		    | (class_bits & BIT_WORD  && ISWORD (c)))
-		  not = !not;
-		else
-		  CHARSET_LOOKUP_RANGE_TABLE_RAW (not, c, range_table, count);
-	      }
-#endif /* emacs */
 
 	    if (range_table_exists)
 	      p = CHARSET_RANGE_TABLE_END (range_table, count);
@@ -5377,16 +5114,8 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		re_wchar_t c1, c2;
 		int s1, s2;
 		int dummy;
-#ifdef emacs
-		ssize_t offset = PTR_TO_OFFSET (d - 1);
-		ssize_t charpos = SYNTAX_TABLE_BYTE_TO_CHAR (offset);
-		UPDATE_SYNTAX_TABLE (charpos);
-#endif
 		GET_CHAR_BEFORE_2 (c1, d, string1, end1, string2, end2);
 		s1 = SYNTAX (c1);
-#ifdef emacs
-		UPDATE_SYNTAX_TABLE_FORWARD (charpos + 1);
-#endif
 		PREFETCH_NOLIMIT ();
 		GET_CHAR_AFTER (c2, d, dummy);
 		s2 = SYNTAX (c2);
@@ -5419,11 +5148,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	      re_wchar_t c1, c2;
 	      int s1, s2;
 	      int dummy;
-#ifdef emacs
-	      ssize_t offset = PTR_TO_OFFSET (d);
-	      ssize_t charpos = SYNTAX_TABLE_BYTE_TO_CHAR (offset);
-	      UPDATE_SYNTAX_TABLE (charpos);
-#endif
 	      PREFETCH ();
 	      GET_CHAR_AFTER (c2, d, dummy);
 	      s2 = SYNTAX (c2);
@@ -5436,9 +5160,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	      if (!AT_STRINGS_BEG (d))
 		{
 		  GET_CHAR_BEFORE_2 (c1, d, string1, end1, string2, end2);
-#ifdef emacs
-		  UPDATE_SYNTAX_TABLE_BACKWARD (charpos - 1);
-#endif
 		  s1 = SYNTAX (c1);
 
 		  /* ... and S1 is Sword, and WORD_BOUNDARY_P (C1, C2)
@@ -5464,11 +5185,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	      re_wchar_t c1, c2;
 	      int s1, s2;
 	      int dummy;
-#ifdef emacs
-	      ssize_t offset = PTR_TO_OFFSET (d) - 1;
-	      ssize_t charpos = SYNTAX_TABLE_BYTE_TO_CHAR (offset);
-	      UPDATE_SYNTAX_TABLE (charpos);
-#endif
 	      GET_CHAR_BEFORE_2 (c1, d, string1, end1, string2, end2);
 	      s1 = SYNTAX (c1);
 
@@ -5481,9 +5197,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		{
 		  PREFETCH_NOLIMIT ();
 		  GET_CHAR_AFTER (c2, d, dummy);
-#ifdef emacs
-		  UPDATE_SYNTAX_TABLE_FORWARD (charpos);
-#endif
 		  s2 = SYNTAX (c2);
 
 		  /* ... and S2 is Sword, and WORD_BOUNDARY_P (C1, C2)
@@ -5508,11 +5221,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		 is the character at D, and S2 is the syntax of C2.  */
 	      re_wchar_t c1, c2;
 	      int s1, s2;
-#ifdef emacs
-	      ssize_t offset = PTR_TO_OFFSET (d);
-	      ssize_t charpos = SYNTAX_TABLE_BYTE_TO_CHAR (offset);
-	      UPDATE_SYNTAX_TABLE (charpos);
-#endif
 	      PREFETCH ();
 	      c2 = RE_STRING_CHAR (d, target_multibyte);
 	      s2 = SYNTAX (c2);
@@ -5525,9 +5233,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	      if (!AT_STRINGS_BEG (d))
 		{
 		  GET_CHAR_BEFORE_2 (c1, d, string1, end1, string2, end2);
-#ifdef emacs
-		  UPDATE_SYNTAX_TABLE_BACKWARD (charpos - 1);
-#endif
 		  s1 = SYNTAX (c1);
 
 		  /* ... and S1 is Sword or Ssymbol.  */
@@ -5551,11 +5256,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		 is the character at D, and S2 is the syntax of C2.  */
 	      re_wchar_t c1, c2;
 	      int s1, s2;
-#ifdef emacs
-	      ssize_t offset = PTR_TO_OFFSET (d) - 1;
-	      ssize_t charpos = SYNTAX_TABLE_BYTE_TO_CHAR (offset);
-	      UPDATE_SYNTAX_TABLE (charpos);
-#endif
 	      GET_CHAR_BEFORE_2 (c1, d, string1, end1, string2, end2);
 	      s1 = SYNTAX (c1);
 
@@ -5568,9 +5268,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 		{
 		  PREFETCH_NOLIMIT ();
 		  c2 = RE_STRING_CHAR (d, target_multibyte);
-#ifdef emacs
-		  UPDATE_SYNTAX_TABLE_FORWARD (charpos + 1);
-#endif
+
 		  s2 = SYNTAX (c2);
 
 		  /* ... and S2 is Sword or Ssymbol.  */
@@ -5588,13 +5286,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	    DEBUG_PRINT ("EXECUTING %ssyntaxspec %d.\n", not ? "not" : "",
 			 mcnt);
 	    PREFETCH ();
-#ifdef emacs
-	    {
-	      ssize_t offset = PTR_TO_OFFSET (d);
-	      ssize_t pos1 = SYNTAX_TABLE_BYTE_TO_CHAR (offset);
-	      UPDATE_SYNTAX_TABLE (pos1);
-	    }
-#endif
 	    {
 	      int len;
 	      re_wchar_t c;
@@ -5606,47 +5297,6 @@ re_match_2_internal (struct re_pattern_buffer *bufp, const_re_char *string1,
 	    }
 	  }
 	  break;
-
-#ifdef emacs
-	case before_dot:
-	  DEBUG_PRINT ("EXECUTING before_dot.\n");
-	  if (PTR_BYTE_POS (d) >= PT_BYTE)
-	    goto fail;
-	  break;
-
-	case at_dot:
-	  DEBUG_PRINT ("EXECUTING at_dot.\n");
-	  if (PTR_BYTE_POS (d) != PT_BYTE)
-	    goto fail;
-	  break;
-
-	case after_dot:
-	  DEBUG_PRINT ("EXECUTING after_dot.\n");
-	  if (PTR_BYTE_POS (d) <= PT_BYTE)
-	    goto fail;
-	  break;
-
-	case categoryspec:
-	case notcategoryspec:
-	  {
-	    boolean not = (re_opcode_t) *(p - 1) == notcategoryspec;
-	    mcnt = *p++;
-	    DEBUG_PRINT ("EXECUTING %scategoryspec %d.\n",
-			 not ? "not" : "", mcnt);
-	    PREFETCH ();
-
-	    {
-	      int len;
-	      re_wchar_t c;
-	      GET_CHAR_AFTER (c, d, len);
-	      if ((!CHAR_HAS_CATEGORY (c, mcnt)) ^ not)
-		goto fail;
-	      d += len;
-	    }
-	  }
-	  break;
-
-#endif /* emacs */
 
 	default:
 	  abort ();

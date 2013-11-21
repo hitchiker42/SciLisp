@@ -35,24 +35,25 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,
   }
   const char *str_to_match=CORD_to_const_char_star(string.val.cord);
   int len=CORD_len(string.val.cord);
-  size_t match_len;
+  int64_t match_len;
   //test if we want registers, not yet implemented;
   if(isTrue(dont_return_matches) || isTrue(only_true_or_false)){
     match_len=re_match(re.val.regex,str_to_match,len,0,0);
     if(isTrue(only_true_or_false)){
-      return (match_len ? LISP_TRUE : LISP_FALSE);
+      return ((match_len<=0) ? LISP_TRUE : LISP_FALSE);
     } else {
-      return (match_len ? long_sexp(match_len) : LISP_FALSE);
+      return ((match_len<=0) ? long_sexp(match_len) : LISP_FALSE);
     }
   } else {
-    struct re_registers match_data;
-    match_len=re_match(re.val.regex,str_to_match,len,0,&match_data);
-    if(!match_len){
+    struct re_registers *match_data=xmalloc(sizeof(struct re_registers));
+    match_len=re_match(re.val.regex,str_to_match,len,0,match_data);
+    if(match_len<=-1){
       return LISP_FALSE;
     } else {
+      match_data->num_regs=re.val.regex->re_nsub;
       re_match_data *retval=xmalloc(sizeof(re_match_data));
       *retval=(re_match_data)
-        {.re_string=string.val.cord,.match_data=&match_data,
+        {.re_string=string.val.cord,.match_data=match_data,
          .matched_re=re.val.regex,.matched_len=match_len,.total_len=len};
       return re_match_sexp(retval);
     }
