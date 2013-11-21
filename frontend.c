@@ -395,7 +395,7 @@ static void* SciLisp_getopt_pthread(void *getopt_args){
 static void SciLisp_getopt(int argc,char *argv[]){
   int c;
   while(1){
-    c=getopt_long(argc,argv,"e:hl:o:qvtb:n",long_options,NULL);
+    c=getopt_long(argc,argv,"e:hl:o:qvtb:nr",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
@@ -448,12 +448,41 @@ static void SciLisp_getopt(int argc,char *argv[]){
         };
         break;
       }
+      case 'r':{
+        int tests_failed=0;
+        CORD failed_exprs="";
+        CORD_debug_printf=CORD_ndebug_printf;
+        debug_printf=ndebug_printf;
+        FILE* file=fopen("test.lisp","r");
+        int my_stdout_fd=dup(STDOUT_FILENO);        
+        freopen("/dev/null","w",stdout);
+        freopen("/dev/null","w",stderr);
+        ENSURE_PRIMS_INITIALIZED();
+        sexp ast=yyparse(file);
+        while (CONSP(ast)){
+          sexp result=eval(XCAR(ast),topLevelEnv);
+          if(ERRORP(result)){
+            tests_failed++;
+            failed_exprs=CORD_catn(3,failed_exprs,print(XCAR(ast)),"\n");
+          }
+          ast=XCDR(ast);
+        }
+        FILE* my_stdout=fdopen(my_stdout_fd,"w");
+        if(!tests_failed){
+          fprintf(my_stdout,"all tests passed\n");
+          exit(0);
+        } else {
+          printf("Failed tests:\n");
+          CORD_printf(failed_exprs);
+          exit(tests_failed);
+        }
+      }
       case 't':{
         CORD_debug_printf=CORD_ndebug_printf;
         debug_printf=ndebug_printf;
         FILE* file=fopen("test.lisp","r");
         ENSURE_PRIMS_INITIALIZED();
-        sexp ast=yyparse(file);        
+        sexp ast=yyparse(file);
         puts("Testing:");
         while (CONSP(ast)){
           CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));

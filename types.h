@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <getopt.h>
 #include <limits.h>
-#include "regex.h"
 #include <gmp.h>
 #include <mpfr.h>
 #include <mpf2mpfr.h>
@@ -42,7 +41,6 @@ typedef struct lambda_new lambda_new;//type of lambda expressions
 typedef struct function function;//struct of min/max args and union of lambda/fxn_proto
 typedef struct function_new function_new;//struct of min/max args and union of lambda/fxn_proto
 typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
-typedef struct typed_symbol typed_symbol;
 typedef struct function_args function_args;
 typedef struct obarray obarray;
 typedef struct obarray_entry obarray_entry;
@@ -50,13 +48,15 @@ typedef struct obarray_env obarray_env;
 typedef struct macro macro;
 typedef struct ctype ctype;
 typedef struct c_data c_data;
+typedef struct symbol_props symbol_props;
+typedef struct re_match_data re_match_data;
+typedef struct re_pattern_buffer regex_t;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
 typedef local_symbol *local_symref;//"" local ""
 typedef symbol *keyword_symref;
 typedef symbol keyword_symbol;
-typedef typed_symbol *typed_symref;
 //typedefs akin to the ones in stdint.h and sml
 typedef float real32_t;
 typedef double real64_t;
@@ -100,8 +100,26 @@ typedef wchar_t char32_t;
 #define INT64P(obj) (obj.tag == _long)
 #define REAL32P(obj) (obj.tag == _float)
 #define KEYWORDP(obj) (obj.tag == _keyword)
+#define RE_MATCHP(obj) (obj.tag == _re_data)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
+#define format_type_error(fun,expected,got)                             \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
+               fun,expected,tag_name(got)),                             \
+  error_sexp(type_error_str)
+#define format_type_error2(fun,expected1,got1,expected2,got2)           \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
+               ", but got %r and %r",fun,expected1,expected2,           \
+               tag_name(got1),tag_name(got2)),                          \
+  error_sexp(type_error_str)
+#define format_type_error_opt(fun,expected,got)                         \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
+               ", but got %r",fun,expected,tag_name(got)),   \
+  error_sexp(type_error_str)
+#define format_type_error_opt2(fun,expected1,got)                       \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
+               ", but got %r",fun,expected1,expected2,tag_name(got)),   \
+  error_sexp(type_error_str)
 //key point to this enum is that arathmatic types are numbered in their type
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
@@ -152,6 +170,7 @@ enum _tag {
   _ctype=44,//c ffi type
   _cdata=45,//c value and typeinfo(includes c pointer types)
   _opaque=46,//generic opaque c struct/union
+  _re_data=47,//re match data
 };
 enum special_form{
   _def=0,
@@ -218,6 +237,7 @@ union data {//keep max size at 64 bits
   real32_t real32;
   real64_t real64;
   regex_t *regex;
+  re_match_data *re_data;
   sexp *quoted;
   special_form special;
   symref var;

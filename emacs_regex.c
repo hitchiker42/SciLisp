@@ -25,7 +25,8 @@
    - get rid of on_failure_jump_smart by doing the optimization in re_comp
      rather than at run-time, so that re_match can be reentrant.
 */
-
+/* Modified for SciLisp by Tucker DiNapoli copyright 2013*/
+/* Added support for gc and removed emacs specific code */
 /* AIX requires this to be the first thing in the file.  */
 #if defined _AIX && !defined REGEX_MALLOC
   #pragma alloca
@@ -50,11 +51,6 @@
 //#include <config.h>
 #include <stdlib.h>
 #include <stddef.h>
-
-#ifdef emacs
-/* We need this for `regex.h', and perhaps for the Emacs include files.  */
-# include <sys/types.h>
-#endif
 
 /* Whether to use ISO C Amendment 1 wide char functions.
    Those should not be used for Emacs since it uses its own.  */
@@ -123,122 +119,17 @@
 # define gettext_noop(String) String
 #endif
 
-/* The `emacs' switch turns on certain matching commands
-   that make sense only in Emacs. */
-#ifdef emacs
-
-# include "lisp.h"
-# include "character.h"
-# include "buffer.h"
-
-# include "syntax.h"
-# include "category.h"
-
-/* Make syntax table lookup grant data in gl_state.  */
-# define SYNTAX(c) syntax_property (c, 1)
-
-# ifdef malloc
-#  undef malloc
-# endif
-# define malloc xmalloc
-# ifdef realloc
-#  undef realloc
-# endif
-# define realloc xrealloc
-# ifdef free
-#  undef free
-# endif
-# define free xfree
-
-/* Converts the pointer to the char to BEG-based offset from the start.  */
-# define PTR_TO_OFFSET(d) POS_AS_IN_BUFFER (POINTER_TO_OFFSET (d))
-# define POS_AS_IN_BUFFER(p) ((p) + (NILP (re_match_object) || BUFFERP (re_match_object)))
-
-# define RE_MULTIBYTE_P(bufp) ((bufp)->multibyte)
-# define RE_TARGET_MULTIBYTE_P(bufp) ((bufp)->target_multibyte)
-# define RE_STRING_CHAR(p, multibyte) \
-  (multibyte ? (STRING_CHAR (p)) : (*(p)))
-# define RE_STRING_CHAR_AND_LENGTH(p, len, multibyte) \
-  (multibyte ? (STRING_CHAR_AND_LENGTH (p, len)) : ((len) = 1, *(p)))
-
-# define RE_CHAR_TO_MULTIBYTE(c) UNIBYTE_TO_CHAR (c)
-
-# define RE_CHAR_TO_UNIBYTE(c) CHAR_TO_BYTE_SAFE (c)
-
-/* Set C a (possibly converted to multibyte) character before P.  P
-   points into a string which is the virtual concatenation of STR1
-   (which ends at END1) or STR2 (which ends at END2).  */
-# define GET_CHAR_BEFORE_2(c, p, str1, end1, str2, end2)		     \
-  do {									     \
-    if (target_multibyte)						     \
-      {									     \
-	re_char *dtemp = (p) == (str2) ? (end1) : (p);			     \
-	re_char *dlimit = ((p) > (str2) && (p) <= (end2)) ? (str2) : (str1); \
-	while (dtemp-- > dlimit && !CHAR_HEAD_P (*dtemp));		     \
-	c = STRING_CHAR (dtemp);					     \
-      }									     \
-    else								     \
-      {									     \
-	(c = ((p) == (str2) ? (end1) : (p))[-1]);			     \
-	(c) = RE_CHAR_TO_MULTIBYTE (c);					     \
-      }									     \
-  } while (0)
-
-/* Set C a (possibly converted to multibyte) character at P, and set
-   LEN to the byte length of that character.  */
-# define GET_CHAR_AFTER(c, p, len)		\
-  do {						\
-    if (target_multibyte)			\
-      (c) = STRING_CHAR_AND_LENGTH (p, len);	\
-    else					\
-      {						\
-	(c) = *p;				\
-	len = 1;				\
-	(c) = RE_CHAR_TO_MULTIBYTE (c);		\
-      }						\
-   } while (0)
-
-#else  /* not emacs */
-
 /* If we are not linking with Emacs proper,
    we can't use the relocating allocator
    even if config.h says that we can.  */
 # undef REL_ALLOC
 
-# include <unistd.h>
-
-/* When used in Emacs's lib-src, we need xmalloc and xrealloc. */
-
-static void *
-xmalloc (size_t size)
-{
-  void *val = malloc (size);
-  if (!val && size)
-    {
-      write (2, "virtual memory exhausted\n", 25);
-      exit (1);
-    }
-  return val;
-}
-
-static void *
-xrealloc (void *block, size_t size)
-{
-  void *val;
-  /* We must call malloc explicitly when BLOCK is 0, since some
-     reallocs don't do this.  */
-  if (! block)
-    val = malloc (size);
-  else
-    val = realloc (block, size);
-  if (!val && size)
-    {
-      write (2, "virtual memory exhausted\n", 25);
-      exit (1);
-    }
-  return val;
-}
-
+#include <unistd.h>
+#include "gc/include/gc/gc.h"
+//hack in gc support
+#define xmalloc GC_MALLOC
+#define xrealloc GC_REALLOC
+#define free GC_FREE
 # ifdef malloc
 #  undef malloc
 # endif
@@ -247,7 +138,6 @@ xrealloc (void *block, size_t size)
 #  undef realloc
 # endif
 # define realloc xrealloc
-
 # include <stdbool.h>
 # include <string.h>
 
@@ -277,76 +167,16 @@ enum syntaxcode { Swhitespace = 0, Sword = 1, Ssymbol = 2 };
 # define CHAR_BYTE8_P(c) (0)
 # define CHAR_LEADING_CODE(c) (c)
 
-#endif /* not emacs */
-
 #ifndef RE_TRANSLATE
 # define RE_TRANSLATE(TBL, C) ((unsigned char)(TBL)[C])
 # define RE_TRANSLATE_P(TBL) (TBL)
 #endif
-
+
 /* Get the interface, including the syntax bits.  */
 #include "emacs_regex.h"
 
 /* isalpha etc. are used for the character classes.  */
 #include <ctype.h>
-
-#ifdef emacs
-
-/* 1 if C is an ASCII character.  */
-# define IS_REAL_ASCII(c) ((c) < 0200)
-
-/* 1 if C is a unibyte character.  */
-# define ISUNIBYTE(c) (SINGLE_BYTE_CHAR_P ((c)))
-
-/* The Emacs definitions should not be directly affected by locales.  */
-
-/* In Emacs, these are only used for single-byte characters.  */
-# define ISDIGIT(c) ((c) >= '0' && (c) <= '9')
-# define ISCNTRL(c) ((c) < ' ')
-# define ISXDIGIT(c) (((c) >= '0' && (c) <= '9')		\
-		     || ((c) >= 'a' && (c) <= 'f')	\
-		     || ((c) >= 'A' && (c) <= 'F'))
-
-/* This is only used for single-byte characters.  */
-# define ISBLANK(c) ((c) == ' ' || (c) == '\t')
-
-/* The rest must handle multibyte characters.  */
-
-# define ISGRAPH(c) (SINGLE_BYTE_CHAR_P (c)				\
-		    ? (c) > ' ' && !((c) >= 0177 && (c) <= 0237)	\
-		    : 1)
-
-# define ISPRINT(c) (SINGLE_BYTE_CHAR_P (c)				\
-		    ? (c) >= ' ' && !((c) >= 0177 && (c) <= 0237)	\
-		    : 1)
-
-# define ISALNUM(c) (IS_REAL_ASCII (c)			\
-		    ? (((c) >= 'a' && (c) <= 'z')	\
-		       || ((c) >= 'A' && (c) <= 'Z')	\
-		       || ((c) >= '0' && (c) <= '9'))	\
-		    : SYNTAX (c) == Sword)
-
-# define ISALPHA(c) (IS_REAL_ASCII (c)			\
-		    ? (((c) >= 'a' && (c) <= 'z')	\
-		       || ((c) >= 'A' && (c) <= 'Z'))	\
-		    : SYNTAX (c) == Sword)
-
-# define ISLOWER(c) lowercasep (c)
-
-# define ISPUNCT(c) (IS_REAL_ASCII (c)				\
-		    ? ((c) > ' ' && (c) < 0177			\
-		       && !(((c) >= 'a' && (c) <= 'z')		\
-		            || ((c) >= 'A' && (c) <= 'Z')	\
-		            || ((c) >= '0' && (c) <= '9')))	\
-		    : SYNTAX (c) != Sword)
-
-# define ISSPACE(c) (SYNTAX (c) == Swhitespace)
-
-# define ISUPPER(c) uppercasep (c)
-
-# define ISWORD(c) (SYNTAX (c) == Sword)
-
-#else /* not emacs */
 
 /* 1 if C is an ASCII character.  */
 # define IS_REAL_ASCII(c) ((c) < 0200)
@@ -421,27 +251,7 @@ init_syntax_once (void)
 
 # define SYNTAX(c) re_syntax_table[(c)]
 
-#endif /* not emacs */
-
 #define SIGN_EXTEND_CHAR(c) ((signed char) (c))
-
-/* Should we use malloc or alloca?  If REGEX_MALLOC is not defined, we
-   use `alloca' instead of `malloc'.  This is because using malloc in
-   re_search* or re_match* could cause memory leaks when C-g is used in
-   Emacs; also, malloc is slower and causes storage fragmentation.  On
-   the other hand, malloc is more portable, and easier to debug.
-
-   Because we sometimes use alloca, some routines have to be macros,
-   not functions -- `alloca'-allocated space disappears at the end of the
-   function it is called in.  */
-
-#ifdef REGEX_MALLOC
-
-# define REGEX_ALLOCATE malloc
-# define REGEX_REALLOCATE(source, osize, nsize) realloc (source, nsize)
-# define REGEX_FREE free
-
-#else /* not REGEX_MALLOC  */
 
 /* Emacs already defines alloca, sometimes.  */
 # ifndef alloca
@@ -466,8 +276,6 @@ init_syntax_once (void)
 
 /* No need to do anything to free, after alloca.  */
 # define REGEX_FREE(arg) ((void)0) /* Do nothing!  But inhibit gcc warning.  */
-
-#endif /* not REGEX_MALLOC */
 
 /* Define how to allocate the failure stack.  */
 
@@ -538,7 +346,7 @@ static regoff_t re_match_2_internal (struct re_pattern_buffer *bufp,
 				     ssize_t pos,
 				     struct re_registers *regs,
 				     ssize_t stop);
-
+
 /* These are the command codes that appear in compiled regular
    expressions.  Some opcodes are followed by argument bytes.  A
    command code can specify any interpretation whatsoever for its
@@ -667,23 +475,8 @@ typedef enum
 	/* Matches any character whose syntax is not that specified.  */
   notsyntaxspec
 
-#ifdef emacs
-  ,before_dot,	/* Succeeds if before point.  */
-  at_dot,	/* Succeeds if at point.  */
-  after_dot,	/* Succeeds if after point.  */
-
-  /* Matches any character whose category-set contains the specified
-     category.  The operator is followed by a byte which contains a
-     category code (mnemonic ASCII character).  */
-  categoryspec,
-
-  /* Matches any character whose category-set does not contain the
-     specified category.  The operator is followed by a byte which
-     contains the category code (mnemonic ASCII character).  */
-  notcategoryspec
-#endif /* emacs */
 } re_opcode_t;
-
+
 /* Common operations on the compiled pattern.  */
 
 /* Store NUMBER in two contiguous bytes starting at DESTINATION.  */
@@ -767,13 +560,6 @@ extract_number_and_incr (re_char **source)
    stored.  `2 +' means to skip re_opcode_t and size of bitmap,
    and the 2 bytes of flags at the start of the range table.  */
 #define CHARSET_RANGE_TABLE(p) (&(p)[4 + CHARSET_BITMAP_SIZE (p)])
-
-#ifdef emacs
-/* Extract the bit flags that start a range table.  */
-#define CHARSET_RANGE_TABLE_BITS(p)		\
-  ((p)[2 + CHARSET_BITMAP_SIZE (p)]		\
-   + (p)[3 + CHARSET_BITMAP_SIZE (p)] * 0x100)
-#endif
 
 /* Return the address of end of RANGE_TABLE.  COUNT is number of
    ranges (which is a pair of (start, end)) in the RANGE_TABLE.  `* 2'
@@ -1268,7 +1054,7 @@ static const char *re_error_msgid[] =
     gettext_noop ("Unmatched ) or \\)"), /* REG_ERPAREN */
     gettext_noop ("Range striding over charsets") /* REG_ERANGEX  */
   };
-
+
 /* Avoiding alloca during matching, to placate r_alloc.  */
 
 /* Define MATCH_MAY_ALLOCATE unless we need to make sure that the
@@ -1300,7 +1086,7 @@ static const char *re_error_msgid[] =
 # undef MATCH_MAY_ALLOCATE
 #endif
 
-
+
 /* Failure stack declarations and macros; both re_compile_fastmap and
    re_match_2 use a failure stack.  These have to be macros because of
    REGEX_ALLOCATE_STACK.  */
@@ -1880,114 +1666,6 @@ struct range_table_work_area
 /* Set the bit for character C in a list.  */
 #define SET_LIST_BIT(c) (b[((c)) / BYTEWIDTH] |= 1 << ((c) % BYTEWIDTH))
 
-
-#ifdef emacs
-
-/* Store characters in the range FROM to TO in the bitmap at B (for
-   ASCII and unibyte characters) and WORK_AREA (for multibyte
-   characters) while translating them and paying attention to the
-   continuity of translated characters.
-
-   Implementation note: It is better to implement these fairly big
-   macros by a function, but it's not that easy because macros called
-   in this macro assume various local variables already declared.  */
-
-/* Both FROM and TO are ASCII characters.  */
-
-#define SETUP_ASCII_RANGE(work_area, FROM, TO)			\
-  do {								\
-    int C0, C1;							\
-    								\
-    for (C0 = (FROM); C0 <= (TO); C0++)				\
-      {								\
-	C1 = TRANSLATE (C0);					\
-	if (! ASCII_CHAR_P (C1))				\
-	  {							\
-	    SET_RANGE_TABLE_WORK_AREA ((work_area), C1, C1);	\
-	    if ((C1 = RE_CHAR_TO_UNIBYTE (C1)) < 0)		\
-	      C1 = C0;						\
-	  }							\
-	SET_LIST_BIT (C1);					\
-      }								\
-  } while (0)
-
-
-/* Both FROM and TO are unibyte characters (0x80..0xFF).  */
-
-#define SETUP_UNIBYTE_RANGE(work_area, FROM, TO)			       \
-  do {									       \
-    int C0, C1, C2, I;							       \
-    int USED = RANGE_TABLE_WORK_USED (work_area);			       \
-    									       \
-    for (C0 = (FROM); C0 <= (TO); C0++)					       \
-      {									       \
-	C1 = RE_CHAR_TO_MULTIBYTE (C0);					       \
-	if (CHAR_BYTE8_P (C1))						       \
-	  SET_LIST_BIT (C0);						       \
-	else								       \
-	  {								       \
-	    C2 = TRANSLATE (C1);					       \
-	    if (C2 == C1						       \
-		|| (C1 = RE_CHAR_TO_UNIBYTE (C2)) < 0)			       \
-	      C1 = C0;							       \
-	    SET_LIST_BIT (C1);						       \
-	    for (I = RANGE_TABLE_WORK_USED (work_area) - 2; I >= USED; I -= 2) \
-	      {								       \
-		int from = RANGE_TABLE_WORK_ELT (work_area, I);		       \
-		int to = RANGE_TABLE_WORK_ELT (work_area, I + 1);	       \
-									       \
-		if (C2 >= from - 1 && C2 <= to + 1)			       \
-		  {							       \
-		    if (C2 == from - 1)					       \
-		      RANGE_TABLE_WORK_ELT (work_area, I)--;		       \
-		    else if (C2 == to + 1)				       \
-		      RANGE_TABLE_WORK_ELT (work_area, I + 1)++;	       \
-		    break;						       \
-		  }							       \
-	      }								       \
-	    if (I < USED)						       \
-	      SET_RANGE_TABLE_WORK_AREA ((work_area), C2, C2);		       \
-	  }								       \
-      }									       \
-  } while (0)
-
-
-/* Both FROM and TO are multibyte characters.  */
-
-#define SETUP_MULTIBYTE_RANGE(work_area, FROM, TO)			   \
-  do {									   \
-    int C0, C1, C2, I, USED = RANGE_TABLE_WORK_USED (work_area);	   \
-    									   \
-    SET_RANGE_TABLE_WORK_AREA ((work_area), (FROM), (TO));		   \
-    for (C0 = (FROM); C0 <= (TO); C0++)					   \
-      {									   \
-	C1 = TRANSLATE (C0);						   \
-	if ((C2 = RE_CHAR_TO_UNIBYTE (C1)) >= 0				   \
-	    || (C1 != C0 && (C2 = RE_CHAR_TO_UNIBYTE (C0)) >= 0))	   \
-	  SET_LIST_BIT (C2);						   \
-	if (C1 >= (FROM) && C1 <= (TO))					   \
-	  continue;							   \
-	for (I = RANGE_TABLE_WORK_USED (work_area) - 2; I >= USED; I -= 2) \
-	  {								   \
-	    int from = RANGE_TABLE_WORK_ELT (work_area, I);		   \
-	    int to = RANGE_TABLE_WORK_ELT (work_area, I + 1);		   \
-	    								   \
-	    if (C1 >= from - 1 && C1 <= to + 1)				   \
-	      {								   \
-		if (C1 == from - 1)					   \
-		  RANGE_TABLE_WORK_ELT (work_area, I)--;		   \
-		else if (C1 == to + 1)					   \
-		  RANGE_TABLE_WORK_ELT (work_area, I + 1)++;		   \
-		break;							   \
-	      }								   \
-	  }								   \
-	if (I < USED)							   \
-	  SET_RANGE_TABLE_WORK_AREA ((work_area), C1, C1);		   \
-      }									   \
-  } while (0)
-
-#endif /* emacs */
-
 /* Get the next unsigned number in the uncompiled pattern.  */
 #define GET_UNSIGNED_NUMBER(num)					\
   do {									\
@@ -2101,239 +1779,6 @@ extend_range_table_work_area (struct range_table_work_area *work_area)
   work_area->table = realloc (work_area->table, work_area->allocated);
 }
 
-#if 0
-#ifdef emacs
-
-/* Carefully find the ranges of codes that are equivalent
-   under case conversion to the range start..end when passed through
-   TRANSLATE.  Handle the case where non-letters can come in between
-   two upper-case letters (which happens in Latin-1).
-   Also handle the case of groups of more than 2 case-equivalent chars.
-
-   The basic method is to look at consecutive characters and see
-   if they can form a run that can be handled as one.
-
-   Returns -1 if successful, REG_ESPACE if ran out of space.  */
-
-static int
-set_image_of_range_1 (struct range_table_work_area *work_area,
-		      re_wchar_t start, re_wchar_t end,
-		      RE_TRANSLATE_TYPE translate)
-{
-  /* `one_case' indicates a character, or a run of characters,
-     each of which is an isolate (no case-equivalents).
-     This includes all ASCII non-letters.
-
-     `two_case' indicates a character, or a run of characters,
-     each of which has two case-equivalent forms.
-     This includes all ASCII letters.
-
-     `strange' indicates a character that has more than one
-     case-equivalent.  */
-
-  enum case_type {one_case, two_case, strange};
-
-  /* Describe the run that is in progress,
-     which the next character can try to extend.
-     If run_type is strange, that means there really is no run.
-     If run_type is one_case, then run_start...run_end is the run.
-     If run_type is two_case, then the run is run_start...run_end,
-     and the case-equivalents end at run_eqv_end.  */
-
-  enum case_type run_type = strange;
-  int run_start, run_end, run_eqv_end;
-
-  Lisp_Object eqv_table;
-
-  if (!RE_TRANSLATE_P (translate))
-    {
-      EXTEND_RANGE_TABLE (work_area, 2);
-      work_area->table[work_area->used++] = (start);
-      work_area->table[work_area->used++] = (end);
-      return -1;
-    }
-
-  eqv_table = XCHAR_TABLE (translate)->extras[2];
-
-  for (; start <= end; start++)
-    {
-      enum case_type this_type;
-      int eqv = RE_TRANSLATE (eqv_table, start);
-      int minchar, maxchar;
-
-      /* Classify this character */
-      if (eqv == start)
-	this_type = one_case;
-      else if (RE_TRANSLATE (eqv_table, eqv) == start)
-	this_type = two_case;
-      else
-	this_type = strange;
-
-      if (start < eqv)
-	minchar = start, maxchar = eqv;
-      else
-	minchar = eqv, maxchar = start;
-
-      /* Can this character extend the run in progress?  */
-      if (this_type == strange || this_type != run_type
-	  || !(minchar == run_end + 1
-	       && (run_type == two_case
-		   ? maxchar == run_eqv_end + 1 : 1)))
-	{
-	  /* No, end the run.
-	     Record each of its equivalent ranges.  */
-	  if (run_type == one_case)
-	    {
-	      EXTEND_RANGE_TABLE (work_area, 2);
-	      work_area->table[work_area->used++] = run_start;
-	      work_area->table[work_area->used++] = run_end;
-	    }
-	  else if (run_type == two_case)
-	    {
-	      EXTEND_RANGE_TABLE (work_area, 4);
-	      work_area->table[work_area->used++] = run_start;
-	      work_area->table[work_area->used++] = run_end;
-	      work_area->table[work_area->used++]
-		= RE_TRANSLATE (eqv_table, run_start);
-	      work_area->table[work_area->used++]
-		= RE_TRANSLATE (eqv_table, run_end);
-	    }
-	  run_type = strange;
-	}
-
-      if (this_type == strange)
-	{
-	  /* For a strange character, add each of its equivalents, one
-	     by one.  Don't start a range.  */
-	  do
-	    {
-	      EXTEND_RANGE_TABLE (work_area, 2);
-	      work_area->table[work_area->used++] = eqv;
-	      work_area->table[work_area->used++] = eqv;
-	      eqv = RE_TRANSLATE (eqv_table, eqv);
-	    }
-	  while (eqv != start);
-	}
-
-      /* Add this char to the run, or start a new run.  */
-      else if (run_type == strange)
-	{
-	  /* Initialize a new range.  */
-	  run_type = this_type;
-	  run_start = start;
-	  run_end = start;
-	  run_eqv_end = RE_TRANSLATE (eqv_table, run_end);
-	}
-      else
-	{
-	  /* Extend a running range.  */
-	  run_end = minchar;
-	  run_eqv_end = RE_TRANSLATE (eqv_table, run_end);
-	}
-    }
-
-  /* If a run is still in progress at the end, finish it now
-     by recording its equivalent ranges.  */
-  if (run_type == one_case)
-    {
-      EXTEND_RANGE_TABLE (work_area, 2);
-      work_area->table[work_area->used++] = run_start;
-      work_area->table[work_area->used++] = run_end;
-    }
-  else if (run_type == two_case)
-    {
-      EXTEND_RANGE_TABLE (work_area, 4);
-      work_area->table[work_area->used++] = run_start;
-      work_area->table[work_area->used++] = run_end;
-      work_area->table[work_area->used++]
-	= RE_TRANSLATE (eqv_table, run_start);
-      work_area->table[work_area->used++]
-	= RE_TRANSLATE (eqv_table, run_end);
-    }
-
-  return -1;
-}
-
-#endif /* emacs */
-
-/* Record the image of the range start..end when passed through
-   TRANSLATE.  This is not necessarily TRANSLATE(start)..TRANSLATE(end)
-   and is not even necessarily contiguous.
-   Normally we approximate it with the smallest contiguous range that contains
-   all the chars we need.  However, for Latin-1 we go to extra effort
-   to do a better job.
-
-   This function is not called for ASCII ranges.
-
-   Returns -1 if successful, REG_ESPACE if ran out of space.  */
-
-static int
-set_image_of_range (struct range_table_work_area *work_area,
-		    re_wchar_t start, re_wchar_t end,
-		    RE_TRANSLATE_TYPE translate)
-{
-  re_wchar_t cmin, cmax;
-
-#ifdef emacs
-  /* For Latin-1 ranges, use set_image_of_range_1
-     to get proper handling of ranges that include letters and nonletters.
-     For a range that includes the whole of Latin-1, this is not necessary.
-     For other character sets, we don't bother to get this right.  */
-  if (RE_TRANSLATE_P (translate) && start < 04400
-      && !(start < 04200 && end >= 04377))
-    {
-      int newend;
-      int tem;
-      newend = end;
-      if (newend > 04377)
-	newend = 04377;
-      tem = set_image_of_range_1 (work_area, start, newend, translate);
-      if (tem > 0)
-	return tem;
-
-      start = 04400;
-      if (end < 04400)
-	return -1;
-    }
-#endif
-
-  EXTEND_RANGE_TABLE (work_area, 2);
-  work_area->table[work_area->used++] = (start);
-  work_area->table[work_area->used++] = (end);
-
-  cmin = -1, cmax = -1;
-
-  if (RE_TRANSLATE_P (translate))
-    {
-      int ch;
-
-      for (ch = start; ch <= end; ch++)
-	{
-	  re_wchar_t c = TRANSLATE (ch);
-	  if (! (start <= c && c <= end))
-	    {
-	      if (cmin == -1)
-		cmin = c, cmax = c;
-	      else
-		{
-		  cmin = MIN (cmin, c);
-		  cmax = MAX (cmax, c);
-		}
-	    }
-	}
-
-      if (cmin != -1)
-	{
-	  EXTEND_RANGE_TABLE (work_area, 2);
-	  work_area->table[work_area->used++] = (cmin);
-	  work_area->table[work_area->used++] = (cmax);
-	}
-    }
-
-  return -1;
-}
-#endif	/* 0 */
-
 #ifndef MATCH_MAY_ALLOCATE
 
 /* If we cannot allocate large objects within re_match_2_internal,

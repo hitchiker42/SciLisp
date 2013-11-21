@@ -15,6 +15,7 @@
 #include "print.h"
 #include "prim.h"
 #include "hash_fn.h"
+#include "regex.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -736,6 +737,9 @@ DEFUN("lrand",lisp_randint,0,0,0,0,0);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
 DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
 DEFUN("apply",lisp_apply,2,1,0,0,3);
+DEFUN("re-compile",lisp_re_compile,1,0,0,0,1);
+DEFUN("re-match",lisp_re_match,2,3,0,0,5);
+DEFUN("re-subexpr",lisp_get_re_backref,2,0,0,0,2);
 DEFUN("bigfloat-add",lisp_bigfloat_add,2,0,0,0,2);
 DEFUN("bigfloat-sub",lisp_bigfloat_sub,2,0,0,0,2);
 DEFUN("bigfloat-mul",lisp_bigfloat_mul,2,0,0,0,2);
@@ -866,6 +870,9 @@ MAKE_SYMBOL("lrand",lisp_randint,0xcffb580fd3c7c16 );
 MAKE_SYMBOL("bigint",lisp_bigint,0x6a031ae6deb3b2f9 );
 MAKE_SYMBOL("bigfloat",lisp_bigfloat,0xbf028d8fe03cb0c2 );
 MAKE_SYMBOL("apply",lisp_apply,0x35de5e4bd0bba8ae );
+MAKE_SYMBOL("re-compile",lisp_re_compile,0xa2764a4bb059a9d9 );
+MAKE_SYMBOL("re-match",lisp_re_match,0x80d577d4c3b37b05 );
+MAKE_SYMBOL("re-subexpr",lisp_get_re_backref,0x8a116ddc4ad390f1 );
 MAKE_SYMBOL("bigfloat-add",lisp_bigfloat_add,0x5ce208f741cde6d2 );
 MAKE_SYMBOL("bigfloat-sub",lisp_bigfloat_sub,0xd42552f784c9600b );
 MAKE_SYMBOL("bigfloat-mul",lisp_bigfloat_mul,0x7d86d2f753b9f1e7 );
@@ -1042,6 +1049,9 @@ INIT_SYMBOL(lisp_randint);
 INIT_SYMBOL(lisp_bigint);
 INIT_SYMBOL(lisp_bigfloat);
 INIT_SYMBOL(lisp_apply);
+INIT_SYMBOL(lisp_re_compile);
+INIT_SYMBOL(lisp_re_match);
+INIT_SYMBOL(lisp_get_re_backref);
 INIT_SYMBOL(lisp_bigfloat_add);
 INIT_SYMBOL(lisp_bigfloat_sub);
 INIT_SYMBOL(lisp_bigfloat_mul);

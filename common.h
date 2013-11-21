@@ -72,6 +72,8 @@
 #define meta_sexp(meta_val) (sexp) {.tag =_meta,.val={.meta=meta_val}}
 #define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
 #define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val}}
+#define re_match_sexp(re_match_val) (sexp){.tag=_re_data,\
+      .val={.re_data=re_match_val}}
 #define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
 #define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
@@ -100,6 +102,7 @@ FILE* yyin;
 extern int evalError;
 //global localtion of error messages
 CORD error_str;
+CORD type_error_str;
 jmp_buf error_buf;
 sexp error_val;
 static int initPrimsFlag=1;

@@ -81,15 +81,8 @@ sexp get_c_type(sexp ctype_keysym){
   size_t pat_len=strlen(c_type_pattern);
   const char *re_error=re_compile_pattern(c_type_pattern,pat_len,c_type_regex);
   if(re_error){
-    regfree(c_type_regex);
     return error_sexp(CORD_from_char_star(re_error));
   }
-  //  regoff_t *re_starts=malloc(num_registers+1*sizeof(regoff_t));
-  //  regoff_t *re_ends=malloc(num_registers+1*sizeof(regoff_t));
-  //we do this because by default the register data gets allocated with malloc
-  //and that conflicts with gc(the pattern is malloced too, but theres a function
-  //to clean it up(
-  //  re_set_registers(c_type_regex,match_data,num_registers,re_starts,re_ends);
   size_t match_len=re_match(c_type_regex,typename,strlen(typename),0,&match_data);
   if(match_len != typename_len){    
     HERE();
@@ -116,11 +109,6 @@ sexp get_c_type(sexp ctype_keysym){
           HERE();
           goto FAIL;
       }
-      //      free(re_starts);
-      //      free(re_ends);
-      free(match_data.start);
-      free(match_data.end);
-      regfree(c_type_regex);
       return retval;
     }
   } else if(match_data.start[4] != -1){
@@ -147,11 +135,6 @@ sexp get_c_type(sexp ctype_keysym){
             HERE();
             goto FAIL;
         }
-        //        free(re_starts);
-        //        free(re_ends);
-        free(match_data.start);
-        free(match_data.end);
-        regfree(c_type_regex);
         return retval;
       } else {
         switch(typename[match_data.start[6]]){
@@ -175,10 +158,5 @@ sexp get_c_type(sexp ctype_keysym){
     }
   }
  FAIL:
-  //  free(re_starts);
-  //  free(re_ends);
-  free(match_data.start);
-  free(match_data.end);
-  regfree(c_type_regex);
   return error_sexp("invalid typename passed to get_c_type");
 }

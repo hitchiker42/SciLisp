@@ -1,20 +1,21 @@
 #ifndef __ENV_H__
 #define __ENV_H__
 #include "common.h"
-struct symbol{
-  CORD name;
-  sexp val;
-  //  env* symbol_env;
-};
-struct typed_symbol{
-  CORD name;
-  sexp val;
+struct symbol_props {
+  int is_const :1;
+  int setfable :1;
+  int typed :1;
   _tag type;
+};
+struct symbol {
+  CORD name;
+  sexp val;
+  symbol_props props;
 };
 struct local_symbol{
   CORD name;
   sexp val;
-  //  env* symbol_env;
+  symbol_props props;
   local_symref next;
 };
 struct local_env{

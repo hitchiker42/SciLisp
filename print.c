@@ -4,6 +4,7 @@
  ****************************************************************/
 #include "common.h"
 #include "cons.h"
+#include "regex.h"
 #include "print.h"
 #define mk_tag_name(tag,name) case tag: return #name
 c_string tag_name(_tag obj_tag){
@@ -286,6 +287,13 @@ CORD print(sexp obj){
          ob->size,ob->used,ob->entries,ob->capacity);
         return retval;
     }
+    case _re_data:
+      CORD_sprintf
+        (&retval,
+         "#<re-match-data for \"%r\">",obj.val.re_data->re_string);
+      return retval;
+    case _regex:
+      return ("#<regular-expression>");
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;
