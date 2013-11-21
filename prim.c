@@ -725,7 +725,7 @@ DEFUN("cat",lisp_cat,1,0,0,1,2);
 DEFUN("pwd",lisp_getcwd,0,0,0,0,0);
 DEFUN("system",lisp_system,1,0,0,1,2);
 DEFUN("eq",lisp_eq,2,0,0,0,2);
-DEFUN("ccall",ccall,5,0,0,0,5);
+DEFUN("ccall",ccall,5,1,0,0,6);
 DEFUN("logxor",lisp_xor,2,0,0,0,2);
 DEFUN("logand",lisp_logand,2,0,0,0,2);
 DEFUN("logor",lisp_logor,2,0,0,0,2);

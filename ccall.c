@@ -13,12 +13,30 @@ static void __attribute__((noreturn)) handle_abort(int signal){
 }
 static const struct sigaction abort_action_object={.sa_handler=&handle_abort};
 static const struct sigaction* restrict abort_action=&abort_action_object;
+struct thread_args {
+  dlfun_t c_fun;
+  uint64_t numargs;
+  sexp rettype;
+  ctype_val *c_args;
+  enum ctype_kind *c_argtypes;
+};
+static void* call_c_fun_from_new_thread(void* ccall_args);
 //just call a c function, unsafe, no typechecking and not very user frendly
 //argtypes should be keyword symbols
-sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
+sexp ccall(sexp function,sexp libname,sexp rettype,
+           sexp argtypes,sexp args,sexp thread){
   if(!STRINGP(function) || !(STRINGP(libname)) || !KEYWORDP(rettype) ||
      !(CONS_OR_NIL(argtypes)) || !(CONS_OR_NIL(args))){
     return error_sexp("type error in ccall");
+  }
+  int thread_action;
+  if(NILP(thread)){
+    thread_action=0;
+  } else {
+    thread_action=thread.val.int64;
+    if(thread_action>2){
+      return error_sexp("invalid thread/process option");
+    }
   }
   ctype_val c_args[3];
   enum ctype_kind c_argtypes[3];
@@ -59,7 +77,30 @@ sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args){
     argtypes=XCDR(argtypes);
   }
   sigaction(SIGABRT,abort_action,&old_abort_action);
-  return call_c_fun(dlfun,num_args,rettype,c_args,c_argtypes);
+  switch(thread_action){
+    case 0:
+      return call_c_fun(dlfun,num_args,rettype,c_args,c_argtypes);
+    case 1:{
+      pthread_t new_thread;
+      struct thread_args args={.c_fun=dlfun,.numargs=num_args,
+                               .rettype=rettype,.c_args=c_args,
+                               .c_argtypes=c_argtypes};
+      pthread_create(&new_thread,NULL,call_c_fun_from_new_thread,(void*)&args);
+      sexp *retval=alloca(sizeof(sexp));
+      pthread_join(new_thread,(void**)&retval);
+      return *retval;
+    }
+    case 2:
+      return NIL;
+      //do stuff to fork a new process
+  }
+}
+static void* call_c_fun_from_new_thread(void* ccall_args){
+  struct thread_args args=*(struct thread_args*)ccall_args;
+  sexp *retval=xmalloc(sizeof(sexp));
+  *retval=(sexp)call_c_fun(args.c_fun,args.numargs,args.rettype,
+                           args.c_args,args.c_argtypes);
+  return (void*) retval;
 }
 #define IS_FLOAT_TYPE(obj) (obj==_real32 || obj==_real64)
 #define GET_ARG_VAL(index) ((c_argtypes[index]==_real64 || c_argtypes[index]==_real32) ? \

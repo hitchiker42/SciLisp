@@ -45,6 +45,6 @@ struct c_data {
 };
 sexp dereference_c_ptr(c_data *pointer);
 int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type);
-sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args);
+sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args,sexp thread);
 sexp get_c_type(sexp ctype_keysym);
 #endif
