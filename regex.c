@@ -2,7 +2,7 @@
 #include "cons.h"
 /*should run before any regex stuff
   re_set_syntax(RE_SYNTAX_EMACS);*/
-sexp lisp_re_compile(sexp regex){
+sexp lisp_re_compile(sexp regex,sexp opts){
   if(!STRINGP(regex)){
     return error_sexp("argument to regex-compile must be a string");
   }

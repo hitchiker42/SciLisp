@@ -112,6 +112,11 @@ typedef wchar_t char32_t;
                ", but got %r and %r",fun,expected1,expected2,           \
                tag_name(got1),tag_name(got2)),                          \
   error_sexp(type_error_str)
+#define format_type_error3(fun,expected1,got1,expected2,got2,expected3,got3) \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r and %r"   \
+               ", but got %r,%r and %r",fun,expected1,expected2,expected3, \
+               tag_name(got1),tag_name(got2),tag_name(got3)),           \
+  error_sexp(type_error_str)
 #define format_type_error_opt(fun,expected,got)                         \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
                ", but got %r",fun,expected,tag_name(got)),   \

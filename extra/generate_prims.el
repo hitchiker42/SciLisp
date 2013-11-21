@@ -140,7 +140,7 @@
      ((:lname . "apply") (:cname . "lisp_apply") (:minargs . 2) (:maxargs . 3)
       (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ((:lname . "re-compile") (:cname . "lisp_re_compile") (:minargs . 1)
-      (:maxargs . 1)(:optargs . 0)(:keyargs . 0)(:restarg . 0))
+      (:maxargs . 2)(:optargs . 1)(:keyargs . 0)(:restarg . 0))
      ((:lname . "re-match") (:cname . "lisp_re_match") (:minargs . 2)
       (:maxargs . 5) (:optargs . 3) (:keyargs . 0)(:restarg . 0))
      ((:lname . "re-subexpr")(:cname . "lisp_get_re_backref")(:minargs . 2)
