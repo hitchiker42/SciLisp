@@ -182,29 +182,55 @@ sexp list_iota(sexp start,sexp stop,sexp step){
 }
 static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
   //find a way to use length somehow
-  if(!CONSP(cdr(ls))){
-    return ls;//maybe sort if ls is a cons cell
+  if(!CONSP(ls)){
+    return ls;
+  }
+  else if(NILP(XCDR(ls))){
+    return XCAR(ls);
   } else {
-    sexp rhs,lhs,pivot,cur_cell;
-    rhs.val.cons=xmalloc(sizeof(cons));
-    lhs.val.cons=xmalloc(sizeof(cons));
-    XCDR(lhs)=XCDR(rhs)=NIL;
-    pivot=pop_cons(ls);//cost of finding a better pivot outweights the benifits
+    sexp rhs=NIL,lhs=NIL,pivot,cur_cell;
+    pivot=XCAR(ls);//cost of finding a better pivot outweights the benifits
+    ls=XCDR(ls);
     while(CONSP(ls)){
-      cur_cell=pop_cons(ls);
-      if(f(cur_cell,pivot).tag!=-3){
-        push_cons(cur_cell,lhs);
+      cur_cell=XCAR(ls);
+      if(isTrue(f(cur_cell,pivot))){
+        lhs=Cons(cur_cell,lhs);
       } else {
-        push_cons(cur_cell,rhs);
+        rhs=Cons(cur_cell,rhs);
       }
+      ls=XCDR(ls);
     }
     lhs=qsort_acc(lhs,f);
     rhs=qsort_acc(rhs,f);
-    //find a better way to do this
-    XCDR(last(lhs))=pivot;
-    XCDR(pivot)=rhs;
+    sexp pivot_cell;
+    pivot_cell.val.cons=xmalloc(sizeof(cons));
+    XCAR(pivot_cell)=pivot;
+    XCDR(pivot_cell)=NIL;
+    if(CONSP(lhs)){
+      XCDR(last(lhs))=pivot_cell;
+    } else if (!NILP(lhs)) {
+      lhs=Cons(lhs,pivot_cell);
+    } else {
+      lhs=pivot_cell;
+    }
+    if(CONSP(rhs)){
+      XCDR(pivot_cell)=rhs;
+    } else if (!NILP(rhs)) {
+      XCDR(pivot_cell)=Cons(rhs,NIL);
+    }
     return lhs;
   }
+}
+static sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp));
+static sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp));
+sexp merge_sort(sexp ls,sexp sort_fn){
+  if(!CONSP(ls) || !FUNP(sort_fn)){
+    return error_sexp("merge sort sort_fn type error");
+  }
+  sexp(*f)(sexp,sexp);
+  env lambda_env;
+  f=sort_fn.val.fun->comp.f2;
+  return merge_sort_acc(ls,f);
 }
 sexp qsort_cons(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNP(sort_fn)){
@@ -215,6 +241,37 @@ sexp qsort_cons(sexp ls,sexp sort_fn){
   f=sort_fn.val.fun->comp.f2;
   return qsort_acc(ls,f);
 }
+sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp)){
+  if(!CONSP(ls)){
+    return error_sexp("merge-sort type error, expected a cons cell");
+    return ls;
+  }
+  else if(NILP(XCDR(ls))){
+    return ls;
+  } else {
+    int mid=cons_length(ls).val.int64/2;
+    sexp left=ls;
+    //I think this should work, but I'm not sure
+    sexp mid_cell=nth(ls,mid);
+    sexp right=XCDR(mid_cell);
+    XCDR(mid_cell)=NIL;
+    return merge_sort_merge(merge_sort_acc(left,f),merge_sort_acc(right,f),f);
+  }
+}
+sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
+  if(NILP(left)){
+    return right;
+  } else if (NILP(right)){
+    return left;
+  } else {
+    if(isTrue(f(XCAR(left),XCAR(right)))){
+      return Cons(XCAR(left),merge_sort_merge(XCDR(left),right,f));
+    } else {
+      return Cons(XCAR(right),merge_sort_merge(left,XCDR(right),f));
+    }
+  }
+}
+      
 sexp assoc(sexp obj,sexp ls,sexp eq_fn){
   if(!CONSP(ls)){
     return error_sexp("argument 2 of assoc must be an alist");
@@ -226,11 +283,25 @@ sexp assoc(sexp obj,sexp ls,sexp eq_fn){
   while(CONSP(ls)){
     if(isTrue(eq_fxn(XCAR(ls),obj))){
       return XCAR(ls);
-    } 
+    }
     ls=XCDR(ls);
   }
   return NIL;
 }
 sexp assq(sexp ls, sexp obj){
   return assoc(ls,obj,NIL);
+}
+sexp lisp_nth(sexp ls,sexp n){
+  if(!CONSP(ls) || !(INTP(n))){
+    return error_sexp("type error in nth");
+  } else {
+    return nth(ls,n.val.int64);
+  }
+}
+sexp lisp_last(sexp ls){
+  if(!CONSP(ls)){
+    return error_sexp("last type error, expected a cons cell");
+  } else {
+    return last(ls);
+  }
 }

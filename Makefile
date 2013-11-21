@@ -61,7 +61,7 @@ llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
 	 $(XLDFLAGS) $(COMMON_CFLAGS) -L$(shell pwd) \
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -g -o llvm-test
-all: SciLisp llvm_test
+all: SciLisp libs SciLisp_llvm
 #compiled files
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
@@ -110,13 +110,16 @@ define start_libSciLisp =
 	$(CC_TEMP) -o lib_files/libSciLisp_bignum.o -c bignum.c
 	$(CC_TEMP) -o lib_files/libSciLisp_hash_fn.o -c hash_fn.c
 	$(CC_TEMP) -o lib_files/libSciLisp_math.o -c lisp_math.c
+	$(CC_TEMP) -o lib_files/libSciLisp_ccall.o -c ccall.c
+	$(CC_TEMP) -o lib_files/libSciLisp_cffi.o -c cffi.c
 endef
-libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c lib_files
+libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c lib_files ccall.c cffi.c
 define libSciLisp_files :=
 lib_files/libSciLisp_prim.o lib_files/libSciLisp_env.o lib_files/libSciLisp_cons.o \
 	lib_files/libSciLisp_array.o lib_files/libSciLisp_eval.o  \
 	lib_files/libSciLisp_print.o lib_files/libSciLisp_bignum.o \
-	lib_files/libSciLisp_hash_fn.o lib_files/libSciLisp_math.o
+	lib_files/libSciLisp_hash_fn.o lib_files/libSciLisp_math.o \
+	lib_files/libSciLisp_ccall.o lib_files/libSciLisp_cffi.o
 endef
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libSciLisp.o: libSciLisp_reqs
@@ -172,7 +175,7 @@ llvm:  llvm/configure
 	--enable-optimized --enable-shared\
 	 --with-python=$(PYTHON2) && $(MAKE) -k install
 clang: llvm/tools/clang
-llnm/tools/clang:
+llvm/tools/clang:
 	cd llvm/tools && git clone http://llvm.org/git/clang.git
 gc/gc_config.stamp:
 	if [ ! -f gc/bdwgc/configure ];then cd gc/bdwgc && ./autogen.sh; fi

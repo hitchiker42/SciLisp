@@ -62,12 +62,12 @@ static inline sexp cdr(sexp cell){
 #define XCAR(cell) cell.val.cons->car
 #define XCDR(cell) cell.val.cons->cdr
 //get nth member of a list using typechecked car
-static inline sexp nth(sexp cell,int n){
-  while(n>0){
-    cell=car(cell);
-    n++;
+static inline sexp nth(sexp cell,int64_t n){
+  while(n>0 && CONSP(cell)){
+    cell=XCDR(cell);
+    n--;
   }
-  return cell;
+  return (n==0 ? cell : error_sexp("nth error, index greater than length of list"));
 }
 static inline sexp last(sexp cell){
   while(!NILP(cdr(cell))){
@@ -210,4 +210,9 @@ static sexp cddddr(sexp cell){return cdr(cdr(cdr(cdr(cell))));}
   (insert (upcase (format "#define XC%c%c%c%cr(cell) XC%cR(XC%cR(XC%cR(XC%cR(cell))))\n")))
   i j k l i j k l)))))
 */
+typedef struct cons_tree cons_tree;
+struct cons_tree {
+  sexp node;
+  cons *leaves;
+};
 #endif

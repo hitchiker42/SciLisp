@@ -6,13 +6,12 @@
 #include "llvm_c.h"
 int gensym_counter=0;
 jmp_buf jmp_to_error;
-sexp error_val;
 #define GENSYM (++gensym_counter)
 #define void_fxn_type LispFxnTypes[0]
 char *error;
 static LLVMValueRef LLVMGenFunctionBody(sexp expr,env *cur_env);
 LLVMValueRef LLVMCodegenAtom(sexp expr,env *cur_env,LLVMBuilderRef builder);
-#define PRIM_BC_SIZE 147456//this is 36*pg_size
+#define PRIM_BC_SIZE 163840//this is 40*pg_size
 static LLVMValueRef handle_error(){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
   return LispNIL;

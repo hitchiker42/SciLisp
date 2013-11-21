@@ -8,7 +8,7 @@
 (defun fact-acc (acc n) (if (<= n 1) acc (fact-acc (* n acc) (-- n))))
 (defun sum (x)(reduce x +))
 (defun is-even (n) (if (= 0 n) #t (is-odd (-- n))))
-(defun is-odd (n) (if (= 0 n) #f (is-even (--n ))))
+(defun is-odd (n) (if (= 0 n) #f (is-even (-- n))))
 (define prod (lambda (x) (reduce x *)))
 (def ls '(1 23 34 56 78))
 (def ls2 (iota 10))
@@ -126,6 +126,8 @@
 (is-odd 17)
 (is-even 8)
 (is-odd 8)
+(qsort '(1 4 2 9 3 8 4 0 274 49 1 929 99 2 37 4 82 3 8 39 2 39 9) >)
+(qsort '(1 4 2 9 3 8 4 0 274 49 1 929 99 2 37 4 82 3 8 39 2 39 9) <=)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

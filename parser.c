@@ -293,26 +293,10 @@ sexp parse_atom(){
       //parse a literal list
       if(yytag==TOK_LPAREN){
         return parse_list();
-        /*        sexp retval;
-        retval.tag=_list;
-        cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
-        cons* prev_loc=cur_loc;
-        while(nextTok() != TOK_RPAREN){
-          cur_loc->car=parse_sexp();
-          cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
-          prev_loc=cur_loc;
-          cur_loc=cur_loc->cdr.val.cons;
-        }
-        prev_loc->cdr=NIL;
-        return retval;*/
       } else{
         return *yylval;//return anything else unevaluated
       }
     case TOK_ID:
-      //      tmpsym=(symref)getGlobalSym(yylval->val.string);
-      //      if(tmpsym){
-      //        return (sexp){.tag=_sym,.val={.var = tmpsym}};
-      //      } else {
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
         tmpsym->val=UNBOUND;
@@ -450,6 +434,7 @@ sexp parse_macro(){
 }
 static inline sexp parse_list(){
   sexp retval;
+  int i=0;
   retval.tag=_list;
   cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
   cons* prev_loc=cur_loc;
@@ -462,6 +447,7 @@ static inline sexp parse_list(){
     cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
     prev_loc=cur_loc;
     cur_loc=cur_loc->cdr.val.cons;
+    i++;
   }
   if(yytag == TOK_DOT){
     nextTok();
@@ -472,6 +458,7 @@ static inline sexp parse_list(){
   } else {//yytag // TOK_RPAREN
     prev_loc->cdr=NIL;
   }
+  retval.len=i;
   return retval;
 }
 static inline sexp parse_function_args(){
