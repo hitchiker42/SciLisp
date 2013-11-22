@@ -1,81 +1,30 @@
-/* hash - hashing table processing.
-   Copyright (C) 1998-1999, 2001, 2003, 2009-2013 Free Software Foundation,
-   Inc.
-   Written by Jim Meyering <meyering@ascend.com>, 1998.
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
-/* A generic hash table package.  */
-/* Modified for use in SciLisp by Tucker DiNapoli (C) 2013 */
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #ifndef HASH_H_
-# define HASH_H_
+#define HASH_H_
 #include "common.h"
 #include "hash_fn.h"
-# include <stdint.h>
-# include <stdio.h>
-#define _GL_ATTRIBUTE_WUR __attribute__((warn_unused_result))
-typedef void (*Hash_Free) (void *);
-typedef long (*Hash_processor) (data, data);
-typedef long (*Hash_Function) (data);
-typedef long (*Hash_Compare) (data,data);
-typedef void* (*Hash_Malloc) (size_t);
-typedef struct hash_tuning hash_tuning;
-
-/* A hash table contains many internal entries, each holding a pointer to
-   some user-provided data (also called a user entry).  An entry indistinctly
-   refers to both the internal entry and its associated user entry.  A user
-   entry contents may be hashed by a randomization function (the hashing
-   function, or just "hasher" for short) into a number (or "slot") between 0
-   and the current table size.  At each slot position in the hash table,
-   starts a linked chain of entries for which the user data all hash to this
-   slot.  A bucket is the collection of all entries hashing to the same slot.
-
-   Long buckets slow down the lookup algorithm.  One might use big hash table
-   sizes in hope to reduce the average length of buckets, but this might
-   become inordinate, as unused slots in the hash table take some space.  The
-   best bet is to make sure you are using a good "hasher" function (beware
-   that those are not that easy to write! :-), and to use a table size
-   larger than the actual number of entries.  */
+//ht=hash_table
 typedef struct hash_table hash_table;
 typedef struct hash_entry hash_entry;
-struct hash_tuning {
-  /* This structure is mainly used for 'hash_initialize', see the block
-     documentation of 'hash_reset_tuning' for more complete comments.  */
-  float shrink_threshold;     /* ratio of used buckets to trigger a shrink */
-  float shrink_factor;        /* ratio of new smaller size to original size */
-  float growth_threshold;     /* ratio of used buckets to trigger a growth */
-  float growth_factor;        /* ratio of new bigger size to original size */
-  int is_n_buckets;          /* if CANDIDATE really means table size */
-};
-/* Information and lookup.  */
-/* Return the number of buckets in the hash table.  The table size, the total
-   number of buckets (used plus unused), or the maximum number of slots, are
-   the same quantity.  */
-long hash_get_num_buckets (const hash_table *) __attribute__((pure));
+/* return the total number of buckets in the hash table */
+sexp hash_get_size (sexp ht) __attribute__((pure));
 /* Return the number of slots in use (non-empty buckets).  */
-long hash_get_num_buckets_used (const hash_table *) __attribute__((pure));
+sexp hash_get_used (sexp ht) __attribute__((pure));
 /* Return the number of active entries.  */
-long hash_get_num_entries (const hash_table *) __attribute__((pure));
+sexp hash_get_entries (sexp ht) __attribute__((pure));
 /* Return the length of the longest chain (bucket).  */
-long hash_get_max_bucket_length (const hash_table *) __attribute__((pure));
+sexp hash_get_max_length (sexp ht) __attribute__((pure));
+/* If ENTRY matches an entry already in the hash table, return the
+   entry from the table.  Otherwise, return NIL.  */
+sexp hash_lookup (sexp ht, sexp key);
 /* Do a mild validation of a hash table, by traversing it and checking two
    statistics.  */
 int hash_table_ok (const hash_table *) __attribute__((pure));
 void hash_print_statistics (const hash_table *, FILE *);
-/* If ENTRY matches an entry already in the hash table, return the
-   entry from the table.  Otherwise, return NULL.  */
-data hash_lookup (const hash_table *, data);
+
 
 /* Walking.  */
 sexp hash_get_first (const hash_table *) __attribute__((pure));

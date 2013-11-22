@@ -10,6 +10,24 @@
   pointer->c_data=pointers;
   return;
   }*/
+sexp make_c_ptr(sexp c_value,sexp deg_of_indir){
+  if(!INTP(deg_of_indir)){
+    return format_type_error("make-cpointer","integer",deg_of_indir.tag);
+  }
+  //check that c_value is of some c type
+  ctype_val* pointer_mem=xmalloc(sizeof(ctype_val)*deg_of_indir.val.int64+1);
+  int i=0;
+  //because sexp data and ctype_vals are both unions of the same size
+  //I should be fine just setting the c_value to the sexp value
+  pointer_mem[i]=*(ctype_val*)&c_value.val;
+  for(i=1;i<deg_of_indir.val.int64+1;i++){
+    pointer_mem[i].pointer=pointer_mem+(i-1);
+  }
+  c_data *retval=xmalloc(sizeof(c_data));
+  *retval=(c_data){.val={.pointer=pointer_mem},.type=c_value.tag,
+                   .ptr_depth=deg_of_indir.val.int64};
+  return c_data_sexp(retval);
+}
 static ctype_val dereference_c_ptr_helper(ctype_val *ptr_data,int depth){
   if(depth>1){
     return dereference_c_ptr_helper((*(ptr_data->pointer)).pointer,depth-1);

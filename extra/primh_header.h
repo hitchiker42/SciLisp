@@ -69,6 +69,7 @@ extern const sexp lisp_pi;
 extern const sexp lisp_euler;
 extern const sexp lisp_max_long;
 extern const sexp lisp_mach_eps;
+extern symref lisp_ans_ptr;
 void initPrims();
 //create prototypes for functions in prim.c 
 //so primitives can be used in the c source

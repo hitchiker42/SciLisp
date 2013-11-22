@@ -66,12 +66,12 @@
   symref c_name ## _ptr=0;                                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=hash_v}
-//not sure if this has non constant initalizers or not
-#define MAKE_CONSTANT(l_name,c_name)     \
-  symbol c_name ## _sym = {.name=l_name,.val=c_name};                  \
-  symref c_name ## _ptr = 0;                                           \
-  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,      \
-                                      .hashv=0}
+#define MAKE_GLOBAL(l_name,c_name,constant)                             \
+  symbol c_name ## _sym = {.name=l_name,.val=c_name,                    \
+                           .props={.is_const=constant}};                \
+  symref c_name ## _ptr = 0;                                            \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
+                                    .hashv=0}
 //  c_name##_ptr->symbol_env=ob_env;                             
 //  c_name##_ptr->symbol_env=ob_env;                             
 #define INIT_SYMBOL(c_name)                                    \
@@ -79,9 +79,9 @@
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
-#define INIT_CONST(c_name)                      \
-  c_name##_ptr=&c_name##_sym;                                   \
-  c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
+#define INIT_GLOBAL(c_name)                                      \
+  c_name##_ptr=&c_name##_sym;                                    \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                      \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_SYNONYM(c_name,l_name,gensym_counter)                      \
   symref c_name##_ptr_syn ##gensym_counter= xmalloc(sizeof(symbol));    \
@@ -403,84 +403,6 @@ sexp lisp_fputs(sexp string,sexp stream){
   }
   return NIL;
 }
-sexp lisp_cat(sexp string,sexp rest){
-  if(!STRINGP(string)){goto CAT_ERR;}
-  CORD retval = string.val.cord;
-  while(CONSP(rest)){
-    if(!STRINGP(XCAR(rest))){goto CAT_ERR;}
-    retval=CORD_cat(retval,XCAR(rest).val.cord);
-    rest=XCDR(rest);
-  }
-  return (sexp){.tag = _str,.val={.cord=retval}};
-  CAT_ERR:return error_sexp("arguments to cat must be strings");
-}
-sexp lisp_getcwd(){
-  //probabaly not the most efficent way to do this
-  char* temp_cwdname=get_current_dir_name();
-  CORD cwdname=CORD_from_char_star(temp_cwdname);
-  free(temp_cwdname);
-  return (sexp){.tag=_str,.val={.cord=cwdname}};
-}
-sexp lisp_system_simple(sexp command){
-  HERE();
-  if(!STRINGP(command)){
-    return error_sexp("argument to system must be a string");
-  } else {
-    int retval=system(command.val.cord);//should probably be CORD_as_cstring
-    return long_sexp(retval);
-  }
-}
-#define SHELL "/bin/bash"
-sexp lisp_system(sexp command,sexp args){
-  //  HERE();
-  if(!STRINGP(command)){
-  string_error:
-    return error_sexp("arguments to system must be strings");
-  } if(NILP(args)){
-    //    return lisp_system_simple(command);
-  }
-  /*allocate arguments, suprisingly complicated */
-  char **argv=alloca(16*sizeof(char*));//this should usually be enough
-  argv[0]="bash";
-  argv[1]="-c";
-  argv[2]=CORD_as_cstring(command.val.cord);
-  int i=3,maxargs=16;
-  while(1){
-    //    HERE();
-    while(CONSP(args) && i<maxargs){
-      //      HERE();
-      if(!STRINGP(XCAR(args))){goto string_error;}
-      argv[i]=CORD_as_cstring(XCAR(args).val.cord);
-      args=XCDR(args);
-      i++;
-    } if(i<maxargs){break;}
-    maxargs*=2;
-    char** temp=alloca(maxargs*sizeof(char*));
-    *temp=*argv;//? this seems somehow wrong
-    argv=temp;
-  }
-  argv[i]=NULL;
-  PRINT_MSG(argv[3]);
-  //now to actually do what we came here for
-  int status;
-  pid_t pid;
-  pid=fork();
-  if(!pid){
-    //we're in the child process now (fork returns 0 in child process)
-    execv(SHELL,argv);//doesn't return
-    _exit(EXIT_FAILURE);//if we get here something failed
-    //we need to termin
-  } else if (pid < 0) {//fork failed
-    return_errno("fork");
-  } else {//this is the parent process
-    if(waitpid(pid,&status,0) != pid){
-      return error_sexp
-        ("the hell, I only forked one process, how'd we get here");
-    } else {
-      return long_sexp(status);
-    }
-  }
-}
 sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   sexp(*f)(sexp,sexp);
   sexp retval;
@@ -611,27 +533,6 @@ sexp lisp_eql(sexp obj1,sexp obj2){
 sexp lisp_equal(sexp obj1,sexp obj2){
   return lisp_eql(obj1,obj2);
 }
-sexp lisp_apply(sexp fun,sexp args,sexp environment){
-  if(!FUNCTIONP(fun)){
-    return error_sexp("first argument to apply should be a funciton");
-  } 
-  if(NILP(environment)){
-    environment=env_sexp(topLevelEnv);
-  }
-  if(!ENVP(environment)){
-    return error_sexp("last argument to apply should be an environment or nil");
-  }
-  if(!CONSP(args)){
-    cons* one_arg=alloca(sizeof(cons));
-    one_arg->car=args;
-    one_arg->cdr=NIL;
-    args=cons_sexp(one_arg);
-  }
-  cons *funcall_code=alloca(sizeof(cons));
-  funcall_code->car=fun;
-  funcall_code->cdr=XCAR(args);
-  return lisp_funcall(cons_sexp(funcall_code),environment.val.cur_env);
-}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -652,10 +553,10 @@ sexp lisp_apply(sexp fun,sexp args,sexp environment){
 #define lisp_bigint_1  {.tag=_bigint,.val={.bigint=0}}
 #define lisp_bigfloat_0   {.tag=_bigfloat,.val={.bigfloat=0}}
 #define lisp_bigfloat_1   {.tag=_bigfloat,.val={.bigfloat=0}}
-#define lisp_NIL {.tag = -1,.val={.int64 = 0}}
+#define lisp_NIL {.tag = -1,.val={.meta = -1}}
 #define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
 #define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}
-
+#define lisp_ans {.tag=-1,.val={.meta=-1}}
 MK_PREDICATE3(consp,_cons,_list,_dpair);
 MK_PREDICATE2(numberp,_long,_double);
 MK_PREDICATE(arrayp,_array);
@@ -737,9 +638,10 @@ DEFUN("lrand",lisp_randint,0,0,0,0,0);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
 DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
 DEFUN("apply",lisp_apply,2,1,0,0,3);
-DEFUN("re-compile",lisp_re_compile,1,0,0,0,1);
+DEFUN("re-compile",lisp_re_compile,1,1,0,0,2);
 DEFUN("re-match",lisp_re_match,2,3,0,0,5);
 DEFUN("re-subexpr",lisp_get_re_backref,2,0,0,0,2);
+DEFUN("make-cpointer",make_c_ptr,2,0,0,0,2);
 DEFUN("bigfloat-add",lisp_bigfloat_add,2,0,0,0,2);
 DEFUN("bigfloat-sub",lisp_bigfloat_sub,2,0,0,0,2);
 DEFUN("bigfloat-mul",lisp_bigfloat_mul,2,0,0,0,2);
@@ -873,6 +775,7 @@ MAKE_SYMBOL("apply",lisp_apply,0x35de5e4bd0bba8ae );
 MAKE_SYMBOL("re-compile",lisp_re_compile,0xa2764a4bb059a9d9 );
 MAKE_SYMBOL("re-match",lisp_re_match,0x80d577d4c3b37b05 );
 MAKE_SYMBOL("re-subexpr",lisp_get_re_backref,0x8a116ddc4ad390f1 );
+MAKE_SYMBOL("make-cpointer",make_c_ptr,0xc453eec8f4f7885c );
 MAKE_SYMBOL("bigfloat-add",lisp_bigfloat_add,0x5ce208f741cde6d2 );
 MAKE_SYMBOL("bigfloat-sub",lisp_bigfloat_sub,0xd42552f784c9600b );
 MAKE_SYMBOL("bigfloat-mul",lisp_bigfloat_mul,0x7d86d2f753b9f1e7 );
@@ -933,17 +836,18 @@ MAKE_SYMBOL("caadar",caadar,0xd772cdb1761aa3a7 );
 MAKE_SYMBOL("caaar",caaar,0xa259a3aab7cc44b );
 MAKE_SYMBOL("caaadr",caaadr,0xbaf452b1654165ed );
 MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
-MAKE_CONSTANT("Meps",lisp_mach_eps);
-MAKE_CONSTANT("pi",lisp_pi);
-MAKE_CONSTANT("e",lisp_euler);
-MAKE_CONSTANT("max_long",lisp_max_long);
-MAKE_CONSTANT("nil",lisp_NIL);
-MAKE_CONSTANT("t",lisp_LISP_TRUE);
-MAKE_CONSTANT("#f",lisp_LISP_FALSE);
-MAKE_CONSTANT("double-0",lisp_double_0);
-MAKE_CONSTANT("double-1",lisp_double_1);
-MAKE_CONSTANT("long-0",lisp_long_0);
-MAKE_CONSTANT("long-1",lisp_long_1);
+MAKE_GLOBAL("Meps",lisp_mach_eps,1);
+MAKE_GLOBAL("pi",lisp_pi,1);
+MAKE_GLOBAL("e",lisp_euler,1);
+MAKE_GLOBAL("max_long",lisp_max_long,1);
+MAKE_GLOBAL("nil",lisp_NIL,1);
+MAKE_GLOBAL("t",lisp_LISP_TRUE,1);
+MAKE_GLOBAL("#f",lisp_LISP_FALSE,1);
+MAKE_GLOBAL("double-0",lisp_double_0,1);
+MAKE_GLOBAL("double-1",lisp_double_1,1);
+MAKE_GLOBAL("long-0",lisp_long_0,1);
+MAKE_GLOBAL("long-1",lisp_long_1,1);
+MAKE_GLOBAL("ans",lisp_ans,0);
 mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void initPrimsObarray(obarray *ob,env* ob_env);
@@ -1052,6 +956,7 @@ INIT_SYMBOL(lisp_apply);
 INIT_SYMBOL(lisp_re_compile);
 INIT_SYMBOL(lisp_re_match);
 INIT_SYMBOL(lisp_get_re_backref);
+INIT_SYMBOL(make_c_ptr);
 INIT_SYMBOL(lisp_bigfloat_add);
 INIT_SYMBOL(lisp_bigfloat_sub);
 INIT_SYMBOL(lisp_bigfloat_mul);
@@ -1112,15 +1017,16 @@ INIT_SYMBOL(caadar);
 INIT_SYMBOL(caaar);
 INIT_SYMBOL(caaadr);
 INIT_SYMBOL(caaaar);
-INIT_CONST(lisp_mach_eps);
-INIT_CONST(lisp_pi);
-INIT_CONST(lisp_euler);
-INIT_CONST(lisp_max_long);
-INIT_CONST(lisp_NIL);
-INIT_CONST(lisp_LISP_TRUE);
-INIT_CONST(lisp_LISP_FALSE);
-INIT_CONST(lisp_double_0);
-INIT_CONST(lisp_double_1);
-INIT_CONST(lisp_long_0);
-INIT_CONST(lisp_long_1);
+INIT_GLOBAL(lisp_mach_eps);
+INIT_GLOBAL(lisp_pi);
+INIT_GLOBAL(lisp_euler);
+INIT_GLOBAL(lisp_max_long);
+INIT_GLOBAL(lisp_NIL);
+INIT_GLOBAL(lisp_LISP_TRUE);
+INIT_GLOBAL(lisp_LISP_FALSE);
+INIT_GLOBAL(lisp_double_0);
+INIT_GLOBAL(lisp_double_1);
+INIT_GLOBAL(lisp_long_0);
+INIT_GLOBAL(lisp_long_1);
+INIT_GLOBAL(lisp_ans);
 }

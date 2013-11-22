@@ -40,6 +40,9 @@ int quiet_signals=1;
 #else
 int quiet_signals=0;
 #endif
+static long lisp_hist_size=-1;
+static sexp *lisp_history;
+#define DEFAULT_LISP_HIST_SIZE 100
 int evalError=0;
 static char *line_read;
 static void SciLisp_getopt(int argc,char *argv[]);
@@ -288,7 +291,11 @@ int main(int argc,char* argv[]){
   if(!no_copyright){
     puts(banner);
   }
-  sexp ast,result;
+  if(lisp_hist_size==-1){
+    lisp_hist_size=DEFAULT_LISP_HIST_SIZE;
+  }
+  lisp_history=xmalloc(sizeof(sexp)*lisp_hist_size);
+  sexp ast;
  REPL:while(1){
     if(setjmp(error_buf)){
       PRINT_MSG("jumped to error");
@@ -312,10 +319,10 @@ int main(int argc,char* argv[]){
     ast=yyparse(my_pipe);
     //print
     if(!NILP(ast)){
-      result=evalFun(XCAR(ast),topLevelEnv);
-      CORD_printf(print(result));puts("\n");
+      lisp_ans_ptr->val=evalFun(XCAR(ast),topLevelEnv);
+      CORD_printf(print(lisp_ans_ptr->val));puts("\n");
     } else {
-      result=NIL;
+      ;
     }
   }
 }

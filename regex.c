@@ -23,7 +23,7 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,
     return error_sexp("re-match type error, expected a regex or a string, and a string");
   } 
   if(STRINGP(re)){
-    re=lisp_re_compile(re);
+    re=lisp_re_compile(re,NIL);
   }
   uint64_t int_start;
   if(NILP(start)){

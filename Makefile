@@ -33,9 +33,9 @@ LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
-	hash_fn.c lisp_math.c cffi.c ccall.c regex.c
+	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
-	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o
+	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o
 #STD_LIB
 #STD_LIB_SRC:=
 BACKEND_SRC:=eval.c codegen.c prim.c
@@ -95,6 +95,7 @@ emacs_regex.o: emacs_regex.c emacs_regex.h
 regex.o: regex.c regex.h $(COMMON_HEADERS) emacs_regex.o
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h fnv_hash
 	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
+lisp_system.o: lisp_system.c $(COMMON_HEADERS)
 #making libraries
 LIBSCILISP_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
 lib_files:
@@ -113,14 +114,16 @@ define start_libSciLisp =
 	$(CC_TEMP) -o lib_files/libSciLisp_math.o -c lisp_math.c
 	$(CC_TEMP) -o lib_files/libSciLisp_ccall.o -c ccall.c
 	$(CC_TEMP) -o lib_files/libSciLisp_cffi.o -c cffi.c
+	$(CC_TEMP) -o lib_files/libSciLisp_system.o -c lisp_system.c
 endef
-libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c lib_files ccall.c cffi.c
+libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c lib_files ccall.c cffi.c lisp_system.c
 define libSciLisp_files :=
 lib_files/libSciLisp_prim.o lib_files/libSciLisp_env.o lib_files/libSciLisp_cons.o \
 	lib_files/libSciLisp_array.o lib_files/libSciLisp_eval.o  \
 	lib_files/libSciLisp_print.o lib_files/libSciLisp_bignum.o \
 	lib_files/libSciLisp_hash_fn.o lib_files/libSciLisp_math.o \
-	lib_files/libSciLisp_ccall.o lib_files/libSciLisp_cffi.o
+	lib_files/libSciLisp_ccall.o lib_files/libSciLisp_cffi.o \
+	lib_files/libSciLisp_system.o 
 endef
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libSciLisp.o: libSciLisp_reqs

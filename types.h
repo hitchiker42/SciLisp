@@ -51,6 +51,7 @@ typedef struct c_data c_data;
 typedef struct symbol_props symbol_props;
 typedef struct re_match_data re_match_data;
 typedef struct re_pattern_buffer regex_t;
+typedef struct hash_table hash_table;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -103,6 +104,8 @@ typedef wchar_t char32_t;
 #define RE_MATCHP(obj) (obj.tag == _re_data)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
+#define LITERALP(obj) (obj.is_pointer == 0)
+#define POINTERP(obj) (obj.is_pointer == 1)
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
@@ -228,6 +231,7 @@ union data {//keep max size at 64 bits
   function *fun;
   function_args* funarg;//depreciated
   function_args* funargs;
+  hash_table *hash_table;
   int16_t int16;
   int32_t int32;
   int64_t int64;
@@ -258,13 +262,15 @@ union data {//keep max size at 64 bits
 //meta is for mutualy exclusvie information
 //whlie the next 8 bits are for inclusive information
 struct sexp{//128 bits/16 bytes
-  _tag tag;//could be shorter if need be  
-  sexp_meta meta : 8;//random metadata
-  unsigned int quoted :2;
-  int setfable :1;
-  int has_comma :1;
-  uint16_t len;//length of a list, array or string
-  data val;
+  _tag tag;//could be shorter if need be  | 32
+  sexp_meta meta : 8;//random metadata    | 40
+  unsigned int quoted :2;//               | 42
+  int setfable :1;//                      | 43
+  int has_comma :1;//                     | 44
+  int is_pointer:1;//                     | 45
+  //3 bits free
+  uint16_t len;//length of a sequence     | 61
+  data val;//                             | 128
 };
 struct cons{//32 bytes
   sexp car;

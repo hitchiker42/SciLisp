@@ -56,6 +56,7 @@
 #define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
 #define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
 #define cord_sexp(cord_val) string_sexp(cord_val)
+#define c_data_sexp(c_data_val) (sexp){.tag=_cdata,.val={.c_val=c_data_val}}
 #define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
 #define env_sexp(env_val) (sexp) {.tag=_env,.val={.cur_env=env_val}}
 #define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
@@ -119,6 +120,7 @@ extern sexp call_builtin(sexp expr,env *cur_env);
 extern sexp call_lambda(sexp expr,env *cur_env);
 extern sexp lisp_funcall(sexp expr,env *cur_env);
 extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
+extern sexp lisp_apply(sexp function,sexp arguments,sexp envrionment);
 extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
 extern sexp lispRead(CORD code);// __attribute__((pure));
 //I don't need to pull in all of the hash functions

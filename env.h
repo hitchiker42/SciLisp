@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #ifndef __ENV_H__
 #define __ENV_H__
 #include "common.h"
@@ -5,6 +9,7 @@ struct symbol_props {
   int is_const :1;
   int setfable :1;
   int typed :1;
+  int global :1;
   _tag type;
 };
 struct symbol {

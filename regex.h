@@ -9,11 +9,11 @@
 #define _REGEX_H_
 #include "common.h"
 #include "emacs_regex.h"
-#include "regex/pcre/include/pcre.h"
-pcre_malloc=xmalloc;
-pcre_free=xfree;
-pcre32_malloc=xmalloc;
-pcre32_free=xfree;
+//#include "regex/pcre/include/pcre.h"
+//pcre_malloc=xmalloc;
+//pcre_free=xfree;
+//pcre32_malloc=xmalloc;
+//pcre32_free=xfree;
 struct re_match_data{
   CORD re_string;
   struct re_registers *match_data;    

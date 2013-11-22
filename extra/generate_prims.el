@@ -144,6 +144,8 @@
      ((:lname . "re-match") (:cname . "lisp_re_match") (:minargs . 2)
       (:maxargs . 5) (:optargs . 3) (:keyargs . 0)(:restarg . 0))
      ((:lname . "re-subexpr")(:cname . "lisp_get_re_backref")(:minargs . 2)
+      (:maxargs . 2)(:optargs . 0)(:keyargs . 0)(:restarg . 0))
+     ((:lname . "make-cpointer")(:cname . "make_c_ptr")(:minargs . 2)
       (:maxargs . 2)(:optargs . 0)(:keyargs . 0)(:restarg . 0)))
   (mpfr-binops mpfr-binops-list)
   (collect #'mk-predicate predicates)
@@ -151,14 +153,18 @@
   (collect  (lambda (x) (apply #'mkPrimBasic x)) *cadrs*)))
 (require 'cl)
 (delete-duplicates SciLisp-prims :test #'equal)
-(define SciLisp-constants
-  '(("lisp_mach_eps" . "Meps") ("lisp_pi" . "pi") ("lisp_euler" ."e") 
-    ("lisp_max_long" . "max_long") ("lisp_NIL" . "nil") ("lisp_LISP_TRUE" . "t")
-    ("lisp_LISP_FALSE" . "#f")
+(define SciLisp-globals
+  (list (vector "lisp_mach_eps" "Meps" 1) (vector "lisp_pi" "pi" 1) 
+        (vector "lisp_euler" "e" 1) (vector "lisp_max_long" "max_long" 1)
+        (vector "lisp_NIL"  "nil" 1) (vector "lisp_LISP_TRUE" "t" 1)
+        (vector "lisp_LISP_FALSE" "#f" 1)
     ;("stdin" . "lisp_stdin") ("stdout" . "lisp_stdout") ("stderr" . "lisp_stderr")
-    ("lisp_double_0" . "double-0") ("lisp_double_1" . "double-1")
-    ("lisp_long_0" ."long-0") ("lisp_long_1" . "long-1")))
+        (vector "lisp_double_0" "double-0" 1) (vector "lisp_double_1" "double-1" 1)
+        (vector "lisp_long_0" "long-0" 1) (vector "lisp_long_1" "long-1" 1)
+        (vector "lisp_ans" "ans" 0)))
 ;    "lisp_bigfloat_0" "lisp_bigfloat_1" "lisp_bigint_0" "lisp_bigint_1"))
+(define SciLisp-aliases
+  '(("lisp_consp" "\"cons?\"" 1)))
 (defvar initPrimsObarray-header)
 (setq initPrimsObarray-header
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;
@@ -204,11 +210,12 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 ")
 (defvar primc-suffix "#undef DEFUN
 ")
-(defun makeConsts-format (const)
+(defun makeGlobals-format (global)
   (format
-   "MAKE_CONSTANT(\"%s\",%s);\n" (cdr const) (car const)))
-(defun initConsts-format (const)
-  (format "INIT_CONST(%s);\n" (car const)))
+   "MAKE_GLOBAL(\"%s\",%s,%d);\n" (aref global 1) (aref global 0) 
+   (aref global 2)))
+(defun initGlobals-format (global)
+  (format "INIT_GLOBAL(%s);\n" (aref global 0)))
 (defmacro prim-val (keysym)
   `(cdr (assq ,keysym prim)))
 (defun primc-format (prim)
@@ -238,9 +245,9 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
       (princ (primh-format prim) primh)
       (princ (makePrimSymbols-format prim) primSyms)
       (princ (initPrimsObarray-format prim) initPrimsObarray))
-    (dolist (const SciLisp-constants)
-      (princ (makeConsts-format const) primSyms)
-      (princ (initConsts-format const) initPrimsObarray))
+    (dolist (global SciLisp-globals)
+      (princ (makeGlobals-format global) primSyms)
+      (princ (initGlobals-format global) initPrimsObarray))
     (princ initPrimsObarray-suffix initPrimsObarray)
     (princ primc-suffix primc)
     (with-current-buffer primh

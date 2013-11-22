@@ -16,6 +16,7 @@ sexp call_lambda(sexp expr,env *cur_env);
 static sexp call_macro(sexp expr,env *cur_env);
 static sexp eval_special(sexp expr,env *cur_env);
 static sexp eval_def(sexp expr,env *cur_env);
+static sexp eval_setq(sexp expr,env *cur_env);
 static sexp eval_defun(sexp expr,env *cur_env);
 static sexp eval_if(sexp expr,env *cur_env);
 static sexp eval_while(sexp expr,env *cur_env);
@@ -110,23 +111,12 @@ static inline sexp eval_special(sexp expr,env *cur_env){
   //a bit more clarity
   //this is always called on a cons, no need to check
   sexp special_sexp=car(expr);
-  symref newSym;
   switch(special_sexp.val.special){
     //for now focus on def,defun,if and do
     case _def:
       return eval_def(expr,cur_env);
     case _setq:
-      newSym = getSym(cur_env,cadr(expr).val.var->name);
-      sexp symVal=eval(caddr(expr),cur_env);
-      if(!newSym){
-        newSym=xmalloc(sizeof(symbol_val));
-        newSym->name=(cadr(expr).val.var->name);
-        newSym=addSym(cur_env,newSym);
-        newSym->val=symVal;
-      } else {
-        newSym->val=symVal;
-      }
-      return (sexp){.tag = _sym,.val={.var = newSym}};
+      return eval_setq(expr,cur_env);
     case _lambda:
       return eval_lambda(expr,cur_env);
     case _if:
@@ -160,6 +150,24 @@ static inline sexp eval_special(sexp expr,env *cur_env){
   format_error_str("unknown special form");
   return handle_error();
 }
+static inline sexp eval_setq(sexp expr,env *cur_env){
+  symref newSym;
+  newSym = getSym(cur_env,cadr(expr).val.var->name);
+  sexp symVal=eval(caddr(expr),cur_env);
+  if(!newSym){
+    newSym=xmalloc(sizeof(symbol_val));
+    newSym->name=(cadr(expr).val.var->name);
+    newSym=addSym(cur_env,newSym);
+    newSym->val=symVal;
+  } else {
+    if(newSym->props.is_const){
+      return error_sexp("cannot set a constant to a new value");
+    }
+    newSym->val=symVal;
+  }
+  return symVal;
+}
+
 static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval;
@@ -194,7 +202,7 @@ static inline sexp eval_def(sexp expr,env *cur_env){
   } //else {
   //    newSym->val=symVal;
   //  }
-  return (sexp){.tag = _sym,.val={.var = newSym}};
+  return symref_sexp(newSym);
 }
 /*define a possibly recursive named function
  *syntax: (defun name (arglist) (body))*/
@@ -726,4 +734,25 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     //we've changed this in the loop above
     return mac->body;
   }
+}
+sexp lisp_apply(sexp fun,sexp args,sexp environment){
+  if(!FUNCTIONP(fun)){
+    return error_sexp("first argument to apply should be a funciton");
+  } 
+  if(NILP(environment)){
+    environment=env_sexp(topLevelEnv);
+  }
+  if(!ENVP(environment)){
+    return error_sexp("last argument to apply should be an environment or nil");
+  }
+  if(!CONSP(args)){
+    cons* one_arg=alloca(sizeof(cons));
+    one_arg->car=args;
+    one_arg->cdr=NIL;
+    args=cons_sexp(one_arg);
+  }
+  cons *funcall_code=alloca(sizeof(cons));
+  funcall_code->car=fun;
+  funcall_code->cdr=XCAR(args);
+  return lisp_funcall(cons_sexp(funcall_code),environment.val.cur_env);
 }

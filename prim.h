@@ -69,6 +69,7 @@ extern const sexp lisp_pi;
 extern const sexp lisp_euler;
 extern const sexp lisp_max_long;
 extern const sexp lisp_mach_eps;
+extern symref lisp_ans_ptr;
 void initPrims();
 //create prototypes for functions in prim.c 
 //so primitives can be used in the c source
@@ -141,9 +142,10 @@ DEFUN(lisp_randint,0);
 DEFUN(lisp_bigint,1);
 DEFUN(lisp_bigfloat,3);
 DEFUN(lisp_apply,3);
-DEFUN(lisp_re_compile,1);
+DEFUN(lisp_re_compile,2);
 DEFUN(lisp_re_match,5);
 DEFUN(lisp_get_re_backref,2);
+DEFUN(make_c_ptr,2);
 DEFUN(lisp_bigfloat_add,2);
 DEFUN(lisp_bigfloat_sub,2);
 DEFUN(lisp_bigfloat_mul,2);

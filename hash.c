@@ -1,97 +1,40 @@
-/* hash - hashing table processing.
-
-   Copyright (C) 1998-2004, 2006-2007, 2009-2013 Free Software Foundation, Inc.
-
-   Written by Jim Meyering, 1992.
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-/* Modifications for SciLisp (C) 2013 Tucker DiNapoli */
-/* Hash table package from gnulib tweaked for use with SciLisp */
-/* Note:
- * Its probably best to have the option for weak hash pointers,
- * because gc doesn't actually have weak pointers I think we can
- * emulate them by allocating the hash table with gc_malloc_atomic
- * which means the hash table won't get scanned for pointers so if
- * there are only pointers to an object in the hash table it'll get freed*/
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #include "hash.h"
-
 //hash tables use a doubly linked list rather than cons cells internally
-struct hash_entry{
+struct hash_entry {
   hash_entry *prev;
-  data car;
-  hash_entry *cdr;
+  hash_entry *next;
+  uint64_t hashv;
+  sexp val;
 };
-/* old hash entry
-   hash_entry
-   {
-   void *data;
-   hash_entry *next;
-   };
-*/
 struct hash_table {
-  /* The array of buckets starts at BUCKET and extends to BUCKET_LIMIT-1,
-     for a possibility of NUM_BUCKETS.  Among those, NUM_BUCKETS_USED buckets
-     are not empty, there are NUM_ENTRIES active entries in the table.  */
-  _tag value_type;
-  hash_entry *buckets;//points to first bucket in array of buckets
-  hash_entry *bucket_limit;//""   last  ""
-  //we only ever use a pointer to this, so using longs is fine
-  long num_buckets;
-  long num_buckets_used;
-  long num_entries;
+  hash_entry **buckets;//points to first bucket in array of buckets
+  uint32_t size;
+  uint32_t used;
+  uint32_t entries;
   int is_weak_hash;
-  /* Tuning arguments, kept in a physically separate structure.  */
-  const Hash_tuning *tuning;
-  //hash_fn creates a hash from a evalue of type value_type
-  //compare_fn compares two values of type value_type for equality
-  Hash_Function hash_fn;
-  Hash_Compare compare_fn;
-  Hash_Malloc allocate_fn;
-  //NULL by default, if not null explictly deallocate hash values
-  //when they are removed(should only be used if the hash table
-  //is the only place the data is used
-  Hash_Free free_fn;
+  float capacity;
+  float capacity_inc;
+  float gthresh:
+  float gfactor;
+  froat sthresh;
+  float sfatcor;
+  uint64_t (*hash_fn)(const void*,int);
+  sexp (*hash_cmp)(sexp,sexp);
 };
-
-/* If an insertion makes the ratio of nonempty buckets to table size larger
-   than the growth threshold (a number between 0.0 and 1.0), then increase
-   the table size by multiplying by the growth factor (a number greater than
-   1.0).  The growth threshold defaults to 0.8, and the growth factor
-   defaults to 1.414, meaning that the table will have doubled its size
-   every second time 80% of the buckets get used.  */
 #define DEFAULT_GROWTH_THRESHOLD 0.8
 #define DEFAULT_GROWTH_FACTOR 1.414f
-
-/* If a deletion empties a bucket and causes the ratio of used buckets to
-   table size to become smaller than the shrink threshold (a number between
-   0.0 and 1.0), then shrink the table by multiplying by the shrink factor (a
-   number greater than the shrink threshold but smaller than 1.0).  The shrink
-   threshold and factor default to 0.0 and 1.0, meaning that the table never
-   shrinks.  */
 #define DEFAULT_SHRINK_THRESHOLD 0.0f
 #define DEFAULT_SHRINK_FACTOR 1.0f
-
-/* Use this to initialize or reset a TUNING structure to
-   some sensible values. */
-static const Hash_tuning default_tuning ={
-  DEFAULT_SHRINK_THRESHOLD,//ratio of num/used buckets needed to shrink table
-  DEFAULT_SHRINK_FACTOR,//ratio of new size to old size when shrinking
-  DEFAULT_GROWTH_THRESHOLD,//ratio of num/used buckets needed to grow table
-  DEFAULT_GROWTH_FACTOR,//ratio of new size to old size when growing
-  0,
-};
-
+sexp make_hash_table_default(sexp size_sexp){
+  if(!INTP(size_sexp)){
+    return format_type_error("make-hashtable","integer",size_sexp.tag);
+  }
+  uint64_t size=(uint64_t)size_sexp.val.int64;
+}
 /* Information and lookup.  */
 
 /* The following few functions provide information about the overall hash
