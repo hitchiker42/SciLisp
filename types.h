@@ -52,6 +52,7 @@ typedef struct symbol_props symbol_props;
 typedef struct re_match_data re_match_data;
 typedef struct re_pattern_buffer regex_t;
 typedef struct hash_table hash_table;
+typedef struct lisp_btree lisp_btree;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -179,6 +180,9 @@ enum _tag {
   _cdata=45,//c value and typeinfo(includes c pointer types)
   _opaque=46,//generic opaque c struct/union
   _re_data=47,//re match data
+  _hash_table=48,
+  _tree=49,
+  _tree_node=50,
 };
 enum special_form{
   _def=0,
@@ -210,10 +214,16 @@ enum special_form{
   _return=26,
   _unwind_protect=27,
   _block=28,
+  _defvar=29,
+  _defconst=30,
   
 };
+//mutually exclusive metadata, a single int value might have multiple names
 enum sexp_meta{
-  _double_array=_double,
+  _basic_tree=1,_avl_tree=2,_rb_tree=3,_splay_tree=4,
+  _red_node=1,_black_node=0,_black_leaf=2,
+  _double_array=_double,_float_array=_float,
+  _real64_array=_real64,_real32_array=_real32,
   _long_array=_long,
   _utf8_string=_char,
   _splice_list=_list,
@@ -238,6 +248,7 @@ union data {//keep max size at 64 bits
   int8_t int8;
   jmp_buf *label;
   keyword_symref keyword;
+  lisp_btree *tree;
   local_symref lenv;
   macro *mac;
   mpfr_t *bigfloat;
@@ -267,7 +278,7 @@ struct sexp{//128 bits/16 bytes
   unsigned int quoted :2;//               | 42
   int setfable :1;//                      | 43
   int has_comma :1;//                     | 44
-  int is_pointer:1;//                     | 45
+  int is_ptr:1;//                         | 45
   //3 bits free
   uint16_t len;//length of a sequence     | 61
   data val;//                             | 128
@@ -491,7 +502,12 @@ enum operator{
   _logior,
   _logxor,
 };
-
+/*static sexp make_sexp_from_type_and_data(data val,_tag type){
+  switch(type){
+  case _double:return double_sexp(val);
+  case _long:return long_sexp(val);
+  }
+  }*/
 
 #define getVal(obj)                                             \
   (obj.tag == _error ? obj.val.cord  :                          \

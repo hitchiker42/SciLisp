@@ -271,7 +271,7 @@ sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
     }
   }
 }
-      
+
 sexp assoc(sexp obj,sexp ls,sexp eq_fn){
   if(!CONSP(ls)){
     return error_sexp("argument 2 of assoc must be an alist");
@@ -304,4 +304,26 @@ sexp lisp_last(sexp ls){
   } else {
     return last(ls);
   }
+}
+sexp insertion_sort_cons(sexp list,sexp comp_fn){
+  if(NILP(list)||NILP(XCDR(list))){
+    return list;
+  }
+  //type checking and such
+  sexp(*f)(sexp,sexp)=comp_fn.val.fun->comp.f2;
+  sexp cur_pos=list;
+
+  sexp start=list;
+  sexp *trail;
+  while(CONSP(list)){
+    cur_pos=list;
+    list=XCDR(list);
+    trail=&start;
+    while(!NILP((*trail)) && !(isTrue(f(*trail,cur_pos)))){
+      trail=&(XCDR((*trail)));
+    }
+    XCDR(cur_pos)=*trail;
+    *trail=cur_pos;
+  }
+  return start;
 }

@@ -48,8 +48,8 @@
 #define xmalloc_atomic GC_MALLOC_ATOMIC
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 //type_sexp macros for convience (kinda like constructors I suppose)
-#define array_sexp(array_val,array_len,array_type)\
-  (sexp){.tag=_array,.meta=_##type##_array,.len=array_len,      \
+#define array_sexp(array_val,array_tag,array_len)              \
+  (sexp){.tag=_array,.meta=array_tag,.len=array_len,   \
       .val={.array=array_val}}
 #define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
       .val={.bigfloat=bigfloat_ptr}}
@@ -79,6 +79,7 @@
 #define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
 #define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
+#define tree_sexp(tree_val) (sexp){.tag=_tree,.val={.tree=tree_val},.is_ptr=1}
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
