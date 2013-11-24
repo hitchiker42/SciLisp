@@ -48,9 +48,9 @@
 #define xmalloc_atomic GC_MALLOC_ATOMIC
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 //type_sexp macros for convience (kinda like constructors I suppose)
-#define array_sexp(array_val,array_tag,array_len)              \
-  (sexp){.tag=_array,.meta=array_tag,.len=array_len,   \
-      .val={.array=array_val}}
+#define typed_array_sexp(array_val,array_tag,array_len)              \
+  (sexp){.tag=_typed_array,.meta=array_tag,.len=array_len,           \
+      .val={.typed_array=array_val}}
 #define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
       .val={.bigfloat=bigfloat_ptr}}
 #define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
@@ -75,8 +75,8 @@
 #define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val}}
 #define re_match_sexp(re_match_val) (sexp){.tag=_re_data,\
       .val={.re_data=re_match_val}}
-#define sarray_sexp(sarray_val,array_len)                       \
-  (sexp){.tag=_array,.len=array_len,.val={.sarray=sarray_val}}
+#define array_sexp(sarray_val,array_len)                        \
+  (sexp){.tag=_array,.len=array_len,.val={.array=sarray_val}}
 #define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
 #define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
@@ -92,7 +92,7 @@
   format_error_str(format,args),                     \
     error_sexp(CORD_to_char_star(error_str))
 //lisp constants needed in c
-static const sexp NIL={.tag = -1,.val={.meta = -1}};
+static const sexp NIL={.tag = -1,.val={.meta = -1},.len=0};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};

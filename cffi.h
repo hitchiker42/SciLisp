@@ -1,23 +1,21 @@
 #ifndef CFFI_H
 #define CFFI_H
-typedef union ctype_val ctype_val;
-typedef struct c_data c_data;
 enum ctype_kind {
-  _ctype_int8 = 1,
-  _ctype_int16 = 3,
-  _ctype_int32 = 5,
-  _ctype_int64 = 7,
-  _ctype_uint8 = 2,
-  _ctype_uint16 = 4,
-  _ctype_uint32 = 6,
-  _ctype_uint64 = 8,
-  _ctype_float = 9,_ctype_real32=9,
-  _ctype_double = 10,_ctype_real64=10,
+  _ctype_int8 = _int8,
+  _ctype_int16 = _int16,
+  _ctype_int32 = _int32,
+  _ctype_int64 = _int64,
+  _ctype_uint8 = _uint8,
+  _ctype_uint16 = _uint16,
+  _ctype_uint32 = _uint32,
+  _ctype_uint64 = _uint64,
+  _ctype_float = _float,_ctype_real32=_real32,
+  _ctype_double = _double,_ctype_real64=_real64,
   //special cases of structs
-  _ctype_FILE = 24,
-  _ctype_mpz = 11,
-  _ctype_mpfr = 12,
-  _ctype_struct = 46,//pointer to opaque struct
+  _ctype_FILE = _file,
+  _ctype_mpz = _bigint,
+  _ctype_mpfr = _bigfloat,
+  _ctype_struct = _opaque,//pointer to opaque struct
 };
 union ctype_val{
   int8_t ctype_int8;

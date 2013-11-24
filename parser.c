@@ -6,15 +6,18 @@
 #include "cons.h"
 #include "lex.yy.h"
 #define nextTok() (yytag=yylex())
+#define parse_next_sexp()                       \
+  nextTok();                                    \
+  parse_sexp()
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
 TOKEN yytag;//current token
 static jmp_buf ERROR;//location of error handling function
 static int inside_backquote=0;//global flag to determine how to handle a comma
-sexp parse_atom();
-sexp parse_cons();
+static sexp parse_atom();
+static sexp parse_cons();
 sexp parse_sexp();
-sexp parse_macro();//really parse backtick but it's almost always used in macros
+static sexp parse_backtick();
 static sexp parse_list();
 static sexp parse_arg_list();
 static sexp parse_function_args();
@@ -92,7 +95,7 @@ sexp parse_sexp(){
     }
     case TOK_QUASI:{
       inside_backquote=1;
-      sexp retval = parse_macro();
+      sexp retval = parse_backtick();
       inside_backquote=0;
       return retval;
     }
@@ -255,9 +258,6 @@ sexp parse_cons(){
   }
   //if we get here we have a function call or special form
   //implicit progn basically, keep parsing tokens until we get a close parens
-  //  XCDR(result)=parse_list();
-  //  HERE();
-  //  return result;
   sexp temp;
   cons* old_pos=result.val.cons;
   while((nextTok())!=TOK_RPAREN){
@@ -306,13 +306,28 @@ sexp parse_atom(){
         TODO: add per element checks(as of now I only check the first)
         TODO: allow expressions in arrays (eval them to a # before use)
       */
-    case TOK_LBRACE:
+    case TOK_LBRACE:{
+      int size=8,i=0;
+      sexp retval;
+      retval.tag=_array;
+      sexp *arr=retval.val.array=xmalloc(sizeof(sexp)*size);
+      while(nextTok() != TOK_RBRACE){
+        if(i>=size){
+          arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(sexp));
+        }
+        arr[i]=parse_sexp();
+        i++;
+      }
+      retval.len=i;
+      return retval;
+    }
+    case TOK_DBL_LBRACE:{
       //      HERE();
       nextTok();
       sexp retval;
       int size=8,i=-1;
-      data* arr=retval.val.array=xmalloc_atomic(size*sizeof(data));
-      retval.tag=_array;
+      data* arr=retval.val.typed_array=xmalloc_atomic(size*sizeof(data));
+      retval.tag=_typed_array;
       //      HERE();
       _tag arrType=yylval->tag;
       PRINT_MSG(tag_name(arrType));
@@ -322,14 +337,14 @@ sexp parse_atom(){
                      "Arrays of type %s are unimplemented\n",arrType);
         handle_error();
       }
-      retval.meta=(arrType == _double? 1 :
-                   (arrType == _long ? 2 :
+      retval.meta=(arrType == _double? _double :
+                   (arrType == _long ? _long :
                     //THIS DOESN'T WORK FOR MAKING UTF8 STRINGS
-                    (arrType == _char? 3 : assert(0),0)));
+                    (arrType == _char? _char : assert(0),0)));
       do{
         if(i++>=size){
           //  HERE();
-          arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(data));
+          arr=retval.val.typed_array=xrealloc(arr,(size*=2)*sizeof(data));
         }
         if(yytag !=TOK_REAL && yytag !=TOK_INT && yytag !=TOK_CHAR){
           handle_error();
@@ -344,11 +359,11 @@ sexp parse_atom(){
           default:
             my_abort("How'd you get here?");
         }
-      } while(nextTok() != TOK_RBRACE);
+      } while(nextTok() != TOK_DBL_RBRACE);
       i++;//inc i so that i == len of array
       if(arrType == _char){
         if(i>=size){
-          arr=retval.val.array=xrealloc(arr,(size+=1)*sizeof(data));
+          arr=retval.val.typed_array=xrealloc(arr,(size+=1)*sizeof(data));
         }
         arr[i].uchar=L'\0';
       }
@@ -356,6 +371,7 @@ sexp parse_atom(){
       PRINT_FMT("len = %d",i);
       PRINT_MSG(print(retval));
       return retval;
+    }
     case TOK_STRING:
       PRINT_MSG(yylval->val.cord);
       return *yylval;
@@ -383,7 +399,7 @@ sexp lispRead(CORD code) {
   nextTok();
   return parse_sexp();
 }
-sexp parse_macro(){
+sexp parse_backtick(){
   nextTok();
   if(yytag != TOK_LPAREN){
     sexp retval=parse_atom();
@@ -550,11 +566,6 @@ static inline sexp parse_function_args(){
   }
   return retval;
 }
-//exported function
-/*
-(defun fnv-hash (str)
-  (shell-command (concat "/home/tucker/Repo/SciLisp/fnv_hash " str) t))
-*/
 #define mkTypeCase(hash,name)                   \
   case hash: return name
 _tag parse_tagname(CORD tagname){

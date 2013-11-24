@@ -533,6 +533,20 @@ sexp lisp_eql(sexp obj1,sexp obj2){
 sexp lisp_equal(sexp obj1,sexp obj2){
   return lisp_eql(obj1,obj2);
 }
+sexp lisp_error(sexp error_message){
+  if(!STRINGP(error_message) && !ERRORP(error_message)){
+    return format_type_error_opt2("raise-error","string","error",
+                                  error_message.tag);
+  }
+  return error_sexp(error_message.val.cord);
+}
+sexp lisp_not(sexp bool){
+  if(isTrue(bool)){
+    return LISP_FALSE;
+  } else {
+    return LISP_TRUE;
+  }
+}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))
@@ -591,6 +605,8 @@ DEFUN("mapcar",mapcar,2,0,0,0,2);
 DEFUN("reduce",reduce,2,0,0,0,2);
 DEFUN("qsort",qsort_cons,2,0,0,0,2);
 DEFUN("length",lisp_length,1,0,0,0,1);
+DEFUN("aref",aref,2,0,0,0,2);
+DEFUN("array->list",array_to_list,1,0,0,0,1);
 DEFUN("expt",lisp_pow,2,0,0,0,2);
 DEFUN("sqrt",lisp_sqrt,1,0,0,0,1);
 DEFUN("cos",lisp_cos,1,0,0,0,1);
@@ -608,11 +624,13 @@ DEFUN("even?",lisp_evenp,1,0,0,0,1);
 DEFUN("odd?",lisp_oddp,1,0,0,0,1);
 DEFUN("zero?",lisp_zerop,1,0,0,0,1);
 DEFUN("nth",lisp_nth,2,0,0,0,2);
+DEFUN("list->array",array_from_list,1,0,0,0,1);
+DEFUN("raise-error",lisp_error,1,0,0,0,1);
+DEFUN("not",lisp_not,1,0,0,0,1);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
-DEFUN("aref",aref,2,0,0,0,2);
-DEFUN("array->list",array_to_list,1,0,0,0,1);
-DEFUN("(array-iota)",array_iota,1,3,0,0,4);
+DEFUN("array-iota",array_iota,1,3,0,0,4);
+DEFUN("array-qsort",array_qsort,2,1,0,0,3);
 DEFUN("typeName",lisp_typeName,1,0,0,0,1);
 DEFUN("typeOf",typeOf,1,0,0,0,1);
 DEFUN("print",lisp_print,1,0,0,0,1);
@@ -642,6 +660,7 @@ DEFUN("re-compile",lisp_re_compile,1,1,0,0,2);
 DEFUN("re-match",lisp_re_match,2,3,0,0,5);
 DEFUN("re-subexpr",lisp_get_re_backref,2,0,0,0,2);
 DEFUN("make-cpointer",make_c_ptr,2,0,0,0,2);
+DEFUN("list",lisp_list,0,0,0,1,1);
 DEFUN("bigfloat-add",lisp_bigfloat_add,2,0,0,0,2);
 DEFUN("bigfloat-sub",lisp_bigfloat_sub,2,0,0,0,2);
 DEFUN("bigfloat-mul",lisp_bigfloat_mul,2,0,0,0,2);
@@ -725,6 +744,8 @@ MAKE_SYMBOL("mapcar",mapcar,0xc0ee7f3d3740c6c5 );
 MAKE_SYMBOL("reduce",reduce,0x2f92df0bac03dce7 );
 MAKE_SYMBOL("qsort",qsort_cons,0x9ece1ff7e6e56498 );
 MAKE_SYMBOL("length",lisp_length,0x8f69728654de2182 );
+MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
+MAKE_SYMBOL("array->list",array_to_list,0x3dd759e226ade7d3 );
 MAKE_SYMBOL("expt",lisp_pow,0x6d8fca2529cc0cb0 );
 MAKE_SYMBOL("sqrt",lisp_sqrt,0x11e3ff1ab3a56bb4 );
 MAKE_SYMBOL("cos",lisp_cos,0xef262d257319d109 );
@@ -742,11 +763,13 @@ MAKE_SYMBOL("even?",lisp_evenp,0x21a5dd09fa96af36 );
 MAKE_SYMBOL("odd?",lisp_oddp,0x47fc16c1d7638f61 );
 MAKE_SYMBOL("zero?",lisp_zerop,0x37aa5afe019ffb4c );
 MAKE_SYMBOL("nth",lisp_nth,0x8bfc525817d91f4 );
+MAKE_SYMBOL("list->array",array_from_list,0x140d90bc585ec560 );
+MAKE_SYMBOL("raise-error",lisp_error,0xbdaeb1eb8692fd60 );
+MAKE_SYMBOL("not",lisp_not,0x878ab2581416323 );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
-MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
-MAKE_SYMBOL("array->list",array_to_list,0x3dd759e226ade7d3 );
-MAKE_SYMBOL("(array-iota)",array_iota,0x9da75f7c30743354 );
+MAKE_SYMBOL("array-iota",array_iota,0x9da75f7c30743354 );
+MAKE_SYMBOL("array-qsort",array_qsort,0xe2ee49217cebc08e );
 MAKE_SYMBOL("typeName",lisp_typeName,0x3fd978c7b7c570e5 );
 MAKE_SYMBOL("typeOf",typeOf,0x6971003f4c928aa0 );
 MAKE_SYMBOL("print",lisp_print,0x4a38f2ac6b3b6ed1 );
@@ -776,6 +799,7 @@ MAKE_SYMBOL("re-compile",lisp_re_compile,0xa2764a4bb059a9d9 );
 MAKE_SYMBOL("re-match",lisp_re_match,0x80d577d4c3b37b05 );
 MAKE_SYMBOL("re-subexpr",lisp_get_re_backref,0x8a116ddc4ad390f1 );
 MAKE_SYMBOL("make-cpointer",make_c_ptr,0xc453eec8f4f7885c );
+MAKE_SYMBOL("list",lisp_list,0xddb41bcc6bde9f82 );
 MAKE_SYMBOL("bigfloat-add",lisp_bigfloat_add,0x5ce208f741cde6d2 );
 MAKE_SYMBOL("bigfloat-sub",lisp_bigfloat_sub,0xd42552f784c9600b );
 MAKE_SYMBOL("bigfloat-mul",lisp_bigfloat_mul,0x7d86d2f753b9f1e7 );
@@ -906,6 +930,8 @@ INIT_SYMBOL(mapcar);
 INIT_SYMBOL(reduce);
 INIT_SYMBOL(qsort_cons);
 INIT_SYMBOL(lisp_length);
+INIT_SYMBOL(aref);
+INIT_SYMBOL(array_to_list);
 INIT_SYMBOL(lisp_pow);
 INIT_SYMBOL(lisp_sqrt);
 INIT_SYMBOL(lisp_cos);
@@ -923,11 +949,13 @@ INIT_SYMBOL(lisp_evenp);
 INIT_SYMBOL(lisp_oddp);
 INIT_SYMBOL(lisp_zerop);
 INIT_SYMBOL(lisp_nth);
+INIT_SYMBOL(array_from_list);
+INIT_SYMBOL(lisp_error);
+INIT_SYMBOL(lisp_not);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
-INIT_SYMBOL(aref);
-INIT_SYMBOL(array_to_list);
 INIT_SYMBOL(array_iota);
+INIT_SYMBOL(array_qsort);
 INIT_SYMBOL(lisp_typeName);
 INIT_SYMBOL(typeOf);
 INIT_SYMBOL(lisp_print);
@@ -957,6 +985,7 @@ INIT_SYMBOL(lisp_re_compile);
 INIT_SYMBOL(lisp_re_match);
 INIT_SYMBOL(lisp_get_re_backref);
 INIT_SYMBOL(make_c_ptr);
+INIT_SYMBOL(lisp_list);
 INIT_SYMBOL(lisp_bigfloat_add);
 INIT_SYMBOL(lisp_bigfloat_sub);
 INIT_SYMBOL(lisp_bigfloat_mul);

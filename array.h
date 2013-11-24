@@ -7,44 +7,40 @@
 #include "common.h"
 #include "cons.h"
 //unsafe array access in C
-#define XAREF(obj,ind)                                          \
-  (sexp){.tag = (_tag)obj.meta,.val = (data)obj.val.array[ind]}
+#define TYPED_AREF(obj,ind)                                          \
+  (sexp){.tag = (_tag)obj.meta,.val = (data)obj.val.typed_array[ind]}
+#define XAREF(obj,ind)                          \
+  obj.val.array[ind]
+static inline int __attribute__((const)) ARR_SIZE_ACC(int64_t len){
+  if(len&(len-1)){
+    return ARR_SIZE_ACC(len&(len-1));
+  } else {
+    return len<<1;
+  }
+}
+static inline int __attribute__((pure))ARR_SIZE_ALLOCATED(sexp arr){
+  return ARR_SIZE_ACC(arr.len);
+}
+  
+sexp typed_aref(sexp obj,sexp ind)__attribute__((pure,hot));
 sexp aref(sexp obj,sexp ind)__attribute__((pure,hot));
-static sexp array_to_list(sexp obj)__attribute__((pure));
-/*static sexp aref(sexp obj,sexp ind){
-  if(!ARRAYP(obj)){
+sexp typed_array_to_list(sexp obj)__attribute__((pure));
+static sexp typed_aref_unsafe(sexp obj,sexp ind){
+  if(!TYPED_ARRAYP(obj)){
     return error_sexp("aref type error");
-  } else if(ind.val.int64 > obj.len || ind.val.int64<0){
-      return error_sexp("aref bounds error");
-  } else {
-    return XAREF(obj,ind.val.int64);
-  }
-  }*/
-static sexp aref_unsafe(sexp obj,sexp ind){
-  if(!ARRAYP(obj)){
-    return error_sexp("aref type error");
-  } else { return XAREF(obj,ind.val.int64);}
+  } else { return TYPED_AREF(obj,ind.val.int64);}
 }
-static sexp array_to_list(sexp obj){
-  if(!ARRAYP(obj)){
-    return error_sexp("array->list type error");
-  } else {
-    int i,imax=obj.len;
-    sexp retval;
-    retval.tag=_list;
-    cons* newlist = retval.val.cons =  xmalloc(imax*sizeof(cons));    
-    for(i=0;i<imax;i++){
-      newlist[i].car=XAREF(obj,i);
-      newlist[i].cdr=(sexp){.tag=_cons,.val={.cons=&newlist[i+1]}};
-    }
-    newlist[i-1].cdr=NIL;
-    return retval;
-  }
-}
+
+sexp typed_array_iota(sexp start,sexp stop,sexp step,sexp rnd);
 sexp array_iota(sexp start,sexp stop,sexp step,sexp rnd);
+sexp typed_array_from_list(sexp ls);
 sexp array_from_list(sexp ls);
+sexp typed_array_to_list(sexp arr);
+sexp array_to_list(sexp arr);
+sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place);
+sexp typed_array_qsort(sexp arr,sexp comp_fun,sexp in_place);
 static int array_typecheck(int len,sexp arr,sexp_meta elem_type){
-  if(ARRAYP(arr)){
+  if(TYPED_ARRAYP(arr)){
     if(len==0 || arr.len == len){//allow for dynamic arrays or something
       if(arr.meta == elem_type){
         return 1;

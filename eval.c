@@ -480,11 +480,12 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
     format_error_str("keyword args unimplemented");
     handle_error();
   }
-  if(args->has_rest_arg){
+  if(args->has_rest_arg){    
     if(CONSP(arglist)){
       cons* prev_arg;
       cons* cur_arg=args->args[j].val.val.cons=xmalloc(sizeof(cons));
       args->args[j].val.tag=_list;
+      int i=j;
       while(CONSP(arglist)){
         j++;
         cur_arg->car=eval(XCAR(arglist),cur_env);
@@ -494,6 +495,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
         cur_arg=cur_arg->cdr.val.cons;
       }
       prev_arg->cdr=NIL;
+      args->args[i].val.len=(j-i);
     }
   }
   if(CONSP(arglist)){
@@ -678,6 +680,7 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
   if(!MACROP(cur_macro)){
     return error_sexp("cannot macroexpand something which is not a macro");
   }
+  //if the macro body is not quoted/backquoted
   if(!(mac->body.quoted)){
     if(SYMBOLP(mac->body)){
       //need to double check lisp macro semantics for these

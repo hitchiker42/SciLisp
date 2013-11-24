@@ -27,6 +27,7 @@ typedef union symbol_type symbol_type;//generic symbol
 typedef union funcall funcall;//type of primitive functions
 typedef union symbol_ref symbol_ref;//generic symbol pointer
 typedef union symbol_val symbol_val;//generic symbol
+typedef union ctype_val ctype_val;
 typedef struct sexp sexp;//type of all lisp objects
 typedef struct cons cons;//cons cell, for lists,pairs and everything else
 //typedef struct fxn_proto fxn_proto;//primitive function prototype
@@ -103,6 +104,7 @@ typedef wchar_t char32_t;
 #define REAL32P(obj) (obj.tag == _float)
 #define KEYWORDP(obj) (obj.tag == _keyword)
 #define RE_MATCHP(obj) (obj.tag == _re_data)
+#define TYPED_ARRAYP(obj) (obj.tag==_typed_array)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
 #define LITERALP(obj) (obj.is_pointer == 0)
@@ -125,7 +127,7 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
                ", but got %r",fun,expected,tag_name(got)),   \
   error_sexp(type_error_str)
-#define format_type_error_opt2(fun,expected1,got)                       \
+#define format_type_error_opt2(fun,expected1,expected2,got)             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
   error_sexp(type_error_str)
@@ -183,7 +185,7 @@ enum _tag {
   _hash_table=48,
   _tree=49,
   _tree_node=50,
-  _sexp_array=51,
+  _typed_array=51,
 };
 enum special_form{
   _def=0,
@@ -237,7 +239,7 @@ union data {//keep max size at 64 bits
   c_string string;//unused I think
   cons *cons;
   ctype *ctype;
-  data *array;
+  data *typed_array;
   env *cur_env;
   function *fun;
   function_args* funarg;//depreciated
@@ -259,7 +261,7 @@ union data {//keep max size at 64 bits
   real64_t real64;
   regex_t *regex;
   re_match_data *re_data;
-  sexp *sarray;
+  sexp *array;
   special_form special;
   symref var;
   uint16_t uint16;
@@ -325,6 +327,8 @@ enum TOKEN{
   TOK_RBRACE=53,
   TOK_LCBRACE=54,
   TOK_RCBRACE=55,
+  TOK_DBL_LBRACE=56,
+  TOK_DBL_RBRACE=57,
 };
 union funcall{
   sexp(*f0)(void);
@@ -509,57 +513,5 @@ enum operator{
   case _long:return long_sexp(val);
   }
   }*/
-
-#define getVal(obj)                                             \
-  (obj.tag == _error ? obj.val.cord  :                          \
-   (obj.tag == _false ? -3  :                                   \
-    (obj.tag == _uninterned ? -2  :                             \
-     (obj.tag == _nil ? 0  :                                    \
-      (obj.tag == _cons ? obj.val.cons  :                       \
-       (obj.tag == _double ? obj.val.real64  :                  \
-        (obj.tag == _long ? obj.val.int64  :                    \
-         (obj.tag == _char ? obj.val.uchar  :                   \
-          (obj.tag == _str ? obj.val.cord  :                    \
-           (obj.tag == _fun ? obj.val.fun  :                    \
-            (obj.tag == _sym ? obj.val.var  :                   \
-             (obj.tag == _special ? obj.val.meta  :             \
-              (obj.tag == _macro ? 0.  :                        \
-               (obj.tag == _type ? obj.val.meta  :              \
-                (obj.tag == _array ? obj.val.array  :           \
-                 (obj.tag == _true ? 11  :                      \
-                  (obj.tag == _list ? obj.val.cons  :           \
-                   (obj.tag == _lam ? obj.val.lam  :            \
-                    (obj.tag == _lenv ? obj.val.lenv  :         \
-                     (obj.tag == _dpair ? obj.val.cons  :       \
-                      (obj.tag == _ustr ? obj.val.ustr  :       \
-                       (obj.tag == _regex ? obj.val.regex  :    \
-                        (obj.tag == _stream ? obj.val.stream  : \
-                         )))))))))))))))))))))))
-/*struct typehash{
-  _tag type;
-  char* name;
-  long hash;
-};
-{.tag =_double,.name = "double",.hash = 0x276d1506}
-{.tag =_long,.name = "long",.hash = 0xc6417873}
-{.tag =_nil,.name = "nil",.hash = 0x6b8a33b2}
-{.tag =_cons,.name = "cons",.hash = 0xf114bd8e}
-{.tag =_string,.name = "string",.hash = 0xa17d48e}
-{.tag =_char,.name = "char",.hash = 0xf118d13d}
-{.tag =_symbol,.name = "symbol",.hash = 0x83615d2d}
-{.tag =_special,.name = "special",.hash = 0x59d387a}
-{.tag =_type,.name = "type",.hash = 0x9fa9a73d}
-{.tag =_array,.name = "array",.hash = 0x11b0a054}
-{.tag =_boolean,.name = "boolean",.hash = 0x624dd20f}
-{.tag =_lambda,.name = "lambda",.hash = 0x65d0c568}*/
-/*struct array_symref{
-  CORD name;
-  sexp val;
-  int index;
-  };*/
-/*struct array_env{
-  env* enclosing;
-  array_symref head;
-  };*/
 #undef mkTypeCase
 #undef mkTypeSym

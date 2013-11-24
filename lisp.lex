@@ -52,7 +52,6 @@ static wchar_t lex_char(char* cur_yytext){
  static int comment_depth=0;
 %}
 DIGIT [0-9]
-HEX_DIGIT [0-9a-fA-f]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
 ID [A-Za-z%+*!\-_^$/<>=/&][A-Za-z%+*!?\-_^$&<>0-9=/]*
 TYPENAME "::"{ID}
@@ -85,9 +84,9 @@ union data {
 %%
    /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
-  yylval->val.int64 = (long)strtol(yytext,NULL,10);return TOK_INT;}
-[+\-]?"0"[xX]{HEX_DIGIT}+ {LEX_MSG("lexing hex int");yylval->tag=_long;
-  yylval->val.int64=(long)strtol(yytext,NULL,16);return TOK_INT;}
+  yylval->val.int64 = (long)strtol(yytext,NULL,0);return TOK_INT;}
+[+\-]?"0"[xX][[:xdigit:]]+ {LEX_MSG("lexing hex int");yylval->tag=_long;
+  yylval->val.int64=(long)strtol(yytext,NULL,0);return TOK_INT;}
 [+\-]?{DIGIT}+"."{DIGIT}* {LEX_MSG("lexing real");yylval->tag=_double;
   yylval->val.real64 = strtod(yytext,NULL);
   return TOK_REAL;}
@@ -176,7 +175,9 @@ dotimes {LEX_MSG("lexing dotimes");
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}
 "[" {LEX_MSG("lexing [");return TOK_LBRACE;}
+"[[" {LEX_MSG("lexing [[");return TOK_DBL_LBRACE;}
 "]" {LEX_MSG("lexing ]");return TOK_RBRACE;}
+"]]" {LEX_MSG("lexing ]]");return TOK_DBL_RBRACE;}
 "{" {LEX_MSG("lexing {");return TOK_LCBRACE;}
 "}" {LEX_MSG("lexing }");return TOK_RCBRACE;}
 "." {LEX_MSG("lexing .");return TOK_DOT;}

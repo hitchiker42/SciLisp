@@ -6,7 +6,7 @@
 #define __CONS_H__
 #include "common.h"
 //create a nil terminated list from a variable number of sexps
-//because of how vararg functions work in c the arguments must end
+//because of how vararg functions work in c the argumentbs must end
 //with a nil value
 sexp mklist(sexp head,...);
 //create an improper list, because of how c varargs functions work
@@ -210,9 +210,21 @@ static sexp cddddr(sexp cell){return cdr(cdr(cdr(cdr(cell))));}
   (insert (upcase (format "#define XC%c%c%c%cr(cell) XC%cR(XC%cR(XC%cR(XC%cR(cell))))\n")))
   i j k l i j k l)))))
 */
-typedef struct cons_tree cons_tree;
-struct cons_tree {
-  sexp node;
-  cons *leaves;
+#define AS_TREE(_tree_) _tree_.val.tree
+struct lisp_btree {
+  sexp btree;//.meta values == tree type
+  sexp (*comp_fn)(sexp,sexp);//how to keep the btree sorted
 };
+struct lisp_btree_type {
+  sexp (*insert)(sexp,sexp);//how to insert an element
+  sexp (*delete)(sexp,sexp);//how to delete and element
+  sexp (*sort)(sexp);//how to sort a stree
+  //walk tree given by first arg, calling second arg on each node
+  sexp (*walk)(sexp,sexp);
+};
+struct lisp_btree_type avl_tree;
+struct lisp_btree_type rb_tree;
+struct lisp_btree_type splay_tree;
+struct lisp_btree_type basic_tree;
+
 #endif

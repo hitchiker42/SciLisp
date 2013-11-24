@@ -533,6 +533,20 @@ sexp lisp_eql(sexp obj1,sexp obj2){
 sexp lisp_equal(sexp obj1,sexp obj2){
   return lisp_eql(obj1,obj2);
 }
+sexp lisp_error(sexp error_message){
+  if(!STRINGP(error_message) && !ERRORP(error_message)){
+    return format_type_error_opt2("raise-error","string","error",
+                                  error_message.tag);
+  }
+  return error_sexp(error_message.val.cord);
+}
+sexp lisp_not(sexp bool){
+  if(isTrue(bool)){
+    return LISP_FALSE;
+  } else {
+    return LISP_TRUE;
+  }
+}
 /*probably eaiser in lisp
   (defun ++! (x) (setq x (+1 x)))
   (defun --! (x) (setq x (-1 x)))

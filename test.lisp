@@ -15,6 +15,8 @@
 (def ls3 (iota -1 1 0.1))
 (def arr [1 2 3 4 5 7 8 9 0])
 (def arr2 [1.0 4.0 8.9 3 0.9])
+(setq arr3 [0 99 0.9 9e88 3.9 0x88])
+(def arr4 [0 9 3 4 2 5 7 4 9 2 1 10 22 5])
 (def arr-iota (iota 0 10 1 1))
 (let ((x 5))
   (defun add5 (y) (+ x y)))
@@ -68,6 +70,13 @@
 (ccall "gsl_sf_poch" "libgsl" :real64 '(:real64 :real64) '(4. 5.))
 (fact-acc 1 4)
 (fact-acc 1.0 15.0)
+(if (eq 0.9 (aref arr3 2))
+    #t
+    (raise-error "aref failure"))
+(let ((error-message (raise-error "expected error")))
+  (if (not (errorp error-message))
+      error-message
+      nil))
 ;(cons? ls4)
 ;(cons? '(3 3 4 5 5))
 
@@ -86,6 +95,10 @@
 (fclose file)
 (system "cat temp.temp")
 (system "rm temp.temp")
+(array-qsort arr4 <)
+(print arr4)
+(array-qsort arr4 > #t)
+(print arr4)
 #|tests of special forms|#
 (setq i 10)
 (while (> i 0)

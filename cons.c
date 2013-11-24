@@ -327,3 +327,6 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
   }
   return start;
 }
+sexp lisp_list(sexp args){
+  return args;
+}
