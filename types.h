@@ -183,6 +183,7 @@ enum _tag {
   _hash_table=48,
   _tree=49,
   _tree_node=50,
+  _sexp_array=51,
 };
 enum special_form{
   _def=0,
@@ -258,7 +259,7 @@ union data {//keep max size at 64 bits
   real64_t real64;
   regex_t *regex;
   re_match_data *re_data;
-  sexp *quoted;
+  sexp *sarray;
   special_form special;
   symref var;
   uint16_t uint16;

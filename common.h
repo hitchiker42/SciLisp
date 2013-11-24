@@ -75,6 +75,8 @@
 #define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val}}
 #define re_match_sexp(re_match_val) (sexp){.tag=_re_data,\
       .val={.re_data=re_match_val}}
+#define sarray_sexp(sarray_val,array_len)                       \
+  (sexp){.tag=_array,.len=array_len,.val={.sarray=sarray_val}}
 #define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
 #define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val}}
 #define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
