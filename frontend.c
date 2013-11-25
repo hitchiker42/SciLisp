@@ -30,7 +30,6 @@ static pthread_cond_t init_prims_cond=PTHREAD_COND_INITIALIZER;
 static void* initPrims_pthread(void*);
 static void ensure_prims_initialized();
 static void* SciLisp_getopt_pthread(void *getopt_args);
-#define GC_REDIRECT_TO_LOCAL
 #define ENSURE_PRIMS_INITIALIZED() ensure_prims_initialized()
 #else
 #define ENSURE_PRIMS_INITIALIZED()
@@ -248,6 +247,7 @@ int main(int argc,char* argv[]){
   CORD_debug_printf=default_CORD_debug_printf;
   #endif
   sigaction(SIGSEGV,sigsegv_action,NULL);
+  GC_set_handle_fork(1);
   GC_init();
 #if defined (MULTI_THREADED)
   pthread_t initPrims_thread;
@@ -430,7 +430,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
           exit(1);
         }
         ast=yyparse(file);
-        PRINT_MSG(print(ast));
+        //PRINT_MSG(print(ast));
         while(CONSP(ast)){
           if(setjmp(error_buf)){
             PRINT_MSG("jumped to error");

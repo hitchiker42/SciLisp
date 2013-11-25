@@ -19,7 +19,6 @@ sexp lisp_getcwd(){
   return (sexp){.tag=_str,.val={.cord=cwdname}};
 }
 sexp lisp_system_simple(sexp command){
-  HERE();
   if(!STRINGP(command)){
     return error_sexp("argument to system must be a string");
   } else {
@@ -27,6 +26,21 @@ sexp lisp_system_simple(sexp command){
     return long_sexp(retval);
   }
 }
+static void *async_system_helper(void *command){
+  char *command_str=(char *)command;
+  system(command_str);
+  return 0;
+}
+sexp lisp_system_async(sexp command){
+  if(!STRINGP(command)){
+    return error_sexp("argument to system must be a string");
+  } 
+  pthread_t new_thread;
+  char *pthread_arg=CORD_to_char_star(command.val.cord);
+  pthread_create(&new_thread,NULL,async_system_helper,pthread_arg);
+  return NIL;
+}
+  
 #define SHELL "/bin/bash"
 sexp lisp_system(sexp command,sexp args){
   //  HERE();

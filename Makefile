@@ -21,14 +21,14 @@ QUIET_FLAGS:=-DHERE_OFF -DQUIET_LEXING -DNDEBUG
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing -fmax-errors=30 -Wmissing-braces -Wcomment
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums\
 	-flto -rdynamic #-fstrict-aliasing
-#-I$(shell pwd)/llvm/llvm/include 
+#-I$(shell pwd)/llvm/llvm/include
 INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/bignum/include
-#-Wl,-rpath=$(shell pwd)/readline/lib 	-I$(shell pwd)/readline/include
+#-Wl,-rpath=$(shell pwd)/readline/lib	-I$(shell pwd)/readline/include
 XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
 	-Wl,-rpath=$(shell pwd)/bignum/lib \
 	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr -ldl
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
-XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS) 
+XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
@@ -102,7 +102,7 @@ lib_files:
 	mkdir -p lib_files
 #should be a way to do this in less lines
 define start_libSciLisp =
-	$(eval CC_TEMP:=$(CC) $(LIBSCILISP_FLAGS))#$(QUIET_FLAGS) 
+	$(eval CC_TEMP:=$(CC) $(LIBSCILISP_FLAGS))#$(QUIET_FLAGS)
 	$(CC_TEMP) -o lib_files/libSciLisp_prim.o -c prim.c
 	$(CC_TEMP) -o lib_files/libSciLisp_cons.o -c  cons.c
 	$(CC_TEMP) -o lib_files/libSciLisp_array.o -c array.c
@@ -123,7 +123,7 @@ lib_files/libSciLisp_prim.o lib_files/libSciLisp_env.o lib_files/libSciLisp_cons
 	lib_files/libSciLisp_print.o lib_files/libSciLisp_bignum.o \
 	lib_files/libSciLisp_hash_fn.o lib_files/libSciLisp_math.o \
 	lib_files/libSciLisp_ccall.o lib_files/libSciLisp_cffi.o \
-	lib_files/libSciLisp_system.o 
+	lib_files/libSciLisp_system.o
 endef
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
 libSciLisp.o: libSciLisp_reqs
@@ -189,8 +189,8 @@ gc/gc_config.stamp:
 	touch gc/gc_config.stamp
 gc: gc/gc_config.stamp gc/bdwgc/autogen.sh gc/libatomic_ops/autogen.sh
 	cd gc/bdwgc && ./configure --with-threads=posix --disable-java-finalization \
-	CFLAGS='-DGC_LINUX_THREADS -DPARALLEL_MARK -DTHREAD_LOCAL_ALLOC'		\
-	--enable-parallel-mark --enable-cplusplus --prefix=$$PWD/.. && $(MAKE) install 
+	CFLAGS='-DGC_LINUX_THREADS -DPARALLEL_MARK -DTHREAD_LOCAL_ALLOC'	\
+	--enable-parallel-mark --prefix=$$PWD/.. && $(MAKE) install cord
 	cp gc/bdwgc/include/cord_pos.h gc/include/gc
 gmp: bignum/gmp/configure
 	cd bignum/gmp && ./configure --enable-alloca=alloca --prefix=$$PWD/.. \

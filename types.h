@@ -455,7 +455,7 @@ mkTypeSym(Qfunargs,_funargs);
 #define isTrue(x)                                            \
   (x.tag == _false ? 0 :                                     \
     (x.tag == _nil ? 0 :                                     \
-     (x.tag == _long ? (x.val.int64 == 0 ? 0 : 1) :             \
+     (x.tag == _long ? (x.val.int64 == 0 ? 0 : 1) :                     \
       (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1))))
 //possible compilier backends
 enum backend{

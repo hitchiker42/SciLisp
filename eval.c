@@ -44,6 +44,9 @@ static sexp handle_error(void){
 sexp eval(sexp expr,env *cur_env){
   symref tempsym=0;
   if(expr.quoted){
+    /*    if(expr.has_comma){
+      eval_backtick(expr,cur_env);
+      }*/
     if(SYMBOLP(expr)){
       if(expr.val.var->val.quoted){
         expr.val.var->val.quoted-=1;

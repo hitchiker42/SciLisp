@@ -9,12 +9,12 @@
 #include <stdlib.h>
 //#define GC_DEBUG
 //#define GC_PRINT_STATS
-#include <pthread.h>
 #include <sched.h>
 #include <sys/wait.h>
 #define GC_THREADS
 #define GC_PTHREADS
 #include "gc/include/gc/gc.h"
+#include <pthread.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <stdarg.h>

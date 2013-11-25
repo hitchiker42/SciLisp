@@ -49,18 +49,89 @@ sexp mkImproper(sexp head,...){
   next->cdr=cur_loc;
   return (sexp){.tag=_cons,.val={.cons=list}};
 }
-
-sexp nreverse(sexp ls){
-  cons* cur_cell=ls.val.cons,*next_cell=cur_cell->cdr.val.cons;
-  sexp last_val=NIL;
-  while(!NILP(cur_cell->cdr)){
-    cur_cell->cdr=last_val;//update ptr of current cell
-    last_val=next_cell->cdr;//get ptr to current cell
-    cur_cell=next_cell;//update current cell
-    next_cell=cur_cell->cdr.val.cons;//update next cell, unchecked union access
+sexp cons_reverse(sexp ls){
+  if(!CONSP(ls)){
+    return format_type_error("reverse","cons",ls.tag);
   }
-  cur_cell->cdr=last_val;
-  return cons_sexp(cur_cell);
+  cons *cons_ptr=xmalloc(sizeof(cons));
+  cons *trail=cons_ptr;
+  int i,len=ls.len;
+  cons_ptr->cdr=NIL;
+  while(CONSP(ls)){
+    len && i++;
+    cons_ptr->car=XCAR(ls);
+    trail=cons_ptr;
+    cons_ptr=xmalloc(sizeof(cons));
+    cons_ptr->cdr=cons_sexp(trail);
+    ls=XCDR(ls);
+  }
+  sexp retval=cons_sexp(trail);
+  retval.tag=_list;
+  retval.len=(len ? len : i);
+  return retval;
+}
+sexp cons_split(sexp ls,sexp num){
+  if(!CONSP(ls)){
+    return format_type_error("split","list",ls.tag);
+  } if (NILP(num)){
+    num=long_sexp(cons_length(ls).val.int64>>1);
+  }
+  if(!INTP(num)){
+    return format_type_error("split","integer",num.tag);
+  }
+  int64_t i=num.val.int64;
+  if(i==0){
+    return(Cons(NIL,ls));
+  }
+  if(i<0 || i > cons_length(ls).val.int64){
+    return error_sexp("error in split, index out of bounds");
+  }
+  cons *left,*trail;
+  sexp left_retval;
+  left=left_retval.val.cons=xmalloc(sizeof(cons));
+  left_retval.tag=_list,left_retval.is_ptr=1,left_retval.len=i;
+  while(i>0 && CONSP(ls)){
+    left->car=XCAR(ls);
+    left->cdr.val.cons=xmalloc(sizeof(cons));
+    trail=left;  
+    left=left->cdr.val.cons;
+    ls=XCDR(ls);
+    i--;
+  }
+  trail->cdr=NIL;
+  return(Cons(left_retval,ls));
+}
+sexp nreverse(sexp ls){
+  sexp cur_cell,last_cell,next_cell;
+  cur_cell=ls;
+  next_cell=XCDR(ls);
+  last_cell=NIL;
+  while(CONSP(next_cell)){
+    XCDR(cur_cell)=last_cell;
+    last_cell=cur_cell;
+    cur_cell=next_cell;
+    next_cell=XCDR(next_cell);
+  }
+  XCDR(cur_cell)=last_cell;
+  return cur_cell;
+  /*  cons* cur_cell=ls.val.cons,*next_cell=cur_cell->cdr.val.cons;
+  cons* last_cell=cur_cell;
+  cur_cell->cdr=NIL;
+  while(CONSP(next_cell)){
+    last_cell=cur_cell;
+    cur_cell=next_cell;
+    cur_cell->cdr=cons_sexp(last_cell);
+    next_cell=next_cell->cdr.val.cons;    
+  }
+  cur_cell=next_cell;
+  cur_cell->cdr=cons_sexp(last_cell);
+  return cons_sexp(cur_cell);*/
+}
+sexp lisp_nreverse(sexp ls){
+  if(!CONSP(ls)){
+    return format_type_error("reverse!","cons",ls.tag);
+  }
+  return nreverse(ls);
 }
 sexp nappend(sexp conses){
   cons* retval=XCAR(conses).val.cons;
@@ -138,6 +209,30 @@ sexp cons_length(sexp ls) {
     return len_acc(ls,0);
   }
 }
+sexp cons_take(sexp ls,sexp num){
+  sexp retval = cons_split(ls,num);
+  if(!CONSP(retval)){
+    return retval;//presumably retval is an error
+  } else {
+    return XCAR(retval);
+  }
+}
+sexp cons_drop(sexp ls,sexp num){
+  if(!CONSP(ls) || !INTP(num)){
+    return format_type_error2("drop","list",ls.tag,"integer",num.tag);
+  } else {
+    int64_t i=num.val.int64;
+    while(i>0 && CONSP(ls)){
+      ls=XCDR(ls);
+      i--;
+    }
+    if(i>0){
+      return error_sexp("error in drop, index out of bounds");
+    } else {
+      return ls;
+    }
+  }
+}
 //lisp declaration would be
 //(defun iota (start &optional stop step))
 sexp list_iota(sexp start,sexp stop,sexp step){
@@ -156,7 +251,6 @@ sexp list_iota(sexp start,sexp stop,sexp step){
       else {i++;}
     }
     newlist[abs(i)-1].cdr=NIL;
-    HERE();
     return (sexp){.tag=_list,.val={.cons=newlist},.len=abs(i)};
   } else if(NILP(step)){
     if(isTrue(lisp_lt(stop,start))){

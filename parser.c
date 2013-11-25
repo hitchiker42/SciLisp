@@ -64,7 +64,7 @@ sexp yyparse(FILE* input){
     GC_gcollect();
     prev_pos->cdr.tag=_nil;
     prev_pos->cdr.val.meta=_nil;
-    PRINT_MSG(print(ast));
+    // PRINT_MSG(print(ast));
     return ast;
   }
   handle_error();
@@ -355,7 +355,7 @@ sexp parse_atom(){
       return retval;
     }
     case TOK_STRING:
-      PRINT_MSG(yylval->val.cord);
+      //     PRINT_MSG(yylval->val.cord); 
       return *yylval;
     case TOK_CHAR:
       return *yylval;

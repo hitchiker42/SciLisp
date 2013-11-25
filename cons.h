@@ -15,6 +15,8 @@ sexp mklist(sexp head,...);
 sexp mkImproper(sexp head,...);
 //destructively reverse a list
 sexp nreverse(sexp ls);
+//non-destructively reverse a list
+sexp cons_reverse(sexp ls);
 //destructively append lists, argument is itself a list of lists to append
 //need to change some stuff with function args(or at least check some stuff)
 //before this can be added to lisp

@@ -50,9 +50,18 @@ sexp try_getPromiseVal(sexp promise){
   sexp retval;
   retval.val.cons=xmalloc(sizeof(cons));
   //since the promise could well return nil we need
-  //to return multiple values(in list case just a cons cell
+  //to return multiple values(in this case just a cons cell
   //as I've yet to add multpile return values)
   XCAR(retval)=NIL;
   XCDR(retval)=LISP_FALSE;
-  
-  
+  if(!pthread_mutex_trylock(promise.val.promise->promise_mutex)){
+    //we got the lock
+    if(promise.val.promise->returned){
+      XCAR(retval)=promise.val.promise->retval;
+      XCDR(retval)=LISP_TRUE;
+    }
+    pthread_mutex_unlock();
+  }
+  return retval;
+}
+sexp getPromiseVal_wait(sexp promise){
