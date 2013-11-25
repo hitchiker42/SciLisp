@@ -547,9 +547,29 @@ sexp lisp_not(sexp bool){
     return LISP_TRUE;
   }
 }
+sexp lisp_assert(sexp expr){
+  if(isTrue(expr)){
+    return NIL;
+  } else {
+    return error_sexp("Assertation faliure");
+  }
+}
+sexp lisp_assert_eq(sexp obj1,sexp obj2){
+  if(isTrue(lisp_eq(obj1,obj2))){
+    return NIL;
+  } else {
+    return format_error_sexp("Assertation error, %r is not eq to %r",print(obj1),print(obj2));
+  }
+}
+sexp lisp_gensym(){
+  symref retval=xmalloc(sizeof(symbol));
+  CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
+  retval->val=UNBOUND;
+  return symref_sexp(retval);
+}
 /*probably eaiser in lisp
-  (defun ++! (x) (setq x (+1 x)))
-  (defun --! (x) (setq x (-1 x)))
+  (defmacro ++! (x) `(setq ,x (++ ,x)))
+  (defmacro --! (x) `(setq ,x (-- ,x)))
 */
 #define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
 #define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
@@ -618,6 +638,7 @@ DEFUN("min",lisp_min,2,0,0,0,2);
 DEFUN("max",lisp_max,2,0,0,0,2);
 DEFUN("mod",lisp_mod,2,0,0,0,2);
 DEFUN("abs",lisp_abs,1,0,0,0,1);
+DEFUN("eq",lisp_eq,2,0,0,0,2);
 DEFUN("eql",lisp_eql,2,0,0,0,2);
 DEFUN("equal",lisp_equal,2,0,0,0,2);
 DEFUN("even?",lisp_evenp,1,0,0,0,1);
@@ -627,6 +648,9 @@ DEFUN("nth",lisp_nth,2,0,0,0,2);
 DEFUN("list->array",array_from_list,1,0,0,0,1);
 DEFUN("raise-error",lisp_error,1,0,0,0,1);
 DEFUN("not",lisp_not,1,0,0,0,1);
+DEFUN("assert",lisp_assert,1,0,0,0,1);
+DEFUN("assert-eq",lisp_assert_eq,2,0,0,0,2);
+DEFUN("gensym",lisp_gensym,0,0,0,0,0);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("array-iota",array_iota,1,3,0,0,4);
@@ -644,7 +668,6 @@ DEFUN("fprintln",lisp_fprintln,2,0,0,0,2);
 DEFUN("cat",lisp_cat,1,0,0,1,2);
 DEFUN("pwd",lisp_getcwd,0,0,0,0,0);
 DEFUN("system",lisp_system,1,0,0,1,2);
-DEFUN("eq",lisp_eq,2,0,0,0,2);
 DEFUN("ccall",ccall,5,1,0,0,6);
 DEFUN("logxor",lisp_xor,2,0,0,0,2);
 DEFUN("logand",lisp_logand,2,0,0,0,2);
@@ -757,6 +780,7 @@ MAKE_SYMBOL("min",lisp_min,0x21b63e258f56bce2 );
 MAKE_SYMBOL("max",lisp_max,0x219b28258f3fcfc8 );
 MAKE_SYMBOL("mod",lisp_mod,0x21cb28258f68f38a );
 MAKE_SYMBOL("abs",lisp_abs,0xfe2687257af0b852 );
+MAKE_SYMBOL("eq",lisp_eq,0x3a1a9bf59b1ac08 );
 MAKE_SYMBOL("eql",lisp_eql,0xdd5fd42568e7edec );
 MAKE_SYMBOL("equal",lisp_equal,0x1f9488d3ca8575ba );
 MAKE_SYMBOL("even?",lisp_evenp,0x21a5dd09fa96af36 );
@@ -766,6 +790,9 @@ MAKE_SYMBOL("nth",lisp_nth,0x8bfc525817d91f4 );
 MAKE_SYMBOL("list->array",array_from_list,0x140d90bc585ec560 );
 MAKE_SYMBOL("raise-error",lisp_error,0xbdaeb1eb8692fd60 );
 MAKE_SYMBOL("not",lisp_not,0x878ab2581416323 );
+MAKE_SYMBOL("assert",lisp_assert,0x305cd7213a55a78c );
+MAKE_SYMBOL("assert-eq",lisp_assert_eq,0x9a99e8fcb03e0ccf );
+MAKE_SYMBOL("gensym",lisp_gensym,0xbeed9f84963fc95b );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("array-iota",array_iota,0x9da75f7c30743354 );
@@ -783,7 +810,6 @@ MAKE_SYMBOL("fprintln",lisp_fprintln,0xd37b5eb8b9983cdd );
 MAKE_SYMBOL("cat",lisp_cat,0xef5542257341657a );
 MAKE_SYMBOL("pwd",lisp_getcwd,0x3c07edcc2db7ada8 );
 MAKE_SYMBOL("system",lisp_system,0x261ca996c6e4a97 );
-MAKE_SYMBOL("eq",lisp_eq,0x3a1a9bf59b1ac08 );
 MAKE_SYMBOL("ccall",ccall,0x9fdbba28c51a5416 );
 MAKE_SYMBOL("logxor",lisp_xor,0xb1cc27255025b0d7 );
 MAKE_SYMBOL("logand",lisp_logand,0xbe33926eae30db1d );
@@ -943,6 +969,7 @@ INIT_SYMBOL(lisp_min);
 INIT_SYMBOL(lisp_max);
 INIT_SYMBOL(lisp_mod);
 INIT_SYMBOL(lisp_abs);
+INIT_SYMBOL(lisp_eq);
 INIT_SYMBOL(lisp_eql);
 INIT_SYMBOL(lisp_equal);
 INIT_SYMBOL(lisp_evenp);
@@ -952,6 +979,9 @@ INIT_SYMBOL(lisp_nth);
 INIT_SYMBOL(array_from_list);
 INIT_SYMBOL(lisp_error);
 INIT_SYMBOL(lisp_not);
+INIT_SYMBOL(lisp_assert);
+INIT_SYMBOL(lisp_assert_eq);
+INIT_SYMBOL(lisp_gensym);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(array_iota);
@@ -969,7 +999,6 @@ INIT_SYMBOL(lisp_fprintln);
 INIT_SYMBOL(lisp_cat);
 INIT_SYMBOL(lisp_getcwd);
 INIT_SYMBOL(lisp_system);
-INIT_SYMBOL(lisp_eq);
 INIT_SYMBOL(ccall);
 INIT_SYMBOL(lisp_xor);
 INIT_SYMBOL(lisp_logand);

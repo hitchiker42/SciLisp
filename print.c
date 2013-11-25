@@ -143,8 +143,15 @@ CORD print_num_format(sexp obj,CORD format){
 inline CORD print_num(sexp obj){
   return print_num_format(obj,0);
 }
+#define get_comma_and_quote()                   \
+  if(obj.has_comma){                            \
+    acc=",";                                    \
+  }                                             \
+  if(obj.quoted){                               \
+    acc=CORD_cat(acc,"'");                      \
+  }
 CORD print(sexp obj){
-  CORD retval,acc;
+  CORD retval=0,acc=0;
   switch (obj.tag){
     HERE();
     case _double:
@@ -153,10 +160,13 @@ CORD print(sexp obj){
     case _bigfloat:
       return print_num(obj);
     case _fun:
-      return obj.val.fun->lname;
+      get_comma_and_quote();
+      return CORD_cat(acc,obj.val.fun->lname);
     case _sym:
-      return obj.val.var->name;
+      get_comma_and_quote();
+      return CORD_cat(acc,obj.val.var->name);
     case _macro:
+      HERE();
       return obj.val.mac->lname;
     case _keyword:
       return obj.val.keyword->name;
@@ -169,14 +179,12 @@ CORD print(sexp obj){
     case _tree:
       obj=obj.val.tree->btree;//fallthrough
     case _list:      
-    case _cons:
-      acc="(";
+    case _cons:      
+      acc=CORD_cat(acc,"(");
       while(CONSP(obj)){
         acc=CORD_cat(acc,print(XCAR(obj)));
         obj=XCDR(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
-        //CORD_fprintf(stderr,acc);fputs("\n",stderr);
-        //PRINT_MSG(acc);
       }
       //      HERE();
       //      PRINT_MSG(tag_name(obj.tag));
@@ -291,7 +299,7 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,"]"));
     }
-    case _special:
+    case _special:     
       return specialForm_name(obj);
     case _false:
       return "#f";
@@ -349,30 +357,36 @@ sexp lisp_fprintln(sexp obj, sexp file){
 #define mk_tok_name(tok) case tok: return #tok
 CORD token_name(TOKEN token){
   switch(token){
-    mk_tok_name(TOK_EOF);
-    mk_tok_name(TOK_INT);
-    mk_tok_name(TOK_REAL);
     mk_tok_name(TOK_CHAR);
-    mk_tok_name(TOK_STRING);
-    mk_tok_name(TOK_ID);
-    mk_tok_name(TOK_LISP_TRUE);
-    mk_tok_name(TOK_LISP_FALSE);
-    mk_tok_name(TOK_SPECIAL);
-    mk_tok_name(TOK_QUOTE);
-    mk_tok_name(TOK_COMMENT_START);
-    mk_tok_name(TOK_COMMENT_END);
-    mk_tok_name(TOK_DOT);
     mk_tok_name(TOK_COLON);
+    mk_tok_name(TOK_COMMA);
+    mk_tok_name(TOK_COMMENT_END);
+    mk_tok_name(TOK_COMMENT_START);
+    mk_tok_name(TOK_DBL_LBRACE);
+    mk_tok_name(TOK_DBL_RBRACE);
+    mk_tok_name(TOK_DOT);
+    mk_tok_name(TOK_EOF);
+    mk_tok_name(TOK_ID);
+    mk_tok_name(TOK_INT);
     mk_tok_name(TOK_LAMBDA);
+    mk_tok_name(TOK_LBRACE);
+    mk_tok_name(TOK_LCBRACE);
+    mk_tok_name(TOK_LET);
+    mk_tok_name(TOK_LISP_FALSE);
+    mk_tok_name(TOK_LISP_TRUE);
+    mk_tok_name(TOK_LPAREN);
+    mk_tok_name(TOK_MACRO);
+    mk_tok_name(TOK_QUASI);
+    mk_tok_name(TOK_QUOTE);
+    mk_tok_name(TOK_RBRACE);
+    mk_tok_name(TOK_RCBRACE);
+    mk_tok_name(TOK_REAL);
+    mk_tok_name(TOK_RPAREN);
+    mk_tok_name(TOK_SPECIAL);
+    mk_tok_name(TOK_STRING);
     mk_tok_name(TOK_TYPEDEF);
     mk_tok_name(TOK_TYPEINFO);
-    mk_tok_name(TOK_LPAREN);
-    mk_tok_name(TOK_RPAREN);
-    mk_tok_name(TOK_LBRACE);
-    mk_tok_name(TOK_RBRACE);
-    mk_tok_name(TOK_LCBRACE);
-    mk_tok_name(TOK_RCBRACE);
-    mk_tok_name(TOK_LET);
+    mk_tok_name(TOK_LIST_SPLICE);
     default:
       return "forgot to implemnt that token";
   }
@@ -381,7 +395,7 @@ CORD pprint(sexp obj);//print readably after a newline
 CORD prin1(sexp obj);//print readably
 #if 0
 CORD princ(sexp obj){//pretty print
-  CORD retval,acc;
+  CORD retval="",acc="";
   switch (obj.tag){
     HERE();
     case _double:
@@ -401,7 +415,13 @@ CORD princ(sexp obj){//pretty print
       acc=CORD_catn(acc,print(obj.val.mac->args),")");      
       return acc
     case _sym:
-      return obj.val.var->name;
+        if(obj.has_comma){
+          acc=",";
+        }
+        if(obj.quoted){
+          acc=CORD_cat(acc,"'");
+        }
+        return CORD_cat(acc,obj.val.var->name);
     case _keyword:
       return obj.val.keyword->name;
     case _char:{

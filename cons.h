@@ -42,6 +42,8 @@ sexp qsort_cons(sexp ls,sexp sort_fn);
 sexp assoc(sexp ls,sexp obj,sexp eq_fn);
 //assoc with eq_fn explictly set to eq
 sexp assq(sexp ls, sexp obj);
+//recursively(?) copy ls
+sexp copy_cons(sexp ls);
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
@@ -226,5 +228,4 @@ struct lisp_btree_type avl_tree;
 struct lisp_btree_type rb_tree;
 struct lisp_btree_type splay_tree;
 struct lisp_btree_type basic_tree;
-
 #endif

@@ -547,9 +547,29 @@ sexp lisp_not(sexp bool){
     return LISP_TRUE;
   }
 }
+sexp lisp_assert(sexp expr){
+  if(isTrue(expr)){
+    return NIL;
+  } else {
+    return error_sexp("Assertation faliure");
+  }
+}
+sexp lisp_assert_eq(sexp obj1,sexp obj2){
+  if(isTrue(lisp_eq(obj1,obj2))){
+    return NIL;
+  } else {
+    return format_error_sexp("Assertation error, %r is not eq to %r",print(obj1),print(obj2));
+  }
+}
+sexp lisp_gensym(){
+  symref retval=xmalloc(sizeof(symbol));
+  CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
+  retval->val=UNBOUND;
+  return symref_sexp(retval);
+}
 /*probably eaiser in lisp
-  (defun ++! (x) (setq x (+1 x)))
-  (defun --! (x) (setq x (-1 x)))
+  (defmacro ++! (x) `(setq ,x (++ ,x)))
+  (defmacro --! (x) `(setq ,x (-- ,x)))
 */
 #define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
 #define lisp_stdout {.tag = _stream,.val={.stream=stdout}}

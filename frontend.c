@@ -430,6 +430,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
           exit(1);
         }
         ast=yyparse(file);
+        PRINT_MSG(print(ast));
         while(CONSP(ast)){
           if(setjmp(error_buf)){
             PRINT_MSG("jumped to error");

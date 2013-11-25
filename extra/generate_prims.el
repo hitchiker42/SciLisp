@@ -70,7 +70,8 @@
     ("even?" "lisp_evenp" 1)("odd?" "lisp_oddp" 1)("zero?" "lisp_zerop" 1)
     ("nth" "lisp_nth" 2)
     ("list->array" "array_from_list" 1)("raise-error" "lisp_error" 1)
-    ("not" "lisp_not" 1)))
+    ("not" "lisp_not" 1)("assert" "lisp_assert" 1)
+    ("assert-eq" "lisp_assert_eq" 2)("gensym" "lisp_gensym" 0)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
   (collect (lambda (x) (apply #'mkPrimBasic x)) basic-prims-list))
@@ -113,8 +114,6 @@
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "system") (:cname . "lisp_system") (:minargs . 1)
       (:maxargs . 2) (:optargs . 0) (:keyargs . 0) (:restarg . 1))
-     ((:lname . "eq") (:cname . "lisp_eq") (:minargs . 2) (:maxargs . 2)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "ccall") (:cname . "ccall") (:minargs . 5) (:maxargs . 6)
       (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ;bit twiddling

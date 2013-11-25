@@ -330,3 +330,33 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
 sexp lisp_list(sexp args){
   return args;
 }
+static sexp unsafe_copy_cons(sexp ls){
+  sexp retval;
+  retval=ls;//shallow copy, to copy metadata
+  cons *copy=retval.val.cons=xmalloc(sizeof(cons));
+  cons *trail=copy;
+  while(CONSP(ls)){
+    if(CONSP(XCAR(ls))){
+      copy->car=unsafe_copy_cons(XCAR(ls));
+    } else  if(IS_POINTER(XCAR(ls))){
+        copy->car=XCAR(ls);
+        void *mem=xmalloc(sizeof(*XCAR(ls).val.opaque));
+        copy->car.val.opaque=memcpy(mem,XCAR(ls).val.opaque,sizeof(*XCAR(ls).val.opaque));
+    } else {
+      copy->car=XCAR(ls);
+    }
+    copy->cdr.val.cons=xmalloc(sizeof(cons));
+    trail=copy;
+    copy=copy->cdr.val.cons;
+    ls=XCDR(ls);
+  }
+  trail->cdr=ls;
+  return retval;
+}
+
+sexp copy_cons(sexp ls){
+  if(!CONSP(ls)){
+    return format_type_error("copy-cons","cons cell",ls.tag);
+  }
+  unsafe_copy_cons(ls);
+}

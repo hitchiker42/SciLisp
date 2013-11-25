@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+//FIXME: this (assert-eq (1 (+ ` 1))) causes a segfault
+//this is not acceptable, it's malformed input, but it shouldn't cause a segfault
 #include "common.h"
 #include "cons.h"
 #include "lex.yy.h"
@@ -62,6 +64,7 @@ sexp yyparse(FILE* input){
     GC_gcollect();
     prev_pos->cdr.tag=_nil;
     prev_pos->cdr.val.meta=_nil;
+    PRINT_MSG(print(ast));
     return ast;
   }
   handle_error();
@@ -95,7 +98,10 @@ sexp parse_sexp(){
     }
     case TOK_QUASI:{
       inside_backquote=1;
-      sexp retval = parse_backtick();
+      //kind of a hack
+      sexp retval = XCAR(parse_backtick());
+      retval.has_comma=1;
+      retval.quoted=1;
       inside_backquote=0;
       return retval;
     }
@@ -113,22 +119,22 @@ sexp parse_cons(){
   sexp result;
   symref tmpsym=0;
   result.tag=_cons;
+  result.is_ptr=1;
   result.val.cons=xmalloc(sizeof(cons));
   cons* cons_pos=result.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
   //  sexp cons_pos=result.val.cons->cdr;
   //at this point there's no difference between any macro, special form or function
   switch (yytag){
     case TOK_SPECIAL:{
-      XCAR(result)=(sexp){.tag=_special,.val={.special = yylval->val.special}};
+      XCAR(result)=spec_sexp(yylval->val.special);
       break;
     }
     case TOK_ID:{
       tmpsym=xmalloc(sizeof(symbol));
       tmpsym->name=yylval->val.cord;
       tmpsym->val=UNBOUND;
-      XCAR(result)=(sexp){.tag=_sym,.val={.var =tmpsym}};
+      XCAR(result)=symref_sexp(tmpsym);
       break;
-      //    }
     }
       //this feels like a really bad hack is it?
     case TOK_LET:{
@@ -157,33 +163,24 @@ sexp parse_cons(){
       sexp retval;
       retval.val.cons=xmalloc(sizeof(cons));
       retval.tag=_cons;
+      retval.is_ptr=1;
       XCAR(retval)=*yylval;
       sexp fake_retval=retval;
-      //fake_retval because if we have, for a defun and lambda
-      //retval=(defun . fake_retval= (var . (args) . (body)))
-      //retval=fake_retval=(lambda . ( (args) . (body )))
-      //this goto seems unecessary
-    TEST_ARG_LIST:if(nextTok() != TOK_LPAREN){
+      while(nextTok() != TOK_LPAREN){
         if(retval.val.cons->car.val.special == _defun){
           //because defun is (defun var (args) (body))
           //and lambda is (lambda (args) (body)) we need to parse
           //the var in defun seperately(that's what this is)
           retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
           fake_retval=XCDR(retval);
-          symref tempSym=xmalloc(sizeof(symbol));
-          tempSym->name=yylval->val.string;
-          tempSym->val=UNBOUND;
-          XCAR(fake_retval)=(sexp){.tag=_sym,.val={.var=tempSym}};
-          goto TEST_ARG_LIST;
+          XCAR(fake_retval)=parse_sexp();
         }  else {
           format_error_str("expected argument list following lambda or defun");
           handle_error();
         }
       }
-      //with the new args the only thing that changes is
       cons* temp;
-      temp=fake_retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
-      //this, which becomes temp->car=parse_funcion_args();
+      temp=XCDR(fake_retval).val.cons=xmalloc(sizeof(cons));
       temp->car=parse_function_args();
       temp->cdr.val.cons=xmalloc(sizeof(cons));
       temp=temp->cdr.val.cons;
@@ -213,41 +210,25 @@ sexp parse_cons(){
       sexp retval,location;
       retval.val.cons=xmalloc(sizeof(cons));
       retval.tag=_cons;
+      retval.is_ptr=1;
       XCAR(retval)=*yylval;
       if(nextTok() != TOK_ID){
         format_error_str("invaid macro name");
         handle_error();
       }
       XCDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADR(retval)=parse_atom();
+      XCADR(retval)=parse_atom();//macro name
       if(nextTok() != TOK_LPAREN){
         format_error_str("macro defination is missing argument list");
         handle_error();
       }
       XCDDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADDR(retval)=parse_function_args();
-      XCDDDR(retval).val.cons=xmalloc(sizeof(cons));
-      //      XCDDDDR(retval)=NIL;
+      XCADDR(retval)=parse_function_args();//macro args
       nextTok();
-      XCADDDR(retval)=parse_sexp();
+      XCDDDR(retval)=parse_sexp();
       //      XCDDDDR(retval)=NIL;
-      /*      switch(yytag){
-        case TOK_LPAREN:
-          XCADDDR(retval)=parse_list();
-          XCADDDR(retval).tag=_cons;//since the list isn't quoted
-          break;
-        case TOK_QUASI:
-          inside_backquote=1;
-          XCADDDR(retval)=parse_macro();
-          inside_backquote=0;
-          break;
-        case TOK_QUOTE:
-          XCADDDR(retval)=parse_list();
-          break;
-        default:
-          XCADDDR(retval)=parse_atom();
-          break;
-          }*/
+
+      //      XCADDDR(retval)=parse_sexp();//macro body
       return retval;
     }
     default: {//an unquoted list that's not a function call or special form
@@ -300,7 +281,7 @@ sexp parse_atom(){
         tmpsym=xmalloc(sizeof(symbol));
         tmpsym->name=yylval->val.string;
         tmpsym->val=UNBOUND;
-        return (sexp){.tag=_sym,.val={.var = tmpsym}};
+        return symref_sexp(tmpsym);
         //      }
       /*parse arrays
         TODO: add per element checks(as of now I only check the first)
@@ -310,6 +291,7 @@ sexp parse_atom(){
       int size=8,i=0;
       sexp retval;
       retval.tag=_array;
+      retval.is_ptr=1;
       sexp *arr=retval.val.array=xmalloc(sizeof(sexp)*size);
       while(nextTok() != TOK_RBRACE){
         if(i>=size){
@@ -410,11 +392,13 @@ sexp parse_backtick(){
     //in this instance let comma+quoted == backquoted
     retval.quoted=1;
     retval.has_comma=1;
+    retval.tag=_cons;
+    retval.is_ptr=1;
     cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
     cons* prev_loc=cur_loc;
-    do {
+    while (yytag != TOK_RPAREN && yytag != TOK_DOT){
       switch(yytag){
-        case TOK_LIST_SPLICE: {
+        case TOK_LIST_SPLICE:{
           cur_loc->car.meta=_splice_list;
           nextTok();//eat up ,;@ gets removed in the next case
           /*fall through*/
@@ -437,12 +421,13 @@ sexp parse_backtick(){
           break;
         }
       }
-    } while (nextTok() != TOK_RPAREN && yytag != TOK_DOT);
+      nextTok();
+    }
     if(yytag == TOK_DOT){
       format_error_str("erorr, macro body must be a proper list");
-
       handle_error();
     }
+    prev_loc->cdr=NIL;
     return retval;
   }
   format_error_str("Shouldn't get here, end of parse macro");
@@ -452,6 +437,7 @@ static inline sexp parse_list(){
   sexp retval;
   int i=0;
   retval.tag=_list;
+  retval.is_ptr=1;
   cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
   cons* prev_loc=cur_loc;
   while(nextTok() != TOK_RPAREN && yytag != TOK_DOT){
@@ -489,6 +475,7 @@ static inline sexp parse_function_args(){
     {.num_req_args=0,.num_opt_args=0,.num_keyword_args=0,
      .has_rest_arg=0,.args=args,.max_args=0};
   retval.tag=_funargs;
+  retval.is_ptr=1;
   while(nextTok() != TOK_RPAREN){
     if(yytag != TOK_ID){
     TYPE_ERROR:format_error_str("function arguments must be identifiers");
@@ -566,7 +553,7 @@ static inline sexp parse_function_args(){
   }
   return retval;
 }
-#define mkTypeCase(hash,name)                   \
+#define mkTypeCase(hash,name)                 \
   case hash: return name
 _tag parse_tagname(CORD tagname){
   uint64_t taghash=fnv_hash(tagname,CORD_len(tagname));

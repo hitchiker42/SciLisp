@@ -50,37 +50,37 @@
 //type_sexp macros for convience (kinda like constructors I suppose)
 #define typed_array_sexp(array_val,array_tag,array_len)              \
   (sexp){.tag=_typed_array,.meta=array_tag,.len=array_len,           \
-      .val={.typed_array=array_val}}
+      .val={.typed_array=array_val},.is_ptr=1}
 #define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
-      .val={.bigfloat=bigfloat_ptr}}
-#define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr}}
-#define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val}}
+      .val={.bigfloat=bigfloat_ptr},.is_ptr=1}
+#define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr},.is_ptr=1}
+#define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val},.is_ptr=1}
 #define cord_sexp(cord_val) string_sexp(cord_val)
 #define c_data_sexp(c_data_val) (sexp){.tag=_cdata,.val={.c_val=c_data_val}}
 #define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
-#define env_sexp(env_val) (sexp) {.tag=_env,.val={.cur_env=env_val}}
+#define env_sexp(env_val) (sexp) {.tag=_env,.val={.cur_env=env_val},.is_ptr=1}
 #define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
 #define float_sexp(float_val) (sexp){.tag=_float,.val={.real32=float_val}}
-#define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val}}
-#define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val}}
+#define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val},.is_ptr=1}
+#define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val},.is_ptr=1}
 #define int_n_sexp(int_n_val,n) (sexp) {.tag=_int##n,\
       .val={.int##n=int_n_val}}
 #define uint_n_sexp(uint_n_val,n) (sexp) {.tag=_uint##n,\
       .val={.uint##n=uint_n_val}}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
 #define ulong_sexp(ulong_val) (sexp){.tag=_ulong,.val={.uint64=ulong_val}}
-#define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val}}
+#define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val},.is_ptr=1}
 #define meta_sexp(meta_val) (sexp) {.tag =_meta,.val={.meta=meta_val}}
-#define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val}}
-#define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val}}
+#define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val},.is_ptr=1}
+#define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val},.is_ptr=1}
 #define re_match_sexp(re_match_val) (sexp){.tag=_re_data,\
-      .val={.re_data=re_match_val}}
+      .val={.re_data=re_match_val},.is_ptr=1}
 #define array_sexp(sarray_val,array_len)                        \
-  (sexp){.tag=_array,.len=array_len,.val={.array=sarray_val}}
+  (sexp){.tag=_array,.len=array_len,.val={.array=sarray_val},.is_ptr=1}
 #define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
-#define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val}}
-#define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val}}
-#define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val}}
+#define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val},.is_ptr=1}
+#define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val},.is_ptr=1}
+#define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val},.is_ptr=1}
 #define tree_sexp(tree_val) (sexp){.tag=_tree,.val={.tree=tree_val},.is_ptr=1}
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
@@ -99,6 +99,7 @@ static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
                              .cdr={.tag = -1,.val={.meta = -1}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
+static uint64_t global_gensym_counter=0;
 //global variables
 sexp* yylval;
 FILE* yyin;

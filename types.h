@@ -107,8 +107,8 @@ typedef wchar_t char32_t;
 #define TYPED_ARRAYP(obj) (obj.tag==_typed_array)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
-#define LITERALP(obj) (obj.is_pointer == 0)
-#define POINTERP(obj) (obj.is_pointer == 1)
+#define LITERALP(obj) (obj.is_ptr == 0)
+#define IS_POINTER(obj) (obj.is_ptr == 1)
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
@@ -511,6 +511,36 @@ enum operator{
   switch(type){
   case _double:return double_sexp(val);
   case _long:return long_sexp(val);
+  }
+  }*/
+/*static sexp lisp_copy(sexp obj);
+static sexp copy_array(sexp arr){
+  sexp *retval=xmalloc(sizeof(sexp)*arr.len);
+  memcpy(retval,arr.val.array,arr.len*sizeof(sexp));
+  return array_sexp(retval,arr.len);
+}  
+static sexp copy_symref(sexp sym){
+  sexp retval=sym;
+  retval.val.var=xmalloc(sizeof(symbol));
+  *retval.val.var=*sym.val.var;//shallow copy, copy name and props
+  retval.val.var->val=lisp_copy(sym.val.var->val);
+  return retval;
+}
+
+static sexp lisp_copy(sexp obj){
+  if(!IS_POINTER(obj)){
+    return obj;
+  }
+  sexp retval;
+  retval=obj;//shallow copy, to copy tag and metadata
+  switch(obj.tag){
+    case _list:
+    case _cons:
+      return copy_cons(obj);
+    case _array:
+      return copy_array(obj);
+    case _sym:
+      return copy_symref(obj);
   }
   }*/
 #undef mkTypeCase

@@ -26,10 +26,13 @@ static sexp eval_prog1(sexp expr,env *cur_env);
 static sexp eval_do(sexp expr,env *cur_env);
 static sexp eval_dolist(sexp expr,env *cur_env);
 static sexp eval_dotimes(sexp expr,env *cur_env);
+//need to add sexp eval_progv(sexp expr,env *cur_env);
+//which localy overrides dynamic bindings
 static sexp eval_let(sexp expr,env *cur_env);
 static sexp eval_and(sexp expr,env *cur_env);
 static sexp eval_or(sexp expr,env *cur_env);
 static sexp eval_defmacro(sexp expr,env *cur_env);
+static sexp macroexpand_helper(sexp body,env *cur_env);
 //standard error handling function
 static sexp handle_error(void){
   CORD_fprintf(stderr,error_str);fputs("\n",stderr);
@@ -324,7 +327,7 @@ static inline sexp eval_flet(sexp expr,env *cur_env){
  * syntax (do (var init step end) body)
  * bind var to init and repeat body, setting var to step each iteration
  * until end returns true. return result of last iteration
- * expands to (do (var (setq var init) (setq var step) 
+ * expands to (do (var (setq var init) (setq var step)
  * for now body must be a single sexp(ie use explict progn)*/
 static inline sexp eval_do(sexp expr,env *cur_env){
   expr=cdr(expr);//we don't need the do anymore
@@ -453,13 +456,20 @@ static sexp eval_or(sexp expr,env *cur_env){
   return LISP_FALSE;
 }
 /*internal procedure to bind function arguments to parameter names*/
-#define setArg()                                        \
-  args->args[j++].val=eval(XCAR(arglist),cur_env);      \
+#define setArg()                                            \
+  args->args[j++].val=eval_ptr(XCAR(arglist),cur_env);      \
   arglist=XCDR(arglist)
-function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
-  /*  if(args.tag != _funargs){
-    handle_error();
-    }*/
+static sexp dont_eval(sexp obj,env *cur_env){
+  obj.quoted++;
+  return eval(obj,cur_env);
+}
+static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,env* cur_env,int eval_args){
+  sexp(*eval_ptr)(sexp,env*);
+  if(eval_args){
+    eval_ptr=eval;
+  } else {
+    eval_ptr=dont_eval;
+  }
   int i,j=0;
   for(i=0;i<args->num_req_args;i++){
     if(!(CONSP(arglist))){
@@ -480,7 +490,7 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
     format_error_str("keyword args unimplemented");
     handle_error();
   }
-  if(args->has_rest_arg){    
+  if(args->has_rest_arg){
     if(CONSP(arglist)){
       cons* prev_arg;
       cons* cur_arg=args->args[j].val.val.cons=xmalloc(sizeof(cons));
@@ -509,6 +519,12 @@ function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
     }
   }
   return args;
+}
+function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
+  return getFunctionOrMacroArgs(arglist,args,cur_env,1);
+}
+function_args* getMacroArgs(sexp arglist,function_args* args,env* cur_env){
+  return getFunctionOrMacroArgs(arglist,args,cur_env,0);
 }
 /* internal procedure to call a builtin c function*/
 sexp call_builtin(sexp expr,env *cur_env){
@@ -610,15 +626,12 @@ static sexp eval_defmacro(sexp expr,env *cur_env){
      !(CONSP(XCDDR(expr))) || !(CONSP(XCDDDR(expr)))){
     return error_sexp("malformed defmacro expression");
   }
-  HERE();
-  PRINT_MSG(print(expr));
   macro *mac=xmalloc(sizeof(macro));
   expr=XCDR(expr);
   sexp macro_sym=XCAR(expr);
   mac->lname=macro_sym.val.var->name;
   mac->args=XCADR(expr).val.funargs;
   mac->body=XCDDR(expr);
-  PRINT_MSG(print(mac->body));
   macro_sym.val.var->val=macro_sexp(mac);
   addSym(cur_env,macro_sym.val.var);
   PRINT_MSG(print(funargs_sexp(mac->args)));
@@ -633,28 +646,22 @@ static sexp call_macro(sexp expr,env *cur_env){
   //expr is typed checked before we call this
   sexp cur_macro=car(expr).val.var->val;
   macro *mac=cur_macro.val.mac;
-  PRINT_MSG(print(mac->body));
-  function_args *args=mac->args;
-  symbol *save_defaults=args->args;
+  PRINT_FMT("Macro body=%r",print(mac->body));
+  function_args *args=alloca(sizeof(function_args));
+  *args=*mac->args;
   args->args=alloca(sizeof(symbol)*args->max_args);
-  memcpy(args->args,save_defaults,(sizeof(symbol)*args->max_args));
-  //really lazy hack, because I don't want rewrite getFunctionArgs
-  //to get args w/o evaluating them
-  sexp cons_pointer=XCDR(expr);
-  while(CONSP(cons_pointer)){
-    quote_sexp(XCAR(cons_pointer));
-    cons_pointer=XCDR(cons_pointer);
-  }
-  args=getFunctionArgs(cdr(expr),args,cur_env);
+  memcpy(args->args,mac->args->args,(sizeof(symbol)*args->max_args));
+  args=getMacroArgs(cdr(expr),args,cur_env);
+  //  PRINT_MSG(print(args->args[1].val));
   if(!args){
     handle_error();
   }
-  env macro_env={.enclosing=cur_env,.head={.function=args},.tag=_funArgs};
-  HERE();
-  sexp expanded_macro=lisp_macroexpand(cur_macro,&macro_env);
-  HERE();
+  env *macro_env=xmalloc(sizeof(env));
+  *macro_env=(env){.enclosing=cur_env,.head={.function=args},.tag=_funArgs};
+  sexp expanded_macro=lisp_macroexpand(cur_macro,macro_env);
   PRINT_MSG(print(expanded_macro));
-  return eval(expanded_macro,cur_env);
+  sexp retval=eval(expanded_macro,cur_env);
+  return retval;
 }
 /*external procudure to call a generic function(generic in that it doesn't
  *matter if the function was defined in lisp or c*/
@@ -672,76 +679,50 @@ sexp lisp_funcall(sexp fun,env *cur_env){
 }
 /*expand a macro into lisp code*/
 sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
-  macro* mac=cur_macro.val.mac;
-  sexp macro_body=mac->body;
-  long argnum;
+
   //just expand the macro, return an sexp to eval
   //assume cur_macro->args->args is filled out
   if(!MACROP(cur_macro)){
     return error_sexp("cannot macroexpand something which is not a macro");
   }
+  macro* mac=cur_macro.val.mac;
+  long argnum;
+  sexp macro_body=copy_cons(mac->body);
+  //  sexp macro_body=mac->body;//shallow copy
   //if the macro body is not quoted/backquoted
-  if(!(mac->body.quoted)){
-    if(SYMBOLP(mac->body)){
+  if(!(macro_body.quoted)){
+    HERE();
+    if(SYMBOLP(macro_body)){
       //need to double check lisp macro semantics for these
       if((argnum=isFunctionArg
-          ((function_env*)cur_env,mac->body.val.var->name))){
+          ((function_env*)cur_env,macro_body.val.var->name))!=-1){
         return cur_env->head.function->args[argnum].val;
       } else {
-        return mac->body.val.var->val;
+        return macro_body.val.var->val;
       }
-    } else if (!(CONSP(mac->body))){
-      return mac->body;
+    } else if (!(CONSP(macro_body))){
+      return macro_body;
     } else {
       //FIXME: this won't work, I'll fix it later
-      return mac->body;
+      return macro_body;
     }
-  } else if (!(mac->body.has_comma)) {
-    mac->body.quoted--;
-    return mac->body;//quoted, but not quasiquoted
+  } else if (!(macro_body.has_comma)) {
+    HERE();
+    macro_body.quoted--;
+    return macro_body;//quoted, but not quasiquoted
   } else {
     //quasi quoted
-    mac->body.quoted--;
-    while(CONSP(macro_body)){
-      HERE();
-      PRINT_MSG(print(macro_body));
-      if(XCAR(macro_body).has_comma){
-        if(XCAR(macro_body).meta == _splice_list){
-          //(... ,@list next ...) save next in current_cdr
-          //(... (car list) ... (last list)) (next gets cut off)
-          //(... (car list) ... (car (last list)) next)
-          //macro_body is set to next
-          sexp list_to_splice=XCAR(macro_body);
-          XCAR(macro_body).has_comma=0;
-          sexp current_cdr=XCDR(macro_body);
-          XCAR(macro_body)=XCAR(list_to_splice);
-          XCDR(last(macro_body))=current_cdr;
-          macro_body=current_cdr;
-        } else if(SYMBOLP(XCAR(macro_body))){
-          if((argnum=isFunctionArg
-              ((function_env*)cur_env,XCAR(macro_body).val.var->name))){
-            XCAR(macro_body)=//syref_sexp//args[argnum].val is a symbol
-              (cur_env->head.function->args[argnum].val);
-          } else {
-            //I'm not sure what to do here
-          }
-          XCAR(macro_body).has_comma=0;
-          macro_body=XCDR(macro_body);
-        } else {
-          XCAR(macro_body)=eval(XCAR(macro_body),cur_env);//maybe??
-        }
-      } else {
-        macro_body=XCDR(macro_body);
-      }
-    }
+    macro_body.quoted--;
+    //    macro_body=
+    macroexpand_helper(macro_body,cur_env);
     //we've changed this in the loop above
-    return mac->body;
+    return macro_body;
   }
 }
 sexp lisp_apply(sexp fun,sexp args,sexp environment){
   if(!FUNCTIONP(fun)){
     return error_sexp("first argument to apply should be a funciton");
-  } 
+  }
   if(NILP(environment)){
     environment=env_sexp(topLevelEnv);
   }
@@ -758,4 +739,45 @@ sexp lisp_apply(sexp fun,sexp args,sexp environment){
   funcall_code->car=fun;
   funcall_code->cdr=XCAR(args);
   return lisp_funcall(cons_sexp(funcall_code),environment.val.cur_env);
+}
+static sexp macroexpand_helper(sexp body,env *cur_env){
+  sexp retval=body;
+  long argnum;
+  while(CONSP(body)){
+    if(CONSP(XCAR(body))){
+      XCAR(body)=macroexpand_helper(XCAR(body),cur_env);
+    }
+    if(XCAR(body).has_comma){
+      if(XCAR(body).meta == _splice_list){
+        //(... ,@list next ...) save next in current_cdr
+        //(... (car list) ... (last list)) (next gets cut off)
+        //(... (car list) ... (car (last list)) next)
+        //body is set to next
+        sexp list_to_splice=XCAR(body);
+        XCAR(body).has_comma=0;
+        sexp current_cdr=XCDR(body);
+        XCAR(body)=XCAR(list_to_splice);
+        XCDR(last(body))=current_cdr;
+        body=current_cdr;
+        body=XCDR(body);
+      } else if(SYMBOLP(XCAR(body))){
+        if((argnum=isFunctionArg
+            ((function_env*)cur_env,XCAR(body).val.var->name))!=-1){
+          //symef_sexp//args[argnum].val is a symbol
+          XCAR(body)=(cur_env->head.function->args[argnum].val);
+        } else {
+          //I'm not sure if this is right
+          XCAR(body)=eval(XCAR(body),cur_env);
+        }
+        //XCAR(body).has_comma=0;
+        body=XCDR(body);
+      } else {
+        XCAR(body)=eval(XCAR(body),cur_env);//maybe??
+        body=XCDR(body);
+      }
+    } else {
+      body=XCDR(body);
+    }
+  }
+  return retval;
 }

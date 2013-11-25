@@ -150,6 +150,17 @@
     nil)
 (def match2 (re-match re-test1 "int88"))
 (if match2 (print (re-subexpr match2 4))nil)
+(defmacro make-addr (name num)
+  `(defun ,name (x)(+ ,num x)))
+(def thirty-three 33)
+(make-addr add33 thirty-three)
+(add33 22)
+(make-addr add2 2)
+(add2 2)
+(make-addr add44 44)
+(add44 94)
+(defmacro ++! (x) `(setq ,x (++ ,x)))
+(defmacro --! (x) `(setq ,x (++ ,x)))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:
