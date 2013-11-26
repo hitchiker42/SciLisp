@@ -301,8 +301,18 @@ obarray_entry* obarray_add_entry_generic
     ob->capacity+=ob->capacity_inc;
     return ob->buckets[index];
   }
-  obarray_entry* existing_entry;
-  if(!(existing_entry=obarray_get_entry(ob,new_entry->name,hashv))||
+  obarray_entry* existing_entry=obarray_get_entry(ob,new_entry->name,hashv);
+  //delete existing entry
+  if(conflict_opt==_overwrite){
+    if(existing_entry->prev){
+      existing_entry->prev=existing_entry->next;
+    } if(existing_entry->next){
+      existing_entry->next=existing_entry->prev;
+    }
+    existing_entry=NULL;
+  }
+    
+  if(!(existing_entry)||
      conflict_opt == _ignore){
     //int retval=(conflict_op==_ignore)?_ignore:1;
     if(append){
@@ -336,14 +346,26 @@ obarray_entry* obarray_add_entry_generic
       existing_entry->ob_symbol=new_entry;
       return existing_entry;
     case _ignore://unimplemented
-    case _overwrite://unimplemented
     case _use_current:
       return existing_entry;
   }
   return 0;
 }
 obarray_entry* obarray_add_entry(obarray* ob,symref new_entry){
-  return obarray_add_entry_generic(ob,new_entry,_ignore,0);
+  return obarray_add_entry_generic(ob,new_entry,_update,0);
+}
+uint64_t obarray_delete_entry(obarray *ob,symref entry){
+  obarray_entry* existing_entry=obarray_get_entry(ob,entry->name,0);
+  if(!existing_entry){
+    return 0;//0==no entry found to delete
+  } else {
+    if(existing_entry->prev){
+      existing_entry->prev=existing_entry->next;
+    } if(existing_entry->next){
+      existing_entry->next=existing_entry->prev;
+    }
+    return 1;
+  }
 }
 int obarray_rehash(obarray *ob){
   PRINT_MSG("Rehashing Obarray");

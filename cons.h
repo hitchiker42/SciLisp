@@ -15,6 +15,7 @@ sexp mklist(sexp head,...);
 sexp mkImproper(sexp head,...);
 //destructively reverse a list
 sexp nreverse(sexp ls);
+sexp cons_nreverse(sexp ls);
 //non-destructively reverse a list
 sexp cons_reverse(sexp ls);
 //destructively append lists, argument is itself a list of lists to append
@@ -24,7 +25,7 @@ sexp nappend(sexp conses);
 //apply reduce_fn(a functon of the form f(sexp,sexp)-> sexp to
 //the members of ls iteratively to produce a single sexp result
 //ls must be at least 2 elements long
-sexp reduce(sexp ls,sexp reduce_fn);
+sexp cons_reduce(sexp ls,sexp reduce_fn);
 //create a new list formed by applying map_fn(f(sexp)->sexp) to
 //each car of ls in turn
 sexp mapcar(sexp ls,sexp map_fn);
@@ -37,7 +38,7 @@ sexp list_iota(sexp start,sexp stop,sexp step);
 //create a cons cell from 2 sexps, result may or may not be a list
 sexp Cons(sexp car_cell,sexp cdr_cell);
 //sort ls (mostly in place) using sort_fn to compair elements
-sexp qsort_cons(sexp ls,sexp sort_fn);
+sexp cons_qsort(sexp ls,sexp sort_fn);
 //functions on alists
 //general assoication function, look for an object in ls that is equal to obj
 //according to eq_fn, default eq

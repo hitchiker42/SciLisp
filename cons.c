@@ -127,7 +127,7 @@ sexp nreverse(sexp ls){
   cur_cell->cdr=cons_sexp(last_cell);
   return cons_sexp(cur_cell);*/
 }
-sexp lisp_nreverse(sexp ls){
+sexp cons_nreverse(sexp ls){
   if(!CONSP(ls)){
     return format_type_error("reverse!","cons",ls.tag);
   }
@@ -147,7 +147,7 @@ sexp nappend(sexp conses){
 }
 
 
-sexp reduce(sexp ls,sexp reduce_fn){
+sexp cons_reduce(sexp ls,sexp reduce_fn){
   if(!CONSP(ls) || !FUNP(reduce_fn)){
     return error_sexp("reduce type error");
   }
@@ -326,7 +326,7 @@ sexp merge_sort(sexp ls,sexp sort_fn){
   f=sort_fn.val.fun->comp.f2;
   return merge_sort_acc(ls,f);
 }
-sexp qsort_cons(sexp ls,sexp sort_fn){
+sexp cons_qsort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNP(sort_fn)){
     return error_sexp("qsort sort_fn type error");
   }

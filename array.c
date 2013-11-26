@@ -169,6 +169,32 @@ sexp array_reduce(sexp arr,sexp red_fn,sexp init){
   }
   return acc;
 }
+sexp array_reverse_generic(sexp arr,sexp inplace){
+  if(!ARRAYP(arr)){
+    return format_type_error("array-reverse","array",arr.tag);
+  }
+  sexp *arr_data;
+  sexp temp;
+  if(!NILP(inplace)){
+    arr_data=arr.val.array;
+  } else {
+    arr_data=xmalloc(sizeof(sexp)*arr.len);
+    memcpy(arr_data,arr.val.array,sizeof(sexp)*arr.len);
+  }
+  int i,j;
+  for(i=0,j=arr.len-1;i<arr.len;i++,j--){
+    temp=arr_data[i];
+    arr_data[i]=arr_data[j];
+    arr_data[j]=temp;
+  }
+  return array_sexp(arr_data,arr.len);
+}
+sexp array_reverse(sexp arr){
+  return array_reverse_generic(arr,NIL);
+}
+sexp array_nreverse(sexp arr){
+  return array_reverse_generic(arr,LISP_TRUE);
+}
 static data temp;
 static int typed_array_qsort_partition
 (data *arr,int left,int right,int pivot_ind,int(*f)(data,data)){

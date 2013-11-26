@@ -534,7 +534,11 @@ sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   function_args *args=curFun.val.fun->args;
   args->args=alloca(sizeof(symbol)*args->max_args);
-  args=getFunctionArgs(cdr(expr),args,cur_env);
+  if(MACROP(curFun)){
+    args=getMacroArgs(cdr(expr),args,cur_env);
+  } else {
+    args=getFunctionArgs(cdr(expr),args,cur_env);
+  }
   if(!args){
     handle_error();
   }
@@ -637,7 +641,7 @@ static sexp eval_defmacro(sexp expr,env *cur_env){
   mac->body=XCDDR(expr);
   macro_sym.val.var->val=macro_sexp(mac);
   addSym(cur_env,macro_sym.val.var);
-  PRINT_MSG(print(funargs_sexp(mac->args)));
+  //  PRINT_MSG(print(funargs_sexp(mac->args)));
   return macro_sym;
 }
 static sexp quote_sexp(sexp expr){
@@ -650,6 +654,9 @@ static sexp call_macro(sexp expr,env *cur_env){
   sexp cur_macro=car(expr).val.var->val;
   macro *mac=cur_macro.val.mac;
   PRINT_FMT("Macro body=%r",print(mac->body));
+  if(expr.meta==_builtin_macro){
+    return eval(call_builtin(expr,cur_env),cur_env);
+  }
   function_args *args=alloca(sizeof(function_args));
   *args=*mac->args;
   args->args=alloca(sizeof(symbol)*args->max_args);

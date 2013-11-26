@@ -1,39 +1,47 @@
-#include <string.h>
-#include <wchar.h>
-#include <stdio.h>
-#include <stdlib.h>
-#define PRINT_FMT(string,fmt...) fprintf(stderr,string,##fmt);fputs("\n",stderr)
+#include "unicode.h"
+struct lisp_ustring {
+  wchar_t * restrict str;
+  uint32_t len;
+};
 union utf8_hack{
-  char bytes[2];
+  char bytes[4];
   wchar_t wchar;
 };
 union utf8_hack utf8_escape={.wchar=L'\0'};
-static wchar_t lex_char(char* cur_yytext){
+wchar_t lex_char(char* cur_yytext){
   wchar_t result[1];
   mbstate_t state;
   size_t len,nbytes;
   char* cvt_str;
   memset(&state,'\0',sizeof(state));
-  /* this is so horrendously non portable it's kinda funny,
-     it relies on the size of chars,specific input and output encoding
-     and little endian byte ordering*/
   if(cur_yytext[1]=='\\'){
     if(cur_yytext[2]=='?'){return '?';}
     if(cur_yytext[2]=='x'){
       //without this if you gave \x0000 you'd segfault
       char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
       utf8_escape.bytes[1]=0x00;
+#if __BYTE__ORDER__ ==  __ORDER_LITTLE_ENDIAN__
       utf8_escape.bytes[0]=(unsigned char)strtol(byte,NULL,16);
+#elif __BYTE__ORDER__ == __ORDER_BIG__ENDIAN__
+      utf8_escape.bytes[3]=(unsigned char)strtol(byte,NULL,16);
+#else
+      fprintf(stderr,"unknown byte order, exiting");
+      exit(1);
+#endif
     } else if(cur_yytext[2]=='u'){
       char byte1[3]={cur_yytext[3],cur_yytext[4],'\0'};
       char byte2[3]={cur_yytext[5],cur_yytext[6],'\0'};
+#if __BYTE__ORDER__ ==  __ORDER_LITTLE_ENDIAN__
       utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
       utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
+#elif __BYTE__ORDER__ == __ORDER_BIG__ENDIAN__
+      utf8_escape.bytes[2]=(unsigned char)strtol(byte1,NULL,16);
+      utf8_escape.bytes[3]=(unsigned char)strtol(byte2,NULL,16);
+#else
+      fprintf(stderr,"unknown byte order, exiting");
+      exit(1);
+#endif      
     }
-    /*} else {
-    utf8_escape.bytes[1]=0x00;
-    utf8_escape.bytes[0]=cur_yytext[1];
-    }*/
     PRINT_FMT("%lc",utf8_escape.wchar);
     return utf8_escape.wchar;
   } else {
@@ -46,4 +54,4 @@ static wchar_t lex_char(char* cur_yytext){
     return (wchar_t)L'\0';
   }
 }
-
+  

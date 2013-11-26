@@ -26,7 +26,7 @@
       register double yy=getDoubleVal(y);                               \
       return (sexp){.tag=_double,.val={.real64=(xx op yy)}};            \
     } else {                                                            \
-      return error_sexp("type error in "#op);                           \
+      return format_type_error2(#fun_name,"number",x.tag,"number",y.tag);\
     }                                                                   \
   }
 #define mkLisp_cmp(op,cname)                                    \
@@ -38,7 +38,7 @@
       register double yy=getDoubleVal(y);                       \
       return (xx op yy ? LISP_TRUE : LISP_FALSE);                      \
     } else {                                                    \
-      return error_sexp("type error in "#op);                   \
+      return format_type_error2(#cname,"number",x.tag,"number",y.tag); \
     }                                                           \
   }
 //ignore tags, allow logical operations on doubles(or anything else)
@@ -47,10 +47,6 @@
   sexp fun_name(sexp x,sexp y){                                         \
     return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
-/*#define DEFUN(lname,cname,minargs,maxargs)                    \
-  fxn_proto cname##call=                                        \
-  { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
-//  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
@@ -58,9 +54,16 @@
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
   function c_name##_call=                                             \
-    { .args=&c_name##_args,.lname=#l_name,.cname=#c_name,                   \
+    { .args=&c_name##_args,.lname=l_name,.cname=#c_name,                   \
       .comp = {.f##maxargs=c_name},            \
       .type = _compiled_fun };
+#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
+  function_args c_name##_args=                                            \
+    { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
+      .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
+  macro c_name##_expander=                                              \
+    {.args=&c_name##_args,.lname=l_name,                                \
+      .comp = {.f##maxargs=c_name}}
 #define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
   symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}}; \
   symref c_name ## _ptr=0;                                              \
@@ -72,12 +75,15 @@
   symref c_name ## _ptr = 0;                                            \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=0}
-//  c_name##_ptr->symbol_env=ob_env;                             
-//  c_name##_ptr->symbol_env=ob_env;                             
 #define INIT_SYMBOL(c_name)                                    \
   c_name##_ptr=&c_name##_sym;                                  \
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
+  prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
+#define INIT_MACRO_SYMBOL(c_name)                                    \
+  c_name##_ptr=&c_name##_sym;                                        \
+  c_name##_ptr->val.val.fun=&c_name##_expander;                      \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                          \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_GLOBAL(c_name)                                      \
   c_name##_ptr=&c_name##_sym;                                    \

@@ -91,6 +91,7 @@ typedef wchar_t char32_t;
 #define STREAMP(obj)(obj.tag ==_stream)
 #define REGEXP(obj)(obj.tag == _regex)
 #define ERRORP(obj)(obj.tag == _error)
+#define SEQUENCP(obj) (CONSP(obj) || ARRAYP(obj))
 #define BIGINTP(obj)(obj.tag == _bigint)
 #define BIGFLOATP(obj) (obj.tag == _bigfloat)
 #define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
@@ -127,6 +128,12 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
                ", but got %r",fun,expected,tag_name(got)),   \
   error_sexp(type_error_str)
+#define format_type_error_opt_named(fun,name,expected,got)              \
+  CORD_sprintf(&type_error_str,"type error in %r, %r or nothing for argument %r" \
+               ", but got %r",fun,expected,name,tag_name(got)),         \
+  error_sexp(type_error_str)
+#define format_type_error_key(fun,named,expected,got)                   \
+  format_type_error_opt_named(fun,named,expected,got)
 #define format_type_error_opt2(fun,expected1,expected2,got)             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
@@ -230,6 +237,7 @@ enum sexp_meta{
   _long_array=_long,
   _utf8_string=_char,
   _splice_list=_list,
+  _builtin_macro=_macro,
 };
 union data {//keep max size at 64 bits
   CORD cord;
@@ -379,7 +387,10 @@ struct function{//36 bytes
 struct macro{
   function_args* args;
   CORD lname;
-  sexp body;
+  union {
+    sexp body;
+    funcall comp;
+  };
 };
 struct lambda{
   env *env;//for closures

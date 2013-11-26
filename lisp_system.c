@@ -34,13 +34,13 @@ static void *async_system_helper(void *command){
 sexp lisp_system_async(sexp command){
   if(!STRINGP(command)){
     return error_sexp("argument to system must be a string");
-  } 
+  }
   pthread_t new_thread;
   char *pthread_arg=CORD_to_char_star(command.val.cord);
   pthread_create(&new_thread,NULL,async_system_helper,pthread_arg);
   return NIL;
 }
-  
+
 #define SHELL "/bin/bash"
 sexp lisp_system(sexp command,sexp args){
   //  HERE();
@@ -91,4 +91,45 @@ sexp lisp_system(sexp command,sexp args){
       return long_sexp(status);
     }
   }
+}
+//pretty sure this doesn't actually work
+sexp get_pathname(sexp pathname_str,sexp no_expansion){
+  if(!STRINGP(pathname_str)){
+    return format_type_error("get-pathname","string",pathname_str.tag);
+  } if(!NILP(no_expansion)){
+    return pathname_str;
+  }
+  int tilde;
+  CORD pathname=pathname_str.val.cord;
+  if((tilde = CORD_chr(pathname,CORD_len(pathname)-1,'~'))!= -1){
+    HERE();
+    char *home_dir=getenv("HOME");
+    //not sure the best way to splice a cord into the middle of an existing cord
+    CORD_pos pos[1];
+    CORD_set_pos(pos[0],pathname,tilde);
+    CORD rest=CORD_pos_to_cord(pos[0]);
+    pathname=CORD_catn(3,CORD_substr(pathname,0,tilde),CORD_from_char_star(home_dir),rest);
+  }
+  return cord_sexp(pathname);
+}
+//I can think of an issue here, if I fail to load a file, the parts I'd already
+// evaluated are already loaded, but it does work
+sexp lisp_load(sexp pathname){
+  pathname=get_pathname(pathname,NIL);
+  if(ERRORP(pathname)){return pathname;}
+  sexp ast;
+  FILE* file=fopen(CORD_to_const_char_star(pathname.val.cord),"r");
+  if(!file){
+    return error_sexp("invalid filename passed to load");
+  }
+  ast=yyparse(file);
+  sexp result=NIL;
+  while (CONSP(ast)){
+    result=eval(XCAR(ast),topLevelEnv);
+    if(ERRORP(result)){
+      return error_sexp(CORD_cat("error loading file, error was:\n",result.val.cord));
+    }
+    ast=XCDR(ast);
+  }
+  return LISP_TRUE;
 }

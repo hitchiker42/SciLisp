@@ -4,8 +4,9 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 #include "common.h"
+#include "unicode.h"
 #define YY_DECL TOKEN yylex(void)
-  //woo non portable
+#if 0
 union utf8_hack{
   char bytes[2];
   wchar_t wchar;
@@ -49,6 +50,7 @@ static wchar_t lex_char(char* cur_yytext){
     return (wchar_t)L'\0';
   }
 }
+#endif
  static int comment_depth=0;
 %}
 DIGIT [0-9]

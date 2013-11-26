@@ -33,11 +33,13 @@ LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
-	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system
+	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system unicode.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
-	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o
-#STD_LIB
-#STD_LIB_SRC:=
+	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o
+#STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o
+# lisp_system.o unicode.o
+#STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c
+# lisp_system.c unicode.c
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -67,6 +69,7 @@ lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
 	$(CC) $(XCFLAGS_NOWARN) -w -c lex.yy.c -o lex.yy.o
+unicode.o: unicode.c
 parser.o: parser.c $(COMMON_HEADERS) cons.h
 cons.o: cons.c $(COMMON_HEADERS) cons.h
 print.o: print.c $(COMMON_HEADERS) cons.h prim.h

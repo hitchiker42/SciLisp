@@ -26,7 +26,7 @@
       register double yy=getDoubleVal(y);                               \
       return (sexp){.tag=_double,.val={.real64=(xx op yy)}};            \
     } else {                                                            \
-      return error_sexp("type error in "#op);                           \
+      return format_type_error2(#fun_name,"number",x.tag,"number",y.tag);\
     }                                                                   \
   }
 #define mkLisp_cmp(op,cname)                                    \
@@ -38,7 +38,7 @@
       register double yy=getDoubleVal(y);                       \
       return (xx op yy ? LISP_TRUE : LISP_FALSE);                      \
     } else {                                                    \
-      return error_sexp("type error in "#op);                   \
+      return format_type_error2(#cname,"number",x.tag,"number",y.tag); \
     }                                                           \
   }
 //ignore tags, allow logical operations on doubles(or anything else)
@@ -47,10 +47,6 @@
   sexp fun_name(sexp x,sexp y){                                         \
     return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
   }
-/*#define DEFUN(lname,cname,minargs,maxargs)                    \
-  fxn_proto cname##call=                                        \
-  { #cname, lname, minargs, maxargs, {.f##maxargs=cname}};*/
-//  symbol c_name##mem[maxargs]={{.name="",.val=NIL_MACRO()}};
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
@@ -58,9 +54,16 @@
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
   function c_name##_call=                                             \
-    { .args=&c_name##_args,.lname=#l_name,.cname=#c_name,                   \
+    { .args=&c_name##_args,.lname=l_name,.cname=#c_name,                   \
       .comp = {.f##maxargs=c_name},            \
       .type = _compiled_fun };
+#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
+  function_args c_name##_args=                                            \
+    { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
+      .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
+  macro c_name##_expander=                                              \
+    {.args=&c_name##_args,.lname=l_name,                                \
+      .comp = {.f##maxargs=c_name}}
 #define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
   symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}}; \
   symref c_name ## _ptr=0;                                              \
@@ -72,12 +75,15 @@
   symref c_name ## _ptr = 0;                                            \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=0}
-//  c_name##_ptr->symbol_env=ob_env;                             
-//  c_name##_ptr->symbol_env=ob_env;                             
 #define INIT_SYMBOL(c_name)                                    \
   c_name##_ptr=&c_name##_sym;                                  \
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
+  prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
+#define INIT_MACRO_SYMBOL(c_name)                                    \
+  c_name##_ptr=&c_name##_sym;                                        \
+  c_name##_ptr->val.val.fun=&c_name##_expander;                      \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                          \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_GLOBAL(c_name)                                      \
   c_name##_ptr=&c_name##_sym;                                    \
@@ -622,8 +628,8 @@ DEFUN("last",lisp_last,1,0,0,0,1);
 DEFUN("push!",push_cons,2,0,0,0,2);
 DEFUN("pop!",pop_cons,1,0,0,0,1);
 DEFUN("mapcar",mapcar,2,0,0,0,2);
-DEFUN("reduce",reduce,2,0,0,0,2);
-DEFUN("qsort",qsort_cons,2,0,0,0,2);
+DEFUN("reduce",cons_reduce,2,0,0,0,2);
+DEFUN("qsort",cons_qsort,2,0,0,0,2);
 DEFUN("length",lisp_length,1,0,0,0,1);
 DEFUN("aref",aref,2,0,0,0,2);
 DEFUN("array->list",array_to_list,1,0,0,0,1);
@@ -651,14 +657,19 @@ DEFUN("not",lisp_not,1,0,0,0,1);
 DEFUN("assert",lisp_assert,1,0,0,0,1);
 DEFUN("assert-eq",lisp_assert_eq,2,0,0,0,2);
 DEFUN("gensym",lisp_gensym,0,0,0,0,0);
-DEFUN("reverse!",lisp_nreverse,1,0,0,0,1);
+DEFUN("reverse!",cons_nreverse,1,0,0,0,1);
 DEFUN("drop",cons_drop,2,0,0,0,2);
 DEFUN("take",cons_take,2,0,0,0,2);
 DEFUN("reverse",cons_reverse,1,0,0,0,1);
+DEFUN("load",lisp_load,1,0,0,0,1);
+DEFUN("array-reverse",array_reverse,1,0,0,0,1);
+DEFUN("array-reverse!",array_nreverse,1,0,0,0,1);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("array-iota",array_iota,1,3,0,0,4);
 DEFUN("array-qsort",array_qsort,2,1,0,0,3);
+DEFUN("array-map",array_map,2,1,0,0,3);
+DEFUN("array-reduce",array_reduce,2,1,0,0,3);
 DEFUN("typeName",lisp_typeName,1,0,0,0,1);
 DEFUN("typeOf",typeOf,1,0,0,0,1);
 DEFUN("print",lisp_print,1,0,0,0,1);
@@ -769,8 +780,8 @@ MAKE_SYMBOL("last",lisp_last,0x229273cc92c0e97a );
 MAKE_SYMBOL("push!",push_cons,0xdeb98901efbd89cb );
 MAKE_SYMBOL("pop!",pop_cons,0x69c73c4f15772b00 );
 MAKE_SYMBOL("mapcar",mapcar,0xc0ee7f3d3740c6c5 );
-MAKE_SYMBOL("reduce",reduce,0x2f92df0bac03dce7 );
-MAKE_SYMBOL("qsort",qsort_cons,0x9ece1ff7e6e56498 );
+MAKE_SYMBOL("reduce",cons_reduce,0x563cfbb23bdcf7d7 );
+MAKE_SYMBOL("qsort",cons_qsort,0x96dc82ab61416d18 );
 MAKE_SYMBOL("length",lisp_length,0x8f69728654de2182 );
 MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
 MAKE_SYMBOL("array->list",array_to_list,0x3dd759e226ade7d3 );
@@ -798,14 +809,19 @@ MAKE_SYMBOL("not",lisp_not,0x878ab2581416323 );
 MAKE_SYMBOL("assert",lisp_assert,0x305cd7213a55a78c );
 MAKE_SYMBOL("assert-eq",lisp_assert_eq,0x9a99e8fcb03e0ccf );
 MAKE_SYMBOL("gensym",lisp_gensym,0xbeed9f84963fc95b );
-MAKE_SYMBOL("reverse!",lisp_nreverse,0x7c738cb27d54eaae );
+MAKE_SYMBOL("reverse!",cons_nreverse,0xae2278ac6ff9a29 );
 MAKE_SYMBOL("drop",cons_drop,0x12b998f81b244bdc );
 MAKE_SYMBOL("take",cons_take,0xe6b14274e2e3a606 );
 MAKE_SYMBOL("reverse",cons_reverse,0xd880e17f7678aaf5 );
+MAKE_SYMBOL("load",lisp_load,0xa7ca35cc4cc7ab16 );
+MAKE_SYMBOL("array-reverse",array_reverse,0xe177997970ed3def );
+MAKE_SYMBOL("array-reverse!",array_nreverse,0x5d586493f1b1091b );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("array-iota",array_iota,0x9da75f7c30743354 );
 MAKE_SYMBOL("array-qsort",array_qsort,0xe2ee49217cebc08e );
+MAKE_SYMBOL("array-map",array_map,0x66ac752abcbf850b );
+MAKE_SYMBOL("array-reduce",array_reduce,0xf473832a6e5c985d );
 MAKE_SYMBOL("typeName",lisp_typeName,0x3fd978c7b7c570e5 );
 MAKE_SYMBOL("typeOf",typeOf,0x6971003f4c928aa0 );
 MAKE_SYMBOL("print",lisp_print,0x4a38f2ac6b3b6ed1 );
@@ -963,8 +979,8 @@ INIT_SYMBOL(lisp_last);
 INIT_SYMBOL(push_cons);
 INIT_SYMBOL(pop_cons);
 INIT_SYMBOL(mapcar);
-INIT_SYMBOL(reduce);
-INIT_SYMBOL(qsort_cons);
+INIT_SYMBOL(cons_reduce);
+INIT_SYMBOL(cons_qsort);
 INIT_SYMBOL(lisp_length);
 INIT_SYMBOL(aref);
 INIT_SYMBOL(array_to_list);
@@ -992,14 +1008,19 @@ INIT_SYMBOL(lisp_not);
 INIT_SYMBOL(lisp_assert);
 INIT_SYMBOL(lisp_assert_eq);
 INIT_SYMBOL(lisp_gensym);
-INIT_SYMBOL(lisp_nreverse);
+INIT_SYMBOL(cons_nreverse);
 INIT_SYMBOL(cons_drop);
 INIT_SYMBOL(cons_take);
 INIT_SYMBOL(cons_reverse);
+INIT_SYMBOL(lisp_load);
+INIT_SYMBOL(array_reverse);
+INIT_SYMBOL(array_nreverse);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(array_iota);
 INIT_SYMBOL(array_qsort);
+INIT_SYMBOL(array_map);
+INIT_SYMBOL(array_reduce);
 INIT_SYMBOL(lisp_typeName);
 INIT_SYMBOL(typeOf);
 INIT_SYMBOL(lisp_print);

@@ -120,6 +120,7 @@ obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
 symref getObarraySym(obarray_env *ob_env,CORD name);
 symref addObarraySym(obarray_env *ob_env,symref Var);
 int bucketLength(obarray_entry* bucket);
+uint64_t obarray_delete_entry(obarray *ob,symref entry);
 obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
                                       obarray_entry *entry);
 static inline size_t symbolSize(env *cur_env){
