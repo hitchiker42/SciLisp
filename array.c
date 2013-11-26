@@ -128,6 +128,47 @@ sexp array_to_list(sexp obj){
     return cons_sexp(new_list);
   }
 }
+sexp array_map(sexp arr,sexp map_fn,sexp inplace){
+  if(!ARRAYP(arr)||!(FUNP(map_fn))){
+    return format_type_error2("array-map","array",arr.tag,
+                              "function",map_fn.tag);
+  }
+  sexp *new_array;
+  sexp(*f)(sexp)=map_fn.val.fun->comp.f1;
+  if(isTrue(inplace)){
+    new_array=arr.val.array;
+  } else {
+    new_array=xmalloc(sizeof(sexp)*arr.len);
+    memcpy(new_array,arr.val.array,arr.len*sizeof(sexp));
+  }
+  int i;
+  for(i=0;i<arr.len;i++){
+    new_array[i]=f(new_array[i]);
+  }
+  return array_sexp(new_array,arr.len);
+}
+sexp array_reduce(sexp arr,sexp red_fn,sexp init){
+  if(!ARRAYP(arr)||!(FUNP(red_fn))){
+    return format_type_error2("array-reduce","array",arr.tag,
+                              "function",red_fn.tag);
+  }
+  if(arr.len == 0){
+    return NIL;
+  }
+  sexp(*f)(sexp,sexp)=red_fn.val.fun->comp.f2;
+  sexp *arr_data=arr.val.array;
+  sexp acc;
+  if(!NILP(init)){
+    acc=f(init,arr_data[0]);
+  } else {
+    acc = arr_data[0];
+  }
+  int i;
+  for(i=1;i<arr.len;i++){
+    acc=f(init,arr_data[i]);
+  }
+  return acc;
+}
 static data temp;
 static int typed_array_qsort_partition
 (data *arr,int left,int right,int pivot_ind,int(*f)(data,data)){
@@ -225,3 +266,14 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   return array_sexp(sorted_array,arr.len);
 }
 #undef swap
+/* Heap
+   -tree with compairson function f
+   -the tree satisfies the headp property
+   -that is, f(node,left-child) and f(node,right-child) are both true
+   -each subtree also satisfies the heap property
+   -implemented as an array.
+   f(node)=[left-child,right-child];
+   [root,f(root),f(root-left-child),f(root-right-child),...f(root-nth-child)]
+   -i.e the array holds the elements of the tree as if they were being reads
+   from left-right, top-bottom
+*/

@@ -67,6 +67,8 @@
       .val={.int##n=int_n_val}}
 #define uint_n_sexp(uint_n_val,n) (sexp) {.tag=_uint##n,\
       .val={.uint##n=uint_n_val}}
+#define keyword_sexp(keyword_val) (sexp){.tag=_keyword,\
+      .val={.keyword=keyword_val}}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
 #define ulong_sexp(ulong_val) (sexp){.tag=_ulong,.val={.uint64=ulong_val}}
 #define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val},.is_ptr=1}

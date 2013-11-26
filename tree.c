@@ -78,3 +78,25 @@ sexp basic_tree_insert(sexp tree,sexp new_node){
       insert_tree_generic(btree,XCDDR,XCADR);
     }
   }
+}
+#define next_node(tree,val,f)                   \
+  (isTrue(f(XCAR(tree),val))?                   \
+   XCADR(tree):XCDDR(tree))
+  
+sexp basic_tree_lookup(sexp tree,sexp val){
+  if(!TREEP(tree)){
+    return format_type_error("tree-lookup","tree",tree.tag);
+  }
+  sexp(*f)(sexp,sexp)=tree.val.tree->comp_fn;
+  sexp btree=tree.val.tree->btree;
+  while(CONSP(btree)){
+    if(lisp_eq(val,XCAR(btree))){
+      return LISP_TRUE;
+    } else if (NILP(XCDR(btree))){
+      return LISP_FALSE;
+    } else {
+      btree=next_node(btree,val,f);
+    }
+  }
+  return LISP_FALSE;
+}

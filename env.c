@@ -144,19 +144,9 @@ sexp getKeySymSexp(CORD name){
   keysym=xmalloc(sizeof(keyword_symbol));
   keysym->name=name;
   obarray_add_entry(keywordObarray,keysym);
-  PRINT_FMT("%#0d",keysym);
-  return (sexp){.tag=_keyword,.val={.keyword=keysym}};
+  //PRINT_FMT("%#0d",keysym);
+  return keyword_sexp(keysym);
 }
-/*array_symref getArraySym(array_env args,CORD name){
-  int i,len=args.head[0].index;
-  array_symref arr=args.head;//array_symref=array_symbol*=array of array symbols
-  for(i=0;i<len;i++){
-    if(!CORD_cmp(arr[i].name,name)){
-      return arr[i];
-    }
-  }
-  return (array_symref)getSym(args.enclosing,name);
-  }*/
 /*obarray implementation (as usual with lisp, a name for historical reasons)*/
 const struct timespec one_ms={.tv_nsec=1e6};
 struct timespec rmtp;
