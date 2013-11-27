@@ -1,6 +1,6 @@
 \input texinfo
 @c %**start of header
-@set UPDATED Time-stamp: <14 October 2013>
+@set Time-stamp: <26 November 2013>
 @setfilename SciLisp.info
 @settitle SciLisp Manual
 @codequoteundirected on
@@ -10,14 +10,11 @@
 @c %**end of header
 @c @allowcodebreaks true/false; allow line breaking at _ or - in
 @c @code{}(et. all) blocks
-@ignore
-m4_include(`manual.m4')
-@end ignore
 @copying
 This manual is for SciLisp (version @value{VERSION}, last updated on
-@value{UPDATED} @*
-SciLisp is free software licensed under the GNU GPL V3+
-Copyright @copyright{} 2013 Tucker DiNapoli
+@value{Time-stamp:} @*
+SciLisp is free software licensed under the GNU GPL V3+@*
+Copyright @copyright{} 2013 Tucker@w{ }DiNapoli
 @quotation
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -29,10 +26,10 @@ Texts. A copy of the license is included in the section entitled
 @end copying
 @titlepage
 @title SciLisp Manual
-@subtitle for version @value{VERSION}, @value{UPDATED}
-@author Tucker DiNapoli (@email{SciLisp@@gmail.com})
-@page
+@subtitle for version @value{VERSION}, @value{Time-stamp:}
+@c @page
 @vskip 0pt plus 1filll @c presumably some kind of vertical break
+@author Tucker DiNapoli (@email{SciLisp@@gmail.com})
 @insertcopying
 @end titlepage
 @contents
@@ -47,8 +44,7 @@ Manual for the SciLisp programming language
 * The SciLisp Language:: Informal introduction to the SciLisp language
 * SciLisp Types:: The internal/optional type system of SciLisp
 * Grammar:: Introduction to SciLisp grammar and formal grammar rules
-* Standard Library:: The standard library of SciLisp (not much to it
-                     though)
+* Standard Library:: The standard library of SciLisp
 * Internals:: An attempt to describe the internals of SciLisp
 * Differences from other lisps:: How SciLisp differs from other lisps,
                                  specifically common lisp and scheme.
@@ -66,7 +62,8 @@ Manual for the SciLisp programming language
 @menu
 * Design Overview::
 @end menu
-cindices([[Introduction]],[[General Introduction]])
+@cindex Introduction
+@cindex General Introduction
 SciLisp is a programming language in the LISP family largely influenced
 by aspects of both Common Lisp and Scheme. The SciLisp compiler and
 interpreter are the first programs of their kind written by the author
@@ -96,6 +93,33 @@ respectively.
 @section The SciLisp Interpreter
 @node Command Line Options
 @section Command Line Options
+@table @option
+@item -o | --output @{file@}
+set the output file when compiling a file
+@item -v | --version
+print version information and exit
+@item -e | --eval @{file | expression@}
+if the argument is a filename evaluate the code in @var{file} and print
+the results. if the argument is a SciLisp expression evaluate
+@var{expression} and print the results. Otherwise exit with an error.
+@item -l | --load @{file@}
+load the file @var{file} and enter the interpreter
+@item -n | --no-debug
+if debugging is enabled in the SciLisp executable quiet all debugging
+messages, if debugging in not enabled this option has no effect.
+@item -q | --quiet
+Do not print the banner or copyright information when starting the
+interpreter. Additionally if debugging is enabled quiet all debugging
+messages (i.e -q implies -n)
+@item -h | --help
+print the list of options and what they do and exit
+@item -t | --test
+run the test suite printing out the expressions that are evaluated as
+well as the results.
+@item -r | --regression
+run the test suite silent, only indicating if all tests passed or if
+some failed.
+@end table
 @node The SciLisp Language
 @chapter The SciLisp Language
 @node SciLisp Types
@@ -121,13 +145,17 @@ in compiled code, they are silently ignored in interpreted code.
 @c You Know what I need to come up with a better type hierarchy first
 @node Atoms
 @section Atoms
-cindices([[Floating Point Numbers]],[[Integers]],[[Numbers]],
-                    [[Characters]],[[Strings]])
+@cindex Floating Point Numbers
+@cindex Integers
+@cindex Numbers
+@cindex Characters
+@cindex Strings
+@cindex Booleans
 @menu
 * Numbers::
 @c * Floating Point Numbers::
 @c * Integers::
-* Booleans
+* Booleans::
 @end menu
 @node Numbers
 @subsection Numbers
@@ -179,6 +207,7 @@ only work on the primitive numeric types while functions named by a
 word (add,sub,iorb,andb,etc) act on any numeric type. Conventions for
 named mathmatical functions(log,cos,exp,etc) have yet to be decided.
 @node Booleans
+@subsection Booleans
 There are two values of the boolean type, #t represents true and #f
 false. These are the result of any boolean expression and can be used
 if a literal true or false is needed, however all SciLisp values can
@@ -246,7 +275,7 @@ than these special forms. The special forms in SciLisp are:
 @lisp (if @var{cond} @var{then} @var{else}) 
 @end lisp
 evaluate @var{cond} if @var{cond} evaluates to true evaluate @var{then}
-if @var{cond} evaluates to false evaluate @var{else} (@pxref{Booleans, ,Types}).
+if @var{cond} evaluates to false evaluate @var{else} (@pxref{Booleans,,Atoms}).
 @end table
 @node Formal Grammar
 @section Formal Grammar
@@ -276,7 +305,7 @@ The SciLisp grammar in EBNF form.
 @item float :=
 [+-]? [0-9]+('.'[0-9]*|('.'[0-9]*)?'e'[0-9]+)
 @item character :=
-'?'<unicode character> | '?\?' | '?\\' | '?x[0-9]{2}' | '?u[0-9]{4}'
+'?'<unicode character> | '?\?' | '?\\' | '?x[0-9]@{2@}' | '?u[0-9]@{4@}'
 @item string :=
 '"'<unicode character>*'"'
 @item symbol :=
@@ -295,13 +324,14 @@ The SciLisp grammar in EBNF form.
 @chapter Standard Library
 @menu
 * Conses::
-* Numbers::
+* Mathematics::
 * Arrays::
 * Strings::
 * Regular Expressions::
-* I/O::
+* Input/Output::
 * System Interface::
 @end menu
+@node Conses
 @section Conses
 @c defination example
 @defun car cons-cell
@@ -325,6 +355,18 @@ loop indefinitely, unless a @code{break} or @code{return} statement is
 reached in @var{body}. If @var{inc} is omitted it defaults to
 @math{@var{to}-@var{from}/|@var{to}-@var{from}|}.
 @end defspec
+@node Mathematics
+@section Mathematics
+@node Arrays
+@section Arrays
+@node Strings
+@section Strings
+@node Regular Expressions
+@section Regular Expressions
+@node Input/Output
+@section Input/Output
+@node System Interface
+@section System Interface
 @node Internals
 @chapter Internals
 @node Differences from other lisps

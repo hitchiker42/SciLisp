@@ -400,25 +400,6 @@ struct scoped_sexp{
   sexp sexp;
   env* env;
 };
-//aviable command line options, struct args: 1st arg option name
-//2nd arg=enum{no_argument=0,required_argument=1,optional_argument=2}
-//3rd arg can be set to a variable adress to allow that argument to set it
-//for any long argument with a corrsponding short option this must be 0
-//4th arg is the value to load into 3rd arg if it is not null otherwise
-//it should be set to the equivlant short option
-static struct option long_options[];
-static struct option long_options[] = {
-  {"backend",1,0,'b'},
-  {"eval"   ,1,0,'e'},
-  {"help"   ,0,0,'h'},
-  {"load"   ,1,0,'l'},
-  {"no-debug",0,0,'n'},
-  {"output" ,1,0,'o'},
-  {"quiet"  ,0,0,'q'},
-  {"test"   ,0,0,'t'},
-  {"version",0,0,'v'},
-  {0,0,0,0}
-};
 //literal objects for each type
 //should probably generate these or something
 #define mkTypeSym(name,mval)                                    \

@@ -1,11 +1,8 @@
 .PHONY: all info pdf clean
 all: info pdf
-manual_m4.texi: manual.texi manual.m4
-	m4 -P manual.texi > $@
-info: manual_m4.texi
-	makeinfo manual_m4.texi -o SciLisp.info
-pdf: manual_m4.texi
-	makeinfo --pdf manual_m4.texi -o SciLisp.pdf
-	mv manual_m4.texi temp.texi;rm manual_m4.*;mv temp.texi manual_m4.texi
+info: manual.texi
+	makeinfo manual.texi -o SciLisp.info
+pdf: manual.texi
+	makeinfo --pdf manual.texi -o SciLisp.pdf
 clean: 
-	rm manual_m4.*;rm SciLisp.*
+	rm SciLisp.*
