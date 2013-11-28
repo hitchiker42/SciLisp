@@ -7,6 +7,7 @@
 //of SciLisp functions
 #include "gen_cffi.h"
 #include <assert.h>
+SciLisp_Data *function_list;
 CORD clangStringToCORD(CXString clangString){
   CORD retval=CORD_from_char_star(clang_getCString(clangString));
   clang_disposeString(clangString);
@@ -14,6 +15,15 @@ CORD clangStringToCORD(CXString clangString){
 }
 //will need to write a function to turn a CXTypeKind into an array offest
 //and keep all SciLisp_Type structs in an array
+void initSciLisp_Types(){
+  SciLisp_Types=xmalloc(sizeof(SciLisp_Type)*SCILISP_TYPES_ARRAY_SIZE);
+  int i;
+  SciLisp_Types[0]=SciLisp_Double;
+  SciLisp_Types[1]=SciLisp_Int64;
+  SciLisp_Types[2]=SciLisp_Float;
+  SciLisp_Types[3]=SciLisp_Int8;
+  SciLisp_Types[4]=SciLisp_UInt8;
+}
 SciLisp_Type *clangTypeToSciLispType(CXType ctype){
   switch(ctype.kind) {
     case CXType_Char:
@@ -84,15 +94,15 @@ clang_test(CXCursor cursor,CXCursor parent,CXClientData data){
   puts("\n---------------------");
   return CXChildVisit_Recurse;
 }
-CORD temp_fun;
 //collect a list of all function definations in the ast pointed to by cursor
 enum CXChildVisitResult
 clang_find_functions(CXCursor cursor,CXCursor parent,CXClientData data){
+  CORD temp_fun;
   if(!clang_isFunctionDecl(cursor)){
-    HERE();
     return CXChildVisit_Continue;
   } else {
-    SciLisp_Data* SL_data=(SciLisp_Data*)data;
+    //SciLisp_Data* SL_data=(SciLisp_Data*)data;
+    SciLisp_Data* SL_data=function_list;
     SciLisp_Function *curFun=xmalloc(sizeof(SciLisp_Function));
     curFun->function_decl=cursor;
     if(SL_data->num_fxns==0){
@@ -100,13 +110,13 @@ clang_find_functions(CXCursor cursor,CXCursor parent,CXClientData data){
       SL_data->head=curFun;
       SL_data->tail=curFun;
       SL_data->num_fxns++;
-      (CORD_sprintf,&temp_fun,
+      temp_fun=
        (clangStringToCORD
         (clang_getTypeSpelling
          (clang_getCanonicalType
-          (clang_getCursorType(cursor))))));
+          (clang_getCursorType(cursor)))));
       if(temp_fun){
-        CORD_fprintf(stderr,temp_fun);
+        //CORD_fprintf(stderr,temp_fun);
         return CXChildVisit_Continue;
       } else {
         fprintf(stderr,"didn't get function\n");
@@ -128,36 +138,32 @@ clang_find_functions(CXCursor cursor,CXCursor parent,CXClientData data){
   }
 }
 //NOTE: function arguments start at 1 not 0
+//old me, why is this
 CORD makeSciLispFunction(SciLisp_Function *data){
-  CORD lfun;//lisp_function
-  CORD declarations="";
-  CORD typechecks="";
-  CORD funcall="";
+  CORD lfun=" ";//lisp_function
+  CORD declarations="\n";
+  CORD typechecks=" ";
+  CORD funcall="  ";
   cur_function_name=clang_getFunctionName(*data);
   CXType funType=clang_getCursorType(data->function_decl);
-  int numArgs=clang_getNumArgTypes(funType);
+  int numArgs=clang_Cursor_getNumArguments(data->function_decl);
   int i;
   CXType argType;
   SciLisp_Type* curType;
   lfun=buildSciLispName(funType);
   CORD_fprintf(stderr,lfun);
   //everything should work fine if we have no args, I think
-  for(i=1;(i<=numArgs || (numArgs==0 && i==1));i++){
+  for(i=0;i<=numArgs;i++){
     argType=clang_getArgType(funType,i);
     curType=clangTypeToSciLispType(argType);
     if(!curType){HERE();
       continue;}
     typechecks=buildTypeChecks(typechecks,curType,i,numArgs,funType);
-    HERE();
-    CORD_fprintf(stderr,typechecks);
     declarations=buildDeclarations(declarations,curType,i);
-    HERE();
-    CORD_fprintf(stderr,declarations);
     funcall=buildFunCall(funcall,i,numArgs,funType);
-    HERE();
-    CORD_fprintf(stderr,funcall);
   }
   lfun=CORD_catn(4,lfun,typechecks,declarations,funcall);
+  CORD_fprintf(stderr,lfun);
   return lfun;
 }
 //build a cord of the form:
@@ -173,9 +179,9 @@ CORD buildFunCall(CORD funcall,int curArg,
       return funcall;
     }
   }
-  funcall=CORD_cat_char_star(funcall,"c_obj",5);
-  CORD_cat_char(funcall,(char)(curArg+48));
-  if(curArg==maxArg){
+  funcall=CORD_cat(funcall,"c_obj");
+  funcall=CORD_cat_char(funcall,(char)(curArg+48));
+  if(curArg==(maxArg-1)){
     funcall=CORD_cat_char_star(funcall,"));\n}\n",6);
     return funcall;
   } else {
@@ -188,13 +194,14 @@ CORD buildFunCall(CORD funcall,int curArg,
 CORD buildDeclarations(CORD decls,SciLisp_Type *curType,int curArg){
   //this one's a bit easy, theres nothing special about the first or last
   //argument
+  decls=CORD_cat(decls,"  ");
   decls=CORD_cat(decls,curType->ctype);
-  decls=CORD_cat_char_star(decls," c_obj",6);
+  decls=CORD_cat(decls," c_obj");
   decls=CORD_cat_char(decls,(char)(curArg+48));
-  if(curType->useFxnAccessor){
+  if(curType->useFxnAccessor){    
     decls=CORD_catn(4,decls,"= ",curType->fxnAccessor,"(obj");
     decls=CORD_cat_char(decls,(char)(curArg+48));
-    decls=CORD_cat_char_star(decls,");\n",3);
+    decls=CORD_cat(decls,");\n");
     return decls;
   } else {
     decls=CORD_cat(decls,"= obj");
@@ -202,7 +209,7 @@ CORD buildDeclarations(CORD decls,SciLisp_Type *curType,int curArg){
     decls=CORD_cat(decls,".val.");
     decls=CORD_cat(decls,curType->fieldName);
     decls=CORD_cat(decls,";\n");
-    CORD_fprintf(stderr,decls);
+    //CORD_fprintf(stderr,decls);
     return decls;
   }
 }
@@ -214,11 +221,11 @@ CORD buildTypeChecks(CORD checks,SciLisp_Type *curType,int curArg,
   if(curArg==1 && maxArg){
     checks="if (";
   }
-  checks=CORD_catn(3,checks,curType->typecheck,"(obj");
+  checks=CORD_catn(4,checks,"!",curType->typecheck,"(obj");
   checks=CORD_cat_char(checks,(char)(curArg+48));
   checks=CORD_cat_char(checks,')');
-  if(curArg==maxArg){
-    checks=CORD_catn(4,checks,"){\n return error_sexp(\"type error in ",
+  if(curArg==(maxArg-1)){
+    checks=CORD_catn(4,checks,"){\n  return error_sexp(\"type error in ",
                      cur_function_name,"\");\n}");
     return checks;//not that there's much of a point to this;
   } else {
@@ -239,7 +246,7 @@ CORD buildSciLispName(CXType function){
     retval=CORD_cat(retval,"){\n");
     return retval;
   }
-  for(i=1;i<numArgs;i++){
+  for(i=0;i<numArgs;i++){
     retval=CORD_cat(retval,"sexp obj");
     retval=CORD_cat_char(retval,(char)(i+48));
     retval=CORD_cat(retval,", ");
@@ -346,7 +353,7 @@ int main(int argc,char *argv[]){
       ("requires 1-2 arguments specifying an input and optional output file\n");
     return 0;
   }
-  inFileName=argv[1];//placeholder for argument parsing  
+  inFileName=argv[1];//placeholder for argument parsing
   CORD outFile_cord;
   if(argv[2]){
     outFile=fopen(argv[2],"w");
@@ -364,16 +371,16 @@ int main(int argc,char *argv[]){
     return 1;
   }
   CXCursor entry_point=clang_getTranslationUnitCursor(clang_trans_unit);
-  SciLisp_Data *function_list=xmalloc(sizeof(SciLisp_Data));
+  function_list=xmalloc(sizeof(SciLisp_Data));
   SciLisp_Function *curFun;
   CORD SciLisp_Code;
   CORD_sprintf(&SciLisp_Code,
                "%s//this file was created using %s\n",SciLisp_Header,inFileName);
   //test code
-  //  clang_visitChildren(entry_point,clang_test,NULL);
-  //  return 0;
+  //    clang_visitChildren(entry_point,clang_test,NULL);
+    //  return 0;
   //collect up the function definations
-  clang_visitChildren(entry_point,clang_find_functions,function_list);
+  clang_visitChildren(entry_point,clang_find_functions,NULL);
   if(!function_list || function_list->num_fxns==0){
     fprintf(stderr,"We Failed somehow\n");
     return 1;

@@ -24,13 +24,10 @@ static int no_banner=0;
 static int no_copyright=0;
 static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
 #if defined(MULTI_THREADED)
-static int pthread_prims_initialized=0;
-static pthread_mutex_t init_prims_mutex=PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t init_prims_cond=PTHREAD_COND_INITIALIZER;
+static pthread_once_t pthread_prims_initialized = PTHREAD_ONCE_INIT;
 static void* initPrims_pthread(void*);
-static void ensure_prims_initialized();
 static void* SciLisp_getopt_pthread(void *getopt_args);
-#define ENSURE_PRIMS_INITIALIZED() ensure_prims_initialized()
+#define ENSURE_PRIMS_INITIALIZED() (void)pthread_once(&pthread_prims_initialized,initPrims)
 #else
 #define ENSURE_PRIMS_INITIALIZED()
 #endif
@@ -264,7 +261,7 @@ int main(int argc,char* argv[]){
     perror("Program error, exiting:\nthread creation failed");
     exit(4);
   }
-  PRINT_FMT("thread number %lu",pthread_self());
+  PRINT_FMT("thread number %lu, Main Thread",pthread_self());
 #else
   initPrims();
   SciLisp_getopt(argc,argv);
@@ -283,7 +280,6 @@ int main(int argc,char* argv[]){
 #ifdef MULTI_THREADED
   pthread_join(initPrims_thread,NULL);
   pthread_join(getopt_thread,NULL);
-  pthread_mutex_destroy(&init_prims_mutex);
 #endif
   if(!no_banner){
     puts(SciLisp_Banner);
@@ -373,25 +369,12 @@ static c_string SciLisp_Banner=
 "                           /_/     ";
 #ifdef MULTI_THREADED
 static void* initPrims_pthread(void* x __attribute__((unused))){
-  PRINT_FMT("thread number %lu",pthread_self());
-  initPrims();
-  pthread_mutex_lock(&init_prims_mutex);
-  pthread_prims_initialized=1;
-  pthread_cond_broadcast(&init_prims_cond);
-  pthread_mutex_unlock(&init_prims_mutex);
-  pthread_cond_destroy(&init_prims_cond);
+  PRINT_FMT("thread number %lu, initPrims thread",pthread_self());
+  (void)pthread_once(&pthread_prims_initialized,initPrims);
   return 0;
 }
-static void ensure_prims_initialized(){
-  pthread_mutex_lock(&init_prims_mutex);
-  while(!pthread_prims_initialized){
-    HERE();
-    pthread_cond_wait(&init_prims_cond,&init_prims_mutex);
-  }
-  pthread_mutex_unlock(&init_prims_mutex);
-}
 static void* SciLisp_getopt_pthread(void *getopt_args){
-  PRINT_FMT("thread number %lu",pthread_self());
+  PRINT_FMT("thread number %lu, Getopt thread",pthread_self());
   struct thread_args *args=(struct thread_args *)getopt_args;
   int argc=args->argc;
   char **argv=args->argv;
@@ -451,13 +434,14 @@ static void SciLisp_getopt(int argc,char *argv[]){
         } else {
           file=fopen(optarg,"r");
           if(!file){
-            perror(NULL);
+            perror("failed to open file");
             exit(1);
           }
         }
         ENSURE_PRIMS_INITIALIZED();
         if(setjmp(error_buf)){
-          printf("parsing failed exiting\n");
+          fprintf(stderr,"parsing failed exiting\n");
+
           exit(1);
         }
         ast=yyparse(file);
@@ -493,10 +477,16 @@ static void SciLisp_getopt(int argc,char *argv[]){
         CORD_debug_printf=CORD_ndebug_printf;
         debug_printf=ndebug_printf;
         FILE* file=fopen("test.lisp","r");
-        int my_stdout_fd=dup(STDOUT_FILENO);        
+        int my_stdout_fd=dup(STDOUT_FILENO);
+        int my_stderr_fd=dup(STDERR_FILENO);
         freopen("/dev/null","w",stdout);
         freopen("/dev/null","w",stderr);
         ENSURE_PRIMS_INITIALIZED();
+        if(setjmp(error_buf)){
+          FILE* my_stderr=fdopen(my_stderr_fd,"w");
+          fprintf(my_stderr,"parsing failed exiting\n");
+          exit(1);
+        }
         sexp ast=yyparse(file);
         while (CONSP(ast)){
           sexp result=eval(XCAR(ast),topLevelEnv);
@@ -521,6 +511,10 @@ static void SciLisp_getopt(int argc,char *argv[]){
         debug_printf=ndebug_printf;
         FILE* file=fopen("test.lisp","r");
         ENSURE_PRIMS_INITIALIZED();
+        if(setjmp(error_buf)){
+          fprintf(stderr,"parsing failed exiting\n");
+          exit(1);
+        }
         sexp ast=yyparse(file);
         puts("Testing:");
         while (CONSP(ast)){

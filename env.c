@@ -379,11 +379,12 @@ int obarray_rehash(obarray *ob){
   memset((void*)(ob->buckets+old_len),'\0',old_len);
   int i,j;
   obarray_entry *bucket,*temp,*old_bucket;
-  for(i=0;i<ob->size;i++){
+  for(i=0;i<old_len;i++){
     bucket=ob->buckets[i];
     while(bucket && bucket != bucket->next){
-      //hashv%ob->size is 0 or oldsize, if it's 0 we need to move it
-      if(bucket->hashv%ob->size){
+      //if hashv%ob->size = hashv%ob->oldsize we don't need to do anything
+      //since hashv%ob->oldsize == i we just test i
+      if(bucket->hashv%ob->size==i){
         bucket=bucket->next;
       } else {
         old_bucket=bucket;

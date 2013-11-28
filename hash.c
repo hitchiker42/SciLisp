@@ -190,7 +190,7 @@ sexp hashTable_add_entry(sexp ht,sexp key,sexp val,sexp add_opt){
     conflict_opt=_update;//implement later
   }
   if(ht->capacity>=ht->gthresh){
-    hashTable_rehash(ht);
+    ht=hashTable_sexp(hashTable_rehash(ht));
   }
   if(!ht->buckets[index]){
     ht->buckets[index]=xmalloc(sizeof(hash_entry));
@@ -232,3 +232,59 @@ sexp hashTable_add_entry(sexp ht,sexp key,sexp val,sexp add_opt){
   }
 }
     
+static hash_table* hashTable_rehash(hash_table *ht){
+  uint64_t old_len=ht->size;
+  //update hash parameters
+  ht->size*=ht->gfactor;
+  ht->capacity/=ht->gfactor;
+  ht->capacity_inc/=ht->gfactor;
+  ht->buckets=xrealloc(ht->buckets,(sizeof(hash_entry*)*ht->size));
+  //suprisingly important, new memory needs to be zeroed
+  memset((void*)(ht->buckets+old_len),'\0',old_len);
+  int i,j;
+  //I use bucket as the name of the variable, but it actually
+  //holds the hash entries as we iterate through the bucket
+  hash_entry *bucket,*temp,*old_bucket;
+  for(i=0;i<old_len;i++){
+    bucket=ht->buckets[i];
+    while(bucket && bucket != bucket->next){
+      if(bucket->hashv%ht->size==i){
+        bucket=bucket->next;
+      } else {
+        old_bucket=bucket;
+        if(bucket->prev){
+          bucket->prev->next=bucket->next;
+        } 
+        if(bucket->next){
+          bucket->next->prev=bucket->prev;
+        }
+        if(!ht->buckets[i+old_len%ht->size]){
+          //this is an unused bucket
+          ht->buckets[i+old_len]=bucket;
+          bucket=bucket->next;
+          old_bucket->prev=old_bucket->next=NULL;
+          ht->used++;
+        } else {
+          //put old bucket list into a temp variable
+          temp=ht->buckets[i+old_len%ht->size];
+          ht->buckets[i+old_len%ht->size]=bucket;//set bucket to new value;
+          temp->prev=bucket;//relink old bucket list
+          //get next value in the bucket we're iterating through
+          bucket=bucket->next;
+          //now link the current value into the bucket list
+          old_bucket->next=temp;
+          old_bucket->prev=NULL;
+        }
+      }
+    }
+    if(!ht->buckets[i]){ob->used--;}
+  }
+  return ht;
+}
+sexp hashTable_lisp_rehash(sexp ht){
+  if(!HASHTABLEP(ht)){
+    return format_type_error("rehash","hashtable",ht.tag);
+  } else {
+    return hashTable_sexp(hashTable_rehash(ht));
+  }
+}

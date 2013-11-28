@@ -365,7 +365,7 @@ struct function_args{
   uint16_t num_req_args;//0-num_req_args are required
   uint16_t num_opt_args;//num_req_args-num_req_args+num_opt_args
   uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
-  uint16_t has_rest_arg;//0 or 1(only one keyword allowed
+  uint16_t has_rest_arg;//0 or 1(only one restarg allowed
   symbol* args;
   int max_args;//number of args in c/llvm must be max_args
 };

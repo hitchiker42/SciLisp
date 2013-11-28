@@ -1,6 +1,6 @@
-#include "tree.h"
 #include "cons.h"
-sexp tree_NIL;
+#include "array.h"
+sexp tree_NIL=NIL;
 #define tree_add_node(_tree_,node,access_fn)      \
   access_fn(_tree_)=xmalloc(2*sizeof(cons));      \
   XCAR(access_fn(_tree_))=node;                   \
@@ -100,6 +100,12 @@ sexp basic_tree_lookup(sexp tree,sexp val){
   }
   return LISP_FALSE;
 }
+/* Red-Black tree
+ * 1. All nodes are either BLACK or RED
+ * 2. Leafs are BLACK
+ * 3. A RED node has BLACK children only
+ * 4. Path from a node to any leafs has the same number of BLACK nodes.
+ */
 /* Heap
    -tree with compairson function f
    -the tree satisfies the headp property
@@ -113,3 +119,10 @@ sexp basic_tree_lookup(sexp tree,sexp val){
    -for any index i, the right child is at index 2i+1, left child at 2i-1
      and parent at floor((i-1)/2)
 */
+struct heap{
+  sexp *arr;
+  uint32_t size;//i.e memory allocated for the heap
+  uint32_t start;//what index does the heap start at
+  uint32_t end;//what index does the heap end at
+  sexp(*comp_fn)(sexp,sexp);
+}

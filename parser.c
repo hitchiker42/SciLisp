@@ -525,10 +525,46 @@ static inline sexp parse_function_args(){
           }
         }
       }
-      if(!CORD_cmp(yylval->val.cord,"&key")){
+      if(!CORD_cmp(yylval->val.cord,"&key")){        
       KEYWORD_PARAM:
         format_error_str ("keyword paramaters unimplimented");
         handle_error();
+        //keyword argument is id | ((id | (:key id)) [init_val])
+        //by default the keyword is made from id, but it can be
+        //specified by the :key parameter
+        /* keywords should be something like,
+           an alist of keyword varname pairs,
+           if we get a keyword argument we'll scan this list for a matching 
+           key then just set varname to the right value, by default
+           all variables will be nil, so if the function is a c function
+           we can just use the variable's values without anything special 
+           needing to be done*/
+        //how about
+        LAST_ARG(retval.val.funargs).name="#keyargs";
+        cons *cur_arg,*last_arg;
+        symref cur_var;
+        sexp keyarg_list;
+        keyarg_list.tag=_list;keyarg_list.is_ptr=1;
+        keyarg_list.val.cons=cur_arg=xmalloc(sizeof(cons));
+        while(nextTok() != TOK_RPAREN){
+          switch(yytag){
+            case TOK_LPAREN:
+              //do something
+            case TOK_ID:
+              cur_arg->car=cons_sexp((xmalloc(sizeof(cons))));
+              XCAR(cur_arg->car)=getKeySymSexp(CORD_cat(":",yylval->val.cord));
+              cur_var=xmalloc(sizeof(symbol));
+              *cur_var=(symbol){.name=yylval->val.cord,.val=NIL};
+              XCDR(cur_arg->car)=symref_sexp(cur_var);
+              cur_arg->cdr.val.cons=xmalloc(sizeof(cons));
+              last_arg=cur_arg;
+              cur_arg=cur_arg->cdr.val.cons;
+              break;
+          }
+          ADD_KEYWORD_ARG(retval.val.funargs);
+        }
+          LAST_ARG(retval.val.funargs).val=keyarg_list;
+          break;
         nextTok();
       }
       if(!CORD_cmp(yylval->val.cord,"&rest")||

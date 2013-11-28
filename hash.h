@@ -51,7 +51,7 @@ sexp hashTable_shrink_factor(sexp ht)__attribute__((pure));
 sexp hashTable_get_entry(sexp ht, sexp key);
 sexp hashTable_add_entry(sexp ht,sexp key,sexp value);
 sexp hashTable_walk(sexp ht,sexp walk_fn);
-sexp hashTable_rehash(sexp ht);
+sexp hashTable_lisp_rehash(sexp ht);
 //all arguments are optional, should probably be keyargs
 //also should proba
 sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,

@@ -1,3 +1,7 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
 #ifndef GEN_CFFI_H
 #define GEN_CFFI_H
 #include <clang-c/Index.h>
@@ -6,17 +10,18 @@
 #include "gc/include/gc/gc.h"
 #include "gc/include/gc/cord.h"
 #define clang_isFunctionDecl(_cursor)                           \
-  (clang_getCursorKind(_cursor) == CXCursor_FunctionDecl)
-#define clang_isPointerType(_cursor)            \
+  (clang_getCursorType(_cursor).kind== CXType_FunctionProto)
+#define clang_isPointerType(_cursor)                    \
   (clang_getCursorType(_cursor).kind == CXType_Pointer)
 #define xmalloc GC_MALLOC
 #define CXType_Char CXType_SChar
 #define mk_int_n_type(clang_name,length)                                \
-  make_SciLisp_Type(clang_name,int##length,INT##length##P,              \
+  make_SciLisp_Type(clang_name,int##length##_t,INT##length##P,              \
                     int##length,_int##length,"",0)
 #define mk_uint_n_type(clang_name,length)                               \
-  make_SciLisp_Type(clang_name,uint##length,UINT##length##P,            \
+  make_SciLisp_Type(clang_name,uint##length##_t,UINT##length##P,            \
                     uint##length,_uint##length,"",0)
+//generate types for both signed and unsigned integers of length length
 #define mk_both(clang_name,length)                                      \
   SciLisp_Type SciLisp_Int##length=mk_int_n_type(clang_name,length);    \
   SciLisp_Type SciLisp_UInt##length=mk_uint_n_type(U##clang_name,length)
@@ -45,6 +50,8 @@ enum    CXTypeKind {
   CXType_ConstantArray = 112, CXType_Vector = 113, CXType_IncompleteArray = 114, CXType_VariableArray = 115,
   CXType_DependentSizedArray = 116, CXType_MemberPointer = 117
   }*/
+#define NUM_SCILISP_TYPES 13
+#define SCILISP_TYPES_ARRAY_SIZE 16
 struct SciLisp_Type {
   enum CXTypeKind clang_type;
   CORD ctype;
@@ -100,6 +107,7 @@ SciLisp_Type *Make_SciLisp_Pointer1(struct compound_type_info info);
 SciLisp_Type *Make_SciLisp_Array1(struct compound_type_info info);
 SciLisp_Type *Make_SciLisp_Pointer(int depth,CORD subtype);
 SciLisp_Type *Make_SciLisp_Array(int depth,CORD subtype);
+SciLisp_Type *SciLisp_Types;
 static const char *SciLisp_Header=
 "/*This is an automatically generated file, do not edit\n"
   "This file was created using SciLisp_gen_cffi*/\n"
