@@ -161,6 +161,7 @@
 (add44 94)
 (defmacro ++! (x) `(setq ,x (++ ,x)))
 (defmacro --! (x) `(setq ,x (++ ,x)))
+(def x 0)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

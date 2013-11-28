@@ -302,4 +302,6 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
    [root,f(root),f(root-left-child),f(root-right-child),...f(root-nth-child)]
    -i.e the array holds the elements of the tree as if they were being reads
    from left-right, top-bottom
+   -for any index i, the right child is at index 2i+1, left child at 2i-1
+     and parent at floor((i-1)/2)
 */

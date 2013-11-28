@@ -100,3 +100,16 @@ sexp basic_tree_lookup(sexp tree,sexp val){
   }
   return LISP_FALSE;
 }
+/* Heap
+   -tree with compairson function f
+   -the tree satisfies the headp property
+   -that is, f(node,left-child) and f(node,right-child) are both true
+   -each subtree also satisfies the heap property
+   -implemented as an array.
+   f(node)=[left-child,right-child];
+   [root,f(root),f(root-left-child),f(root-right-child),...f(root-nth-child)]
+   -i.e the array holds the elements of the tree as if they were being reads
+   from left-right, top-bottom
+   -for any index i, the right child is at index 2i+1, left child at 2i-1
+     and parent at floor((i-1)/2)
+*/
