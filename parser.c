@@ -561,10 +561,11 @@ static inline sexp parse_function_args(){
               cur_arg=cur_arg->cdr.val.cons;
               break;
           }
+          last_arg->cdr=NIL;
           ADD_KEYWORD_ARG(retval.val.funargs);
         }
           LAST_ARG(retval.val.funargs).val=keyarg_list;
-          break;
+          break;//what does this break out of ?
         nextTok();
       }
       if(!CORD_cmp(yylval->val.cord,"&rest")||

@@ -45,7 +45,7 @@ sexp cons_qsort(sexp ls,sexp sort_fn);
 sexp assoc(sexp ls,sexp obj,sexp eq_fn);
 //assoc with eq_fn explictly set to eq
 sexp assq(sexp ls, sexp obj);
-//recursively(?) copy ls
+//recursively copy ls
 sexp copy_cons(sexp ls);
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));

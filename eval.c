@@ -35,7 +35,7 @@ static sexp eval_defmacro(sexp expr,env *cur_env);
 static sexp macroexpand_helper(sexp body,env *cur_env);
 //standard error handling function
 static sexp handle_error(void){
-  CORD_fprintf(stderr,error_str);fputs("\n",stderr);
+  CORD_fprintf(stderr,CORD_cat(error_str,"\n"));
   //  return error_sexp(error_str); would need to copy error_str to do this
   longjmp(error_buf,-1);
   return NIL;
@@ -462,6 +462,7 @@ static sexp eval_or(sexp expr,env *cur_env){
 #define setArg()                                            \
   args->args[j++].val=eval_ptr(XCAR(arglist),cur_env);      \
   arglist=XCDR(arglist)
+
 static sexp dont_eval(sexp obj,env *cur_env){
   obj.quoted++;
   return eval(obj,cur_env);
@@ -489,11 +490,48 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
       setArg();
     }
   }
-  for(i=0;i<args->num_keyword_args;i++){
-    format_error_str("keyword args unimplemented");
-    handle_error();
-  }
-  if(args->has_rest_arg){
+  //I think I just did that
+  //still need to work out how to do number of keyword arguments
+  //i.e, I clearly treat keyword arguments as a single list entity
+  //but I have num_keyword_args, not has_keyword_args
+  //I need num_keyword args for c prototypes/functions but I only
+  //need a boolean value here
+  if(args->num_keyword_args){
+    if(CONSP(arglist)){
+      if(args->has_rest_arg){
+        //&key + &rest means pass the keyword arguments as the rest arg
+        args->args[j+1].val=arglist;
+      }
+      sexp keywords=args->args[j].val;
+      assert(CONSP(keywords));
+      if(!CONSP(keywords)){
+        format_error_str("This shouldn't ever happen");
+        handle_error();
+      }
+      sexp cur_key,cur_val;
+      sexp cur_var;
+      while(CONSP(arglist)){
+        cur_key=XCAR(arglist);
+        arglist=XCDR(arglist);
+        if(!CONSP(arglist)){
+          format_error_str("uneven number of keyword arguments");
+          handle_error();
+        }
+        cur_val=XCAR(arglist);
+        cur_var=assq(keywords,cur_key);
+        if(isTrue(cur_var)){
+          cur_var.val.var->val=eval_ptr(cur_val,cur_env);
+        } else {
+          format_error_str("Invalid keyword %r",print(cur_key));
+          handle_error();
+        }
+        arglist=XCDR(arglist);
+      }
+    } else if(args->has_rest_arg){
+        args->args[j+1].val=NIL;
+    }
+    return args;
+  } else if(args->has_rest_arg){
     if(CONSP(arglist)){
       cons* prev_arg;
       cons* cur_arg=args->args[j].val.val.cons=xmalloc(sizeof(cons));

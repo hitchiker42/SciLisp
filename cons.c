@@ -367,12 +367,6 @@ sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
 }
 
 sexp assoc(sexp obj,sexp ls,sexp eq_fn){
-  if(!CONSP(ls)){
-    return error_sexp("argument 2 of assoc must be an alist");
-  }
-  if(NILP(eq_fn)){
-    eq_fn=function_sexp(&lisp_eq_call);
-  }
   sexp(*eq_fxn)(sexp,sexp)=eq_fn.val.fun->comp.f2;
   while(CONSP(ls)){
     if(isTrue(eq_fxn(XCAR(ls),obj))){
@@ -382,8 +376,20 @@ sexp assoc(sexp obj,sexp ls,sexp eq_fn){
   }
   return NIL;
 }
+sexp lisp_assoc(sexp obj,sexp ls,sexp eq_fn){
+  if(!CONSP(ls)){
+    return error_sexp("argument 2 of assoc must be an alist");
+  }
+  if(NILP(eq_fn)){
+    eq_fn=function_sexp(&lisp_eq_call);
+  }
+  return assoc(obj,ls,eq_fn);
+}
 sexp assq(sexp ls, sexp obj){
-  return assoc(ls,obj,NIL);
+  return assoc(ls,obj,function_sexp(&lisp_eq_call));
+}
+sexp lisp_assq(sexp ls, sexp obj){
+  return lisp_assoc(ls,obj,NIL);
 }
 sexp lisp_nth(sexp ls,sexp n){
   if(!CONSP(ls) || !(INTP(n))){
