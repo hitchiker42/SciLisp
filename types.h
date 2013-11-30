@@ -53,7 +53,7 @@ typedef struct symbol_props symbol_props;
 typedef struct re_match_data re_match_data;
 typedef struct re_pattern_buffer regex_t;
 typedef struct hash_table hash_table;
-typedef struct lisp_btree lisp_btree;
+typedef struct lisp_tree lisp_tree;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -110,6 +110,7 @@ typedef wchar_t char32_t;
 #define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
 #define LITERALP(obj) (obj.is_ptr == 0)
 #define IS_POINTER(obj) (obj.is_ptr == 1)
+#define LISP_TREEP(obj) (obj.tag == _tree)
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
@@ -231,7 +232,7 @@ enum special_form{
 //mutually exclusive metadata, a single int value might have multiple names
 enum sexp_meta{
   _basic_tree=1,_avl_tree=2,_rb_tree=3,_splay_tree=4,
-  _red_node=1,_black_node=0,_black_leaf=2,
+  _red_node=1,_black_node=0,_leaf=2,
   _double_array=_double,_float_array=_float,
   _real64_array=_real64,_real32_array=_real32,
   _long_array=_long,
@@ -259,7 +260,7 @@ union data {//keep max size at 64 bits
   int8_t int8;
   jmp_buf *label;
   keyword_symref keyword;
-  lisp_btree *tree;
+  lisp_tree *tree;
   local_symref lenv;
   macro *mac;
   mpfr_t *bigfloat;
@@ -443,12 +444,12 @@ mkTypeSym(Qfunargs,_funargs);
 //  return typeArray[obj.tag+2];
 //}
 //defines what values are considered false
-//the empty string should probably be here
-#define isTrue(x)                                            \
-  (x.tag == _false ? 0 :                                     \
-    (x.tag == _nil ? 0 :                                     \
-     (x.tag == _long ? (x.val.int64 == 0 ? 0 : 1) :                     \
-      (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) : 1))))
+//currently, these are false,nil,numerical 0 or a null pointer
+#define isTrue(x)                                                       \
+  (x.tag == _false ? 0 :                                                \
+   (x.tag == _nil ? 0 :                                                 \
+     (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) :                \
+      ((x.tag == _long || x.is_ptr) ? (x.val.int64 == 0 ? 0 : 1) : 1))))
 //possible compilier backends
 enum backend{
   c=0,

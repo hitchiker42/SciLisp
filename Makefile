@@ -91,6 +91,7 @@ array.o: array.c $(COMMON_HEADERS) array.h
 prim.o: prim.c $(COMMOM_HEADERS) array.h cons.h
 bignum.o: bignum.c $(COMMON_HEADERS) prim.h
 hash_fn.o: hash_fn.c hash_fn.h
+tree.o: tree.c $(COMMON_HEADERS) cons.h array.h
 lisp_math.o: lisp_math.c $(COMMON_HEADERS) bignum.h
 fnv_hash: fnv_hash.c
 	$(CC) $(CFLAGS) -O3 fnv_hash.c -o fnv_hash

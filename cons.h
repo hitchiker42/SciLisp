@@ -117,7 +117,7 @@ static sexp as_list(sexp obj){
     return retval;
   }
 }
-static inline sexp push_cons(sexp obj,sexp ls){
+static sexp push_cons(sexp obj,sexp ls){
   if(!(CONSP(ls))){
     return error_sexp("push! type error, expected cons cell or list");
   } else {
@@ -146,19 +146,20 @@ static inline sexp set_cdr(sexp cell,sexp new_val){
   }
   return (cell.val.cons->cdr=new_val);
 }
+sexp cons_equal(sexp ls1,sexp ls2);
 //type checked car/cdr extensions (should any of these be inlined?)
 static inline sexp caar(sexp cell){return car(car(cell));}
 static inline sexp cadr(sexp cell){return car(cdr(cell));}
 static inline sexp cdar(sexp cell){return cdr(car(cell));}
 static inline sexp cddr(sexp cell){return cdr(cdr(cell));}
-static inline sexp caaar(sexp cell){return car(car(car(cell)));}
-static inline sexp caadr(sexp cell){return car(car(cdr(cell)));}
-static inline sexp caddr(sexp cell){return car(cdr(cdr(cell)));}
-static inline sexp cdddr(sexp cell){return cdr(cdr(cdr(cell)));}
-static inline sexp cddar(sexp cell){return cdr(cdr(car(cell)));}
-static inline sexp cdaar(sexp cell){return cdr(car(car(cell)));}
-static inline sexp cadar(sexp cell){return car(cdr(car(cell)));}
-static inline sexp cdadr(sexp cell){return cdr(car(cdr(cell)));}
+static sexp caaar(sexp cell){return car(car(car(cell)));}
+static sexp caadr(sexp cell){return car(car(cdr(cell)));}
+static sexp caddr(sexp cell){return car(cdr(cdr(cell)));}
+static sexp cdddr(sexp cell){return cdr(cdr(cdr(cell)));}
+static sexp cddar(sexp cell){return cdr(cdr(car(cell)));}
+static sexp cdaar(sexp cell){return cdr(car(car(cell)));}
+static sexp cadar(sexp cell){return car(cdr(car(cell)));}
+static sexp cdadr(sexp cell){return cdr(car(cdr(cell)));}
 static sexp caaaar(sexp cell){return car(car(car(car(cell))));}
 static sexp caaadr(sexp cell){return car(car(car(cdr(cell))));}
 static sexp caadar(sexp cell){return car(car(cdr(car(cell))));}
@@ -215,20 +216,33 @@ static sexp cddddr(sexp cell){return cdr(cdr(cdr(cdr(cell))));}
   (insert (upcase (format "#define XC%c%c%c%cr(cell) XC%cR(XC%cR(XC%cR(XC%cR(cell))))\n")))
   i j k l i j k l)))))
 */
+//fifo queues
+//these are for use in c as they are now
+#define C_QUEUE_EMPTY(queue)                    \
+  (NILP(XCAR(queue)))
+void enqueue(sexp queue,sexp val);
+sexp dequeue(sexp queue);
+//while these are for use in lisp
+sexp make_queue(sexp initial_contents);
+sexp lisp_enqueue(sexp val,sexp queue);
+sexp lisp_dequeue(sexp queue,sexp noerror);
+sexp queue_empty(sexp queue);
+sexp queue_peek(sexp queue);
+//trees
 #define AS_TREE(_tree_) _tree_.val.tree
-struct lisp_btree {
-  sexp btree;//.meta values == tree type
-  sexp (*comp_fn)(sexp,sexp);//how to keep the btree sorted
+struct lisp_tree {
+  sexp tree;//.meta values == tree type
+  sexp (*comp_fn)(sexp,sexp);//how to keep the tree sorted
 };
-struct lisp_btree_type {
+struct lisp_tree_type {
   sexp (*insert)(sexp,sexp);//how to insert an element
   sexp (*delete)(sexp,sexp);//how to delete and element
   sexp (*sort)(sexp);//how to sort a stree
   //walk tree given by first arg, calling second arg on each node
   sexp (*walk)(sexp,sexp);
 };
-struct lisp_btree_type avl_tree;
-struct lisp_btree_type rb_tree;
-struct lisp_btree_type splay_tree;
-struct lisp_btree_type basic_tree;
+struct lisp_tree_type avl_tree;
+struct lisp_tree_type rb_tree;
+struct lisp_tree_type splay_tree;
+struct lisp_tree_type basic_tree; 
 #endif

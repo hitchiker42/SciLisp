@@ -537,7 +537,33 @@ sexp lisp_eql(sexp obj1,sexp obj2){
   }
 } 
 sexp lisp_equal(sexp obj1,sexp obj2){
-  return lisp_eql(obj1,obj2);
+  if(obj1.tag != obj2.tag){
+    return LISP_FALSE;
+  } 
+  switch(obj1.tag){
+    case _cons:
+    case _list:
+    case _dpair:
+      if(cons_length(obj1).val.int64 != cons_length(obj2).val.int64){
+        return LISP_FALSE;
+      } else {
+        return cons_equal(obj1,obj2);
+      }
+    case _array:
+      if(obj1.len != obj2.len){
+        return LISP_FALSE;
+      } else {
+        int i;
+        for(i=0;i<obj1.len;i++){
+          if(!isTrue(lisp_equal(XAREF(obj1,i),XAREF(obj2,i)))){
+            return LISP_FALSE;
+          }
+        }
+        return LISP_TRUE;
+      }
+    default:
+    return lisp_eql(obj1,obj2);
+  }
 }
 sexp lisp_error(sexp error_message){
   if(!STRINGP(error_message) && !ERRORP(error_message)){

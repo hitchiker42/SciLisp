@@ -177,7 +177,7 @@ CORD print(sexp obj){
     case _nil:
       return "()";
     case _tree:
-      obj=obj.val.tree->btree;//fallthrough
+      obj=obj.val.tree->tree;//fallthrough
     case _list:      
     case _cons:      
       acc=CORD_cat(acc,"(");

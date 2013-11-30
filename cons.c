@@ -5,10 +5,15 @@
 #include "common.h"
 #include "cons.h"
 #include "prim.h"
+//I tried to simplify this a bit, but it broke things, so it stays like it is
 sexp Cons(sexp car_cell,sexp cdr_cell){
+  /*cons *retval=xmalloc(sizeof(cons));
+  *retval=(cons){.car=car_cell,.cdr=cdr_cell};
+  return cons_sexp(retval);*/
   sexp retval;
-  retval.tag=_list;//This needs looking at,the cons/list issue needs to be fixed
-  retval.val.cons=GC_malloc(sizeof(cons));
+  retval.tag=_list;
+  retval.is_ptr=1;
+  retval.val.cons=xmalloc(sizeof(cons));
   retval.val.cons->car=car_cell;
   retval.val.cons->cdr=cdr_cell;
   return retval;
@@ -459,4 +464,81 @@ sexp copy_cons(sexp ls){
     return format_type_error("copy-cons","cons cell",ls.tag);
   }
   unsafe_copy_cons(ls);
+}
+sexp cons_equal(sexp ls1,sexp ls2){
+  if(!CONSP(ls1) || !CONSP(ls2)){
+    if(isTrue(lisp_equal(ls1,ls2))){
+      return LISP_TRUE;
+    } else {
+      return LISP_FALSE;
+    }
+  } else if (isTrue(lisp_equal(XCAR(ls1),XCAR(ls2)))){
+    return cons_equal(XCDR(ls1),XCDR(ls2));
+  } else {
+    return LISP_FALSE;
+  }
+}
+//initial_contents is an &rest arg
+sexp make_queue(sexp initial_contents){
+  sexp queue=cons_sexp(xmalloc(sizeof(cons)));
+  if(NILP(initial_contents)){
+    XCAR(queue)=XCDR(queue)=NIL;
+    return queue;
+  } else {
+    XCAR(queue)=initial_contents;
+    XCDR(queue)=last(initial_contents);
+    return queue;
+  }
+}
+void enqueue(sexp val,sexp queue){
+  cons *node=xmalloc(sizeof(cons));
+  node->car=val;
+  node->cdr=NIL;
+  sexp new_node=cons_sexp(node);
+  if(!NILP(XCDR(queue))){
+    XCDDR(queue)=new_node;
+  } else {
+    XCAR(queue)=new_node;
+  }
+  XCDR(queue)=new_node;
+}
+sexp lisp_enqueue(sexp val,sexp queue){
+  if(!CONSP(queue)){
+    return format_type_error("enqueue","queue (aka list)",queue.tag);
+  } else {
+    enqueue(val,queue);
+    return queue;
+  }
+}
+sexp dequeue(sexp queue){
+  sexp retval=XCAAR(queue);
+  XCAR(queue)=XCDAR(queue);
+  if(NILP(XCAR(queue))){
+    XCDR(queue)=NIL;
+  }
+  return retval;
+}
+sexp lisp_dequeue(sexp queue,sexp noerror){
+  if(!CONSP(queue)){
+    return format_type_error("dequeue","queue(aka list)",queue.tag);
+  }
+  if(C_QUEUE_EMPTY(queue)){
+    if(isTrue(noerror)){
+      return NIL;
+    } else {
+      return error_sexp("can't dequeue a value from an empty queue");
+    }
+  } else {
+    return dequeue(queue);
+  }
+}
+sexp queue_empty(sexp queue){
+  return (NILP(XCAR(queue))? LISP_TRUE : LISP_FALSE);
+}    
+sexp queue_peek(sexp queue){
+  if(!CONSP(queue)){
+    return format_type_error("queue-peek","queue (aka list)",queue.tag);
+  } else {
+    return XCAAR(queue);
+  }
 }
