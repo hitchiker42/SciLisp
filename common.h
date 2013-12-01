@@ -36,7 +36,7 @@
 //enable/disable debugging/lexing output
 #define HERE_ON
 //enable/disable SciLisp multithreading (gc is always multithreaded)
-#define MULTI_THREADED
+//#define MULTI_THREADED
 //#define VERBOSE_LEXING
 #include "debug.h"
 //common macros, & memory allocation macros
@@ -71,6 +71,9 @@
       .val={.uint##n=uint_n_val}}
 #define keyword_sexp(keyword_val) (sexp){.tag=_keyword,\
       .val={.keyword=keyword_val}}
+#define list_sexp(list_val) (sexp){.tag=_list,.val={.cons = list_val},.is_ptr=1}
+#define list_len_sexp(list_val,_len) (sexp){.tag=_list,.val={.cons = list_val},\
+      .is_ptr=1,.len=_len}
 #define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
 #define ulong_sexp(ulong_val) (sexp){.tag=_ulong,.val={.uint64=ulong_val}}
 #define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val},.is_ptr=1}

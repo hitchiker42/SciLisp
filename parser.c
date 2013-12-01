@@ -61,7 +61,6 @@ sexp yyparse(FILE* input){
       cur_pos=cur_pos->cdr.val.cons;
     }
     //    xfree(cur_pos);
-    GC_gcollect();
     prev_pos->cdr.tag=_nil;
     prev_pos->cdr.val.meta=_nil;
     // PRINT_MSG(print(ast));

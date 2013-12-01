@@ -6,6 +6,7 @@
 #include "cons.h"
 #include "regex.h"
 #include "print.h"
+#include "tree.h"
 #define mk_tag_name(tag,name) case tag: return #name
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){

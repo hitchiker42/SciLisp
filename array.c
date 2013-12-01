@@ -110,6 +110,7 @@ sexp array_from_list(sexp ls){
   while(CONSP(ls)){
     new_array[i]=XCAR(ls);
     ls=XCDR(ls);
+    i++;
   }
   return array_sexp(new_array,len);
 }
@@ -118,14 +119,19 @@ sexp array_to_list(sexp obj){
     return format_type_error("array->list","array",obj.tag);
   } else {
     sexp *old_array=obj.val.array;
-    cons *new_list=xmalloc(sizeof(cons)*obj.len);
+    cons *new_list,*ret_list;
+    new_list=ret_list=xmalloc(sizeof(cons)*obj.len);
     int i;
-    for(i=0;i<obj.len;i++){
-      new_list[i].car=old_array[i];
-      new_list[i].cdr=cons_sexp(new_list+i);
+    for(i=0;i<(obj.len-1);i++){
+      new_list->car=old_array[i];
+      new_list->cdr=cons_sexp(new_list+(i+1));
+      new_list=new_list->cdr.val.cons;
     }
-    new_list[i-1].cdr=NIL;
-    return cons_sexp(new_list);
+    new_list->car=old_array[i];
+    new_list->cdr=NIL;
+    sexp retval=cons_sexp(ret_list);
+    retval.len=i;
+    return retval;
   }
 }
 sexp array_map(sexp arr,sexp map_fn,sexp inplace){
@@ -168,6 +174,27 @@ sexp array_reduce(sexp arr,sexp red_fn,sexp init){
     acc=f(init,arr_data[i]);
   }
   return acc;
+}
+sexp rand_array(sexp len,sexp type){
+  if(!INTP(len)){
+    return format_type_error("rand-array","integer",len.tag);
+  } else {
+    int i;
+    sexp *arr=xmalloc(sizeof(sexp)*len.val.int64);
+    if(NILP(type) || KEYWORD_COMPARE(":int64",type)){
+      for(i=0;i<len.val.int64;i++){
+        arr[i]=long_sexp(mrand48());
+      }
+      return array_sexp(arr,len.val.int64);
+    }
+    if(KEYWORD_COMPARE(":real64",type)){
+      for(i=0;i<len.val.int64;i++){
+        arr[i]=double_sexp(drand48());
+      }
+      return array_sexp(arr,len.val.int64);
+    }
+    return error_sexp("invalid keyword passed to rand-array");
+  }
 }
 sexp array_reverse_generic(sexp arr,sexp inplace){
   if(!ARRAYP(arr)){
@@ -263,7 +290,7 @@ static int array_qsort_partition
   return store;
 }
 static void array_qsort_inplace(sexp *arr,int left,int right,
-                                sexp(*f)(sexp,sexp)){ 
+                                sexp(*f)(sexp,sexp)){
   if(left < right){
     int pivot=left+(((right-left)/2) + ((right-left)%2));
     //I have no clue what the pivot should be
@@ -287,7 +314,7 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
     sorted_array=memcpy(sorted_array,arr.val.array,arr.len*sizeof(sexp));
   }
   PRINT_MSG(print(array_sexp(sorted_array,arr.len)));
-  array_qsort_inplace(sorted_array,0,arr.len-1,f);  
+  array_qsort_inplace(sorted_array,0,arr.len-1,f);
   PRINT_MSG(print(array_sexp(sorted_array,arr.len)));
   return array_sexp(sorted_array,arr.len);
 }

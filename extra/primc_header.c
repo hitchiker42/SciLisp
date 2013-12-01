@@ -16,6 +16,7 @@
 #include "prim.h"
 #include "hash_fn.h"
 #include "regex.h"
+#include "sequence.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \

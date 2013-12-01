@@ -33,9 +33,10 @@ LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
-	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system unicode.c
+	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system unicode.c tree.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
-	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o
+	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o\
+	tree.o
 #STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o
 # lisp_system.o unicode.o
 #STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c
@@ -45,13 +46,13 @@ BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
 LLVM_CONFIG:=$(shell pwd)/llvm/llvm/bin/llvm-config
 LLVM_FLAGS:=$(OPT_FLAG) -Wl,-rpath=$(shell pwd)/llvm/Release/lib \
-	-L$$PWD/llvm/Release/lib -lLLVM-3.4svn
+	-L$$PWD/llvm/Release/lib -lLLVM-3.{4,5}svn
 define compile_llvm =
 	$(CC) $(CFLAGS) `$(LLVM_CONFIG) --cppflags` -c $< -o $@
 endef
 .PHONY: clean all quiet asm optimized set_quiet set_optimized mpfr\
 	doc info pdf clean_doc libprim_reqs readline llvm gc gmp gmp.tar.xz\
-	mpfr.tar.xz libs
+	mpfr.tar.xz libs test SciLisp_test
 #Programs to be built
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
@@ -63,7 +64,10 @@ llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	`$(LLVM_CONFIG) --cflags --ldflags --libs all` $(INCLUDE_FLAGS) \
 	 $(XLDFLAGS) $(COMMON_CFLAGS) -L$(shell pwd) \
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -g -o llvm-test
-all: SciLisp libs SciLisp_llvm
+SciLisp_test: SciLisp
+	./SciLisp -r
+test: SciLisp_test	
+all: SciLisp libs SciLisp_llvm test
 #compiled files
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
@@ -160,9 +164,9 @@ set_optimized:
 	$(eval CFLAGS:=$(COMMON_CFLAGS) $(QUIET_FLAGS) $(OPT_FLAGS))
 optimized:set_optimized all
 clean:
-	rm *.o
-	rm prim.bc;rm prim.ll;rm libSciLisp.so
-	rm SciLisp;rm llvm_test
+	rm -f *.o
+	rm -f prim.bc;rm -f prim.ll;rm -f libSciLisp.so;rm -f libSciLisp.a
+	rm -f SciLisp;rm -f llvm_test
 #documentation
 doc:
 	cd doc && $(MAKE) all
@@ -182,6 +186,7 @@ llvm:  llvm/configure
 	cd llvm && mkdir -p llvm && ./configure --prefix=$$PWD/llvm \
 	--enable-optimized --enable-shared\
 	 --with-python=$(PYTHON2) && $(MAKE) -k install
+	mv llvm/Release+Asserts llvm/Release
 clang: llvm/tools/clang
 llvm/tools/clang:
 	cd llvm/tools && git clone http://llvm.org/git/clang.git

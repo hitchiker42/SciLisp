@@ -74,6 +74,8 @@ long isFunctionArg(function_env *cur_env,CORD name);
 //type punning macros
 #define toSymbol(sym) (*(symbol*)&sym)
 #define toSymref(ref) (*(symref*)&(ref))
+#define KEYWORD_COMPARE(name,var)               \
+  (var.val.int64 == (getKeySymSexp(name)).val.int64)
 
 //not sure if this should be a parameter
 #define OBARRAY_BKT_CAPACITY 10

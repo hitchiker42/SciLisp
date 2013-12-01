@@ -91,7 +91,7 @@ typedef wchar_t char32_t;
 #define STREAMP(obj)(obj.tag ==_stream)
 #define REGEXP(obj)(obj.tag == _regex)
 #define ERRORP(obj)(obj.tag == _error)
-#define SEQUENCP(obj) (CONSP(obj) || ARRAYP(obj))
+#define SEQUENCEP(obj) (CONSP(obj) || ARRAYP(obj))
 #define BIGINTP(obj)(obj.tag == _bigint)
 #define BIGFLOATP(obj) (obj.tag == _bigfloat)
 #define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
@@ -115,6 +115,11 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
   error_sexp(type_error_str)
+#define format_type_error_named(fun,expected,got,name)                      \
+  CORD_sprintf(&type_error_str,                                         \
+               "type error in %r, expected a(n) %r for %r but got a(n) %r", \
+               fun,expected,name,tag_name(got)),                        \
+    error_sexp(type_error_str)
 #define format_type_error2(fun,expected1,got1,expected2,got2)           \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
                ", but got %r and %r",fun,expected1,expected2,           \
@@ -130,7 +135,7 @@ typedef wchar_t char32_t;
                ", but got %r",fun,expected,tag_name(got)),   \
   error_sexp(type_error_str)
 #define format_type_error_opt_named(fun,name,expected,got)              \
-  CORD_sprintf(&type_error_str,"type error in %r, %r or nothing for argument %r" \
+  CORD_sprintf(&type_error_str,"type error in %r,expected %r or nothing for argument %r" \
                ", but got %r",fun,expected,name,tag_name(got)),         \
   error_sexp(type_error_str)
 #define format_type_error_key(fun,named,expected,got)                   \
@@ -227,7 +232,7 @@ enum special_form{
   _block=28,
   _defvar=29,
   _defconst=30,
-  
+
 };
 //mutually exclusive metadata, a single int value might have multiple names
 enum sexp_meta{
@@ -311,7 +316,7 @@ enum TOKEN{
   TOK_LISP_TRUE=6,
   TOK_LISP_FALSE=7,
   TOK_KEYSYM=8,
-  //reserved words/characters 18-30  
+  //reserved words/characters 18-30
   TOK_QUOTE=18,
   TOK_QUASI=19,//`
   TOK_SPECIAL=20,
@@ -456,7 +461,7 @@ enum backend{
   llvm=1,
   as=2,
 };
-#define mkTypeCase(type,tag) case tag: return type  
+#define mkTypeCase(type,tag) case tag: return type
 static sexp typeOfTag(_tag tag){
   switch (tag){
     mkTypeCase(Qerror,_error);
@@ -511,7 +516,7 @@ static sexp copy_array(sexp arr){
   sexp *retval=xmalloc(sizeof(sexp)*arr.len);
   memcpy(retval,arr.val.array,arr.len*sizeof(sexp));
   return array_sexp(retval,arr.len);
-}  
+}
 static sexp copy_symref(sexp sym){
   sexp retval=sym;
   retval.val.var=xmalloc(sizeof(symbol));

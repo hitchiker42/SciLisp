@@ -202,14 +202,14 @@ static sexp len_acc(sexp ls,long n) __attribute__((pure));
 static sexp len_acc(sexp ls,long n){
   if(!CONSP(ls)){
     PRINT_FMT("length = %d",n);
-    return (sexp){.tag=_long,.val={.int64=n}};
+    return long_sexp(n);
   } else {
     return len_acc(XCDR(ls),++n);
   }
 }
 sexp cons_length(sexp ls) {
   if(ls.len > 0){
-    return (sexp){.tag=_long,.val={.int64=ls.len}};
+    return long_sexp(ls.len);
   } else {
     return len_acc(ls,0);
   }
@@ -277,7 +277,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   }
   newlist[i-1].cdr=NIL;
   //  PRINT_MSG(print((sexp){.tag=_list,.val={.cons=newlist},.len=i}));
-  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
+  return list_len_sexp(newlist,i);
 }
 static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
   //find a way to use length somehow
@@ -320,16 +320,19 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
     return lhs;
   }
 }
-static sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp));
+static sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len);
 static sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp));
 sexp merge_sort(sexp ls,sexp sort_fn){
+  HERE();
   if(!CONSP(ls) || !FUNP(sort_fn)){
     return error_sexp("merge sort sort_fn type error");
   }
+  HERE();
   sexp(*f)(sexp,sexp);
   env lambda_env;
   f=sort_fn.val.fun->comp.f2;
-  return merge_sort_acc(ls,f);
+  HERE();
+  return merge_sort_acc(ls,f,cons_length(ls).val.int64);
 }
 sexp cons_qsort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNP(sort_fn)){
@@ -340,27 +343,31 @@ sexp cons_qsort(sexp ls,sexp sort_fn){
   f=sort_fn.val.fun->comp.f2;
   return qsort_acc(ls,f);
 }
-sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp)){
+sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
+  HERE();
   if(!CONSP(ls)){
     return error_sexp("merge-sort type error, expected a cons cell");
     return ls;
-  }
-  else if(NILP(XCDR(ls))){
+  } else if(len <= 1){
+    HERE();
     return ls;
   } else {
-    int mid=cons_length(ls).val.int64/2;
+    HERE();
+    int mid=len/2;
     sexp left=ls;
     //I think this should work, but I'm not sure
     sexp mid_cell=nth(ls,mid);
     sexp right=XCDR(mid_cell);
     XCDR(mid_cell)=NIL;
-    return merge_sort_merge(merge_sort_acc(left,f),merge_sort_acc(right,f),f);
+    return merge_sort_merge(merge_sort_acc(left,f,mid),merge_sort_acc(right,f,len-mid),f);
   }
 }
 sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
   if(NILP(left)){
+    PRINT_MSG("empty left list in merge");
     return right;
   } else if (NILP(right)){
+    PRINT_MSG("empty right list in merge");
     return left;
   } else {
     if(isTrue(f(XCAR(left),XCAR(right)))){
@@ -476,6 +483,40 @@ sexp cons_equal(sexp ls1,sexp ls2){
     return cons_equal(XCDR(ls1),XCDR(ls2));
   } else {
     return LISP_FALSE;
+  }
+}
+sexp rand_list(sexp len,sexp type){
+  if(!INTP(len)){
+    return format_type_error("rand-list","integer",len.tag);
+  } else {
+    int i;
+    cons *ls=xmalloc(sizeof(cons)*len.val.int64);
+    cons *ret_cons=ls;
+    if(NILP(type) || KEYWORD_COMPARE(":int64",type)){
+      for(i=0;i<len.val.int64-1;i++){
+        ls->car=long_sexp(mrand48());
+        ls->cdr=list_sexp(ls+1);
+        ls=ls->cdr.val.cons;
+      }
+      ls->car=long_sexp(mrand48());
+      ls->cdr=NIL;
+      sexp retval=list_sexp(ret_cons);
+      retval.len=len.val.int64;
+      return retval;
+    }
+    if(KEYWORD_COMPARE(":real64",type)){
+      for(i=0;i<len.val.int64-1;i++){
+        ls->car=double_sexp(drand48());
+        ls->cdr=list_sexp(ls+1);
+        ls=ls->cdr.val.cons;
+      }
+      ls->car=double_sexp(drand48());
+      ls->cdr=NIL;
+      sexp retval=list_sexp(ret_cons);
+      retval.len=len.val.int64;
+      return retval;
+    }
+    return error_sexp("invalid keyword passed to rand-list");
   }
 }
 //initial_contents is an &rest arg

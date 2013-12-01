@@ -26,7 +26,7 @@ struct hash_table {
   int is_weak_hash;
   float capacity;//average bucket capicity
   float capacity_inc;//convience value
-  float gthresh://growth threshold, in terms of capicity
+  float gthresh;//growth threshold, in terms of capicity
   float gfactor;//amount to grow by
   froat sthresh;//shrink threshold, defaults to 0,i.e never shrink
   float sfatcor;

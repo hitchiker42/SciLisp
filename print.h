@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+#ifndef _PRINT_H
+#define _PRINT_H
 /*translate an enum _tag value into a meaniningful string.
  *usually just translates the tag name into a string(striping the leading _)
  *but for abbreviations expands into the logical string*/
@@ -36,3 +38,4 @@ CORD function_name(function fun);
 //return the name of the enum value of token as a string
 CORD token_name(TOKEN token);
 sexp lisp_fputs(sexp string,sexp stream);
+#endif

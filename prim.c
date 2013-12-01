@@ -16,6 +16,7 @@
 #include "prim.h"
 #include "hash_fn.h"
 #include "regex.h"
+#include "sequence.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -655,7 +656,9 @@ DEFUN("push!",push_cons,2,0,0,0,2);
 DEFUN("pop!",pop_cons,1,0,0,0,1);
 DEFUN("mapcar",mapcar,2,0,0,0,2);
 DEFUN("reduce",cons_reduce,2,0,0,0,2);
-DEFUN("qsort",cons_qsort,2,0,0,0,2);
+DEFUN("list-qsort",cons_qsort,2,0,0,0,2);
+DEFUN("list-mergesort",merge_sort,2,0,0,0,2);
+DEFUN("qsort",sequence_qsort,2,0,0,0,2);
 DEFUN("length",lisp_length,1,0,0,0,1);
 DEFUN("aref",aref,2,0,0,0,2);
 DEFUN("array->list",array_to_list,1,0,0,0,1);
@@ -696,6 +699,9 @@ DEFUN("array-iota",array_iota,1,3,0,0,4);
 DEFUN("array-qsort",array_qsort,2,1,0,0,3);
 DEFUN("array-map",array_map,2,1,0,0,3);
 DEFUN("array-reduce",array_reduce,2,1,0,0,3);
+DEFUN("make-tree",make_tree,1,1,0,1,3);
+DEFUN("rand-array",rand_array,1,1,0,0,2);
+DEFUN("rand-list",rand_list,1,1,0,0,2);
 DEFUN("typeName",lisp_typeName,1,0,0,0,1);
 DEFUN("typeOf",typeOf,1,0,0,0,1);
 DEFUN("print",lisp_print,1,0,0,0,1);
@@ -807,7 +813,9 @@ MAKE_SYMBOL("push!",push_cons,0xdeb98901efbd89cb );
 MAKE_SYMBOL("pop!",pop_cons,0x69c73c4f15772b00 );
 MAKE_SYMBOL("mapcar",mapcar,0xc0ee7f3d3740c6c5 );
 MAKE_SYMBOL("reduce",cons_reduce,0x563cfbb23bdcf7d7 );
-MAKE_SYMBOL("qsort",cons_qsort,0x96dc82ab61416d18 );
+MAKE_SYMBOL("list-qsort",cons_qsort,0x96dc82ab61416d18 );
+MAKE_SYMBOL("list-mergesort",merge_sort,0x8279d9565ce14314 );
+MAKE_SYMBOL("qsort",sequence_qsort,0x21160656076b01f8 );
 MAKE_SYMBOL("length",lisp_length,0x8f69728654de2182 );
 MAKE_SYMBOL("aref",aref,0x89502d843ec2b711 );
 MAKE_SYMBOL("array->list",array_to_list,0x3dd759e226ade7d3 );
@@ -848,6 +856,9 @@ MAKE_SYMBOL("array-iota",array_iota,0x9da75f7c30743354 );
 MAKE_SYMBOL("array-qsort",array_qsort,0xe2ee49217cebc08e );
 MAKE_SYMBOL("array-map",array_map,0x66ac752abcbf850b );
 MAKE_SYMBOL("array-reduce",array_reduce,0xf473832a6e5c985d );
+MAKE_SYMBOL("make-tree",make_tree,0x6d0643fd5aaef378 );
+MAKE_SYMBOL("rand-array",rand_array,0x5200b05e390d5540 );
+MAKE_SYMBOL("rand-list",rand_list,0xaad28d384f8f3173 );
 MAKE_SYMBOL("typeName",lisp_typeName,0x3fd978c7b7c570e5 );
 MAKE_SYMBOL("typeOf",typeOf,0x6971003f4c928aa0 );
 MAKE_SYMBOL("print",lisp_print,0x4a38f2ac6b3b6ed1 );
@@ -1007,6 +1018,8 @@ INIT_SYMBOL(pop_cons);
 INIT_SYMBOL(mapcar);
 INIT_SYMBOL(cons_reduce);
 INIT_SYMBOL(cons_qsort);
+INIT_SYMBOL(merge_sort);
+INIT_SYMBOL(sequence_qsort);
 INIT_SYMBOL(lisp_length);
 INIT_SYMBOL(aref);
 INIT_SYMBOL(array_to_list);
@@ -1047,6 +1060,9 @@ INIT_SYMBOL(array_iota);
 INIT_SYMBOL(array_qsort);
 INIT_SYMBOL(array_map);
 INIT_SYMBOL(array_reduce);
+INIT_SYMBOL(make_tree);
+INIT_SYMBOL(rand_array);
+INIT_SYMBOL(rand_list);
 INIT_SYMBOL(lisp_typeName);
 INIT_SYMBOL(typeOf);
 INIT_SYMBOL(lisp_print);

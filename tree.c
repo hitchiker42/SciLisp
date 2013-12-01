@@ -1,7 +1,4 @@
-#include "common.h"
-#include "prim.h"
-#include "cons.h"
-#include "array.h"
+#include "tree.h"
 /*trees:
  * tree sexp = [pointer to tree,pointer to tree functions]
  * tree head = [(data,pointer to next cell),
@@ -17,29 +14,6 @@
  * tree = [(parent pointer?),(data,pointer to next),
  [pointer to child1,...,pointer to child n]
  */
-static const sexp tree_NIL={.tag=_nil,.val={.meta=_nil},.meta=_leaf};
-#define next_node(tree,val,f)                   \
-  (isTrue(f(XCAR(tree),val))?                   \
-   XCADR(tree):XCDDR(tree))
-#define has_left_child(tree_node)                                       \
-  (!NILP(XCDR(tree_node))&& !NILP(XCADR(tree_node)))
-#define has_left_child_unsafe(tree_node)                                       \
-  (!NILP(XCADR(tree_nod)))
-#define has_right_child(tree_node)                                       \
-  (!NILP(XCDR(tree_node)) && !NILP(XCDDR(tree_node)))
-#define has_right_child_unsafe(tree_node)       \
-  (!NILP(XCDDR(tree_node)))
-#define has_child(tree_node)                                           \
-  (!NILP(XCDR(tree_node)))
-#define get_right_child_safely(tree_node)                              \
-  (NILP(XCDR(tree_node)) ? tree_NIL : XCDDR(tree_node))
-#define get_left_child_safely(tree_node)                              \
-  (NILP(XCDR(tree_node)) ? tree_NIL : XCADR(tree_node))
-#define tree_add_node(_tree_,node,access_fn)      \
-  access_fn(_tree_)=cons_sexp(xmalloc(2*sizeof(cons))); \
-  XCAR(access_fn(_tree_))=node;                   \
-  XCDR(access_fn(_tree_))=tree_NIL;               \
-  access_fn(_tree_).tag=_tree_node
 //This is badly written (I'm sorry) and really needs to be
 //cleaned up, concidering it probably doesn't work
 //start and end should always be powers of 2
@@ -108,9 +82,6 @@ sexp make_tree(sexp comp_fun,sexp tree_type,sexp contents){
     tree=access_fn(tree);                                             \
   }
 sexp basic_tree_insert(sexp tree,sexp new_node){
-  if(!LISP_TREEP(tree)){
-    return format_type_error("tree-insert","tree",tree.tag);
-  }
   sexp(*f)(sexp,sexp)=tree.val.tree->comp_fn;
   sexp node=tree.val.tree->tree;
   while(CONSP(tree)){
@@ -119,6 +90,17 @@ sexp basic_tree_insert(sexp tree,sexp new_node){
     } else {
       TREE_INSERT_GENERIC(node,XCDDR,XCADR);
     }
+  }
+}
+sexp lisp_tree_insert(sexp tree,sexp new_node){
+  if(!LISP_TREEP(tree)){
+    return format_type_error("tree-insert","tree",tree.tag);
+  }
+  switch(tree.val.tree->tree.meta){
+    case _basic_tree:
+      return basic_tree_insert(tree,new_node);
+    default:
+      return error_sexp("invalid or unimplemented tree type");
   }
 }
 void inorder_walk(sexp node,sexp(*f)(sexp)){
@@ -194,8 +176,42 @@ void levelorder_walk(sexp node,sexp(*f)(sexp)){
     }
   }
 }
-
-
+enum walk_order{
+  _inorder,_preorder,_postorder,_levelorder,
+};
+sexp lisp_tree_walk(sexp node,sexp fun,sexp order){
+  enum walk_order walk_order;
+  if(!LISP_TREEP(node) || !FUNP(fun)){
+    return format_type_error2("walk-tree","tree",node.tag,"function",fun.tag);
+  } 
+  sexp(*f)(sexp)=fun.val.fun->comp.f1;
+  if (NILP(order)){
+    inorder_walk(node.val.tree->tree,f);
+    return node;
+  } else if(!KEYWORDP(order)){
+    return format_type_error_key("walk-tree","order",":inorder,:preorder,:postorder or :levelorder",
+                                 order.tag);
+  } else {
+    //lame way to emulate a switch 
+    if (KEYWORD_COMPARE(":inorder",order)){
+      inorder_walk(node.val.tree->tree,f);
+      return node;
+    }
+    if (KEYWORD_COMPARE(":preorder",order)){
+      preorder_walk(node.val.tree->tree,f);
+      return node;
+    }
+    if (KEYWORD_COMPARE(":postorder",order)){
+      postorder_walk(node.val.tree->tree,f);
+      return node;
+    }    
+    if (KEYWORD_COMPARE(":levelorder",order)){
+      levelorder_walk(node.val.tree->tree,f);
+      return node;
+    }
+    return error_sexp("invalid keyword passes to walk-tree");
+ }
+}      
 sexp tree_lookup(sexp tree,sexp val){
   if(!LISP_TREEP(tree)){
     return format_type_error("tree-lookup","tree",tree.tag);

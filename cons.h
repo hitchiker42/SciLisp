@@ -228,21 +228,4 @@ sexp lisp_enqueue(sexp val,sexp queue);
 sexp lisp_dequeue(sexp queue,sexp noerror);
 sexp queue_empty(sexp queue);
 sexp queue_peek(sexp queue);
-//trees
-#define AS_TREE(_tree_) _tree_.val.tree
-struct lisp_tree {
-  sexp tree;//.meta values == tree type
-  sexp (*comp_fn)(sexp,sexp);//how to keep the tree sorted
-};
-struct lisp_tree_type {
-  sexp (*insert)(sexp,sexp);//how to insert an element
-  sexp (*delete)(sexp,sexp);//how to delete and element
-  sexp (*sort)(sexp);//how to sort a stree
-  //walk tree given by first arg, calling second arg on each node
-  sexp (*walk)(sexp,sexp);
-};
-struct lisp_tree_type avl_tree;
-struct lisp_tree_type rb_tree;
-struct lisp_tree_type splay_tree;
-struct lisp_tree_type basic_tree; 
 #endif
