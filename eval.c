@@ -2,9 +2,8 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
-/*ARGS Structure is modified by a funciton call this is bad, fix it*/
-/*TODO: add quoting in such a way that I can assign a list
-  to a variable*/
+/* TODO: Figure out how to pass enviroments to macros in a somewhat consistant
+   and elegant way*/
 #include "common.h"
 #include "cons.h"
 jmp_buf error_buf;
@@ -29,6 +28,7 @@ static sexp eval_dotimes(sexp expr,env *cur_env);
 //need to add sexp eval_progv(sexp expr,env *cur_env);
 //which localy overrides dynamic bindings
 static sexp eval_let(sexp expr,env *cur_env);
+static sexp eval_flet(sexp expr,env *cur_env);
 static sexp eval_and(sexp expr,env *cur_env);
 static sexp eval_or(sexp expr,env *cur_env);
 static sexp eval_defmacro(sexp expr,env *cur_env);
@@ -141,6 +141,8 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_prog1(expr,cur_env);
     case _let:
       return eval_let(expr,cur_env);
+    case _flet:
+      return eval_flet(expr,cur_env);
     case _and:
       return eval_and(expr,cur_env);
     case _or:
@@ -296,11 +298,12 @@ static inline sexp eval_let(sexp expr,env *cur_env){
   last_var->next=0;
   return eval(caddr(expr),scope);
 }
+
 static inline sexp eval_flet(sexp expr,env *cur_env){
   /*syntax (flet ((var (arglist) def)*)(body ...))*/
   sexp vars=XCADR(expr);
   if(!CONSP(vars)){
-    return error_sexp("empty let expression");
+    return error_sexp("empty flet expression");
   }
   sexp cur_expr;
   local_symref cur_var=xmalloc(sizeof(local_symbol));
@@ -308,12 +311,22 @@ static inline sexp eval_flet(sexp expr,env *cur_env){
   env *scope = xmalloc(sizeof(env));
   *scope=(env){.enclosing = cur_env,.head = {.local = cur_var},.tag=_local};
   //for each cons cell in the let expression
+  env* closure = xmalloc(sizeof(env));
+  *closure=*scope;
   while(CONSP(vars) && CONSP((cur_expr=XCAR(vars)))){
     //take the name from the car(assuming it's a symbol)
     cur_var->name=XCAR(cur_expr).val.var->name;//I think...
+    function *new_fun=xmalloc(sizeof(function));
+    lambda *new_lam=xmalloc(sizeof(lambda));
+    function_args *args=cadr(cur_expr).val.funargs;
+    CORD funname;
+    new_lam->body=caddr(cur_expr);
+    new_lam->env=closure;
+    funname=cur_var->name;
+    *new_fun=(function){.args=args,.lname=funname,.cname=funname,
+                        .lam=new_lam,.type=_lambda_fun};
+    cur_var->val=function_sexp(new_fun);
     PRINT_FMT("current let var is %s",cur_var->name);
-    //set the value to eval(cdr)
-    cur_var->val=eval(XCADR(cur_expr),cur_env);
     //allocate next variable
     cur_var->next=xmalloc(sizeof(local_symbol));
     last_var=cur_var;
@@ -467,7 +480,7 @@ static sexp dont_eval(sexp obj,env *cur_env){
   obj.quoted++;
   return eval(obj,cur_env);
 }
-static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,env* cur_env,int eval_args){
+static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,env* cur_env,CORD name,int eval_args){
   sexp(*eval_ptr)(sexp,env*);
   if(eval_args){
     eval_ptr=eval;
@@ -477,7 +490,11 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
   int i,j=0;
   for(i=0;i<args->num_req_args;i++){
     if(!(CONSP(arglist))){
-      format_error_str("not enough args");
+      if(name){
+        format_error_str("not enough args passed to %r",name);
+      } else {
+        format_error_str("not enough args");
+      }
       handle_error();
     } else {
       setArg();
@@ -514,7 +531,12 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
         cur_key=XCAR(arglist);
         arglist=XCDR(arglist);
         if(!CONSP(arglist)){
-          format_error_str("uneven number of keyword arguments");
+          if(name){
+            format_error_str("uneven number of keyword arguments passed to %r"
+                             ,name);
+          } else {
+            format_error_str("uneven number of keyword arguments");
+          }
           handle_error();
         }
         cur_val=XCAR(arglist);
@@ -522,7 +544,12 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
         if(isTrue(cur_var)){
           cur_var.val.var->val=eval_ptr(cur_val,cur_env);
         } else {
-          format_error_str("Invalid keyword %r",print(cur_key));
+          if(name){
+            format_error_str("Invalid keyword %r passed to %r,",
+                             print(cur_key),name);
+          } else {
+            format_error_str("Invalid keyword %r",print(cur_key));
+          }
           handle_error();
         }
         arglist=XCDR(arglist);
@@ -539,7 +566,7 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
       int i=j;
       while(CONSP(arglist)){
         j++;
-        cur_arg->car=eval(XCAR(arglist),cur_env);
+        cur_arg->car=eval_ptr(XCAR(arglist),cur_env);
         arglist=XCDR(arglist);
         cur_arg->cdr.val.cons=xmalloc(sizeof(cons));
         prev_arg=cur_arg;
@@ -550,7 +577,11 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
     }
   }
   if(CONSP(arglist)){
-    format_error_str("excess arguments passed");
+    if(name){
+      format_error_str("excess arguments passed to %r",name);
+    } else {
+      format_error_str("excess arguments passed");
+    }
     handle_error();
   }
  ARGS_END:
@@ -561,11 +592,20 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
   }
   return args;
 }
+//how you do optional arguments in c...kinda sad
 function_args* getFunctionArgs(sexp arglist,function_args* args,env* cur_env){
-  return getFunctionOrMacroArgs(arglist,args,cur_env,1);
+  return getFunctionOrMacroArgs(arglist,args,cur_env,NULL,1);
 }
 function_args* getMacroArgs(sexp arglist,function_args* args,env* cur_env){
-  return getFunctionOrMacroArgs(arglist,args,cur_env,0);
+  return getFunctionOrMacroArgs(arglist,args,cur_env,NULL,0);
+}
+function_args* getNamedFunctionArgs
+(sexp arglist,function_args* args,env* cur_env,CORD name){
+  return getFunctionOrMacroArgs(arglist,args,cur_env,name,1);
+}
+function_args* getNamedMacroArgs
+(sexp arglist,function_args* args,env* cur_env,CORD name){
+  return getFunctionOrMacroArgs(arglist,args,cur_env,name,0);
 }
 /* internal procedure to call a builtin c function*/
 sexp call_builtin(sexp expr,env *cur_env){
@@ -573,14 +613,13 @@ sexp call_builtin(sexp expr,env *cur_env){
   function_args *args=curFun.val.fun->args;
   args->args=alloca(sizeof(symbol)*args->max_args);
   if(MACROP(curFun)){
-    args=getMacroArgs(cdr(expr),args,cur_env);
+    args=getNamedMacroArgs(cdr(expr),args,cur_env,curFun.val.fun->lname);
   } else {
-    args=getFunctionArgs(cdr(expr),args,cur_env);
+    args=getNamedFunctionArgs(cdr(expr),args,cur_env,curFun.val.fun->lname);
   }
   if(!args){
     handle_error();
   }
-  //print_msg(print(expr));
   int i;
   long numargs=args->max_args;
   switch (numargs){
@@ -623,7 +662,7 @@ sexp call_builtin(sexp expr,env *cur_env){
 }
 /* internal procedure to call a lisp function*/
 sexp call_lambda(sexp expr,env *cur_env){
-  PRINT_FMT("calling %r",car(expr).val.var->name);
+  //  PRINT_FMT("calling %r",car(expr).val.var->name);
   sexp curFun=car(expr).val.var->val;
   lambda* curLambda=curFun.val.fun->lam;
   function_args *args=curFun.val.fun->args;
@@ -637,7 +676,7 @@ sexp call_lambda(sexp expr,env *cur_env){
   env lambda_env=(env){.enclosing=curLambda->env,.head={.function=args},
                        .tag=_funArgs};
   sexp retval = eval(curLambda->body,&lambda_env);
-  PRINT_FMT("return value: %r",print(retval));
+  //  PRINT_FMT("return value: %r",print(retval));
   args->args=save_defaults;
   return retval;
 }
@@ -676,7 +715,7 @@ static sexp eval_defmacro(sexp expr,env *cur_env){
   sexp macro_sym=XCAR(expr);
   mac->lname=macro_sym.val.var->name;
   mac->args=XCADR(expr).val.funargs;
-  mac->body=XCDDR(expr);
+  mac->body=XCADDR(expr);
   macro_sym.val.var->val=macro_sexp(mac);
   addSym(cur_env,macro_sym.val.var);
   //  PRINT_MSG(print(funargs_sexp(mac->args)));
@@ -791,24 +830,19 @@ sexp lisp_apply(sexp fun,sexp args,sexp environment){
 static sexp macroexpand_helper(sexp body,env *cur_env){
   sexp retval=body;
   long argnum;
+  int splice_list=0;
+  HERE();
   while(CONSP(body)){
     if(CONSP(XCAR(body))){
+      HERE();
       XCAR(body)=macroexpand_helper(XCAR(body),cur_env);
     }
     if(XCAR(body).has_comma){
-      if(XCAR(body).meta == _splice_list){
-        //(... ,@list next ...) save next in current_cdr
-        //(... (car list) ... (last list)) (next gets cut off)
-        //(... (car list) ... (car (last list)) next)
-        //body is set to next
-        sexp list_to_splice=XCAR(body);
-        XCAR(body).has_comma=0;
-        sexp current_cdr=XCDR(body);
-        XCAR(body)=XCAR(list_to_splice);
-        XCDR(last(body))=current_cdr;
-        body=current_cdr;
-        body=XCDR(body);
-      } else if(SYMBOLP(XCAR(body))){
+      if(XCAR(body).meta==_splice_list){
+        splice_list=1;
+      }
+      if(SYMBOLP(XCAR(body))){
+        HERE();
         if((argnum=isFunctionArg
             ((function_env*)cur_env,XCAR(body).val.var->name))!=-1){
           //symef_sexp//args[argnum].val is a symbol
@@ -817,10 +851,29 @@ static sexp macroexpand_helper(sexp body,env *cur_env){
           //I'm not sure if this is right
           XCAR(body)=eval(XCAR(body),cur_env);
         }
-        //XCAR(body).has_comma=0;
-        body=XCDR(body);
+      }
+      if(splice_list){
+        splice_list=0;
+        HERE();
+        //PRINT_MSG(print(XCAR(body)));
+        //(... ,@list next ...) save next in current_cdr
+        //(... (car list) ... (last list)) (next gets cut off)
+        //(... (car list) ... (car (last list)) next)
+        //body is set to next
+        sexp list_to_splice;
+        list_to_splice=eval(XCAR(body),cur_env);
+        PRINT_MSG(print(XCDR(list_to_splice)));
+        if(CONSP(list_to_splice)){
+          HERE();
+          XCAR(body).has_comma=0;
+          sexp current_cdr=XCDR(body);
+          PRINT_MSG(print(current_cdr));
+          XCAR(body)=XCAR(list_to_splice);
+          XCDR(body)=XCDR(list_to_splice);
+          body=XCDR(last(body))=current_cdr;
+        }
       } else {
-        XCAR(body)=eval(XCAR(body),cur_env);//maybe??
+        //XCAR(body).has_comma=0;
         body=XCDR(body);
       }
     } else {

@@ -139,13 +139,18 @@ sexp getKeySymSexp(CORD name){
   if(key_entry){
     keysym=key_entry->ob_symbol;
     PRINT_FMT("%#0d",keysym);
-    return (sexp){.tag=_keyword,.val={.keyword=keysym}};
+    return keyword_sexp(keysym);
   }
   keysym=xmalloc(sizeof(keyword_symbol));
   keysym->name=name;
   obarray_add_entry(keywordObarray,keysym);
   //PRINT_FMT("%#0d",keysym);
   return keyword_sexp(keysym);
+}
+static sexp getKeywordType(sexp type_key){
+  if(!KEYWORDP(type_key)){
+    return format_type_error("get-type","keyword",type_key.tag);
+  }
 }
 /*obarray implementation (as usual with lisp, a name for historical reasons)*/
 const struct timespec one_ms={.tv_nsec=1e6};

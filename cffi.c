@@ -1,4 +1,5 @@
 #include "common.h"
+#include "prim.h"
 //not sure the point of this
 /*void fill_c_ptr(c_ptr *pointer,ctype_val ctype_data){
   ctype_val *pointers=xmalloc(sizeof(pointer->depth));
@@ -118,10 +119,10 @@ sexp get_c_type(sexp ctype_keysym){
         HERE();goto FAIL;}
       switch(typename[match_data.start[2]]){
         case '3':
-          retval=QReal32;
+          retval=Qreal32;
           break;
         case '6':
-          retval=QReal64;
+          retval=Qreal64;
           break;
         default:
           HERE();
@@ -136,19 +137,19 @@ sexp get_c_type(sexp ctype_keysym){
         switch(typename[match_data.start[6]]){
           case '8':
             if(match_data.end[4]!=5){goto FAIL;}
-            retval=QUInt8;
+            retval=Quint8;
             break;
           case '1':
             if(match_data.end[4]!=6){goto FAIL;}
-            retval=QUInt16;
+            retval=Quint16;
             break;
           case '3':
             if(match_data.end[4]!=6){goto FAIL;}
-            retval=QUInt32;
+            retval=Quint32;
             break;
           case '6':
             if(match_data.end[4]!=6){goto FAIL;}
-            retval=QUInt64;
+            retval=Quint64;
           default:
             HERE();
             goto FAIL;
@@ -158,16 +159,16 @@ sexp get_c_type(sexp ctype_keysym){
         switch(typename[match_data.start[6]]){
           case '8':
             if(match_data.end[4]!=4){goto FAIL;}
-            return QInt8;
+            return Qint8;
           case '1':
             if(match_data.end[4]!=5){goto FAIL;}
-            return QInt16;
+            return Qint16;
           case '3':
             if(match_data.end[4]!=5){goto FAIL;}
-            return QInt32;
+            return Qint32;
           case '6':
             if(match_data.end[4]!=5){goto FAIL;}
-            return QInt64;
+            return Qint64;
           default:
             HERE();
             goto FAIL;

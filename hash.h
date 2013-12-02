@@ -8,8 +8,6 @@
 #include "prim.h"
 #include "hash_fn.h"
 //ht=hash_table
-typedef struct hash_table hash_table;
-typedef struct hash_entry hash_entry;
 //hash tables use a doubly linked list rather than cons cells internally
 struct hash_entry {
   hash_entry *prev;
@@ -28,7 +26,7 @@ struct hash_table {
   float capacity_inc;//convience value
   float gthresh;//growth threshold, in terms of capicity
   float gfactor;//amount to grow by
-  froat sthresh;//shrink threshold, defaults to 0,i.e never shrink
+  float sthresh;//shrink threshold, defaults to 0,i.e never shrink
   float sfatcor;
   uint64_t (*hash_fn)(const void*,int);
   sexp (*hash_cmp)(sexp,sexp);
@@ -49,7 +47,7 @@ sexp hashTable_shrink_factor(sexp ht)__attribute__((pure));
 /* If ENTRY matches an entry already in the hash table, return the
    entry from the table.  Otherwise, return NIL.  */
 sexp hashTable_get_entry(sexp ht, sexp key);
-sexp hashTable_add_entry(sexp ht,sexp key,sexp value);
+sexp hashTable_add_entry(sexp ht,sexp key,sexp value,sexp add_opt);
 sexp hashTable_walk(sexp ht,sexp walk_fn);
 sexp hashTable_lisp_rehash(sexp ht);
 //all arguments are optional, should probably be keyargs

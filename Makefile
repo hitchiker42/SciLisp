@@ -54,6 +54,7 @@ endef
 	doc info pdf clean_doc libprim_reqs readline llvm gc gmp gmp.tar.xz\
 	mpfr.tar.xz libs test SciLisp_test
 #Programs to be built
+test: SciLisp_test
 SciLisp: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS)
 	$(CC) $(CFLAGS) $(XCFLAGS) $(FRONTEND) $(BACKEND) -fno-lto -o $@
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_HEADERS) llvm_codegen.o
@@ -66,7 +67,6 @@ llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -g -o llvm-test
 SciLisp_test: SciLisp
 	./SciLisp -r
-test: SciLisp_test	
 all: SciLisp libs SciLisp_llvm test
 #compiled files
 lex.yy.c: lisp.lex common.h
@@ -102,7 +102,7 @@ fnv_hash: fnv_hash.c
 emacs_regex.o: emacs_regex.c emacs_regex.h
 regex.o: regex.c regex.h $(COMMON_HEADERS) emacs_regex.o
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h fnv_hash
-	cd extra && emacs --batch -l generate_prims.el -f generate-SciLisp-prims
+	./extra/generate_prims.el
 lisp_system.o: lisp_system.c $(COMMON_HEADERS)
 #making libraries
 LIBSCILISP_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
@@ -198,7 +198,7 @@ gc/gc_config.stamp:
 	touch gc/gc_config.stamp
 gc: gc/gc_config.stamp gc/bdwgc/autogen.sh gc/libatomic_ops/autogen.sh
 	cd gc/bdwgc && ./configure --with-threads=posix --disable-java-finalization \
-	CFLAGS='-DGC_LINUX_THREADS -DPARALLEL_MARK -DTHREAD_LOCAL_ALLOC'	\
+	CFLAGS='-DGC_LINUX_THREADS -DPARALLEL_MARK -DTHREAD_LOCAL_ALLOC -DALL_INTERIOR_POINTERS'	\
 	--enable-parallel-mark --prefix=$$PWD/.. && $(MAKE) install cord
 	cp gc/bdwgc/include/cord_pos.h gc/include/gc
 gmp: bignum/gmp/configure

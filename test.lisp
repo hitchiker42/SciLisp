@@ -9,6 +9,18 @@
 (defun sum (x)(reduce x +))
 (defun is-even (n) (if (= 0 n) #t (is-odd (-- n))))
 (defun is-odd (n) (if (= 0 n) #f (is-even (-- n))))
+#|the fact this function works is kinda awesome because it's so much
+ |in the spirit of lisp, it uses a recursive higher order function that
+ |is locally bound and uses a variable from it's enclosing environment
+ |also I shadow a variable and it works out fine|#
+(defun is-sorted (ls f)
+  (flet ((acc (l ls)
+           (if (nilp ls)
+               #t
+               (if (f l (car ls))
+                   (acc (car ls) (cdr ls))
+                   #f))))
+    (acc (car ls) (cdr ls))))
 (define prod (lambda (x) (reduce x *)))
 (def ls '(1 23 34 56 78))
 (def ls2 (iota 10))
@@ -21,7 +33,8 @@
 (let ((x 5))
   (defun add5 (y) (+ x y)))
 #|tests of functions|#
-(sum ls)
+(assert-eq (sum ls) 192)
+(assert-equal '(1 23 34 56 78) ls)
 (print ls)
 (sum ls2)
 (prod ls3)
@@ -73,7 +86,7 @@
 (if (eq 0.9 (aref arr3 2))
     #t
     (raise-error "aref failure"))
-(let ((error-message (raise-error "expected error")))
+(let ((error-message '(raise-error "expected error")))
   (if (not (errorp error-message))
       error-message
       nil))
@@ -111,7 +124,7 @@
     (print "fail"))
 ;issue here
 (if (ash 99 -4)
-    (prog1 
+    (prog1
         99
       (+ 3 9))
     (prog1
@@ -126,14 +139,14 @@
 (let ((x '(1 3 5))) (print x))
 (let ((x 5)
       (y 6))
-  (progn 
+  (progn
     (print x)
     (print y)))
-(and (print "should print") 
-     (print "should print") #f 
+(and (print "should print")
+     (print "should print") #f
      (print "shouldn't print"))
-(or (progn (print "should print") #f) 
-    (print "should print") 
+(or (progn (print "should print") #f)
+    (print "should print")
     (print "shouldn't print"))
 (is-even 17)
 (is-odd 17)
@@ -145,23 +158,40 @@
 (def re-test2 (re-compile "\(const\)?[[:space:]]*char\(\*\)?"))
 (def match1 (re-match re-test1 "real99"))
 (print match1)
-(if match1 
+(if match1
     (print (re-subexpr match1 1))
     nil)
 (def match2 (re-match re-test1 "int88"))
 (if match2 (print (re-subexpr match2 4))nil)
 (defmacro make-addr (name num)
   `(defun ,name (x)(+ ,num x)))
+(defmacro make-addr2 (name num1 num2)
+  `(defun ,name (x)(add ,num1 ,num2 x)))
 (def thirty-three 33)
 (make-addr add33 thirty-three)
-(add33 22)
+(assert-eq (add33 22) 55)
 (make-addr add2 2)
-(add2 2)
+(assert-eq (add2 2) 4)
 (make-addr add44 44)
-(add44 94)
+(assert-eq (add44 94) 138)
+(make-addr2 add22-and-44 22 44)
+(assert-eq 132 (add22-and-44 66))
 (defmacro ++! (x) `(setq ,x (++ ,x)))
 (defmacro --! (x) `(setq ,x (++ ,x)))
 (def x 0)
+(let ((ls (list-mergesort (rand-list 20) >)))
+  (assert (is-sorted ls >)))
+(let ((arr (rand-array 100))
+      (ls (rand-list 100)))
+  (progn
+    (assert-equal arr (list->array (array->list arr)))
+    (assert-equal ls (array->list (list->array ls)))
+    (assert-equal (list-qsort ls >) (list-mergesort ls >))))
+(defmacro when (cond-test &rest args) `(if ,cond-test (progn ,@args) nil))
+(when (> 2 1)
+  (print "testing when")
+  (print "still testing")
+  (print "done testing"))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

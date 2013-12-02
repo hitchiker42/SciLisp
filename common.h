@@ -63,8 +63,8 @@
 #define float_sexp(float_val) (sexp){.tag=_float,.val={.real32=float_val}}
 #define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val},.is_ptr=1}
 #define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val},.is_ptr=1}
-#define hashTable_sexp(hashtable_val) (sexp){.tag=_hash_table,\
-      .val={.hash_table=hashtable_val},.is_ptr=1}
+#define hashTable_sexp(hashtable_val) (sexp){.tag=_hashtable,\
+      .val={.hashtable=hashtable_val},.is_ptr=1}
 #define int_n_sexp(int_n_val,n) (sexp) {.tag=_int##n,\
       .val={.int##n=int_n_val}}
 #define uint_n_sexp(uint_n_val,n) (sexp) {.tag=_uint##n,\

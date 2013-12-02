@@ -244,6 +244,7 @@ int main(int argc,char* argv[]){
   CORD_debug_printf=default_CORD_debug_printf;
   #endif
   sigaction(SIGSEGV,sigsegv_action,NULL);
+  GC_set_all_interior_pointers(1);
   GC_set_handle_fork(1);
   GC_init();
 #if defined (MULTI_THREADED)
@@ -441,10 +442,10 @@ static void SciLisp_getopt(int argc,char *argv[]){
         ENSURE_PRIMS_INITIALIZED();
         if(setjmp(error_buf)){
           fprintf(stderr,"parsing failed exiting\n");
-
           exit(1);
         }
         ast=yyparse(file);
+        error_buf;
         //PRINT_MSG(print(ast));
         while(CONSP(ast)){
           if(setjmp(error_buf)){
@@ -453,6 +454,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
             continue;
             //printf(error_str);
           }
+          HERE();
           CORD_printf("evaluating: %r\n",print(XCAR(ast)));
           sexp result=eval(XCAR(ast),topLevelEnv);
           CORD_printf("result: %r\n",print(result));
@@ -473,7 +475,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
       }
       case 'r':{
         int tests_failed=0;
-        CORD failed_exprs="";
+        CORD failed_exprs=0;
         CORD_debug_printf=CORD_ndebug_printf;
         debug_printf=ndebug_printf;
         FILE* file=fopen("test.lisp","r");
@@ -482,17 +484,25 @@ static void SciLisp_getopt(int argc,char *argv[]){
         freopen("/dev/null","w",stdout);
         freopen("/dev/null","w",stderr);
         ENSURE_PRIMS_INITIALIZED();
+        FILE* my_stderr=fdopen(my_stderr_fd,"w");
         if(setjmp(error_buf)){
-          FILE* my_stderr=fdopen(my_stderr_fd,"w");
           fprintf(my_stderr,"parsing failed exiting\n");
           exit(1);
         }
         sexp ast=yyparse(file);
+        sexp result;
         while (CONSP(ast)){
-          sexp result=eval(XCAR(ast),topLevelEnv);
-          if(ERRORP(result)){
+          if(setjmp(error_buf)){
             tests_failed++;
-            failed_exprs=CORD_catn(3,failed_exprs,print(XCAR(ast)),"\n");
+            failed_exprs=CORD_catn(3,failed_exprs,print(result),"\n");
+          } else {
+            result=eval(XCAR(ast),topLevelEnv);
+            if(ERRORP(result)){
+              tests_failed++;
+              failed_exprs=CORD_catn(5,failed_exprs,
+                                     print(XCAR(ast)),"\nwith error:",
+                                     print(result),"\n");
+            }           
           }
           ast=XCDR(ast);
         }
@@ -501,8 +511,8 @@ static void SciLisp_getopt(int argc,char *argv[]){
           fprintf(my_stdout,"all tests passed\n");
           exit(0);
         } else {
-          printf("Failed tests:\n");
-          CORD_printf(failed_exprs);
+          fprintf(my_stderr,"Failed tests:\n");
+          CORD_fprintf(my_stdout,failed_exprs);
           exit(tests_failed);
         }
       }

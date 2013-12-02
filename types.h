@@ -54,6 +54,8 @@ typedef struct re_match_data re_match_data;
 typedef struct re_pattern_buffer regex_t;
 typedef struct hash_table hash_table;
 typedef struct lisp_tree lisp_tree;
+typedef struct hash_table hash_table;
+typedef struct hash_entry hash_entry;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -103,7 +105,9 @@ typedef wchar_t char32_t;
 #define INT32P(obj) (obj.tag == _int)
 #define INT64P(obj) (obj.tag == _long)
 #define REAL32P(obj) (obj.tag == _float)
+#define REAL64P(obj) (obj.tag == _double)
 #define KEYWORDP(obj) (obj.tag == _keyword)
+#define TYPEP(obj) (obj.tag == _type)
 #define RE_MATCHP(obj) (obj.tag == _re_data)
 #define TYPED_ARRAYP(obj) (obj.tag==_typed_array)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
@@ -111,6 +115,7 @@ typedef wchar_t char32_t;
 #define LITERALP(obj) (obj.is_ptr == 0)
 #define IS_POINTER(obj) (obj.is_ptr == 1)
 #define LISP_TREEP(obj) (obj.tag == _tree)
+#define HASHTABLEP(obj) (obj.tag == _hashtable)
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
@@ -153,6 +158,13 @@ enum _tag {
   _false = -3,//type of #f, actual value is undefined
   _uninterned = -2,//type of uninterned symbols, value is symbol(var)
   _nil = -1,//type of nil, singular object,vaule is undefined
+  //so this is kinda really not good.
+  /* so I just realized that a whole bunch of my code kinda
+   * implicitly depends on _cons being 0, because I tend not
+   * to set tag values to each cell when building lists the tag is
+   * 0, so when I test if it's a cons cell it is, which, to be fair does 
+   * seem to work out. But it's worth knowing this, because if i ever change
+   * this to a non 0 value everything will probably break*/
   _cons = 0,//type of cons cells(aka lisp programs), value is cons
   //arithmatic types, room for 7 more types currently
   //unlike some other enum aliases these are both meant to be useable
@@ -170,22 +182,22 @@ enum _tag {
   _bigint = 11,_mpz=11,
   _bigfloat = 12,_mpfr=12,
   _char = 19,_uchar=19,//type of chars(c type wchar_t),value is utf8_char
-  _str = 20,_cord=20,//type of strings, value is cord
+  _str = 20,_cord=20,_string=20,//type of strings, value is cord
   _array = 21,//type of arrays, element type in meta, vaule is array
   _ustr = 22,//utf8 string
   _regex = 23,//compiled regular expression
   _stream = 24,_file=24,//type of input/output streams, corrsponds to c FILE*
   _matrix =25,//array for mathematical calculations
   _list = 26,//type of lists,value is cons
-  _dpair = 27,
+  _dpair = 27,_dotted_pair=27,
   _fun = 31,//type of builtin functions,value is function pointer,fun
-  _sym = 32,//type of symbols,value is var
-  _special = 33,//type of special form,value is meta(a _tag value)
+  _sym = 32,_symbol=32,//type of symbols,value is var
+  _special = 33,_spec=33,//type of special form,value is meta(a _tag value)
   _macro = 34,//type of macros, unimplemented
   _type = 35,//type of types, unimplemened
   _lam = 36,//type of lambda, value is lam
   _lenv = 37,//type of local environments,value is lenv
-  _env = 38,
+  _env = 38,_environment=38,
   _keyword = 39,
   _funarg = 40,_funargs=40,
   _true = 41,//type of #t, singular value
@@ -195,7 +207,7 @@ enum _tag {
   _cdata=45,//c value and typeinfo(includes c pointer types)
   _opaque=46,//generic opaque c struct/union
   _re_data=47,//re match data
-  _hash_table=48,
+  _hash_table=48,_hashtable=48,
   _tree=49,
   _tree_node=50,
   _typed_array=51,
@@ -215,24 +227,26 @@ enum special_form{
   _union=11,
   _datatype=12,
   _enum=13,
-  _eval=14,
+  _eval=14,//shouldn't be a special form
   _defmacro=15,
   _quasi=16,
   _quote=17,
   _comma=18,
-  _and=19,
-  _or=20,
+  _and=19,//definately shouldn't be a special form
+  _or=20,//"" ""
   _main=21,
   _while=22,
-  _prog1=23,
-  _dolist=24,
-  _dotimes=25,
+  _prog1=23,//shouldn't be a special form
+  _dolist=24,//while should be the only special looping construct
+  _dotimes=25,//""""
   _return=26,
   _unwind_protect=27,
   _block=28,
   _defvar=29,
   _defconst=30,
-
+  _flet=31,
+  _let_star=32,
+  _progv=33,
 };
 //mutually exclusive metadata, a single int value might have multiple names
 enum sexp_meta{
@@ -258,7 +272,7 @@ union data {//keep max size at 64 bits
   function *fun;
   function_args* funarg;//depreciated
   function_args* funargs;
-  hash_table *hash_table;
+  hash_table *hashtable;
   int16_t int16;
   int32_t int32;
   int64_t int64;
@@ -402,48 +416,23 @@ struct lambda{
   env *env;//for closures
   sexp body;
 };
+//was in env.h, but I need symbol to be a complete type here
+struct symbol_props {
+  int is_const :1;
+  int setfable :1;
+  int typed :1;
+  int global :1;
+  _tag type;
+};
+struct symbol {
+  CORD name;
+  sexp val;
+  symbol_props props;
+};
 struct scoped_sexp{
   sexp sexp;
   env* env;
 };
-//literal objects for each type
-//should probably generate these or something
-#define mkTypeSym(name,mval)                                    \
-  static const sexp name = {.tag=_type, .val={.meta = mval}}
-mkTypeSym(Qerror,_error);
-mkTypeSym(Qfalse,_false);
-mkTypeSym(Quninterned,_uninterned);
-mkTypeSym(Qnil,_nil);
-mkTypeSym(Qcons,_cons);
-mkTypeSym(Qdouble,_double);
-mkTypeSym(Qlong,_long);
-mkTypeSym(QInt8,_int8);
-mkTypeSym(QInt16,_int16);
-mkTypeSym(QInt32,_int32);
-mkTypeSym(QInt64,_int64);
-mkTypeSym(QUInt8,_uint8);
-mkTypeSym(QUInt16,_uint16);
-mkTypeSym(QUInt32,_uint32);
-mkTypeSym(QUInt64,_uint64);
-mkTypeSym(QReal32,_real32);
-mkTypeSym(QReal64,_real64);
-mkTypeSym(Qbigint,_bigint);
-mkTypeSym(Qbigfloat,_bigfloat);
-mkTypeSym(Qchar,_char);
-mkTypeSym(Qstr,_str);
-mkTypeSym(Qfun,_fun);
-mkTypeSym(Qsym,_sym);
-mkTypeSym(Qspec,_special);
-mkTypeSym(Qmacro,_macro);
-mkTypeSym(Qtype,_type);
-mkTypeSym(Qdpair,_dpair);
-mkTypeSym(Qarr,_array);
-mkTypeSym(Qtrue,_true);
-mkTypeSym(Qlist,_list);
-mkTypeSym(Qlenv,_lenv);
-mkTypeSym(Qenv,_env);
-mkTypeSym(Qobarray,_obarray);
-mkTypeSym(Qfunargs,_funargs);
 //static const sexp typeArray[NUM_TYPES-1] = {Quninterned,Qnil,Qcons,Qdouble,Qlong,Qchar,Qstr,Qfun,Qsym,Qspec,Qmacro,Qtype,Qarr,Qtrue};
 //static sexp typeOf(sexp obj){
 //  return typeArray[obj.tag+2];
@@ -461,38 +450,6 @@ enum backend{
   llvm=1,
   as=2,
 };
-#define mkTypeCase(type,tag) case tag: return type
-static sexp typeOfTag(_tag tag){
-  switch (tag){
-    mkTypeCase(Qerror,_error);
-    mkTypeCase(Qfalse,_false);
-    mkTypeCase(Quninterned,_uninterned);
-    mkTypeCase(Qnil,_nil);
-    mkTypeCase(Qcons,_cons);
-    mkTypeCase(Qdouble,_double);
-    mkTypeCase(Qlong,_long);
-    mkTypeCase(Qbigint,_bigint);
-    mkTypeCase(Qbigfloat,_bigfloat);
-    mkTypeCase(Qchar,_char);
-    mkTypeCase(Qstr,_str);
-    mkTypeCase(Qfun,_fun);
-    mkTypeCase(Qsym,_sym);
-    mkTypeCase(Qspec,_special);
-    mkTypeCase(Qmacro,_macro);
-    mkTypeCase(Qtype,_type);
-    mkTypeCase(Qdpair,_dpair);
-    mkTypeCase(Qarr,_array);
-    mkTypeCase(Qtrue,_true);
-    mkTypeCase(Qlist,_list);
-    mkTypeCase(Qlenv,_lenv);
-    mkTypeCase(Qenv,_env);
-    mkTypeCase(Qobarray,_obarray);
-    mkTypeCase(Qfunargs,_funargs);
-  }
-}
-static sexp typeOf(sexp obj){
-  return typeOfTag(obj.tag);
-}
 enum operator{
   _add,
   _sub,
@@ -541,5 +498,3 @@ static sexp lisp_copy(sexp obj){
       return copy_symref(obj);
   }
   }*/
-#undef mkTypeCase
-#undef mkTypeSym

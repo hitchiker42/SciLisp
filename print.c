@@ -51,7 +51,7 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_cdata,cdata);
     default:{
       CORD retval;
-      CORD_sprintf(&retval,"don't know how to print tag number %d",obj_tag);
+      CORD_sprintf(&retval,"\"unknown tag number %d\"",obj_tag);
       return CORD_to_char_star(retval);
     }
   }
@@ -152,7 +152,7 @@ inline CORD print_num(sexp obj){
     acc=CORD_cat(acc,"'");                      \
   }
 CORD print(sexp obj){
-  CORD retval=0,acc=0;
+  CORD retval=CORD_EMPTY,acc=CORD_EMPTY;
   switch (obj.tag){
     HERE();
     case _double:
@@ -182,12 +182,12 @@ CORD print(sexp obj){
     case _list:      
     case _cons:      
       acc=CORD_cat(acc,"(");
+      int i=0;
       while(CONSP(obj)){
         acc=CORD_cat(acc,print(XCAR(obj)));
         obj=XCDR(obj);
         if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
       }
-      //      HERE();
       //      PRINT_MSG(tag_name(obj.tag));
       if(!NILP(obj)){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
@@ -247,7 +247,7 @@ CORD print(sexp obj){
       funarg_print_loop(opt,"&optional");
       funarg_print_loop(keyword,"&key");
       if(args->has_rest_arg){
-        acc=CORD_catn(4,"&rest ",args->args[j],")");
+        acc=CORD_catn(4,"&rest ",args->args[j].name,")");
       } else {
         acc=CORD_cat(acc,")");
       }
@@ -263,7 +263,7 @@ CORD print(sexp obj){
                     return CORD_balance(acc);*/
       return "Lambda";
     case _typed_array:{
-      acc="[";
+      acc="[[";
       int i;
       CORD format=0;
       data* arr=obj.val.typed_array;
@@ -285,7 +285,7 @@ CORD print(sexp obj){
           }
         }
       }
-      return CORD_balance(CORD_cat(acc,"]"));
+      return CORD_balance(CORD_cat(acc,"]]"));
     }
     case _array:{
       acc="[";
@@ -394,195 +394,4 @@ CORD token_name(TOKEN token){
 }
 CORD pprint(sexp obj);//print readably after a newline
 CORD prin1(sexp obj);//print readably
-#if 0
-CORD princ(sexp obj){//pretty print
-  CORD retval="",acc="";
-  switch (obj.tag){
-    HERE();
-    case _double:
-    case _long:
-    case _bigint:
-    case _bigfloat:
-      return print_num(obj);
-    case _macro:
-    case _fun:
-      acc="(";
-      acc=CORD_catn(3,acc,obj.val.fun->lname," ");
-      acc=CORD_catn(acc,print(obj.val.fun->args),")");      
-      return acc;
-    case _macro:
-      acc="(";
-      acc=CORD_catn(3,acc,obj.val.mac->lname," ");
-      acc=CORD_catn(acc,print(obj.val.mac->args),")");      
-      return acc
-    case _sym:
-        if(obj.has_comma){
-          acc=",";
-        }
-        if(obj.quoted){
-          acc=CORD_cat(acc,"'");
-        }
-        return CORD_cat(acc,obj.val.var->name);
-    case _keyword:
-      return obj.val.keyword->name;
-    case _char:{
-      CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
-      return retval;
-    }
-    case _nil:
-      return "()";
-    case _tree:
-      obj=obj.val.tree->btree;//fallthrough
-    case _list:      
-    case _cons:
-      acc="(";
-      while(CONSP(obj)){
-        acc=CORD_cat(acc,print(XCAR(obj)));
-        obj=XCDR(obj);
-        if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
-        //CORD_fprintf(stderr,acc);fputs("\n",stderr);
-        //PRINT_MSG(acc);
-      }
-      //      HERE();
-      //      PRINT_MSG(tag_name(obj.tag));
-      if(!NILP(obj)){
-        CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
-      } else {
-        acc=CORD_cat(acc,")");        
-        retval=acc;
-      }
-      //      PRINT_MSG(retval);
-      return CORD_balance(retval);
-    case _uninterned:
-      switch(obj.val.meta){
-        case 11:
-          return "#t";
-        case -0xf:
-          return "unbound symbol";
-        default:
-          return "uninterned symbol";
-      }
-    case _error:
-    case _str:
-      CORD_sprintf(&retval,"\"%r\"",obj.val.cord);
-      return retval;
-    case _lenv:{
-      local_symref cur_sym=obj.val.lenv;
-      acc="(";
-      while(cur_sym != 0){
-        acc=CORD_cat(acc,cur_sym->name);
-        cur_sym=cur_sym->next;
-        if(cur_sym != 0){
-          acc=CORD_cat_char(acc,' ');
-        }
-      }
-      return CORD_balance(CORD_cat(acc,")"));
-    }
-    case _funarg:{
-      acc="(";
-      function_args* args=obj.val.funarg;
-      int i=0,j=0;
-      if(args->num_req_args){
-        for(i=0;i<args->num_req_args;i++){
-          acc=CORD_cat(acc,args->args[j++].name);
-          if(j != args->max_args){
-            acc=CORD_cat(acc," ");
-          }
-        }
-      }
-#define funarg_print_loop(argtype,optional_str)             \
-      if(args->num_##argtype##_args){                       \
-        acc=CORD_cat(acc,optional_str);                     \
-        for(i=0;i<args->num_##argtype##_args;i++){          \
-          acc=CORD_cat(acc,args->args[j++].name);                \
-          if(j != args->max_args){                          \
-            acc=CORD_cat(acc," ");                          \
-          }                                                 \
-        }                                                   \
-      }
-      funarg_print_loop(opt,"&optional");
-      funarg_print_loop(keyword,"&key");
-      if(args->has_rest_arg){
-        acc=CORD_catn(4,"&rest ",args->args[j],")");
-      } else {
-        acc=CORD_cat(acc,")");
-      }
-      return CORD_balance(acc);
-    }
-#undef funarg_print_loop
-    case _lam://depricated type
-      /*      acc="(lambda ";
-      acc=CORD_catn(5,acc,
-                    print((sexp){.tag=_lenv,.val=
-                          {.lenv =(local_env*)obj.val.lam->env}})
-                    ," ",print(obj.val.lam->body),")");
-                    return CORD_balance(acc);*/
-      return "Lambda";
-    case _typed_array:{
-      acc="[";
-      int i;
-      CORD format=0;
-      data* arr=obj.val.typed_array;
-      PRINT_FMT("len = %d",obj.len);
-      if(obj.meta==_double_array){
-        for(i=0;i<obj.len;i++){
-          CORD_sprintf(&format,"%f",arr[i].real64);
-          acc=CORD_cat(acc,format);
-          if(i<obj.len-1){
-            acc=CORD_cat_char(acc,' ');
-          }
-        }
-      } else if (obj.meta == _long_array){
-        for(i=0;i<obj.len;i++){
-          CORD_sprintf(&format,"%d",arr[i].int64);
-          acc=CORD_cat(acc,format);
-          if(i<obj.len-1){
-            acc=CORD_cat_char(acc,' ');
-          }
-        }
-      }
-      return CORD_balance(CORD_cat(acc,"]"));
-    }
-    case _array:{
-      acc="[";
-      int i;
-      sexp *arr=obj.val.array;
-      PRINT_FMT("length = %d",obj.len);
-      for(i=0;i<obj.len;i++){
-        acc=CORD_cat(acc,print(arr[i]));
-        if(i<obj.len-1){
-          acc=CORD_cat_char(acc,' ');
-        }
-      }
-      return CORD_balance(CORD_cat(acc,"]"));
-    }
-    case _special:
-      return specialForm_name(obj);
-    case _false:
-      return "#f";
-    case _type:
-      return tag_name(obj.val.meta);
-    case _stream:
-      CORD_sprintf(&retval,"File descriptor %d",fileno(obj.val.stream));
-      return retval;
-    case _obarray:{
-      obarray* ob=obj.val.ob;
-      CORD_sprintf
-        (&retval,
-         "Obarray statistics:\nsize:%d\nused:%d\nentries:%d\ncapacity:%f\n",
-         ob->size,ob->used,ob->entries,ob->capacity);
-        return retval;
-    }
-    case _re_data:
-      CORD_sprintf
-        (&retval,
-         "#<re-match-data for \"%r\">",obj.val.re_data->re_string);
-      return retval;
-    case _regex:
-      return ("#<regular-expression>");
-    default:
-      CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
-      return error_str;
-  }
-}
-#endif
+CORD princ(sexp obj);//pretty print 

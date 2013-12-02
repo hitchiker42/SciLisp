@@ -23,6 +23,7 @@ static sexp parse_backtick();
 static sexp parse_list();
 static sexp parse_arg_list();
 static sexp parse_function_args();
+static sexp parse_function(int has_name,int need_rparen);
 sexp error_val=NIL_MACRO();
 static void error_recovery();
 static void handle_error() __attribute__((noreturn));
@@ -88,9 +89,16 @@ sexp parse_sexp(){
         handle_error();
       } else {
         inside_backquote=0;
-        nextTok();
+        int is_spliced_list=0;
+        if(nextTok() == TOK_AROBASE){
+          is_spliced_list=1;
+          nextTok();
+        }
         sexp retval=parse_sexp();
         retval.has_comma=1;
+        if(is_spliced_list){
+          retval.meta=_splice_list;
+        }
         inside_backquote=1;
         return retval;
       }
@@ -140,11 +148,52 @@ sexp parse_cons(){
       XCAR(result)=*yylval;
       XCDR(result).val.cons=xmalloc(sizeof(cons));
       XCDDR(result).val.cons=xmalloc(sizeof(cons));
-      if(nextTok() != TOK_LPAREN){
-        format_error_str("empty let expression");
-        handle_error();
+      if(XCAR(result).val.special==_flet){
+        //I ought to fix this(empty let expressions should be ok)
+        if(nextTok() != TOK_LPAREN){
+          format_error_str("error, empty flet expression");
+          handle_error();
+        }
+        sexp fun_bindings=NIL;
+        cons *fun_list=fun_bindings.val.cons=xmalloc(sizeof(cons));
+        cons *trail=fun_list;
+        fun_bindings.tag=_cons;
+        fun_bindings.is_ptr=1;
+        while(nextTok() != TOK_RPAREN){
+          if(yytag != TOK_LPAREN){
+            format_error_str("error, malformed flet expression");
+            handle_error();
+          }
+          fun_list->car=parse_function(1,1);
+          fun_list->cdr.val.cons=xmalloc(sizeof(cons));
+          trail=fun_list;
+          fun_list=fun_list->cdr.val.cons;
+        }
+        trail->cdr=NIL;
+        XCADR(result)=fun_bindings;
+      } else {
+        if(nextTok() != TOK_LPAREN){
+          format_error_str("error, empty let expression");
+          handle_error();
+        }
+        sexp var_bindings=NIL;
+        cons *var_list=var_bindings.val.cons=xmalloc(sizeof(cons));
+        cons *trail=var_list;
+        var_bindings.tag=_cons;
+        var_bindings.is_ptr=1;
+        while(nextTok() != TOK_RPAREN){
+          if(yytag != TOK_LPAREN){
+            format_error_str("error, malformed flet expression");
+            handle_error();
+          }
+          var_list->car=parse_sexp();
+          var_list->cdr.val.cons=xmalloc(sizeof(cons));
+          trail=var_list;
+          var_list=var_list->cdr.val.cons;
+        }
+        trail->cdr=NIL;
+        XCADR(result)=var_bindings;
       }
-      XCADR(result)=parse_list();
       if(nextTok() == TOK_RPAREN){
         format_error_str("missing bindings list in let expression");
         handle_error();
@@ -160,10 +209,15 @@ sexp parse_cons(){
     }
     case TOK_LAMBDA:{//defun returns a TOK_LAMBDA as well
       sexp retval;
-      retval.val.cons=xmalloc(sizeof(cons));
-      retval.tag=_cons;
-      retval.is_ptr=1;
+      HERE();
+      retval=cons_sexp(xmalloc(sizeof(cons)));
+      //      retval.tag=_cons;
+      //      retval.is_ptr=1;
       XCAR(retval)=*yylval;
+      int is_defun=
+        ((yylval->val.special == _defun)?1:0);
+      XCDR(retval)=parse_function(is_defun,1);
+      return retval;
       sexp fake_retval=retval;
       while(nextTok() != TOK_LPAREN){
         if(retval.val.cons->car.val.special == _defun){
@@ -195,14 +249,14 @@ sexp parse_cons(){
         }
       }
       return retval;
-      if(nextTok() == TOK_LPAREN){
+      /*      if(nextTok() == TOK_LPAREN){
         temp->car=parse_list();
         temp->car.tag=_cons;
       } else {
         temp->car=parse_atom();
       }
 
-      return retval;
+      return retval;*/
     }
     case TOK_MACRO:{
       //(defmacro name (args) (body))
@@ -211,12 +265,15 @@ sexp parse_cons(){
       retval.tag=_cons;
       retval.is_ptr=1;
       XCAR(retval)=*yylval;
-      if(nextTok() != TOK_ID){
-        format_error_str("invaid macro name");
+      XCDR(retval)=parse_function(1,0);
+      return retval;
+      /*      XCDR(retval).val.cons=xmalloc(sizeof(cons));
+      nextTok();
+      XCADR(retval)=parse_sexp();//macro name
+      if(!SYMBOLP(XCADR(retval))){
+        format_error_str("error, expected identifer for macro name");
         handle_error();
-      }
-      XCDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADR(retval)=parse_atom();//macro name
+      }      
       if(nextTok() != TOK_LPAREN){
         format_error_str("macro defination is missing argument list");
         handle_error();
@@ -224,11 +281,11 @@ sexp parse_cons(){
       XCDDR(retval).val.cons=xmalloc(sizeof(cons));
       XCADDR(retval)=parse_function_args();//macro args
       nextTok();
-      XCDDDR(retval)=parse_sexp();
-      //      XCDDDDR(retval)=NIL;
-
+      XCDDDR(retval).val.cons=xmalloc(sizeof(cons));
+      XCADDDR(retval)=parse_sexp();
+      XCDDDDR(retval)=NIL;
       //      XCADDDR(retval)=parse_sexp();//macro body
-      return retval;
+      return retval;*/
     }
     default: {//an unquoted list that's not a function call or special form
       //should probably be a parse error, but I'm not totally confidient
@@ -354,12 +411,9 @@ sexp parse_atom(){
       return retval;
     }
     case TOK_STRING:
-      //     PRINT_MSG(yylval->val.cord); 
-      return *yylval;
+    case TOK_MACRO:
     case TOK_CHAR:
-      return *yylval;
     case TOK_SPECIAL:
-      return *yylval;//I dont' know how well this'll work
     case TOK_LET:
       return *yylval;//I dont' know how well this'll work
     default:
@@ -397,14 +451,16 @@ sexp parse_backtick(){
     cons* prev_loc=cur_loc;
     while (yytag != TOK_RPAREN && yytag != TOK_DOT){
       switch(yytag){
-        case TOK_LIST_SPLICE:{
-          cur_loc->car.meta=_splice_list;
-          nextTok();//eat up ,;@ gets removed in the next case
-          /*fall through*/
-        }
         case TOK_COMMA:{
-          nextTok();
+          int is_spliced_list=0;
+          if(nextTok() == TOK_AROBASE){
+            is_spliced_list=1;
+            nextTok();
+          }
           cur_loc->car=parse_sexp();
+          if(is_spliced_list){
+            cur_loc->car.meta=_splice_list;
+          }
           cur_loc->car.has_comma=1;
           cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
           prev_loc=cur_loc;
@@ -586,6 +642,42 @@ static inline sexp parse_function_args(){
   if(yytag != TOK_RPAREN){
     format_error_str("malformed argument list");
     handle_error();
+  }
+  return retval;
+}
+static sexp parse_function(int has_name,int need_rparen){
+  cons* temp;
+  sexp retval;
+  temp=retval.val.cons=xmalloc(sizeof(cons));
+  if(has_name){
+    nextTok();
+    temp->car=parse_sexp();
+    if(!SYMBOLP(temp->car)){
+      format_error_str
+        ("error, expected variable name in function definition,token recieved was %r",token_name(yytag));
+      handle_error();
+    }
+    temp->cdr.val.cons=xmalloc(sizeof(cons));
+    temp=temp->cdr.val.cons;
+  }
+  if(nextTok() != TOK_LPAREN){
+    format_error_str
+      ("expected argument list following lambda or function declaration");
+    handle_error();
+  }
+  temp->car=parse_function_args();
+  temp->cdr.val.cons=xmalloc(sizeof(cons));
+  temp=temp->cdr.val.cons;
+  temp->cdr=NIL;
+  //parse the function body
+  TOKEN body_start=nextTok();
+  temp->car=parse_sexp();
+  if(need_rparen){
+    if(nextTok() != TOK_RPAREN){
+      format_error_str
+        ("error, missing closing parentheses in function defination");
+      handle_error();
+    }
   }
   return retval;
 }

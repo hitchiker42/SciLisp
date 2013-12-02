@@ -74,10 +74,15 @@
   symbol c_name ## _sym = {.name=l_name,.val=c_name,                    \
                            .props={.is_const=constant}};                \
   symref c_name ## _ptr = 0;                                            \
-  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
-                                    .hashv=0}
-#define INIT_SYMBOL(c_name)                                    \
-  c_name##_ptr=&c_name##_sym;                                  \
+  obarray_entry c_name##_ob_entry={.prev=0,.next=0,.ob_symbol=0,.hashv=0}
+#define MAKE_TYPE(l_name,l_tag)                                         \
+  symref l_name##_ptr=0;                                                \
+  symbol l_name##_sym = {.name="#<"#l_name">",                          \
+                         .val={.tag=_type,.val={.meta = l_tag}},         \
+                         .props={.is_const=1,.global=1,.type=_type}};   \
+  obarray_entry l_name##_ob_entry={.prev=0,.next=0,.ob_symbol=0,.hashv=0}
+#define INIT_SYMBOL(c_name)                                     \
+  c_name##_ptr=&c_name##_sym;                                   \
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
@@ -96,8 +101,8 @@
   c_name##_ptr_syn ## gensym_counter -> name = l_name;                  \
   obarray_entry *c_name##_ob_entry##gensym_counter=                     \
     xmalloc(sizeof(obarray_entry));                                     \
-  c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter;        \
-  prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter,         \
+  c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter; \
+  prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter, \
                          c_name##_ob_entry##gensym_counter)
   
 #define MK_PREDICATE(lname,test)                \
@@ -203,8 +208,12 @@ sexp ash(sexp x,sexp y){
     return lisp_lshift(x,(sexp){.tag=_long,.val={.int64 = (labs(y.val.int64))}});
   }
 }
-sexp lisp_randint(){
-  return (sexp){.tag=_long,.val={.int64=mrand48()}};
+sexp lisp_randint(sexp un_signed){
+  if(NILP(un_signed)){
+    return long_sexp(mrand48());
+  } else {
+    return long_sexp(lrand48());
+  }
 }
 sexp lisp_randfloat(sexp scale){
   double retval;
@@ -213,7 +222,7 @@ sexp lisp_randfloat(sexp scale){
   } else {
     retval = drand48();
   }
-  return (sexp){.tag=_double,.val={.real64=retval}};
+  return double_sexp(retval);
 }
 sexp lisp_eval(sexp obj,sexp env){
   return eval(obj,topLevelEnv);
@@ -523,6 +532,11 @@ sexp lisp_eq(sexp obj1,sexp obj2){
     case _type:
     case _special:
       return (obj1.val.meta == obj2.val.meta ? LISP_TRUE : LISP_FALSE);
+      //these are singleton values so if they have the same tag they must be eq
+    case _nil:
+    case _true:
+    case _false:
+      return LISP_TRUE;    
     default:
       return LISP_FALSE;
   }
@@ -580,6 +594,15 @@ sexp lisp_not(sexp bool){
     return LISP_TRUE;
   }
 }
+sexp lisp_not_eq(sexp obj1,sexp obj2){
+  return lisp_not(lisp_eq(obj1,obj2));
+}
+sexp lisp_not_eql(sexp obj1,sexp obj2){
+  return lisp_not(lisp_eql(obj1,obj2));
+}
+sexp lisp_not_equal(sexp obj1,sexp obj2){
+  return lisp_not(lisp_equal(obj1,obj2));
+}
 sexp lisp_assert(sexp expr){
   if(isTrue(expr)){
     return NIL;
@@ -587,18 +610,100 @@ sexp lisp_assert(sexp expr){
     return error_sexp("Assertation faliure");
   }
 }
-sexp lisp_assert_eq(sexp obj1,sexp obj2){
-  if(isTrue(lisp_eq(obj1,obj2))){
-    return NIL;
-  } else {
-    return format_error_sexp("Assertation error, %r is not eq to %r",print(obj1),print(obj2));
+#define make_lisp_assert_eq(name,fun,error_string)                      \
+  sexp name(sexp obj1,sexp obj2){                                       \
+  if(isTrue(fun(obj1,obj2))){                                           \
+    return NIL;                                                         \
+  } else {                                                              \
+    return format_error_sexp(error_string,print(obj1),print(obj2));     \
+  }                                                                     \
   }
-}
+make_lisp_assert_eq(lisp_assert_eq,lisp_eq,
+                    "Assertation error, %r is not eq to %r")
+make_lisp_assert_eq(lisp_assert_equal,lisp_equal,
+                    "Assertation error, %r is not equal to %r")
+make_lisp_assert_eq(lisp_assert_eql,lisp_eq,
+                    "Assertation error, %r is not eql to %r")
+make_lisp_assert_eq(lisp_assert_not_eq,lisp_not_eq,
+                    "Assertation error, %r is eq to %r")
+make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
+                    "Assertation error, %r is equal to %r")
+make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
+                    "Assertation error, %r is eql to %r")
 sexp lisp_gensym(){
   symref retval=xmalloc(sizeof(symbol));
   CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
   retval->val=UNBOUND;
   return symref_sexp(retval);
+}
+#if 0
+#define mkTypeCase(type,tag) case tag: return type
+sexp typeOfTag(_tag tag){
+  switch (tag){
+    mkTypeCase(Qerror,_error);
+    mkTypeCase(Qfalse,_false);
+    mkTypeCase(Quninterned,_uninterned);
+    mkTypeCase(Qnil,_nil);
+    mkTypeCase(Qcons,_cons);
+    mkTypeCase(Qreal64,_real64);
+    mkTypeCase(Qint64,_int64);
+    mkTypeCase(Qbigint,_bigint);
+    mkTypeCase(Qbigfloat,_bigfloat);
+    mkTypeCase(Qchar,_char);
+    mkTypeCase(Qstring,_string);
+    mkTypeCase(Qfun,_fun);
+    mkTypeCase(Qsymbol,_symbol);
+    mkTypeCase(Qspec,_special);
+    mkTypeCase(Qmacro,_macro);
+    mkTypeCase(Qtype,_type);
+    mkTypeCase(Qdpair,_dpair);
+    mkTypeCase(Qarray,_array);
+    mkTypeCase(Qtrue,_true);
+    mkTypeCase(Qlist,_list);
+    mkTypeCase(Qlenv,_lenv);
+    mkTypeCase(Qenv,_env);
+    mkTypeCase(Qobarray,_obarray);
+    mkTypeCase(Qfunargs,_funargs);
+  }
+}
+sexp typeOf(sexp obj){
+  return typeOfTag(obj.tag);
+}
+#endif
+sexp getKeywordType(sexp obj){
+  if(!KEYWORDP(obj)){
+    return format_type_error("get-type","keyword",obj.tag);
+  }
+  CORD type_symbol_name=CORD_catn
+    (3,"#<",CORD_substr(obj.val.keyword->name,1,
+                        CORD_len(obj.val.keyword->name)-1),">");
+  symref type_sym=getGlobalSym(type_symbol_name);
+  if(!type_sym){
+    return error_sexp("unknown typename passed to get-type");
+  } else if(!TYPEP(type_sym->val)){
+    return error_sexp("non type keyword passed to get-type");
+  } else {
+    return type_sym->val;
+  }
+}
+sexp lisp_sequencep(sexp seq){
+  if(CONSP(seq) || ARRAYP(seq)){
+    return LISP_TRUE;
+  } else {
+    return LISP_FALSE;
+  }
+}
+sexp lisp_sort(sexp seq,sexp fun){
+  if(!SEQUENCEP(seq)){
+    return format_type_error("sort","sequence",seq.tag);
+  }
+  switch(seq.tag){
+    case _list:
+    case _cons:
+      return merge_sort(seq,fun);
+    case _array:
+      return array_qsort(seq,fun,NIL);
+  }
 }
 /*probably eaiser in lisp
   (defmacro ++! (x) `(setq ,x (++ ,x)))
@@ -636,6 +741,7 @@ MK_PREDICATE4(bignump,_bigint,_bigfloat,_long,_double);
 MK_PREDICATE(errorp,_error);
 MK_PREDICATE(functionp,_fun);
 MK_PREDICATE(streamp,_stream);
+MK_PREDICATE2(booleanp,_true,_false);
 DEFUN("+",lisp_add,2,0,0,0,2);
 DEFUN("-",lisp_sub,2,0,0,0,2);
 DEFUN("*",lisp_mul,2,0,0,0,2);
@@ -680,12 +786,15 @@ DEFUN("even?",lisp_evenp,1,0,0,0,1);
 DEFUN("odd?",lisp_oddp,1,0,0,0,1);
 DEFUN("zero?",lisp_zerop,1,0,0,0,1);
 DEFUN("nth",lisp_nth,2,0,0,0,2);
+DEFUN("assert-equal",lisp_assert_equal,2,0,0,0,2);
 DEFUN("list->array",array_from_list,1,0,0,0,1);
 DEFUN("raise-error",lisp_error,1,0,0,0,1);
 DEFUN("not",lisp_not,1,0,0,0,1);
 DEFUN("assert",lisp_assert,1,0,0,0,1);
 DEFUN("assert-eq",lisp_assert_eq,2,0,0,0,2);
 DEFUN("gensym",lisp_gensym,0,0,0,0,0);
+DEFUN("assert-not-eq",lisp_assert_not_eq,2,0,0,0,2);
+DEFUN("assert-not-equal",lisp_assert_not_equal,2,0,0,0,2);
 DEFUN("reverse!",cons_nreverse,1,0,0,0,1);
 DEFUN("drop",cons_drop,2,0,0,0,2);
 DEFUN("take",cons_take,2,0,0,0,2);
@@ -693,6 +802,8 @@ DEFUN("reverse",cons_reverse,1,0,0,0,1);
 DEFUN("load",lisp_load,1,0,0,0,1);
 DEFUN("array-reverse",array_reverse,1,0,0,0,1);
 DEFUN("array-reverse!",array_nreverse,1,0,0,0,1);
+DEFUN("get-type",getKeywordType,1,0,0,0,1);
+DEFUN("sort",lisp_sort,2,0,0,0,2);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("array-iota",array_iota,1,3,0,0,4);
@@ -703,7 +814,7 @@ DEFUN("make-tree",make_tree,1,1,0,1,3);
 DEFUN("rand-array",rand_array,1,1,0,0,2);
 DEFUN("rand-list",rand_list,1,1,0,0,2);
 DEFUN("typeName",lisp_typeName,1,0,0,0,1);
-DEFUN("typeOf",typeOf,1,0,0,0,1);
+DEFUN("type-of",typeOf,1,0,0,0,1);
 DEFUN("print",lisp_print,1,0,0,0,1);
 DEFUN("println",lisp_println,1,0,0,0,1);
 DEFUN("eval",lisp_eval,1,1,0,0,2);
@@ -722,7 +833,7 @@ DEFUN("logor",lisp_logor,2,0,0,0,2);
 DEFUN("ash",ash,2,0,0,0,2);
 DEFUN("round",lisp_round,1,0,0,0,2);
 DEFUN("drand",lisp_randfloat,0,1,0,0,1);
-DEFUN("lrand",lisp_randint,0,0,0,0,0);
+DEFUN("lrand",lisp_randint,0,1,0,0,1);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
 DEFUN("bigfloat",lisp_bigfloat,1,2,0,0,3);
 DEFUN("apply",lisp_apply,2,1,0,0,3);
@@ -793,6 +904,50 @@ DEFUN("caaar",caaar,1,0,0,0,1);
 DEFUN("caaadr",caaadr,1,0,0,0,1);
 DEFUN("caaaar",caaaar,1,0,0,0,1);
 #undef DEFUN
+#define mkTypeCase(type,tag) case tag: return type
+sexp typeOfTag(_tag tag){
+  switch(tag){
+    mkTypeCase(Qint8,_int8);
+    mkTypeCase(Qint16,_int16);
+    mkTypeCase(Qint32,_int32);
+    mkTypeCase(Qint64,_int64);
+    mkTypeCase(Quint8,_uint8);
+    mkTypeCase(Quint16,_uint16);
+    mkTypeCase(Quint32,_uint32);
+    mkTypeCase(Quint64,_uint64);
+    mkTypeCase(Qerror,_error);
+    mkTypeCase(Qreal32,_real32);
+    mkTypeCase(Qreal64,_real64);
+    mkTypeCase(Qbigint,_bigint);
+    mkTypeCase(Qbigfloat,_bigfloat);
+    mkTypeCase(Qchar,_char);
+    mkTypeCase(Qstring,_string);
+    mkTypeCase(Qarray,_array);
+    mkTypeCase(Qstream,_stream);
+    mkTypeCase(Qlist,_list);
+    mkTypeCase(Qfun,_fun);
+    mkTypeCase(Qsymbol,_symbol);
+    mkTypeCase(Qmacro,_macro);
+    mkTypeCase(Qtype,_type);
+    mkTypeCase(Qkeyword,_keyword);
+    mkTypeCase(Qhashtable,_hashtable);
+    mkTypeCase(Qspec,_spec);
+    mkTypeCase(Qregex,_regex);
+    mkTypeCase(Qnil,_nil);
+    mkTypeCase(Qdpair,_dpair);
+    mkTypeCase(Qlenv,_lenv);
+    mkTypeCase(Qenv,_env);
+    mkTypeCase(Qobarray,_obarray);
+    mkTypeCase(Qfunargs,_funargs);
+    mkTypeCase(Qtrue,_true);
+    mkTypeCase(Qfalse,_false);
+    mkTypeCase(Quninterned,_uninterned);
+    mkTypeCase(Qcons,_cons);
+  }
+}
+sexp typeOf(sexp obj){
+  return typeOfTag(obj.tag);
+}
 MAKE_SYMBOL("+",lisp_add,0xfe1176257ade3f65 );
 MAKE_SYMBOL("-",lisp_sub,0x62c6c42523166e74 );
 MAKE_SYMBOL("*",lisp_mul,0x21df3c258f79be90 );
@@ -837,12 +992,15 @@ MAKE_SYMBOL("even?",lisp_evenp,0x21a5dd09fa96af36 );
 MAKE_SYMBOL("odd?",lisp_oddp,0x47fc16c1d7638f61 );
 MAKE_SYMBOL("zero?",lisp_zerop,0x37aa5afe019ffb4c );
 MAKE_SYMBOL("nth",lisp_nth,0x8bfc525817d91f4 );
+MAKE_SYMBOL("assert-equal",lisp_assert_equal,0x30eeafd7af01ad83 );
 MAKE_SYMBOL("list->array",array_from_list,0x140d90bc585ec560 );
 MAKE_SYMBOL("raise-error",lisp_error,0xbdaeb1eb8692fd60 );
 MAKE_SYMBOL("not",lisp_not,0x878ab2581416323 );
 MAKE_SYMBOL("assert",lisp_assert,0x305cd7213a55a78c );
 MAKE_SYMBOL("assert-eq",lisp_assert_eq,0x9a99e8fcb03e0ccf );
 MAKE_SYMBOL("gensym",lisp_gensym,0xbeed9f84963fc95b );
+MAKE_SYMBOL("assert-not-eq",lisp_assert_not_eq,0xc2b543a9529529c9 );
+MAKE_SYMBOL("assert-not-equal",lisp_assert_not_equal,0xb2309949c09d3e59 );
 MAKE_SYMBOL("reverse!",cons_nreverse,0xae2278ac6ff9a29 );
 MAKE_SYMBOL("drop",cons_drop,0x12b998f81b244bdc );
 MAKE_SYMBOL("take",cons_take,0xe6b14274e2e3a606 );
@@ -850,6 +1008,8 @@ MAKE_SYMBOL("reverse",cons_reverse,0xd880e17f7678aaf5 );
 MAKE_SYMBOL("load",lisp_load,0xa7ca35cc4cc7ab16 );
 MAKE_SYMBOL("array-reverse",array_reverse,0xe177997970ed3def );
 MAKE_SYMBOL("array-reverse!",array_nreverse,0x5d586493f1b1091b );
+MAKE_SYMBOL("get-type",getKeywordType,0xa5b9663566ef1c2a );
+MAKE_SYMBOL("sort",lisp_sort,0x23b1451abddd4d36 );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("array-iota",array_iota,0x9da75f7c30743354 );
@@ -860,7 +1020,7 @@ MAKE_SYMBOL("make-tree",make_tree,0x6d0643fd5aaef378 );
 MAKE_SYMBOL("rand-array",rand_array,0x5200b05e390d5540 );
 MAKE_SYMBOL("rand-list",rand_list,0xaad28d384f8f3173 );
 MAKE_SYMBOL("typeName",lisp_typeName,0x3fd978c7b7c570e5 );
-MAKE_SYMBOL("typeOf",typeOf,0x6971003f4c928aa0 );
+MAKE_SYMBOL("type-of",typeOf,0x6971003f4c928aa0 );
 MAKE_SYMBOL("print",lisp_print,0x4a38f2ac6b3b6ed1 );
 MAKE_SYMBOL("println",lisp_println,0x41fd0729bd308d0b );
 MAKE_SYMBOL("eval",lisp_eval,0x4be31a91624eed18 );
@@ -961,6 +1121,42 @@ MAKE_GLOBAL("double-1",lisp_double_1,1);
 MAKE_GLOBAL("long-0",lisp_long_0,1);
 MAKE_GLOBAL("long-1",lisp_long_1,1);
 MAKE_GLOBAL("ans",lisp_ans,0);
+MAKE_TYPE(int8,_int8);
+MAKE_TYPE(int16,_int16);
+MAKE_TYPE(int32,_int32);
+MAKE_TYPE(int64,_int64);
+MAKE_TYPE(uint8,_uint8);
+MAKE_TYPE(uint16,_uint16);
+MAKE_TYPE(uint32,_uint32);
+MAKE_TYPE(uint64,_uint64);
+MAKE_TYPE(error,_error);
+MAKE_TYPE(real32,_real32);
+MAKE_TYPE(real64,_real64);
+MAKE_TYPE(bigint,_bigint);
+MAKE_TYPE(bigfloat,_bigfloat);
+MAKE_TYPE(char,_char);
+MAKE_TYPE(string,_string);
+MAKE_TYPE(array,_array);
+MAKE_TYPE(stream,_stream);
+MAKE_TYPE(list,_list);
+MAKE_TYPE(fun,_fun);
+MAKE_TYPE(symbol,_symbol);
+MAKE_TYPE(macro,_macro);
+MAKE_TYPE(type,_type);
+MAKE_TYPE(keyword,_keyword);
+MAKE_TYPE(hashtable,_hashtable);
+MAKE_TYPE(spec,_spec);
+MAKE_TYPE(regex,_regex);
+MAKE_TYPE(nil,_nil);
+MAKE_TYPE(dpair,_dpair);
+MAKE_TYPE(lenv,_lenv);
+MAKE_TYPE(env,_env);
+MAKE_TYPE(obarray,_obarray);
+MAKE_TYPE(funargs,_funargs);
+MAKE_TYPE(true,_true);
+MAKE_TYPE(false,_false);
+MAKE_TYPE(uninterned,_uninterned);
+MAKE_TYPE(cons,_cons);
 mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void initPrimsObarray(obarray *ob,env* ob_env);
@@ -993,6 +1189,7 @@ initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+srand48(time(NULL));
 INIT_SYNONYM(lisp_consp,"cons?",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){
@@ -1041,12 +1238,15 @@ INIT_SYMBOL(lisp_evenp);
 INIT_SYMBOL(lisp_oddp);
 INIT_SYMBOL(lisp_zerop);
 INIT_SYMBOL(lisp_nth);
+INIT_SYMBOL(lisp_assert_equal);
 INIT_SYMBOL(array_from_list);
 INIT_SYMBOL(lisp_error);
 INIT_SYMBOL(lisp_not);
 INIT_SYMBOL(lisp_assert);
 INIT_SYMBOL(lisp_assert_eq);
 INIT_SYMBOL(lisp_gensym);
+INIT_SYMBOL(lisp_assert_not_eq);
+INIT_SYMBOL(lisp_assert_not_equal);
 INIT_SYMBOL(cons_nreverse);
 INIT_SYMBOL(cons_drop);
 INIT_SYMBOL(cons_take);
@@ -1054,6 +1254,8 @@ INIT_SYMBOL(cons_reverse);
 INIT_SYMBOL(lisp_load);
 INIT_SYMBOL(array_reverse);
 INIT_SYMBOL(array_nreverse);
+INIT_SYMBOL(getKeywordType);
+INIT_SYMBOL(lisp_sort);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(array_iota);
@@ -1165,4 +1367,40 @@ INIT_GLOBAL(lisp_double_1);
 INIT_GLOBAL(lisp_long_0);
 INIT_GLOBAL(lisp_long_1);
 INIT_GLOBAL(lisp_ans);
+INIT_GLOBAL(int8);
+INIT_GLOBAL(int16);
+INIT_GLOBAL(int32);
+INIT_GLOBAL(int64);
+INIT_GLOBAL(uint8);
+INIT_GLOBAL(uint16);
+INIT_GLOBAL(uint32);
+INIT_GLOBAL(uint64);
+INIT_GLOBAL(error);
+INIT_GLOBAL(real32);
+INIT_GLOBAL(real64);
+INIT_GLOBAL(bigint);
+INIT_GLOBAL(bigfloat);
+INIT_GLOBAL(char);
+INIT_GLOBAL(string);
+INIT_GLOBAL(array);
+INIT_GLOBAL(stream);
+INIT_GLOBAL(list);
+INIT_GLOBAL(fun);
+INIT_GLOBAL(symbol);
+INIT_GLOBAL(macro);
+INIT_GLOBAL(type);
+INIT_GLOBAL(keyword);
+INIT_GLOBAL(hashtable);
+INIT_GLOBAL(spec);
+INIT_GLOBAL(regex);
+INIT_GLOBAL(nil);
+INIT_GLOBAL(dpair);
+INIT_GLOBAL(lenv);
+INIT_GLOBAL(env);
+INIT_GLOBAL(obarray);
+INIT_GLOBAL(funargs);
+INIT_GLOBAL(true);
+INIT_GLOBAL(false);
+INIT_GLOBAL(uninterned);
+INIT_GLOBAL(cons);
 }

@@ -75,15 +75,8 @@ sexp cons_reverse(sexp ls){
   retval.len=(len ? len : i);
   return retval;
 }
-sexp cons_split(sexp ls,sexp num){
-  if(!CONSP(ls)){
-    return format_type_error("split","list",ls.tag);
-  } if (NILP(num)){
-    num=long_sexp(cons_length(ls).val.int64>>1);
-  }
-  if(!INTP(num)){
-    return format_type_error("split","integer",num.tag);
-  }
+
+sexp c_cons_split(sexp ls,sexp num){
   int64_t i=num.val.int64;
   if(i==0){
     return(Cons(NIL,ls));
@@ -98,13 +91,24 @@ sexp cons_split(sexp ls,sexp num){
   while(i>0 && CONSP(ls)){
     left->car=XCAR(ls);
     left->cdr.val.cons=xmalloc(sizeof(cons));
-    trail=left;  
+    trail=left;
     left=left->cdr.val.cons;
     ls=XCDR(ls);
     i--;
   }
   trail->cdr=NIL;
   return(Cons(left_retval,ls));
+}
+sexp cons_split(sexp ls,sexp num){
+  if(!CONSP(ls)){
+    return format_type_error("split","list",ls.tag);
+  } if (NILP(num)){
+    num=long_sexp(cons_length(ls).val.int64>>1);
+  }
+  if(!INTP(num)){
+    return format_type_error("split","integer",num.tag);
+  }
+  return c_cons_split(ls,num);
 }
 sexp nreverse(sexp ls){
   sexp cur_cell,last_cell,next_cell;
@@ -126,7 +130,7 @@ sexp nreverse(sexp ls){
     last_cell=cur_cell;
     cur_cell=next_cell;
     cur_cell->cdr=cons_sexp(last_cell);
-    next_cell=next_cell->cdr.val.cons;    
+    next_cell=next_cell->cdr.val.cons;
   }
   cur_cell=next_cell;
   cur_cell->cdr=cons_sexp(last_cell);
@@ -302,7 +306,7 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
     lhs=qsort_acc(lhs,f);
     rhs=qsort_acc(rhs,f);
     sexp pivot_cell;
-    pivot_cell.val.cons=xmalloc(sizeof(cons));
+    pivot_cell=list_sexp(xmalloc(sizeof(cons)));
     XCAR(pivot_cell)=pivot;
     XCDR(pivot_cell)=NIL;
     if(CONSP(lhs)){
@@ -317,21 +321,22 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
     } else if (!NILP(rhs)) {
       XCDR(pivot_cell)=Cons(rhs,NIL);
     }
+    lhs.tag=_list;
     return lhs;
   }
 }
 static sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len);
 static sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp));
+//as is this will only work for proper lists
 sexp merge_sort(sexp ls,sexp sort_fn){
-  HERE();
   if(!CONSP(ls) || !FUNP(sort_fn)){
     return error_sexp("merge sort sort_fn type error");
   }
-  HERE();
   sexp(*f)(sexp,sexp);
-  env lambda_env;
   f=sort_fn.val.fun->comp.f2;
-  HERE();
+  //test code
+  sexp retval=merge_sort_acc(ls,f,cons_length(ls).val.int64);
+  return retval;
   return merge_sort_acc(ls,f,cons_length(ls).val.int64);
 }
 sexp cons_qsort(sexp ls,sexp sort_fn){
@@ -344,30 +349,33 @@ sexp cons_qsort(sexp ls,sexp sort_fn){
   return qsort_acc(ls,f);
 }
 sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
-  HERE();
   if(!CONSP(ls)){
+    if(NILP(ls)){
+      return NIL;
+    }
     return error_sexp("merge-sort type error, expected a cons cell");
     return ls;
   } else if(len <= 1){
-    HERE();
     return ls;
   } else {
-    HERE();
+    ls.len=len;
     int mid=len/2;
-    sexp left=ls;
+    sexp split_list=c_cons_split(ls,long_sexp(mid));
+    if(ERRORP(split_list)){return split_list;}
+    sexp left=XCAR(split_list);
+    left.len=mid;
     //I think this should work, but I'm not sure
-    sexp mid_cell=nth(ls,mid);
-    sexp right=XCDR(mid_cell);
-    XCDR(mid_cell)=NIL;
+    sexp right=XCDR(split_list);
+    right.len=len-mid;
     return merge_sort_merge(merge_sort_acc(left,f,mid),merge_sort_acc(right,f,len-mid),f);
   }
 }
 sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
   if(NILP(left)){
-    PRINT_MSG("empty left list in merge");
+    right.tag=_list;
     return right;
   } else if (NILP(right)){
-    PRINT_MSG("empty right list in merge");
+    left.tag=_list;
     return left;
   } else {
     if(isTrue(f(XCAR(left),XCAR(right)))){
@@ -501,6 +509,7 @@ sexp rand_list(sexp len,sexp type){
       ls->car=long_sexp(mrand48());
       ls->cdr=NIL;
       sexp retval=list_sexp(ret_cons);
+      retval.tag=_list;
       retval.len=len.val.int64;
       return retval;
     }
@@ -575,7 +584,7 @@ sexp lisp_dequeue(sexp queue,sexp noerror){
 }
 sexp queue_empty(sexp queue){
   return (NILP(XCAR(queue))? LISP_TRUE : LISP_FALSE);
-}    
+}
 sexp queue_peek(sexp queue){
   if(!CONSP(queue)){
     return format_type_error("queue-peek","queue (aka list)",queue.tag);

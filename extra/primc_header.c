@@ -74,10 +74,15 @@
   symbol c_name ## _sym = {.name=l_name,.val=c_name,                    \
                            .props={.is_const=constant}};                \
   symref c_name ## _ptr = 0;                                            \
-  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
-                                    .hashv=0}
-#define INIT_SYMBOL(c_name)                                    \
-  c_name##_ptr=&c_name##_sym;                                  \
+  obarray_entry c_name##_ob_entry={.prev=0,.next=0,.ob_symbol=0,.hashv=0}
+#define MAKE_TYPE(l_name,l_tag)                                         \
+  symref l_name##_ptr=0;                                                \
+  symbol l_name##_sym = {.name="#<"#l_name">",                          \
+                         .val={.tag=_type,.val={.meta = l_tag}},         \
+                         .props={.is_const=1,.global=1,.type=_type}};   \
+  obarray_entry l_name##_ob_entry={.prev=0,.next=0,.ob_symbol=0,.hashv=0}
+#define INIT_SYMBOL(c_name)                                     \
+  c_name##_ptr=&c_name##_sym;                                   \
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
@@ -96,8 +101,8 @@
   c_name##_ptr_syn ## gensym_counter -> name = l_name;                  \
   obarray_entry *c_name##_ob_entry##gensym_counter=                     \
     xmalloc(sizeof(obarray_entry));                                     \
-  c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter;        \
-  prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter,         \
+  c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter; \
+  prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter, \
                          c_name##_ob_entry##gensym_counter)
   
 #define MK_PREDICATE(lname,test)                \
@@ -203,8 +208,12 @@ sexp ash(sexp x,sexp y){
     return lisp_lshift(x,(sexp){.tag=_long,.val={.int64 = (labs(y.val.int64))}});
   }
 }
-sexp lisp_randint(){
-  return (sexp){.tag=_long,.val={.int64=mrand48()}};
+sexp lisp_randint(sexp un_signed){
+  if(NILP(un_signed)){
+    return long_sexp(mrand48());
+  } else {
+    return long_sexp(lrand48());
+  }
 }
 sexp lisp_randfloat(sexp scale){
   double retval;
@@ -213,7 +222,7 @@ sexp lisp_randfloat(sexp scale){
   } else {
     retval = drand48();
   }
-  return (sexp){.tag=_double,.val={.real64=retval}};
+  return double_sexp(retval);
 }
 sexp lisp_eval(sexp obj,sexp env){
   return eval(obj,topLevelEnv);
@@ -523,6 +532,11 @@ sexp lisp_eq(sexp obj1,sexp obj2){
     case _type:
     case _special:
       return (obj1.val.meta == obj2.val.meta ? LISP_TRUE : LISP_FALSE);
+      //these are singleton values so if they have the same tag they must be eq
+    case _nil:
+    case _true:
+    case _false:
+      return LISP_TRUE;    
     default:
       return LISP_FALSE;
   }
@@ -580,6 +594,15 @@ sexp lisp_not(sexp bool){
     return LISP_TRUE;
   }
 }
+sexp lisp_not_eq(sexp obj1,sexp obj2){
+  return lisp_not(lisp_eq(obj1,obj2));
+}
+sexp lisp_not_eql(sexp obj1,sexp obj2){
+  return lisp_not(lisp_eql(obj1,obj2));
+}
+sexp lisp_not_equal(sexp obj1,sexp obj2){
+  return lisp_not(lisp_equal(obj1,obj2));
+}
 sexp lisp_assert(sexp expr){
   if(isTrue(expr)){
     return NIL;
@@ -587,18 +610,100 @@ sexp lisp_assert(sexp expr){
     return error_sexp("Assertation faliure");
   }
 }
-sexp lisp_assert_eq(sexp obj1,sexp obj2){
-  if(isTrue(lisp_eq(obj1,obj2))){
-    return NIL;
-  } else {
-    return format_error_sexp("Assertation error, %r is not eq to %r",print(obj1),print(obj2));
+#define make_lisp_assert_eq(name,fun,error_string)                      \
+  sexp name(sexp obj1,sexp obj2){                                       \
+  if(isTrue(fun(obj1,obj2))){                                           \
+    return NIL;                                                         \
+  } else {                                                              \
+    return format_error_sexp(error_string,print(obj1),print(obj2));     \
+  }                                                                     \
   }
-}
+make_lisp_assert_eq(lisp_assert_eq,lisp_eq,
+                    "Assertation error, %r is not eq to %r")
+make_lisp_assert_eq(lisp_assert_equal,lisp_equal,
+                    "Assertation error, %r is not equal to %r")
+make_lisp_assert_eq(lisp_assert_eql,lisp_eq,
+                    "Assertation error, %r is not eql to %r")
+make_lisp_assert_eq(lisp_assert_not_eq,lisp_not_eq,
+                    "Assertation error, %r is eq to %r")
+make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
+                    "Assertation error, %r is equal to %r")
+make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
+                    "Assertation error, %r is eql to %r")
 sexp lisp_gensym(){
   symref retval=xmalloc(sizeof(symbol));
   CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
   retval->val=UNBOUND;
   return symref_sexp(retval);
+}
+#if 0
+#define mkTypeCase(type,tag) case tag: return type
+sexp typeOfTag(_tag tag){
+  switch (tag){
+    mkTypeCase(Qerror,_error);
+    mkTypeCase(Qfalse,_false);
+    mkTypeCase(Quninterned,_uninterned);
+    mkTypeCase(Qnil,_nil);
+    mkTypeCase(Qcons,_cons);
+    mkTypeCase(Qreal64,_real64);
+    mkTypeCase(Qint64,_int64);
+    mkTypeCase(Qbigint,_bigint);
+    mkTypeCase(Qbigfloat,_bigfloat);
+    mkTypeCase(Qchar,_char);
+    mkTypeCase(Qstring,_string);
+    mkTypeCase(Qfun,_fun);
+    mkTypeCase(Qsymbol,_symbol);
+    mkTypeCase(Qspec,_special);
+    mkTypeCase(Qmacro,_macro);
+    mkTypeCase(Qtype,_type);
+    mkTypeCase(Qdpair,_dpair);
+    mkTypeCase(Qarray,_array);
+    mkTypeCase(Qtrue,_true);
+    mkTypeCase(Qlist,_list);
+    mkTypeCase(Qlenv,_lenv);
+    mkTypeCase(Qenv,_env);
+    mkTypeCase(Qobarray,_obarray);
+    mkTypeCase(Qfunargs,_funargs);
+  }
+}
+sexp typeOf(sexp obj){
+  return typeOfTag(obj.tag);
+}
+#endif
+sexp getKeywordType(sexp obj){
+  if(!KEYWORDP(obj)){
+    return format_type_error("get-type","keyword",obj.tag);
+  }
+  CORD type_symbol_name=CORD_catn
+    (3,"#<",CORD_substr(obj.val.keyword->name,1,
+                        CORD_len(obj.val.keyword->name)-1),">");
+  symref type_sym=getGlobalSym(type_symbol_name);
+  if(!type_sym){
+    return error_sexp("unknown typename passed to get-type");
+  } else if(!TYPEP(type_sym->val)){
+    return error_sexp("non type keyword passed to get-type");
+  } else {
+    return type_sym->val;
+  }
+}
+sexp lisp_sequencep(sexp seq){
+  if(CONSP(seq) || ARRAYP(seq)){
+    return LISP_TRUE;
+  } else {
+    return LISP_FALSE;
+  }
+}
+sexp lisp_sort(sexp seq,sexp fun){
+  if(!SEQUENCEP(seq)){
+    return format_type_error("sort","sequence",seq.tag);
+  }
+  switch(seq.tag){
+    case _list:
+    case _cons:
+      return merge_sort(seq,fun);
+    case _array:
+      return array_qsort(seq,fun,NIL);
+  }
 }
 /*probably eaiser in lisp
   (defmacro ++! (x) `(setq ,x (++ ,x)))
@@ -636,3 +741,4 @@ MK_PREDICATE4(bignump,_bigint,_bigfloat,_long,_double);
 MK_PREDICATE(errorp,_error);
 MK_PREDICATE(functionp,_fun);
 MK_PREDICATE(streamp,_stream);
+MK_PREDICATE2(booleanp,_true,_false);

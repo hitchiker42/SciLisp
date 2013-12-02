@@ -1,3 +1,5 @@
+#ifndef _SEQUENCE_H
+#define _SEQUENCE_H
 #define make_sequence_function(name)                    \
   sexp sequence_##name(sexp seq){                       \
   if(!SEQUENCEP(seq)){                                  \
@@ -43,3 +45,4 @@ static sexp _array_qsort(sexp arr,sexp comp_fun){
 make_sequence_function2(qsort);
 make_sequence_function(reverse);
 make_sequence_function(nreverse);
+#endif

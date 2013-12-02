@@ -1,4 +1,6 @@
+#!/usr/bin/emacs --script
 ;;utitily functions
+(defvar current-dir-name (file-name-directory load-file-name))
 (defmacro define (var defn)
   (progn
     `(defvar ,var)
@@ -20,7 +22,7 @@
 `((:lname . ,(format "%s-%s" typename op))
   (:cname . ,(format "lisp_%s_%s" typename op)) (:minargs . ,nargs) (:maxargs . ,nargs)
   (:optargs . 0) (:keyargs . 0) (:restarg . 0))) op-list))
-(defun mpfr-binops (op-list) 
+(defun mpfr-binops (op-list)
   (bignum-ops op-list "bigfloat" 2))
 (defun mpfr-unops (op-list)
   (bignum-ops op-list "bigfloat" 1))
@@ -69,14 +71,17 @@
     ("max" "lisp_max" 2) ("mod" "lisp_mod" 2) ("abs" "lisp_abs" 1)
     ("eq" "lisp_eq" 2) ("eql" "lisp_eql" 2) ("equal" "lisp_equal" 2)
     ("even?" "lisp_evenp" 1)("odd?" "lisp_oddp" 1)("zero?" "lisp_zerop" 1)
-    ("nth" "lisp_nth" 2)
+    ("nth" "lisp_nth" 2)("assert-equal" "lisp_assert_equal" 2)
     ("list->array" "array_from_list" 1)("raise-error" "lisp_error" 1)
     ("not" "lisp_not" 1)("assert" "lisp_assert" 1)
     ("assert-eq" "lisp_assert_eq" 2)("gensym" "lisp_gensym" 0)
+    ("assert-not-eq" "lisp_assert_not_eq" 2)
+    ("assert-not-equal" "lisp_assert_not_equal" 2)
     ("reverse!" "cons_nreverse" 1)("drop" "cons_drop" 2)
     ("take" "cons_take" 2)("reverse" "cons_reverse" 1)
     ("load" "lisp_load" 1)("array-reverse" "array_reverse" 1)
-    ("array-reverse!" "array_nreverse" 1)))
+    ("array-reverse!" "array_nreverse" 1)("get-type" "getKeywordType" 1)
+    ("sort" "lisp_sort" 2)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
   (collect (lambda (x) (apply #'mkPrimBasic x)) basic-prims-list))
@@ -105,7 +110,7 @@
      ;meta information/ read eval print / system ctl
     ((:lname . "typeName") (:cname ."lisp_typeName") (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ((:lname . "typeOf") (:cname . "typeOf") (:minargs . 1) (:maxargs . 1)
+    ((:lname . "type-of") (:cname . "typeOf") (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
     ((:lname . "print") (:cname ."lisp_print") (:minargs . 1) (:maxargs . 1)
      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
@@ -145,8 +150,8 @@
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "drand") (:cname ."lisp_randfloat") (:minargs . 0) (:maxargs . 1)
       (:optargs . 1) (:keyargs . 0) (:restarg . 0))
-     ((:lname . "lrand") (:cname ."lisp_randint") (:minargs . 0) (:maxargs . 0)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+     ((:lname . "lrand") (:cname ."lisp_randint") (:minargs . 0) (:maxargs . 1)
+      (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ((:lname . "bigint") (:cname . "lisp_bigint") (:minargs . 1) (:maxargs . 1)
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ((:lname . "bigfloat") (:cname . "lisp_bigfloat") (:minargs . 1)
@@ -172,7 +177,7 @@
 (require 'cl)
 (delete-duplicates SciLisp-prims :test #'equal)
 (define SciLisp-globals
-  (list (vector "lisp_mach_eps" "Meps" 1) (vector "lisp_pi" "pi" 1) 
+  (list (vector "lisp_mach_eps" "Meps" 1) (vector "lisp_pi" "pi" 1)
         (vector "lisp_euler" "e" 1) (vector "lisp_max_long" "max_long" 1)
         (vector "lisp_NIL"  "nil" 1) (vector "lisp_LISP_TRUE" "t" 1)
         (vector "lisp_LISP_FALSE" "#f" 1)
@@ -181,6 +186,12 @@
         (vector "lisp_long_0" "long-0" 1) (vector "lisp_long_1" "long-1" 1)
         (vector "lisp_ans" "ans" 0)))
 ;    "lisp_bigfloat_0" "lisp_bigfloat_1" "lisp_bigint_0" "lisp_bigint_1"))
+(define SciLisp-Types
+  '("int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" "uint64" "error"
+    "real32" "real64" "bigint" "bigfloat" "char" "string" "array" "stream"
+    "list" "fun" "symbol" "macro" "type" "keyword" "hashtable" "spec" "regex"
+    "nil" "dpair" "lenv" "env" "obarray" "funargs" "true" "false" "uninterned"
+    "cons"))
 (define SciLisp-aliases
   '(("lisp_consp" "\"cons?\"" 1)))
 (defvar initPrimsObarray-header)
@@ -217,6 +228,7 @@ initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+srand48(time(NULL));
 INIT_SYNONYM(lisp_consp,\"cons?\",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){
@@ -228,12 +240,28 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 ")
 (defvar primc-suffix "#undef DEFUN
 ")
+(defun defType-format (type)
+  (format "DEFTYPE(%s,%s);\n" type (concat "_" type)))
+(defun makeType-format (type)
+  (format "MAKE_TYPE(%s,%s);\n" type (concat "_" type)))
 (defun makeGlobals-format (global)
   (format
-   "MAKE_GLOBAL(\"%s\",%s,%d);\n" (aref global 1) (aref global 0) 
+   "MAKE_GLOBAL(\"%s\",%s,%d);\n" (aref global 1) (aref global 0)
    (aref global 2)))
+(defun make-lookupType ()
+  (let ((type-case (generate-new-buffer "type-case")))
+    (with-current-buffer type-case
+      (insert "#define mkTypeCase(type,tag) case tag: return type\n"
+              "sexp typeOfTag(_tag tag){\n  switch(tag){\n")
+      (dolist (type SciLisp-Types)
+        (insert (format "    mkTypeCase(%s,%s);\n" 
+                        (concat "Q" type)(concat "_" type))))
+      (insert "  }\n}\n"
+              "sexp typeOf(sexp obj){\n  return typeOfTag(obj.tag);\n}\n")
+    (prog1 (buffer-string)
+      (kill-buffer type-case)))))
 (defun initGlobals-format (global)
-  (format "INIT_GLOBAL(%s);\n" (aref global 0)))
+  (format "INIT_GLOBAL(%s);\n" global ))
 (defmacro prim-val (keysym)
   `(cdr (assq ,keysym prim)))
 (defun primc-format (prim)
@@ -251,7 +279,10 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 (defun makePrimSymbols-format(prim)
   (format "MAKE_SYMBOL(\"%s\",%s,%s);\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))
-          (shell-command-to-string (format "../fnv_hash '%s'" (cdr (assq :cname prim))))))
+          (shell-command-to-string 
+           (format "%s '%s'"
+            (expand-file-name "../fnv_hash" current-dir-name)
+            (cdr (assq :cname prim))))))
 (defun generate-SciLisp-prims()
   (let ((primh (generate-new-buffer "primh"))
         (initPrimsObarray (generate-new-buffer "initPrimsObarray"))
@@ -265,29 +296,39 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
       (princ (initPrimsObarray-format prim) initPrimsObarray))
     (dolist (global SciLisp-globals)
       (princ (makeGlobals-format global) primSyms)
-      (princ (initGlobals-format global) initPrimsObarray))
+      (princ (initGlobals-format (aref global 0)) initPrimsObarray))
+    (dolist (type SciLisp-Types)
+      (princ (defType-format type) primh)
+      (princ (makeType-format type) primSyms)
+      (princ (initGlobals-format type) initPrimsObarray))
     (princ initPrimsObarray-suffix initPrimsObarray)
     (princ primc-suffix primc)
     (with-current-buffer primh
       (goto-char (point-min))
-      (insert-file-contents "primh_header.h")
+      (insert-file-contents 
+       (expand-file-name "primh_header.h" current-dir-name))
       (goto-char (point-max))
       (insert "#undef DEFUN\n#endif")
-      (write-file (expand-file-name "../prim.h"))
+      (write-file (expand-file-name "../prim.h" current-dir-name))
       (kill-buffer))
     (with-current-buffer primc
       (goto-char (point-min))
-      (insert-file-contents "primc_header.c")
+      (insert-file-contents 
+       (expand-file-name "primc_header.c" current-dir-name))
       (goto-char (point-max))
+      (insert (make-lookupType))
       (insert-buffer-substring primSyms)
       (kill-buffer primSyms)
       (insert-buffer-substring initPrimsObarray)
       (kill-buffer initPrimsObarray)
-      (write-file (expand-file-name "../prim.c"))
+      (write-file (expand-file-name "../prim.c" current-dir-name))
       (kill-buffer))
     (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrimsObarray))))
 ;; Local Variables:
-;; auto-async-byte-compile-display-function: (lambda (&rest args) nil)
+;; auto-async-byte-compile-display-function: (lambda (&rest pargs) nil)
 ;; End:
- 
-(generate-SciLisp-prims)
+(let 
+    ((auto-mode-alist nil)
+     (vc-handled-backends nil))
+  (generate-SciLisp-prims))
+

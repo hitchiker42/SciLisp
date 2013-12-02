@@ -39,6 +39,8 @@
   global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};       \
   global_symref c_name ## _ptr=&c_name##_sym;                           \
   addGlobalSymMacro(c_name##_ptr);
+#define DEFTYPE(_name_,mval)                                            \
+  static const sexp Q##_name_ = {.tag=_type,.val={.meta = mval}};
 #define DEFUN_ARGS_0	(void)
 #define DEFUN_ARGS_1	(sexp)
 #define DEFUN_ARGS_2	(sexp, sexp)
@@ -70,6 +72,8 @@ extern const sexp lisp_euler;
 extern const sexp lisp_max_long;
 extern const sexp lisp_mach_eps;
 extern symref lisp_ans_ptr;
+extern sexp typeOfTag(_tag tag);
+extern sexp typeOf(sexp obj);
 void initPrims();
-//create prototypes for functions in prim.c 
+//create prototypes for functions in prim.c
 //so primitives can be used in the c source

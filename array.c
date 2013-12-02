@@ -94,10 +94,10 @@ sexp typed_array_to_list(sexp obj){
     cons* newlist =xmalloc(imax*sizeof(cons));
     for(i=0;i<imax;i++){
       newlist[i].car=TYPED_AREF(obj,i);
-      newlist[i].cdr=cons_sexp(newlist+i+1);
+      newlist[i].cdr=list_sexp(newlist+i+1);
     }
     newlist[i-1].cdr=NIL;
-    return cons_sexp(newlist);
+    return list_sexp(newlist);
   }
 }
 sexp array_from_list(sexp ls){
@@ -122,14 +122,15 @@ sexp array_to_list(sexp obj){
     cons *new_list,*ret_list;
     new_list=ret_list=xmalloc(sizeof(cons)*obj.len);
     int i;
+    PRINT_FMT("len=%d",obj.len);
     for(i=0;i<(obj.len-1);i++){
       new_list->car=old_array[i];
-      new_list->cdr=cons_sexp(new_list+(i+1));
+      new_list->cdr=list_sexp(ret_list+(i+1));
       new_list=new_list->cdr.val.cons;
     }
     new_list->car=old_array[i];
     new_list->cdr=NIL;
-    sexp retval=cons_sexp(ret_list);
+    sexp retval=list_sexp(ret_list);
     retval.len=i;
     return retval;
   }
@@ -185,6 +186,9 @@ sexp rand_array(sexp len,sexp type){
       for(i=0;i<len.val.int64;i++){
         arr[i]=long_sexp(mrand48());
       }
+      //test code
+      sexp retval=array_sexp(arr,len.val.int64);
+      return retval;
       return array_sexp(arr,len.val.int64);
     }
     if(KEYWORD_COMPARE(":real64",type)){
@@ -313,9 +317,7 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
     sorted_array=xmalloc(sizeof(sexp)*arr.len);
     sorted_array=memcpy(sorted_array,arr.val.array,arr.len*sizeof(sexp));
   }
-  PRINT_MSG(print(array_sexp(sorted_array,arr.len)));
   array_qsort_inplace(sorted_array,0,arr.len-1,f);
-  PRINT_MSG(print(array_sexp(sorted_array,arr.len)));
   return array_sexp(sorted_array,arr.len);
 }
 #undef swap

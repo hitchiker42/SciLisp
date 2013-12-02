@@ -4,6 +4,7 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 #include "common.h"
+#include "prim.h"
 #include "unicode.h"
 #define YY_DECL TOKEN yylex(void)
 #if 0
@@ -135,6 +136,8 @@ if {LEX_MSG("lexing if");
   yylval->tag=_special;yylval->val.special=_if;return TOK_SPECIAL;}
 let {LEX_MSG("lexing let");
   yylval->tag=_special;yylval->val.special=_let;return TOK_LET;}
+flet {LEX_MSG("lexing flet");
+  yylval->tag=_special;yylval->val.special=_flet;return TOK_LET;}
 do {LEX_MSG("lexing do");
   yylval->tag=_special;yylval->val.special=_do;return TOK_SPECIAL;}
 dolist {LEX_MSG("lexing dolist");
@@ -173,7 +176,7 @@ dotimes {LEX_MSG("lexing dotimes");
 "#f" {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
 {ID} {LEX_MSG("lexing ID");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
-",@" {LEX_MSG("lexing ,@");return TOK_LIST_SPLICE;}
+                   /*",@" {LEX_MSG("lexing ,@");return TOK_LIST_SPLICE;}*/
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}
 "[" {LEX_MSG("lexing [");return TOK_LBRACE;}

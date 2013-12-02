@@ -39,6 +39,8 @@
   global_symbol c_name ## _sym={.name = lisp_name,.val = c_name};       \
   global_symref c_name ## _ptr=&c_name##_sym;                           \
   addGlobalSymMacro(c_name##_ptr);
+#define DEFTYPE(_name_,mval)                                            \
+  static const sexp Q##_name_ = {.tag=_type,.val={.meta = mval}};
 #define DEFUN_ARGS_0	(void)
 #define DEFUN_ARGS_1	(sexp)
 #define DEFUN_ARGS_2	(sexp, sexp)
@@ -70,8 +72,10 @@ extern const sexp lisp_euler;
 extern const sexp lisp_max_long;
 extern const sexp lisp_mach_eps;
 extern symref lisp_ans_ptr;
+extern sexp typeOfTag(_tag tag);
+extern sexp typeOf(sexp obj);
 void initPrims();
-//create prototypes for functions in prim.c 
+//create prototypes for functions in prim.c
 //so primitives can be used in the c source
 DEFUN(lisp_add,2);
 DEFUN(lisp_sub,2);
@@ -117,12 +121,15 @@ DEFUN(lisp_evenp,1);
 DEFUN(lisp_oddp,1);
 DEFUN(lisp_zerop,1);
 DEFUN(lisp_nth,2);
+DEFUN(lisp_assert_equal,2);
 DEFUN(array_from_list,1);
 DEFUN(lisp_error,1);
 DEFUN(lisp_not,1);
 DEFUN(lisp_assert,1);
 DEFUN(lisp_assert_eq,2);
 DEFUN(lisp_gensym,0);
+DEFUN(lisp_assert_not_eq,2);
+DEFUN(lisp_assert_not_equal,2);
 DEFUN(cons_nreverse,1);
 DEFUN(cons_drop,2);
 DEFUN(cons_take,2);
@@ -130,6 +137,8 @@ DEFUN(cons_reverse,1);
 DEFUN(lisp_load,1);
 DEFUN(array_reverse,1);
 DEFUN(array_nreverse,1);
+DEFUN(getKeywordType,1);
+DEFUN(lisp_sort,2);
 DEFUN(lisp_sum,2);
 DEFUN(lisp_iota,5);
 DEFUN(array_iota,4);
@@ -159,7 +168,7 @@ DEFUN(lisp_logor,2);
 DEFUN(ash,2);
 DEFUN(lisp_round,2);
 DEFUN(lisp_randfloat,1);
-DEFUN(lisp_randint,0);
+DEFUN(lisp_randint,1);
 DEFUN(lisp_bigint,1);
 DEFUN(lisp_bigfloat,3);
 DEFUN(lisp_apply,3);
@@ -229,5 +238,41 @@ DEFUN(caadar,1);
 DEFUN(caaar,1);
 DEFUN(caaadr,1);
 DEFUN(caaaar,1);
+DEFTYPE(int8,_int8);
+DEFTYPE(int16,_int16);
+DEFTYPE(int32,_int32);
+DEFTYPE(int64,_int64);
+DEFTYPE(uint8,_uint8);
+DEFTYPE(uint16,_uint16);
+DEFTYPE(uint32,_uint32);
+DEFTYPE(uint64,_uint64);
+DEFTYPE(error,_error);
+DEFTYPE(real32,_real32);
+DEFTYPE(real64,_real64);
+DEFTYPE(bigint,_bigint);
+DEFTYPE(bigfloat,_bigfloat);
+DEFTYPE(char,_char);
+DEFTYPE(string,_string);
+DEFTYPE(array,_array);
+DEFTYPE(stream,_stream);
+DEFTYPE(list,_list);
+DEFTYPE(fun,_fun);
+DEFTYPE(symbol,_symbol);
+DEFTYPE(macro,_macro);
+DEFTYPE(type,_type);
+DEFTYPE(keyword,_keyword);
+DEFTYPE(hashtable,_hashtable);
+DEFTYPE(spec,_spec);
+DEFTYPE(regex,_regex);
+DEFTYPE(nil,_nil);
+DEFTYPE(dpair,_dpair);
+DEFTYPE(lenv,_lenv);
+DEFTYPE(env,_env);
+DEFTYPE(obarray,_obarray);
+DEFTYPE(funargs,_funargs);
+DEFTYPE(true,_true);
+DEFTYPE(false,_false);
+DEFTYPE(uninterned,_uninterned);
+DEFTYPE(cons,_cons);
 #undef DEFUN
 #endif
