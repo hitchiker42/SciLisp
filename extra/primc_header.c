@@ -141,16 +141,17 @@
 
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
-    if(!NUMBERP(obj)){return error_sexp("type error in "#lispname);}    \
-    return (sexp){.tag=_double,.val={.real64 = cname(getDoubleVal(obj))}}; \
+    if(!NUMBERP(obj)){return format_type_error(#lispname,"number",obj.tag);} \
+  return double_sexp(cname(getDoubleValUnsafe(obj)));                   \
   }
 #define mkMathFun2(cname,lispname)                              \
   sexp lispname(sexp x,sexp y){                                 \
     if(!NUMBERP(x)||!NUMBERP(y))                                \
-      {return error_sexp("type error in "#lispname);}           \
-    register double xx=getDoubleVal(x);                         \
-    register double yy=getDoubleVal(y);                         \
-    return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
+      {return format_type_error2(#lispname,"number",            \
+                                 x.tag,"number",y.tag);}        \
+    register double xx=getDoubleValUnsafe(x);                   \
+    register double yy=getDoubleValUnsafe(y);                   \
+    return double_sexp(cname(xx,yy));                           \
   }
 //create c functions for primitives
 //arithmatic primitives
@@ -243,9 +244,20 @@ sexp lisp_round(sexp float_num,sexp mode){
     return error_sexp("round argument is not a number");
   } else if(NILP(mode)){
     return long_sexp(lround(double_val));
-  } else if(!(INTP(mode))){
-        return error_sexp("rounding mode type error");
+  } else if(!(KEYWORDP(mode))){
+    return format_type_error("round","keyword",mode.tag);
   } else {
+    if(KEYWORD_COMPARE(":floor",mode)){
+      return long_sexp(lround(floor(double_val)));
+    } else if (KEYWORD_COMPARE(":round",mode)){
+      return long_sexp(lround(double_val));
+    } else if (KEYWORD_COMPARE(":ceil",mode)){
+      return long_sexp(lround(ceil(double_val)));
+    } else if (KEYWORD_COMPARE(":trunc",mode)){
+      return long_sexp(lround(trunc(double_val)));
+    } else {
+      return error_sexp("error, invalid keyword passed to round");
+    }
     switch (mode.val.int64){
     //ceil,floor & trunc return doubles, there is a function
     //lrint which rounds to integers based on the current rounding mode
@@ -419,6 +431,7 @@ sexp lisp_fputs(sexp string,sexp stream){
   }
   return NIL;
 }
+#if 0
 sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   sexp(*f)(sexp,sexp);
   sexp retval;
@@ -479,6 +492,7 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
  TYPE_ERROR:
   return error_sexp("Type error");
 }
+#endif
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen, "
@@ -587,13 +601,6 @@ sexp lisp_error(sexp error_message){
   }
   return error_sexp(error_message.val.cord);
 }
-sexp lisp_not(sexp bool){
-  if(isTrue(bool)){
-    return LISP_FALSE;
-  } else {
-    return LISP_TRUE;
-  }
-}
 sexp lisp_not_eq(sexp obj1,sexp obj2){
   return lisp_not(lisp_eq(obj1,obj2));
 }
@@ -636,44 +643,7 @@ sexp lisp_gensym(){
   retval->val=UNBOUND;
   return symref_sexp(retval);
 }
-#if 0
-#define mkTypeCase(type,tag) case tag: return type
-sexp typeOfTag(_tag tag){
-  switch (tag){
-    mkTypeCase(Qerror,_error);
-    mkTypeCase(Qfalse,_false);
-    mkTypeCase(Quninterned,_uninterned);
-    mkTypeCase(Qnil,_nil);
-    mkTypeCase(Qcons,_cons);
-    mkTypeCase(Qreal64,_real64);
-    mkTypeCase(Qint64,_int64);
-    mkTypeCase(Qbigint,_bigint);
-    mkTypeCase(Qbigfloat,_bigfloat);
-    mkTypeCase(Qchar,_char);
-    mkTypeCase(Qstring,_string);
-    mkTypeCase(Qfun,_fun);
-    mkTypeCase(Qsymbol,_symbol);
-    mkTypeCase(Qspec,_special);
-    mkTypeCase(Qmacro,_macro);
-    mkTypeCase(Qtype,_type);
-    mkTypeCase(Qdpair,_dpair);
-    mkTypeCase(Qarray,_array);
-    mkTypeCase(Qtrue,_true);
-    mkTypeCase(Qlist,_list);
-    mkTypeCase(Qlenv,_lenv);
-    mkTypeCase(Qenv,_env);
-    mkTypeCase(Qobarray,_obarray);
-    mkTypeCase(Qfunargs,_funargs);
-  }
-}
-sexp typeOf(sexp obj){
-  return typeOfTag(obj.tag);
-}
-#endif
-sexp getKeywordType(sexp obj){
-  if(!KEYWORDP(obj)){
-    return format_type_error("get-type","keyword",obj.tag);
-  }
+sexp _getKeywordType(sexp obj){
   CORD type_symbol_name=CORD_catn
     (3,"#<",CORD_substr(obj.val.keyword->name,1,
                         CORD_len(obj.val.keyword->name)-1),">");
@@ -685,6 +655,12 @@ sexp getKeywordType(sexp obj){
   } else {
     return type_sym->val;
   }
+}
+sexp getKeywordType(sexp obj){
+  if(!KEYWORDP(obj)){
+    return format_type_error("get-type","keyword",obj.tag);
+  }
+  return _getKeywordType(obj);
 }
 sexp lisp_sequencep(sexp seq){
   if(CONSP(seq) || ARRAYP(seq)){
@@ -709,9 +685,25 @@ sexp lisp_sort(sexp seq,sexp fun){
   (defmacro ++! (x) `(setq ,x (++ ,x)))
   (defmacro --! (x) `(setq ,x (-- ,x)))
 */
-#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
-#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
-#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
+#define set_global_vars()                       \
+  lisp_stderr_sym.val.val.stream=stderr;            \
+  lisp_stdout_sym.val.val.stream=stdout;            \
+  lisp_stdin_sym.val.val.stream=stdin;              \
+  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));        \
+  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));        \
+  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));\
+  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t)); \
+  mpz_init((*mpz_const_0));                     \
+  mpfr_init((*mpfr_const_0));                   \
+  mpz_init_set_ui((*mpz_const_1),1);                    \
+  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);        \
+  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;         \
+  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;             \
+  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;         \
+  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1
+#define lisp_stderr {.tag = _stream,.val={.stream=0}}
+#define lisp_stdout {.tag = _stream,.val={.stream=0}}
+#define lisp_stdin {.tag = _stream,.val={.stream=0}}
 #define lisp_mach_eps  {.tag=_double,.val={.real64=1.41484755040568800000e-16}}
 #define lisp_pi  {.tag=_double,.val={.real64=3.14159265358979323846}}
 #define lisp_euler {.tag=_double,.val={.real64=2.7182818284590452354}}

@@ -191,3 +191,41 @@ mk_arith_funs(div);
 mk_arith_funs(min);
 mk_arith_funs(max);
 mk_arith_funs(pow);
+#define mk_lisp_cmp(name,op)                                            \
+  sexp lisp_cmp_##name (sexp obj1,sexp obj2){                           \
+    if(!BIGNUMP(obj1) || !BIGNUMP(obj2)){                               \
+      return format_type_error2("lisp_"#name,"bignum",                  \
+                                obj1.tag,"bignum",obj2.tag);            \
+    }                                                                   \
+    sexp retval;                                                        \
+    int invert=0;                                                       \
+    if(obj2.tag>obj1.tag){                                              \
+      sexp temp=obj1;                                                   \
+      obj1=obj2;                                                        \
+      obj2=temp;                                                        \
+      invert=1;                                                         \
+    }                                                                   \
+    switch(obj1.tag){                                                   \
+      case _bigfloat:                                                   \
+        retval=lisp_bigfloat_##name(obj1,obj2);                         \
+        break;                                                          \
+      case _bigint:                                                     \
+        retval=lisp_bigint_##name(obj1,obj2);                           \
+        break;                                                          \
+      case _double:                                                     \
+        retval=(obj1.val.real64 op (getDoubleValUnsafe(obj2))           \
+                ? LISP_TRUE : LISP_FALSE);                              \
+        break;                                                          \
+      case _long:                                                       \
+        retval=(obj1.val.int64 op obj2.val.int64                        \
+                ? LISP_TRUE : LISP_FALSE);                              \
+        break;                                                          \
+    }                                                                   \
+    return (invert ? lisp_not(retval) : retval);                        \
+  }
+mk_lisp_cmp(gt,>);
+mk_lisp_cmp(eq,==);
+mk_lisp_cmp(lt,<);
+mk_lisp_cmp(ge,>=);
+mk_lisp_cmp(le,<=);
+mk_lisp_cmp(ne,!=);

@@ -60,6 +60,7 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
     }
     case _bigint:{
       mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
+      //yes this is correct, init_set is a weird macro I wrote
       init_set(_z,bigint,*);
     }
     case _bigfloat:{
@@ -79,7 +80,7 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
 #undef init_set
 sexp asDouble(sexp obj);
 sexp asLong(sexp obj);
-static sexp promoteInt(sexp obj1,_tag type){  
+static sexp promoteInt(sexp obj1,_tag type){
   switch(obj1.tag){
     case _byte:
       obj1.val.int64=(int64_t)obj1.val.int8;
@@ -162,16 +163,16 @@ int mpfr_compare_generic(sexp obj1,sexp obj2){
       return mpfr_cmp(*bigfloat1,*obj1.val.bigfloat);
   }
 }
-#define lisp_bigfloat_cmp(name,op)                              \
-  sexp lisp_bigfloat_##name (sexp obj1,sexp obj2){              \
-    if(setjmp(cmp_err)){                                        \
-      if(mpfr_compare_generic(obj1,obj2) op 0){                 \
-        return LISP_TRUE;                                       \
-      } else {                                                  \
-        return LISP_FALSE;                                      \
-      }                                                         \
-    }                                                           \
-    return error_sexp("bigfloat compare " #name " type error"); \
+#define lisp_bigfloat_cmp(name,op)                                  \
+  sexp lisp_bigfloat_##name (sexp obj1,sexp obj2){                  \
+    if(setjmp(cmp_err)){                                            \
+      return format_type_error2("bigfloat-"#name,"bigfloat"         \
+                                ,obj1.tag,"bignum",obj2.tag);       \
+    } else if(mpfr_compare_generic(obj1,obj2) op 0){                \
+      return LISP_TRUE;                                             \
+    } else {                                                        \
+      return LISP_FALSE;                                            \
+    }                                                               \
   }
 lisp_bigfloat_cmp(gt,>);
 lisp_bigfloat_cmp(eq,==);
@@ -182,13 +183,13 @@ lisp_bigfloat_cmp(ne,!=);
 #define lisp_bigint_cmp(name,op)                                        \
   sexp lisp_bigint_##name (sexp obj1,sexp obj2){                        \
     if(setjmp(cmp_err)){                                                \
-      if(gmp_compare_generic(obj1,obj2) op 0){                          \
-        return LISP_TRUE;                                               \
-      } else {                                                          \
-        return LISP_FALSE;                                              \
-      }                                                                 \
+    return format_type_error2("bigint-"#name,"bigint"                   \
+                              ,obj1.tag,"bignum",obj2.tag);             \
+    } else if(gmp_compare_generic(obj1,obj2) op 0){                     \
+      return LISP_TRUE;                                                 \
+    } else {                                                            \
+      return LISP_FALSE;                                                \
     }                                                                   \
-    return error_sexp("bigint compare " #name " type error");           \
   }
 lisp_bigint_cmp(gt,>);
 lisp_bigint_cmp(eq,==);

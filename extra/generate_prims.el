@@ -81,7 +81,9 @@
     ("take" "cons_take" 2)("reverse" "cons_reverse" 1)
     ("load" "lisp_load" 1)("array-reverse" "array_reverse" 1)
     ("array-reverse!" "array_nreverse" 1)("get-type" "getKeywordType" 1)
-    ("sort" "lisp_sort" 2)))
+    ("sort" "lisp_sort" 2)("gt" "lisp_cmp_gt" 2)("eq" "lisp_cmp_eq" 2)
+    ("lt" "lisp_cmp_lt" 2)("ge" "lisp_cmp_ge" 2)("le" "lisp_cmp_le" 2)
+    ("ne" "lisp_cmp_ne" 2)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
   (collect (lambda (x) (apply #'mkPrimBasic x)) basic-prims-list))
@@ -147,7 +149,7 @@
       (:optargs . 0) (:keyargs . 0) (:restarg . 0))
      ;math functions
      ((:lname . "round") (:cname ."lisp_round") (:minargs . 1) (:maxargs . 2)
-      (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+      (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ((:lname . "drand") (:cname ."lisp_randfloat") (:minargs . 0) (:maxargs . 1)
       (:optargs . 1) (:keyargs . 0) (:restarg . 0))
      ((:lname . "lrand") (:cname ."lisp_randint") (:minargs . 0) (:maxargs . 1)
@@ -181,11 +183,15 @@
         (vector "lisp_euler" "e" 1) (vector "lisp_max_long" "max_long" 1)
         (vector "lisp_NIL"  "nil" 1) (vector "lisp_LISP_TRUE" "t" 1)
         (vector "lisp_LISP_FALSE" "#f" 1)
-    ;("stdin" . "lisp_stdin") ("stdout" . "lisp_stdout") ("stderr" . "lisp_stderr")
+        (vector "lisp_stdin" "stdin" 0) (vector "lisp_stdout" "stdout" 0)
+        (vector "lisp_stderr" "stderr" 0)
         (vector "lisp_double_0" "double-0" 1) (vector "lisp_double_1" "double-1" 1)
         (vector "lisp_long_0" "long-0" 1) (vector "lisp_long_1" "long-1" 1)
-        (vector "lisp_ans" "ans" 0)))
-;    "lisp_bigfloat_0" "lisp_bigfloat_1" "lisp_bigint_0" "lisp_bigint_1"))
+        (vector "lisp_ans" "ans" 0)
+        (vector "lisp_bigfloat_0" "bigfloat-0" 1)
+        (vector "lisp_bigfloat_1" "bigfloat-1" 1) 
+        (vector "lisp_bigint_0" "bigint-0" 1)
+        (vector "lisp_bigint_1" "bigint-1" 1)))
 (define SciLisp-Types
   '("int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" "uint64" "error"
     "real32" "real64" "bigint" "bigfloat" "char" "string" "array" "stream"
@@ -228,6 +234,7 @@ initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+set_global_vars();
 srand48(time(NULL));
 INIT_SYNONYM(lisp_consp,\"cons?\",1);
 }

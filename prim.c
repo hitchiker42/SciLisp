@@ -141,16 +141,17 @@
 
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
-    if(!NUMBERP(obj)){return error_sexp("type error in "#lispname);}    \
-    return (sexp){.tag=_double,.val={.real64 = cname(getDoubleVal(obj))}}; \
+    if(!NUMBERP(obj)){return format_type_error(#lispname,"number",obj.tag);} \
+  return double_sexp(cname(getDoubleValUnsafe(obj)));                   \
   }
 #define mkMathFun2(cname,lispname)                              \
   sexp lispname(sexp x,sexp y){                                 \
     if(!NUMBERP(x)||!NUMBERP(y))                                \
-      {return error_sexp("type error in "#lispname);}           \
-    register double xx=getDoubleVal(x);                         \
-    register double yy=getDoubleVal(y);                         \
-    return (sexp){.tag=_double,.val={.real64 = cname(xx,yy)}};  \
+      {return format_type_error2(#lispname,"number",            \
+                                 x.tag,"number",y.tag);}        \
+    register double xx=getDoubleValUnsafe(x);                   \
+    register double yy=getDoubleValUnsafe(y);                   \
+    return double_sexp(cname(xx,yy));                           \
   }
 //create c functions for primitives
 //arithmatic primitives
@@ -243,9 +244,20 @@ sexp lisp_round(sexp float_num,sexp mode){
     return error_sexp("round argument is not a number");
   } else if(NILP(mode)){
     return long_sexp(lround(double_val));
-  } else if(!(INTP(mode))){
-        return error_sexp("rounding mode type error");
+  } else if(!(KEYWORDP(mode))){
+    return format_type_error("round","keyword",mode.tag);
   } else {
+    if(KEYWORD_COMPARE(":floor",mode)){
+      return long_sexp(lround(floor(double_val)));
+    } else if (KEYWORD_COMPARE(":round",mode)){
+      return long_sexp(lround(double_val));
+    } else if (KEYWORD_COMPARE(":ceil",mode)){
+      return long_sexp(lround(ceil(double_val)));
+    } else if (KEYWORD_COMPARE(":trunc",mode)){
+      return long_sexp(lround(trunc(double_val)));
+    } else {
+      return error_sexp("error, invalid keyword passed to round");
+    }
     switch (mode.val.int64){
     //ceil,floor & trunc return doubles, there is a function
     //lrint which rounds to integers based on the current rounding mode
@@ -419,6 +431,7 @@ sexp lisp_fputs(sexp string,sexp stream){
   }
   return NIL;
 }
+#if 0
 sexp arith_driver_simple(sexp required,sexp values,enum operator op){
   sexp(*f)(sexp,sexp);
   sexp retval;
@@ -479,6 +492,7 @@ sexp arith_driver_simple(sexp required,sexp values,enum operator op){
  TYPE_ERROR:
   return error_sexp("Type error");
 }
+#endif
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen, "
@@ -587,13 +601,6 @@ sexp lisp_error(sexp error_message){
   }
   return error_sexp(error_message.val.cord);
 }
-sexp lisp_not(sexp bool){
-  if(isTrue(bool)){
-    return LISP_FALSE;
-  } else {
-    return LISP_TRUE;
-  }
-}
 sexp lisp_not_eq(sexp obj1,sexp obj2){
   return lisp_not(lisp_eq(obj1,obj2));
 }
@@ -636,44 +643,7 @@ sexp lisp_gensym(){
   retval->val=UNBOUND;
   return symref_sexp(retval);
 }
-#if 0
-#define mkTypeCase(type,tag) case tag: return type
-sexp typeOfTag(_tag tag){
-  switch (tag){
-    mkTypeCase(Qerror,_error);
-    mkTypeCase(Qfalse,_false);
-    mkTypeCase(Quninterned,_uninterned);
-    mkTypeCase(Qnil,_nil);
-    mkTypeCase(Qcons,_cons);
-    mkTypeCase(Qreal64,_real64);
-    mkTypeCase(Qint64,_int64);
-    mkTypeCase(Qbigint,_bigint);
-    mkTypeCase(Qbigfloat,_bigfloat);
-    mkTypeCase(Qchar,_char);
-    mkTypeCase(Qstring,_string);
-    mkTypeCase(Qfun,_fun);
-    mkTypeCase(Qsymbol,_symbol);
-    mkTypeCase(Qspec,_special);
-    mkTypeCase(Qmacro,_macro);
-    mkTypeCase(Qtype,_type);
-    mkTypeCase(Qdpair,_dpair);
-    mkTypeCase(Qarray,_array);
-    mkTypeCase(Qtrue,_true);
-    mkTypeCase(Qlist,_list);
-    mkTypeCase(Qlenv,_lenv);
-    mkTypeCase(Qenv,_env);
-    mkTypeCase(Qobarray,_obarray);
-    mkTypeCase(Qfunargs,_funargs);
-  }
-}
-sexp typeOf(sexp obj){
-  return typeOfTag(obj.tag);
-}
-#endif
-sexp getKeywordType(sexp obj){
-  if(!KEYWORDP(obj)){
-    return format_type_error("get-type","keyword",obj.tag);
-  }
+sexp _getKeywordType(sexp obj){
   CORD type_symbol_name=CORD_catn
     (3,"#<",CORD_substr(obj.val.keyword->name,1,
                         CORD_len(obj.val.keyword->name)-1),">");
@@ -685,6 +655,12 @@ sexp getKeywordType(sexp obj){
   } else {
     return type_sym->val;
   }
+}
+sexp getKeywordType(sexp obj){
+  if(!KEYWORDP(obj)){
+    return format_type_error("get-type","keyword",obj.tag);
+  }
+  return _getKeywordType(obj);
 }
 sexp lisp_sequencep(sexp seq){
   if(CONSP(seq) || ARRAYP(seq)){
@@ -709,9 +685,25 @@ sexp lisp_sort(sexp seq,sexp fun){
   (defmacro ++! (x) `(setq ,x (++ ,x)))
   (defmacro --! (x) `(setq ,x (-- ,x)))
 */
-#define lisp_stderr {.tag = _stream,.val={.stream=stderr}}
-#define lisp_stdout {.tag = _stream,.val={.stream=stdout}}
-#define lisp_stdin {.tag = _stream,.val={.stream=stdin}}
+#define set_global_vars()                       \
+  lisp_stderr_sym.val.val.stream=stderr;            \
+  lisp_stdout_sym.val.val.stream=stdout;            \
+  lisp_stdin_sym.val.val.stream=stdin;              \
+  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));        \
+  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));        \
+  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));\
+  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t)); \
+  mpz_init((*mpz_const_0));                     \
+  mpfr_init((*mpfr_const_0));                   \
+  mpz_init_set_ui((*mpz_const_1),1);                    \
+  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);        \
+  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;         \
+  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;             \
+  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;         \
+  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1
+#define lisp_stderr {.tag = _stream,.val={.stream=0}}
+#define lisp_stdout {.tag = _stream,.val={.stream=0}}
+#define lisp_stdin {.tag = _stream,.val={.stream=0}}
 #define lisp_mach_eps  {.tag=_double,.val={.real64=1.41484755040568800000e-16}}
 #define lisp_pi  {.tag=_double,.val={.real64=3.14159265358979323846}}
 #define lisp_euler {.tag=_double,.val={.real64=2.7182818284590452354}}
@@ -804,6 +796,12 @@ DEFUN("array-reverse",array_reverse,1,0,0,0,1);
 DEFUN("array-reverse!",array_nreverse,1,0,0,0,1);
 DEFUN("get-type",getKeywordType,1,0,0,0,1);
 DEFUN("sort",lisp_sort,2,0,0,0,2);
+DEFUN("gt",lisp_cmp_gt,2,0,0,0,2);
+DEFUN("eq",lisp_cmp_eq,2,0,0,0,2);
+DEFUN("lt",lisp_cmp_lt,2,0,0,0,2);
+DEFUN("ge",lisp_cmp_ge,2,0,0,0,2);
+DEFUN("le",lisp_cmp_le,2,0,0,0,2);
+DEFUN("ne",lisp_cmp_ne,2,0,0,0,2);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
 DEFUN("iota",lisp_iota,1,4,0,0,5);
 DEFUN("array-iota",array_iota,1,3,0,0,4);
@@ -831,7 +829,7 @@ DEFUN("logxor",lisp_xor,2,0,0,0,2);
 DEFUN("logand",lisp_logand,2,0,0,0,2);
 DEFUN("logor",lisp_logor,2,0,0,0,2);
 DEFUN("ash",ash,2,0,0,0,2);
-DEFUN("round",lisp_round,1,0,0,0,2);
+DEFUN("round",lisp_round,1,1,0,0,2);
 DEFUN("drand",lisp_randfloat,0,1,0,0,1);
 DEFUN("lrand",lisp_randint,0,1,0,0,1);
 DEFUN("bigint",lisp_bigint,1,0,0,0,1);
@@ -1010,6 +1008,12 @@ MAKE_SYMBOL("array-reverse",array_reverse,0xe177997970ed3def );
 MAKE_SYMBOL("array-reverse!",array_nreverse,0x5d586493f1b1091b );
 MAKE_SYMBOL("get-type",getKeywordType,0xa5b9663566ef1c2a );
 MAKE_SYMBOL("sort",lisp_sort,0x23b1451abddd4d36 );
+MAKE_SYMBOL("gt",lisp_cmp_gt,0xedc90e1a87aa2abc );
+MAKE_SYMBOL("eq",lisp_cmp_eq,0xedd0171a87b058b5 );
+MAKE_SYMBOL("lt",lisp_cmp_lt,0xedee101a87c94a5f );
+MAKE_SYMBOL("ge",lisp_cmp_ge,0xedc8ff1a87aa113f );
+MAKE_SYMBOL("le",lisp_cmp_le,0xedee1f1a87c963dc );
+MAKE_SYMBOL("ne",lisp_cmp_ne,0xede7131a87c330ca );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
 MAKE_SYMBOL("iota",lisp_iota,0xdae23af6073c56d5 );
 MAKE_SYMBOL("array-iota",array_iota,0x9da75f7c30743354 );
@@ -1116,11 +1120,18 @@ MAKE_GLOBAL("max_long",lisp_max_long,1);
 MAKE_GLOBAL("nil",lisp_NIL,1);
 MAKE_GLOBAL("t",lisp_LISP_TRUE,1);
 MAKE_GLOBAL("#f",lisp_LISP_FALSE,1);
+MAKE_GLOBAL("stdin",lisp_stdin,0);
+MAKE_GLOBAL("stdout",lisp_stdout,0);
+MAKE_GLOBAL("stderr",lisp_stderr,0);
 MAKE_GLOBAL("double-0",lisp_double_0,1);
 MAKE_GLOBAL("double-1",lisp_double_1,1);
 MAKE_GLOBAL("long-0",lisp_long_0,1);
 MAKE_GLOBAL("long-1",lisp_long_1,1);
 MAKE_GLOBAL("ans",lisp_ans,0);
+MAKE_GLOBAL("bigfloat-0",lisp_bigfloat_0,1);
+MAKE_GLOBAL("bigfloat-1",lisp_bigfloat_1,1);
+MAKE_GLOBAL("bigint-0",lisp_bigint_0,1);
+MAKE_GLOBAL("bigint-1",lisp_bigint_1,1);
 MAKE_TYPE(int8,_int8);
 MAKE_TYPE(int16,_int16);
 MAKE_TYPE(int32,_int32);
@@ -1189,6 +1200,7 @@ initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
 .head={.ob=globalObarrayEnv->head},.tag=_obEnv};
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+set_global_vars();
 srand48(time(NULL));
 INIT_SYNONYM(lisp_consp,"cons?",1);
 }
@@ -1256,6 +1268,12 @@ INIT_SYMBOL(array_reverse);
 INIT_SYMBOL(array_nreverse);
 INIT_SYMBOL(getKeywordType);
 INIT_SYMBOL(lisp_sort);
+INIT_SYMBOL(lisp_cmp_gt);
+INIT_SYMBOL(lisp_cmp_eq);
+INIT_SYMBOL(lisp_cmp_lt);
+INIT_SYMBOL(lisp_cmp_ge);
+INIT_SYMBOL(lisp_cmp_le);
+INIT_SYMBOL(lisp_cmp_ne);
 INIT_SYMBOL(lisp_sum);
 INIT_SYMBOL(lisp_iota);
 INIT_SYMBOL(array_iota);
@@ -1362,11 +1380,18 @@ INIT_GLOBAL(lisp_max_long);
 INIT_GLOBAL(lisp_NIL);
 INIT_GLOBAL(lisp_LISP_TRUE);
 INIT_GLOBAL(lisp_LISP_FALSE);
+INIT_GLOBAL(lisp_stdin);
+INIT_GLOBAL(lisp_stdout);
+INIT_GLOBAL(lisp_stderr);
 INIT_GLOBAL(lisp_double_0);
 INIT_GLOBAL(lisp_double_1);
 INIT_GLOBAL(lisp_long_0);
 INIT_GLOBAL(lisp_long_1);
 INIT_GLOBAL(lisp_ans);
+INIT_GLOBAL(lisp_bigfloat_0);
+INIT_GLOBAL(lisp_bigfloat_1);
+INIT_GLOBAL(lisp_bigint_0);
+INIT_GLOBAL(lisp_bigint_1);
 INIT_GLOBAL(int8);
 INIT_GLOBAL(int16);
 INIT_GLOBAL(int32);

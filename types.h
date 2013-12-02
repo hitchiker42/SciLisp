@@ -96,8 +96,7 @@ typedef wchar_t char32_t;
 #define SEQUENCEP(obj) (CONSP(obj) || ARRAYP(obj))
 #define BIGINTP(obj)(obj.tag == _bigint)
 #define BIGFLOATP(obj) (obj.tag == _bigfloat)
-#define BIGNUMP(obj) (obj.tag == _double || obj.tag == _long || \
-                     obj.tag == _bigint || obj.tag == _bigfloat)
+#define BIGNUMP(obj) (NUMBERP(obj) || BIGINTP(obj) || BIGFLOATP(obj))
 #define ENVP(obj)(obj.tag == _env)
 #define MACROP(obj) (obj.tag == _macro)
 #define INT8P(obj) (obj.tag == _byte)
@@ -416,27 +415,6 @@ struct lambda{
   env *env;//for closures
   sexp body;
 };
-//was in env.h, but I need symbol to be a complete type here
-struct symbol_props {
-  int is_const :1;
-  int setfable :1;
-  int typed :1;
-  int global :1;
-  _tag type;
-};
-struct symbol {
-  CORD name;
-  sexp val;
-  symbol_props props;
-};
-struct scoped_sexp{
-  sexp sexp;
-  env* env;
-};
-//static const sexp typeArray[NUM_TYPES-1] = {Quninterned,Qnil,Qcons,Qdouble,Qlong,Qchar,Qstr,Qfun,Qsym,Qspec,Qmacro,Qtype,Qarr,Qtrue};
-//static sexp typeOf(sexp obj){
-//  return typeArray[obj.tag+2];
-//}
 //defines what values are considered false
 //currently, these are false,nil,numerical 0 or a null pointer
 #define isTrue(x)                                                       \

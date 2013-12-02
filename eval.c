@@ -10,6 +10,12 @@ jmp_buf error_buf;
 static long lambda_counter=0;
 sexp call_builtin(sexp expr,env *cur_env);
 sexp call_lambda(sexp expr,env *cur_env);
+env *cur_env_ptr;
+//relies on the fact I consistantly name the env argument cur_env
+#define SET_CUR_ENV_PTR_DEFAULT (cur_env_ptr=cur_env)
+#define SET_CUR_ENV_PTR(cur_env) (cur_env_ptr=cur_env)
+#define CUR_ENV_SEXP                                            \
+  {.tag=_env,.val={.cur_env=cur_env_ptr},.is_ptr=1};
 //lisp special forms and builtin macros
 //see the definitions for documentation
 static sexp call_macro(sexp expr,env *cur_env);
@@ -55,6 +61,7 @@ sexp eval(sexp expr,env *cur_env){
     expr.quoted-=1;
     return expr;
   }
+  SET_CUR_ENV_PTR_DEFAULT;
   switch(expr.tag){
     //a cons cell must be a function call or a special form
     case _cons:
@@ -675,6 +682,7 @@ sexp call_lambda(sexp expr,env *cur_env){
   }
   env lambda_env=(env){.enclosing=curLambda->env,.head={.function=args},
                        .tag=_funArgs};
+  SET_CUR_ENV_PTR(&lambda_env);
   sexp retval = eval(curLambda->body,&lambda_env);
   //  PRINT_FMT("return value: %r",print(retval));
   args->args=save_defaults;

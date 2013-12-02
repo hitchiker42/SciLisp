@@ -162,4 +162,8 @@ extern/*C++*/ void initialize_llvm();
   CORD ___errorstr;                                                        \
   CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
   return error_sexp(___errorstr)                                          
+static inline sexp lisp_id(sexp obj){return obj;}
+static inline sexp lisp_not(sexp obj){
+  return (isTrue(obj)?LISP_FALSE:LISP_TRUE);
+}
 #endif

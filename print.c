@@ -25,8 +25,8 @@ c_string tag_name(_tag obj_tag){
     mk_tag_name(_uint32,uint32);
     mk_tag_name(_uint64,uint64);
     mk_tag_name(_double,double);
-    mk_tag_name(_bigint,BigInt);
-    mk_tag_name(_bigfloat,BigFloat);
+    mk_tag_name(_bigint,bigint);
+    mk_tag_name(_bigfloat,bigfloat);
     mk_tag_name(_char,char);
     mk_tag_name(_str,string);
     mk_tag_name(_array,array);
