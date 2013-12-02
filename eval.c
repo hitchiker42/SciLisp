@@ -188,15 +188,17 @@ static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp retval;
   while(CONSP(prog)){
     retval = eval(XCAR(prog),cur_env);
+    if(ERRORP(retval)){break;}
     prog=XCDR(prog);
   }
   return retval;
 }
 static inline sexp eval_prog1(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
-  sexp retval;
-  retval = eval(XCAR(prog),cur_env);
+  sexp retval,error_test;
+  error_test=retval=eval(XCAR(prog),cur_env);   
   while(CONSP(prog)){
+    if(ERRORP(error_test)){return error_test;}
     eval(XCAR(prog),cur_env);
     prog=XCDR(prog);
   }

@@ -317,7 +317,7 @@ int main(int argc,char* argv[]){
     //print
     if(!NILP(ast)){
       lisp_ans_ptr->val=evalFun(XCAR(ast),topLevelEnv);
-      CORD_printf(print(lisp_ans_ptr->val));puts("\n");
+      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
     } else {
       ;
     }

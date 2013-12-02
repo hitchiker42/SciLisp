@@ -49,7 +49,7 @@ sexp yyparse(FILE* input){
     longjmp(error_buf,-1);
     return NIL;
   } else{//normal parsing
-    yyin=input;
+    yyrestart(input);
     ast.tag=_cons;
     cons* cur_pos=ast.val.cons=xmalloc(sizeof(cons));
     cons* prev_pos=cur_pos;
@@ -273,7 +273,7 @@ sexp parse_cons(){
       if(!SYMBOLP(XCADR(retval))){
         format_error_str("error, expected identifer for macro name");
         handle_error();
-      }      
+      }
       if(nextTok() != TOK_LPAREN){
         format_error_str("macro defination is missing argument list");
         handle_error();
@@ -425,14 +425,46 @@ sexp parse_atom(){
 }
 
 
-sexp lispRead(CORD code) {
+sexp read_string(CORD code) {
   PRINT_MSG(code);
-  FILE* stringStream=tmpfile();
-  CORD_fprintf(stringStream,code);
-  fflush(stringStream);
-  yyin=stringStream;
-  nextTok();
-  return parse_sexp();
+  FILE* stringStream=fmemopen(CORD_to_char_star(code),CORD_len(code),"r");
+  push_jmp_buf(error_buf);
+  if(setjmp(error_buf)){
+    error_buf[0]=pop_jmp_buf();
+    return error_sexp("read error,parsing failed");
+  }
+  return yyparse(stringStream);
+}
+sexp lisp_read(sexp code){
+  if(!STREAMP(code)){
+    return format_type_error("read","stream",code.tag);
+  }
+  push_jmp_buf(error_buf);
+  if(setjmp(error_buf)){
+    error_buf[0]=pop_jmp_buf();
+    return error_sexp("read error,parsing failed");
+  }
+  sexp ast= yyparse(code.val.stream);
+  if(!CONSP(ast)){
+    return ast;
+  } else if (NILP(XCDR(ast))){
+    return XCAR(ast);
+  } else {
+    return ast;
+  }
+}
+sexp lisp_read_string(sexp code){
+  if(!STRINGP(code)){
+    return format_type_error("read","string",code.tag);
+  }
+  sexp ast = read_string(code.val.cord);
+  if(!CONSP(ast)){
+    return ast;
+  } else if (NILP(XCDR(ast))){
+    return XCAR(ast);
+  } else {
+    return ast;
+  }
 }
 sexp parse_backtick(){
   nextTok();
@@ -580,7 +612,7 @@ static inline sexp parse_function_args(){
           }
         }
       }
-      if(!CORD_cmp(yylval->val.cord,"&key")){        
+      if(!CORD_cmp(yylval->val.cord,"&key")){
       KEYWORD_PARAM:
         format_error_str ("keyword paramaters unimplimented");
         handle_error();
@@ -589,10 +621,10 @@ static inline sexp parse_function_args(){
         //specified by the :key parameter
         /* keywords should be something like,
            an alist of keyword varname pairs,
-           if we get a keyword argument we'll scan this list for a matching 
+           if we get a keyword argument we'll scan this list for a matching
            key then just set varname to the right value, by default
            all variables will be nil, so if the function is a c function
-           we can just use the variable's values without anything special 
+           we can just use the variable's values without anything special
            needing to be done*/
         //how about
         LAST_ARG(retval.val.funargs).name="#keyargs";
