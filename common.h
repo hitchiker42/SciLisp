@@ -134,7 +134,8 @@ extern sexp lisp_funcall(sexp expr,env *cur_env);
 extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
 extern sexp lisp_apply(sexp function,sexp arguments,sexp envrionment);
 extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
-extern sexp lispRead(CORD code);// __attribute__((pure));
+extern sexp read_string(CORD code);// __attribute__((pure));
+extern sexp lisp_read(sexp code);
 //I don't need to pull in all of the hash functions
 extern uint64_t fnv_hash(const void* key,int keylen);
 static c_string output_file=NULL;
@@ -166,5 +167,18 @@ extern/*C++*/ void initialize_llvm();
 static inline sexp lisp_id(sexp obj){return obj;}
 static inline sexp lisp_not(sexp obj){
   return (isTrue(obj)?LISP_FALSE:LISP_TRUE);
+}
+//non portable and it uses a fixed size array, not good
+struct __jmp_buf_tag jmp_buf_stack[8];
+static int jmp_buf_stack_len=0;
+static inline void push_jmp_buf(jmp_buf buf){
+  //if error_buf_stack_len >8 do something to avoid segfault
+  jmp_buf_stack[jmp_buf_stack_len]=buf[0];
+  jmp_buf_stack_len++;
+  return;
+}
+static inline struct __jmp_buf_tag pop_jmp_buf(){
+  jmp_buf_stack_len--;
+  return jmp_buf_stack[jmp_buf_stack_len];
 }
 #endif

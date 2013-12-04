@@ -179,7 +179,7 @@ CORD print(sexp obj){
       return "()";
     case _tree:
       obj=obj.val.tree->tree;//fallthrough
-    case _list:      
+    case _list:
     case _cons:      
       acc=CORD_cat(acc,"(");
       int i=0;
@@ -331,22 +331,43 @@ CORD print(sexp obj){
 }
 sexp lisp_print(sexp obj){
   CORD print_string = print(eval(obj,topLevelEnv));
-  //CORD_fprintf(stderr,"%r\n",print_string);
-  return (sexp){.tag=_str,.val={.cord=print_string}};
+  CORD_printf("%r",print_string);
+  return obj;
+}
+sexp lisp_pprint(sexp obj){
+  CORD print_string = print(eval(obj,topLevelEnv));
+  CORD_printf("\n%r",print_string);
+  return NIL;
+}
+sexp lisp_print_to_string(sexp obj){
+  CORD print_string = print(eval(obj,topLevelEnv));
+  return string_sexp(print_string);
 }
 sexp lisp_println(sexp obj){
   CORD print_string = print(eval(obj,topLevelEnv));
-  print_string=CORD_cat(print_string,"\n");
   CORD_fprintf(stderr,"%r\n",print_string);
-  return (sexp){.tag=_str,.val={.cord=print_string}};
+  return obj;
 }
 sexp lisp_fprint(sexp obj, sexp file){
   lisp_fputs(lisp_print(obj),file);
-  return NIL;
+  return obj;
 }
 sexp lisp_fprintln(sexp obj, sexp file){
   lisp_fputs(lisp_println(obj),file);
-  return NIL;
+  return obj;
+}
+sexp make_string_input_stream(sexp str){
+  if(!STRINGP(str)){
+    return format_type_error("make-string-stream","string",str.tag);
+  }
+  FILE *retval=fmemopen(CORD_to_char_star(str.val.cord),
+                        CORD_len(str.val.cord),"r");
+  if(retval){
+    return stream_sexp(retval);
+  } else {
+    int errno_save=errno;
+    return error_sexp(CORD_cat("fmemopen_error: ",strerror(errno_save)));
+  }
 }
 /*CORD function_name(function fun){
   if(fun.fxn_type==1){
@@ -392,6 +413,5 @@ CORD token_name(TOKEN token){
       return "forgot to implemnt that token";
   }
 }
-CORD pprint(sexp obj);//print readably after a newline
 CORD prin1(sexp obj);//print readably
 CORD princ(sexp obj);//pretty print 

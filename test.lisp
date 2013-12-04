@@ -35,7 +35,7 @@
 #|tests of functions|#
 (assert-eq (sum ls) 192)
 (assert-equal '(1 23 34 56 78) ls)
-(print ls)
+(println ls)
 (sum ls2)
 (prod ls3)
 (car ls)
@@ -95,10 +95,10 @@
 
 ;(setq copyright-literal ?©)
 (setq utf8-copyright ?\u00a9)
-(print ?\?)
-(print ?\x3f)
+(println ?\?)
+(println ?\x3f)
 #|(print copyright-literal)|#
-(print utf8-copyright)
+(println utf8-copyright)
 (pwd)
 (system "ls")
 (system "touch temp.temp")
@@ -109,9 +109,9 @@
 (system "cat temp.temp")
 (system "rm temp.temp")
 (array-qsort arr4 <)
-(print arr4)
+(println arr4)
 (array-qsort arr4 > #t)
-(print arr4)
+(println arr4)
 #|tests of special forms|#
 (setq i 10)
 (while (> i 0)
@@ -119,9 +119,9 @@
 (if (numberp 33)
     (progn (print "pass")
            (if (numberp ls)
-               (print "fail")
-               (print "pass")))
-    (print "fail"))
+               (println "fail")
+               (println "pass")))
+    (println "fail"))
 ;issue here
 (if (ash 99 -4)
     (prog1
@@ -131,9 +131,9 @@
         88
       (+ 2 8)))
 (def i 15)
-(print i)
+(println i)
 (do (i 0 (++ i) (<= i 10)) (print i))
-(print i)
+(println i)
 (dolist (i '(1 2 3 4 5 6 7 8 9 10)) (print i))
 (let ((x 5)) (print x))
 (let ((x '(1 3 5))) (print x))
@@ -142,12 +142,12 @@
   (progn
     (print x)
     (print y)))
-(and (print "should print")
-     (print "should print") #f
-     (print "shouldn't print"))
-(or (progn (print "should print") #f)
-    (print "should print")
-    (print "shouldn't print"))
+(and (println "should print")
+     (println "should print") #f
+     (println "shouldn't print"))
+(or (progn (println "should print") #f)
+    (println "should print")
+    (println "shouldn't print"))
 (is-even 17)
 (is-odd 17)
 (is-even 8)
@@ -157,12 +157,12 @@
 (def re-test1 (re-compile "\(real\([0-9]*\)\)\|\(int\([0-9]*\)\)"))
 (def re-test2 (re-compile "\(const\)?[[:space:]]*char\(\*\)?"))
 (def match1 (re-match re-test1 "real99"))
-(print match1)
+(println match1)
 (if match1
-    (print (re-subexpr match1 1))
+    (println (re-subexpr match1 1))
     nil)
 (def match2 (re-match re-test1 "int88"))
-(if match2 (print (re-subexpr match2 4))nil)
+(if match2 (println (re-subexpr match2 4))nil)
 (defmacro make-addr (name num)
   `(defun ,name (x)(+ ,num x)))
 (defmacro make-addr2 (name num1 num2)
@@ -194,12 +194,13 @@
   (progn
     (assert-equal arr (list->array (array->list arr)))
     (assert-equal ls (array->list (list->array ls)))
-    (assert-equal (list-qsort ls >) (list-mergesort ls >))))
+    (assert-equal (list-qsort ls >) (list-mergesort ls >))
+    (assert-equal arr (eval (read-string (print-to-string arr))))))
 (defmacro when (cond-test &rest args) `(if ,cond-test (progn ,@args) nil))
 (when (> 2 1)
-  (print "testing when")
-  (print "still testing")
-  (print "done testing"))
+  (println "testing when")
+  (println "still testing")
+  (println "done testing"))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

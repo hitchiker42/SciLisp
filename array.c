@@ -131,7 +131,7 @@ sexp array_to_list(sexp obj){
     new_list->car=old_array[i];
     new_list->cdr=NIL;
     sexp retval=list_sexp(ret_list);
-    retval.len=i;
+    retval.len=obj.len;
     return retval;
   }
 }

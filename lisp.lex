@@ -65,7 +65,16 @@ QUOTE "'"|quote
 /*this is kinda special, note that the catchall case of this is a negated 
   character class, this means any raw bytes (128-255) will be matched, letting
   us scan unicode characters*/
-UCHAR "?"("\\?"|"\\\\"|"\\x"([0-9a-fA-F]{2})|"\\u"([0-9a-fA-F]{4})|[^?\\])
+ASC     [\x00-\x7f]{-}[?\\]
+ASCN    [\x00-\t\v-\x7f]
+U       [\x80-\xbf]
+U2      [\xc2-\xdf]
+U3      [\xe0-\xef]
+U4      [\xf0-\xf4]
+UANY    {ASC}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
+UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U} 
+UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
+UCHAR "?"("\\?"|"\\\\"|"\\x"([[:xdigit:]]{2})|"\\u"([[:xdigit:]]{4})|{UANY})
 KEYSYM ":"{ID}
 /*
 union data {
@@ -144,8 +153,6 @@ dolist {LEX_MSG("lexing dolist");
   yylval->tag=_special;yylval->val.special=_dolist;return TOK_SPECIAL;}
 while {LEX_MSG("lexing while");
   yylval->tag=_special;yylval->val.special=_while;return TOK_SPECIAL;}
-eval {LEX_MSG("lexing eval");
-  yylval->tag=_special;yylval->val.special=_eval;return TOK_SPECIAL;}
 main {LEX_MSG("lexing mainl");
   yylval->tag=_special;yylval->val.special=_main;return TOK_SPECIAL;}
 defmacro {LEX_MSG("lexing defmacro");
