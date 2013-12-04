@@ -17,6 +17,12 @@ struct lisp_tree_type {
   //walk tree given by first arg, calling second arg on each node
   sexp (*walk)(sexp,sexp);
 };
+struct lisp_heap{
+  sexp *arr;
+  uint32_t size;//i.e memory allocated for the heap
+  uint32_t len;//what index does the heap end at
+  sexp(*comp_fn)(sexp,sexp);
+};
 struct lisp_tree_type avl_tree;
 struct lisp_tree_type rb_tree;
 struct lisp_tree_type splay_tree;

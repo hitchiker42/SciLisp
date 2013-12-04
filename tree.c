@@ -248,35 +248,171 @@ sexp tree_lookup(sexp tree,sexp val){
    -for any index i, the left child is at index 2i+1, right child at 2i+2
      and parent at floor((i-1)/2)
 */
-#if 0
-struct heap{
-  sexp *arr;
-  uint32_t size;//i.e memory allocated for the heap
-  uint32_t start;//what index does the heap start at
-  uint32_t end;//what index does the heap end at
-  sexp(*comp_fn)(sexp,sexp);
-};
-#define HEAP_LEFT_CHILD(_heap,index) (_heap.arr[(index<<1)+1])
-#define HEAP_RIGHT_CHILD(_heap,index) (_heap.arr[(index<<1)+2])
-#define HEAP_PARENT(_heap,index) (_heap.arr[(index-1)>>1])
-
+#define HEAP_LEFT_CHILD(_heap,index) (_heap->arr[(index<<1)+1])
+#define HEAP_RIGHT_CHILD(_heap,index) (_heap->arr[(index<<1)+2])
+#define HEAP_PARENT(_heap,index) (_heap->arr[(index-1)>>1])
+#define HEAP_PARENT_INDEX(index) ((index-1)>>1))
+#define HEAP_TOP(_heap) (_heap->arr[0])
 sexp heap_left_child(sexp heap,sexp index){
-  uint64_t ind index.val.uint64;
-  return heap.val.heap.arr[(ind<<1)+1];//ind*2+1
+  uint64_t ind=index.val.uint64;
+  return heap.val.heap->arr[(ind<<1)+1];//ind*2+1
+}
+sexp lisp_heap_left_child(sexp heap,sexp index){
+  if(!HEAPP(heap) || !INTP(index)){
+    return format_type_error2("heap-left-child","heap",
+                              heap.tag,"integer",index.tag);
+  } else {
+    HEAP_LEFT_CHILD(heap.val.heap,index.val.int64);
+  }
+}
+sexp lisp_heap_right_child(sexp heap,sexp index){
+  if(!HEAPP(heap) || !INTP(index)){
+    return format_type_error2("heap-right-child","heap",
+                              heap.tag,"integer",index.tag);
+  } else {
+    HEAP_RIGHT_CHILD(heap.val.heap,index.val.int64);
+  }
 }
 sexp heap_right_child(sexp heap,sexp index){
-  uint64_t ind index.val.uint64;
-  return heap.val.heap.arr[(ind<<1)+2];//ind*2+2
+  uint64_t ind=index.val.uint64;
+  return heap.val.heap->arr[(ind<<1)+2];//ind*2+2
 }
 sexp heap_parent(sexp heap,sexp index){
-  uint64_t ind index.var.unit64;
-  return heap.val.heap.arr[((ind-1)>>1)];
+  uint64_t ind=index.val.uint64;
+  return heap.val.heap->arr[((ind-1)>>1)];
 }
 void heap_swap(sexp heap,sexp index1,sexp index2){
   uint64_t ind1=index1.val.uint64,ind2=index2.val.int64;
-  register sexp temp=heap.val.heap.arr[ind1];
-  heap.val.heap.arr[ind1]=heap.val.heap.arr[ind2];
-  heap.val.heap.arr[ind2]=temp;
+  register sexp temp=heap.val.heap->arr[ind1];
+  heap.val.heap->arr[ind1]=heap.val.heap->arr[ind2];
+  heap.val.heap->arr[ind2]=temp;
   return;
 }
-#endif
+static inline void c_heap_swap(lisp_heap *heap,uint64_t ind1,uint64_t ind2){
+  register sexp temp=heap->arr[ind1];
+  heap->arr[ind1]=heap->arr[ind2];
+  heap->arr[ind2]=temp;
+  return;
+}
+//these are very c-esq funcitons, are are probably best left in c
+static void heapify(sexp heap,uint64_t index){
+  uint64_t ind=index;
+  uint64_t cur_max;
+  sexp left,right;
+  lisp_heap *cur_heap=heap.val.heap;
+  while(ind<cur_heap->len){
+    left=HEAP_LEFT_CHILD(cur_heap,ind);
+    right=HEAP_RIGHT_CHILD(cur_heap,ind);
+    cur_max=ind;
+    if(isTrue(cur_heap->comp_fn(left,cur_heap->arr[cur_max]))){
+      cur_max=((ind<<1)+1);
+    }
+    if(isTrue(cur_heap->comp_fn(right,cur_heap->arr[cur_max]))){
+      cur_max=((ind<<1)+2);
+    }
+    if(cur_max==ind){
+      return;
+    }    
+    c_heap_swap(cur_heap,ind,cur_max);
+    ind=cur_max;
+  }
+  return;
+}
+static void heapify_array(lisp_heap* heap,uint64_t len){
+  uint64_t i;
+  for(i=((len>>1)+(len&1));i<=0;i--){
+    heapify(heap_sexp(heap),i);
+  }
+}
+
+sexp heap_peek(sexp heap){
+  if(!HEAPP(heap)){
+    return format_type_error("heap-peek","heap",heap.tag);
+  }
+  if(heap.val.heap->len>0){
+    return HEAP_TOP(heap.val.heap);
+  }
+}
+sexp c_heap_pop(sexp heap){
+  sexp retval=HEAP_TOP(heap.val.heap);//get retval
+  //put last value at heap top
+  //this is actually the best way to do this(suprising, at least to me)
+  heap.val.heap->arr[0]=heap.val.heap->arr[heap.val.heap->len];
+  heapify(heap,0);
+  return retval;
+} 
+sexp heap_pop(sexp heap){
+  if(!HEAPP(heap)){
+    return format_type_error("heap-pop!","heap",heap.tag);
+  }
+  return c_heap_pop(heap);
+}
+static void heap_insert_helper(lisp_heap *cur_heap,uint64_t cur_index){
+  if(isTrue(cur_heap->comp_fn
+            (cur_heap->arr[cur_index],HEAP_PARENT(cur_heap,cur_index)))){
+    c_heap_swap(cur_heap,cur_index,((cur_index-1)>>1));
+    heap_insert_helper(cur_heap,((cur_index-1)>>1));
+  } else {
+    return;
+  }
+}
+sexp c_heap_insert(sexp heap,sexp new_val){
+  lisp_heap *cur_heap=heap.val.heap;
+  if(cur_heap->len>cur_heap->size){
+    cur_heap->size*=2;
+    cur_heap->arr=xrealloc(cur_heap->arr,cur_heap->size);
+  }
+  cur_heap->arr[cur_heap->len]=new_val;
+  uint64_t cur_index=cur_heap->len;
+  cur_heap->len++;
+  heap_insert_helper(cur_heap,cur_index);
+  return heap;
+}
+sexp heap_insert(sexp heap,sexp new_val){
+  if(!HEAPP(heap)){
+    return format_type_error("heap-insert","heap",heap.tag);
+  } else {
+    return c_heap_insert(heap,new_val);
+  }
+}
+
+//lets try using keyargs(though I suppose that changes nothing here)
+sexp make_heap(sexp comp_fun,sexp arr,sexp size){
+  if(!FUN2P(comp_fun)){
+    return format_type_error("make-heap","function of two arguments",comp_fun.tag);
+  }
+  sexp(*comp_fn)(sexp,sexp)=comp_fun.val.fun->comp.f2;
+  sexp *heap_arr;
+  uint64_t heap_size;
+  if(NILP(size)){
+    heap_size=0;
+  } else if (!INTP(size)){
+    return format_type_error_key("make-heap","size","integer",size.tag);
+  } else {
+    heap_size=size.val.int64;
+  }
+  if(NILP(arr)){
+    heap_arr=xmalloc(sizeof(sexp)*(heap_size?heap_size:16));
+    lisp_heap *retval=xmalloc(sizeof(lisp_heap));
+    *retval=(lisp_heap){.arr=heap_arr,.size=16,.len=0,.comp_fn=comp_fn};
+    return heap_sexp(retval);
+  } else if(!ARRAYP(arr)){
+    return format_type_error_key("make-heap","arr","array",arr.tag);
+  } else {
+    if(heap_size<arr.len){
+      if(heap_size){//size is 0 if size was 
+        fprintf(stderr,";Warning, size parameter of make-array shorter"
+                "\n;than initial array, using size of array as initial size");
+      }
+      heap_size=arr.len;
+    }
+    heap_arr=arr.val.array;
+  }
+  //we already returned if we didn't get an initial array, so we know
+  //that we need to heapify heap_arr, but first we need a heap
+  lisp_heap *retval=xmalloc(sizeof(lisp_heap));  
+  *retval=(lisp_heap){.arr=heap_arr,.size=heap_size,
+                      .len=arr.len,.comp_fn=comp_fn};
+  heapify_array(retval,arr.len);
+  return heap_sexp(retval);
+}

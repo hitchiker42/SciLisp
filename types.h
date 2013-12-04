@@ -56,6 +56,7 @@ typedef struct hash_table hash_table;
 typedef struct lisp_tree lisp_tree;
 typedef struct hash_table hash_table;
 typedef struct hash_entry hash_entry;
+typedef struct lisp_heap lisp_heap;
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances
@@ -86,6 +87,11 @@ typedef wchar_t char32_t;
 #define CHARP(obj) (obj.tag == _char)
 #define AS_CHAR(obj) (obj.val.utf8_char)
 #define FUNP(obj) (obj.tag == _fun && obj.val.fun->type == _compiled_fun)
+#define FUN_N_P(obj,n) (FUNP(obj) && obj.val.fun->args->max_args==n)
+#define FUN0P(obj) FUN_N_P(obj,0)
+#define FUN1P(obj) FUN_N_P(obj,1)
+#define FUN2P(obj) FUN_N_P(obj,2)
+#define FUN3P(obj) FUN_N_P(obj,3)
 #define ARRAYP(obj) (obj.tag == _array)
 #define AS_ARRAY(obj) (obj.val.array)
 #define LAMBDAP(obj) (obj.tag == _fun && obj.val.fun->type == _lambda_fun)
@@ -106,6 +112,7 @@ typedef wchar_t char32_t;
 #define REAL32P(obj) (obj.tag == _float)
 #define REAL64P(obj) (obj.tag == _double)
 #define KEYWORDP(obj) (obj.tag == _keyword)
+#define HEAPP(obj) (obj.tag == _heap)
 #define TYPEP(obj) (obj.tag == _type)
 #define RE_MATCHP(obj) (obj.tag == _re_data)
 #define TYPED_ARRAYP(obj) (obj.tag==_typed_array)
@@ -210,6 +217,7 @@ enum _tag {
   _tree=49,
   _tree_node=50,
   _typed_array=51,
+  _heap=52,
 };
 enum special_form{
   _def=0,
@@ -272,10 +280,11 @@ union data {//keep max size at 64 bits
   function_args* funarg;//depreciated
   function_args* funargs;
   hash_table *hashtable;
+  lisp_heap *heap;
+  int8_t int8;
   int16_t int16;
   int32_t int32;
   int64_t int64;
-  int8_t int8;
   jmp_buf *label;
   keyword_symref keyword;
   lisp_tree *tree;
@@ -291,10 +300,10 @@ union data {//keep max size at 64 bits
   sexp *array;
   special_form special;
   symref var;
+  uint8_t uint8;
   uint16_t uint16;
   uint32_t uint32;
   uint64_t uint64;
-  uint8_t uint8;
   void *opaque;
   wchar_t *ustr;
   wchar_t uchar;//try to change all utf8_chars to this
@@ -402,6 +411,8 @@ struct function{//36 bytes
     _lambda_fun,
     _compiled_fun,
   } type;
+  uint32_t maxargs;//extra 32 bits, so we can save a bit of
+  //indirection, though I probably won't use this
 };
 struct macro{
   function_args* args;
