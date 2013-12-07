@@ -36,7 +36,7 @@ sexp lisp_system_async(sexp command){
     return error_sexp("argument to system must be a string");
   }
   pthread_t new_thread;
-  char *pthread_arg=CORD_to_char_star(command.val.cord);
+  char *pthread_arg=(char*)CORD_to_char_star(command.val.cord);
   pthread_create(&new_thread,NULL,async_system_helper,pthread_arg);
   return NIL;
 }
@@ -54,14 +54,14 @@ sexp lisp_system(sexp command,sexp args){
   char **argv=alloca(16*sizeof(char*));//this should usually be enough
   argv[0]="bash";
   argv[1]="-c";
-  argv[2]=CORD_as_cstring(command.val.cord);
+  argv[2]=(char*)CORD_to_const_char_star(command.val.cord);
   int i=3,maxargs=16;
   while(1){
     //    HERE();
     while(CONSP(args) && i<maxargs){
       //      HERE();
       if(!STRINGP(XCAR(args))){goto string_error;}
-      argv[i]=CORD_as_cstring(XCAR(args).val.cord);
+      argv[i]=(char*)CORD_to_const_char_star(XCAR(args).val.cord);
       args=XCDR(args);
       i++;
     } if(i<maxargs){break;}

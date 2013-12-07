@@ -57,6 +57,7 @@ typedef struct lisp_tree lisp_tree;
 typedef struct hash_table hash_table;
 typedef struct hash_entry hash_entry;
 typedef struct lisp_heap lisp_heap;
+typedef struct lisp_condition lisp_condition;//error handling
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol referances

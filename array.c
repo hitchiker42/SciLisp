@@ -320,6 +320,38 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   array_qsort_inplace(sorted_array,0,arr.len-1,f);
   return array_sexp(sorted_array,arr.len);
 }
+void slow_sort_acc(sexp *arr,int i,int j,sexp(*f)(sexp,sexp)){
+  if(isTrue(f(arr[i],arr[j]))){return;}
+  int m=(i+j)/2;
+  slow_sort_acc(arr,i,m,f);
+  slow_sort_acc(arr,m+1,j,f);
+  if(isTrue(f(arr[m],arr[j]))){
+    swap(m,j,arr);
+  }
+  slow_sort_acc(arr,i,j-1,f);
+}
+sexp lisp_slow_sort(sexp arr,sexp fun){
+  if(!FUN2P(fun) || !(ARRAYP(arr))){
+    return error_sexp("I'm not writing an error message for slowsort");
+  } else {
+    slow_sort_acc(arr.val.array,0,arr.len-1,fun.val.fun->comp.f2);
+    return arr;
+  }
+}
+sexp array_insertion_sort(sexp* arr,int len,sexp(*f)(sexp,sexp)){
+  int i,j;
+  sexp obj;
+  for(i=1;i<len;i++){
+    for(j=i-1;j>0;j++){
+      if(isTrue(f(arr[j],arr[i]))){
+        swap(i,j,arr);
+        break;
+      }
+      swap(i,0,arr);
+    }
+  }
+}
+  
 #undef swap
 /* Heap
    -tree with compairson function f

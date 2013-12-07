@@ -21,22 +21,19 @@
 #include <math.h>
 #include <signal.h>
 #include <errno.h>
-/*types.h has
-#include "include/cord.h"
-#include <string.h>
-#include <uthash.h>
-#include <wchar.h>*/
+//several other headers are included in types.h
 #include "types.h"
 #include "env.h"
 #include "print.h"
 #include "bignum.h"
 #include "cffi.h"
 #include "llvm_externs.h"
-//#include "lex.yy.h"
 //enable/disable debugging/lexing output
 #define HERE_ON
+#define DEBUG
 //enable/disable SciLisp multithreading (gc is always multithreaded)
 //#define MULTI_THREADED
+//print what is being lexed, very verbose, rarely useful
 //#define VERBOSE_LEXING
 #include "debug.h"
 //common macros, & memory allocation macros
@@ -107,26 +104,26 @@ static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
                              .cdr={.tag = -1,.val={.meta = -1}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
-static uint64_t global_gensym_counter=0;
 //global variables
 sexp* yylval;
 FILE* yyin;
 //flag for errors at repl
 extern int evalError;
+//probably don't need anymore, what with pthread_once
+static int initPrimsFlag=1;
+static uint64_t global_gensym_counter=0;
 //global localtion of error messages
 CORD error_str;
 CORD type_error_str;
 jmp_buf error_buf;
 sexp error_val;
-static int initPrimsFlag=1;
+stack_t sigstk;
 //functions to print (or not print) debug info
 void (*debug_printf)(const char*,...);
 void (*CORD_debug_printf)(CORD,...);
 //allow for error handler to be changed at runtime
 sexp (*handle_error_fp)();
-extern sexp yyparse(FILE* input);
-extern _tag parse_tagname(CORD tagname);
-//maybe I need an eval.h?
+//from eval.c(maybe I need an eval.h?)
 extern sexp eval(sexp expr,env *cur_env);
 extern sexp call_builtin(sexp expr,env *cur_env);
 extern sexp call_lambda(sexp expr,env *cur_env);
@@ -134,10 +131,16 @@ extern sexp lisp_funcall(sexp expr,env *cur_env);
 extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
 extern sexp lisp_apply(sexp function,sexp arguments,sexp envrionment);
 extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
-extern sexp read_string(CORD code);// __attribute__((pure));
+//from parser.c
+extern sexp read_string(CORD code);
 extern sexp lisp_read(sexp code);
+extern sexp yyparse(FILE* input);
+extern _tag parse_tagname(CORD tagname) __attribute__((const));
 //I don't need to pull in all of the hash functions
 extern uint64_t fnv_hash(const void* key,int keylen);
+extern void initialize_llvm();
+//some of these could be moved to different files,
+//some can't
 static c_string output_file=NULL;
 static inline double getDoubleVal(sexp x){
   switch(x.tag){
@@ -152,27 +155,34 @@ static inline double getDoubleVal(sexp x){
 static inline double getDoubleValUnsafe(sexp x){
   return (x.tag == _double ? x.val.real64 : (double)x.val.int64);
 }
-//CORD_to_const_char_star is this ha;
-static inline char* CORD_as_cstring(CORD cord){
-  if(CORD_IS_STRING(cord)){return (char*)cord;}
-  else{return (char*)CORD_to_char_star(cord);}
-}
-extern/*C++*/ void initialize_llvm();
-#define return_errno(fn_name)                   \
-  int ___errsave=errno;                            \
-  char* ___errmsg=strerror(errno);                 \
-  CORD ___errorstr;                                                        \
-  CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
-  return error_sexp(___errorstr)                                          
+//#define return_errno(fn_name), was here, now in debug.h
+//rather simple but fairly useful functions
 static inline sexp lisp_id(sexp obj){return obj;}
 static inline sexp lisp_not(sexp obj){
   return (isTrue(obj)?LISP_FALSE:LISP_TRUE);
 }
-//non portable and it uses a fixed size array, not good
+//Implements a stack for jmp_buf objects to allow eaiser nesting of
+//setjmp/longjmp pairs
+//non portable and it uses a fixed size array, not good, fix?
 struct __jmp_buf_tag jmp_buf_stack[8];
 static int jmp_buf_stack_len=0;
+static void jmp_buf_hack(jmp_buf buf){
+  //(hopefully temporary) but very ugly hack
+  //but it's better than random segfaults
+    jmp_buf_stack[0]=buf[0];
+    struct __jmp_buf_tag temp=jmp_buf_stack[0];
+    int i;
+    for(i=0;i<7;i++){
+      temp=jmp_buf_stack[i+1];
+      jmp_buf_stack[i+1]=jmp_buf_stack[i];
+      jmp_buf_stack[i]=temp;
+    }
+    return;
+}
 static inline void push_jmp_buf(jmp_buf buf){
-  //if error_buf_stack_len >8 do something to avoid segfault
+  if(jmp_buf_stack_len>=8){
+    jmp_buf_hack(buf);
+  }
   jmp_buf_stack[jmp_buf_stack_len]=buf[0];
   jmp_buf_stack_len++;
   return;
@@ -181,4 +191,24 @@ static inline struct __jmp_buf_tag pop_jmp_buf(){
   jmp_buf_stack_len--;
   return jmp_buf_stack[jmp_buf_stack_len];
 }
+static inline struct __jmp_buf_tag peek_jmp_buf(){
+  return jmp_buf_stack[jmp_buf_stack_len];
+}
+//reallocate memory and set any newly allocated memory to 0
+static inline void* xrecalloc(void *ptr,uint64_t old_size,uint64_t size){
+  ptr=xrealloc(ptr,size);
+  if(size>old_size){
+    memset(ptr+old_size,(size-old_size),'\0');
+  }
+  return ptr;
+}
+//default values for condition handlers,
+//in general sigusr1 & sigusr2 should be more than enough to implement conditions
+static void __attribute__((noreturn))default_condition_handler(int signum){
+  longjmp(error_buf,-1);
+}
+static const struct sigaction sigusr1_object={.sa_handler=default_condition_handler};
+static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};
+static const struct sigaction *sigusr1_action=&sigusr1_object;
+static const struct sigaction *sigusr2_action=&sigusr2_object;
 #endif
