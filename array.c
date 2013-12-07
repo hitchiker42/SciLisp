@@ -4,6 +4,21 @@
  ****************************************************************/
 #include "array.h"
 #include "prim.h"
+#ifdef swap
+#undef swap
+#endif
+static sexp stemp;
+#define swap(i,j,arr)  stemp=arr[i];arr[i]=arr[j];arr[j]=stemp
+static data dtemp;
+#define typed_swap(i,j,arr)  dtemp=arr[i];arr[i]=arr[j];arr[j]=dtemp
+//maybe use this, the 16 bit length parameter needs to be fixed
+struct lisp_array{
+  sexp *arr;
+  uint64_t len;
+  uint8_t atomic;
+  uint8_t mono_typed;
+  _tag type;
+};
 #define aref_generic(name,test,type,macro)                              \
   sexp name(sexp obj,sexp ind){                                         \
     if(!test(obj) || !INTP(ind)){                                       \
@@ -37,7 +52,7 @@ aref_generic(typed_aref,TYPED_ARRAYP,typed_array,TYPED_AREF)
   }                                                                     \
   dstep=getDoubleValUnsafe(step);                                       \
   int imax=ceil(fabs(range/dstep));                                     \
-  subtype* newarray=xmalloc(sizeof(subtype)*imax+1);                    \
+  subtype* newarray=xmalloc_atomic(sizeof(subtype)*imax+1);             \
   j=getDoubleValUnsafe(start);                                          \
   int rnd=!NILP(should_round);                                          \
   for(i=0;i<imax;i++){                                                  \
@@ -181,7 +196,7 @@ sexp rand_array(sexp len,sexp type){
     return format_type_error("rand-array","integer",len.tag);
   } else {
     int i;
-    sexp *arr=xmalloc(sizeof(sexp)*len.val.int64);
+    sexp *arr=xmalloc_atomic(sizeof(sexp)*len.val.int64);
     if(NILP(type) || KEYWORD_COMPARE(":int64",type)){
       for(i=0;i<len.val.int64;i++){
         arr[i]=long_sexp(mrand48());
@@ -200,33 +215,26 @@ sexp rand_array(sexp len,sexp type){
     return error_sexp("invalid keyword passed to rand-array");
   }
 }
-sexp array_reverse_generic(sexp arr,sexp inplace){
+sexp array_reverse_inplace(sexp arr){
   if(!ARRAYP(arr)){
     return format_type_error("array-reverse","array",arr.tag);
   }
-  sexp *arr_data;
-  sexp temp;
-  if(!NILP(inplace)){
-    arr_data=arr.val.array;
-  } else {
-    arr_data=xmalloc(sizeof(sexp)*arr.len);
-    memcpy(arr_data,arr.val.array,sizeof(sexp)*arr.len);
-  }
+  sexp *arr_data=arr.val.array;
   int i,j;
   for(i=0,j=arr.len-1;i<arr.len;i++,j--){
-    temp=arr_data[i];
-    arr_data[i]=arr_data[j];
-    arr_data[j]=temp;
+    swap(i,j,arr_data);
   }
   return array_sexp(arr_data,arr.len);
 }
-sexp array_reverse(sexp arr){
-  return array_reverse_generic(arr,NIL);
-}
 sexp array_nreverse(sexp arr){
-  return array_reverse_generic(arr,LISP_TRUE);
+  return array_reverse_inplace(arr);
 }
-static data temp;
+sexp array_reverse(sexp arr){
+  sexp *new_arr;
+  new_arr=xmalloc(sizeof(sexp)*arr.len);
+  memcpy(new_arr,arr.val.array,sizeof(sexp)*arr.len);
+  return array_reverse_inplace(array_sexp(new_arr,arr.len));
+}
 static int typed_array_qsort_partition
 (data *arr,int left,int right,int pivot_ind,int(*f)(data,data)){
   data pivot=arr[pivot_ind];
@@ -236,9 +244,8 @@ static int typed_array_qsort_partition
   pivot_ind=left;
   for(i=left;i<right-1;i++){
     if(f(arr[i],pivot)){
-      temp=arr[i];
-      arr[i]=arr[pivot_ind];
-      arr[pivot_ind++]=temp;
+      typed_swap(i,pivot_ind,arr);
+      pivot_ind++;
     }
   }
   arr[right]=arr[pivot_ind];
@@ -270,14 +277,6 @@ sexp typed_array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   typed_array_qsort_inplace(sorted_array,0,arr.len,f);
   return typed_array_sexp(sorted_array,arr.tag,arr.len);
 }
-static sexp stemp;
-#ifdef swap
-#undef swap
-#endif
-#define swap(i,j,arr)                           \
-  stemp=arr[i];                                  \
-  arr[i]=arr[j];                                \
-  arr[j]=stemp
 static int array_qsort_partition
 (sexp *arr,int left,int right,int pivot,sexp(*f)(sexp,sexp)){
   sexp pivot_val=arr[pivot];
