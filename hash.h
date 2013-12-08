@@ -8,6 +8,8 @@
 #include "prim.h"
 #include "hash_fn.h"
 //ht=hash_table
+//type alias, should change to one type sooner or later
+typedef struct hash_table hashtable;
 //hash tables use a doubly linked list rather than cons cells internally
 struct hash_entry {
   hash_entry *prev;
@@ -27,7 +29,7 @@ struct hash_table {
   float gthresh;//growth threshold, in terms of capicity
   float gfactor;//amount to grow by
   float sthresh;//shrink threshold, defaults to 0,i.e never shrink
-  float sfatcor;
+  float sfactor;
   uint64_t (*hash_fn)(const void*,int);
   sexp (*hash_cmp)(sexp,sexp);
 };

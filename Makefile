@@ -30,13 +30,14 @@ XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
 XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 LEX:=flex
-SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h
+SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h sequence.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
-	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system unicode.c tree.c
+	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system.c unicode.c \
+	tree.c sequence.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
 	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o\
-	tree.o
+	tree.o sequence.o
 #STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o
 # lisp_system.o unicode.o
 #STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c
@@ -67,7 +68,7 @@ llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 	 libSciLisp.so -Wl,-rpath=$(shell pwd) -g -o llvm-test
 SciLisp_test: SciLisp
 	./SciLisp -r
-all: SciLisp libs SciLisp_llvm test
+all: SciLisp libs test
 #compiled files
 lex.yy.c: lisp.lex common.h
 	$(LEX) lisp.lex
@@ -77,6 +78,7 @@ unicode.o: unicode.c
 parser.o: parser.c $(COMMON_HEADERS) cons.h
 cons.o: cons.c $(COMMON_HEADERS) cons.h
 print.o: print.c $(COMMON_HEADERS) cons.h prim.h
+sequence.o: sequence.c $(COMMON_HEADERS) sequence.h
 frontend.o: frontend.c $(COMMON_HEADERS) prim.h
 	$(CC) $(CFLAGS) -c frontend.c -o frontend.o -fno-var-tracking-assignments
 eval.o: eval.c $(COMMON_HEADERS) cons.h array.h

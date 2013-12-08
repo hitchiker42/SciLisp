@@ -150,24 +150,32 @@ sexp array_to_list(sexp obj){
     return retval;
   }
 }
-sexp array_map(sexp arr,sexp map_fn,sexp inplace){
-  if(!ARRAYP(arr)||!(FUNP(map_fn))){
-    return format_type_error2("array-map","array",arr.tag,
-                              "function",map_fn.tag);
-  }
+sexp c_array_map(sexp arr,sexp map_fn){
   sexp *new_array;
   sexp(*f)(sexp)=map_fn.val.fun->comp.f1;
-  if(isTrue(inplace)){
-    new_array=arr.val.array;
-  } else {
-    new_array=xmalloc(sizeof(sexp)*arr.len);
-    memcpy(new_array,arr.val.array,arr.len*sizeof(sexp));
-  }
+  new_array=arr.val.array;
   int i;
   for(i=0;i<arr.len;i++){
     new_array[i]=f(new_array[i]);
   }
   return array_sexp(new_array,arr.len);
+}
+sexp array_nmap(sexp arr,sexp map_fn){
+  if(!ARRAYP(arr)||!(FUNP(map_fn))){
+    return format_type_error2("array-map!","array",arr.tag,
+                              "function",map_fn.tag);
+  }
+  return c_array_map(arr,map_fn);
+}
+sexp array_map(sexp arr,sexp map_fn){
+  if(!ARRAYP(arr)||!(FUNP(map_fn))){
+    return format_type_error2("array-map","array",arr.tag,
+                              "function",map_fn.tag);
+  }
+  sexp* new_array;
+  new_array=xmalloc(sizeof(sexp)*arr.len);
+  memcpy(new_array,arr.val.array,arr.len*sizeof(sexp));
+  return c_array_map(array_sexp(new_array,arr.len),map_fn);
 }
 sexp array_reduce(sexp arr,sexp red_fn,sexp init){
   if(!ARRAYP(arr)||!(FUNP(red_fn))){

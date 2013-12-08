@@ -44,7 +44,7 @@ sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,
   if(NILP(growth_threshold)){
     ht->gthresh=DEFAULT_GROWTH_THRESHOLD;
     //FIXME: need to change this to be float or double
-  } else if(!(REAL64(growth_threshold))){
+  } else if(!(REAL64P(growth_threshold))){
     return format_type_error_opt("make-hashtable","growth-threshold"
                                  "floating point",growth_threshold.tag);
   } else {
@@ -58,7 +58,7 @@ sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,
   if(NILP(growth_factor)){
     ht->gfactor=DEFAULT_GROWTH_FACTOR;
     //FIXME: need to change this to be float or double
-  } else if(!(DOUBLEP(growth_factor))){
+  } else if(!(REAL64P(growth_factor))){
     return format_type_error_opt("make-hashtable","growth-factor"
                                  "floating point",growth_factor.tag);
   } else {
@@ -72,7 +72,7 @@ sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,
   if(NILP(shrink_threshold)){
     ht->sthresh=DEFAULT_SHRINK_THRESHOLD;
     //FIXME: need to change this to be float or double
-  } else if(!(DOUBLEP(shrink_threshold))){
+  } else if(!(REAL64P(shrink_threshold))){
     return format_type_error_opt("make-hashtable","shrink-threshold"
                                  "floating point",shrink_threshold.tag);
   } else {
@@ -151,7 +151,7 @@ static uint64_t _hash_sexp(sexp key,sexp ht_sexp){
   }
 }
 static hash_entry *_get_entry(hashtable *ht,sexp key){
-  uint64_t hashv=_hash_sexp(key,ht);
+  uint64_t hashv=_hash_sexp(key,hashtable_sexp(ht));
   uint64_t index=hashv%ht->size;
   hash_entry *bucket_head=ht->buckets[index];
   if(!bucket_head){
@@ -164,12 +164,12 @@ static hash_entry *_get_entry(hashtable *ht,sexp key){
         bucket_head=bucket_head->next;
       }
     }
-    return NIL;
+    return NULL;
   }
 }
 sexp hashTable_get_entry(sexp ht_sexp,sexp key){
-  if(!HASHTABLEP(ht)){
-    return format_type_error("hashTable-lookup-entry","hashtable",ht.tag);
+  if(!HASHTABLEP(ht_sexp)){
+    return format_type_error("hashTable-lookup-entry","hashtable",ht_sexp.tag);
   }
   hash_table *ht=ht_sexp.val.hashtable;
   hash_entry *entry=_get_entry(ht,key);
@@ -187,14 +187,16 @@ sexp hashTable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
     return format_type_error("hashTable-add-entry","hashtable",ht_sexp.tag);
   }
   hash_table *ht=ht_sexp.val.hashtable;
+  uint64_t hashv=_hash_sexp(key,ht_sexp);
+  uint64_t index=hashv%ht->size;
   enum add_option conflict_opt;
-  if(NILP(conflict_op)){
+  if(NILP(add_opt)){
     conflict_opt=_update;
   } else {
     conflict_opt=_update;//implement later
   }
   if(ht->capacity>=ht->gthresh){
-    ht=hashTable_sexp(hashTable_rehash(ht));
+    ht_sexp=hashtable_sexp(hashTable_rehash(ht));
   }
   if(!ht->buckets[index]){
     ht->buckets[index]=xmalloc(sizeof(hash_entry));
@@ -205,8 +207,6 @@ sexp hashTable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
     ht->capacity+=ht->capacity_inc;
     return val;
   }
-  uint64_t hashv=_hesh_sexp(key,ht);
-  uint64_t index=hashv%ht->size;
   hash_entry *existing_entry=_get_entry(ht,key);
   if(conflict_opt==_overwrite){
     _delete_entry(ht,existing_entry);
@@ -289,6 +289,6 @@ sexp hashTable_lisp_rehash(sexp ht){
   if(!HASHTABLEP(ht)){
     return format_type_error("rehash","hashtable",ht.tag);
   } else {    
-    return hashTable_sexp(hashTable_rehash(ht.val.hashtable));
+    return hashtable_sexp(hashTable_rehash(ht.val.hashtable));
   }
 }

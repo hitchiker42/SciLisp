@@ -12,7 +12,8 @@
 #include <sched.h>
 #include <sys/wait.h>
 #define GC_THREADS
-#define GC_PTHREADS
+#define THREAD_LOCAL_ALLOC
+#define USE_MMAP
 #include "gc/include/gc/gc.h"
 #include <pthread.h>
 #include <ctype.h>
@@ -44,49 +45,68 @@
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
+#define construct_sexp_generic(sexp_val,sexp_tag,                       \
+                               sexp_field,is_ptr_val,sexp_cast)         \
+  sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},.is_ptr=is_ptr_val}
+#define construct_sexp_generic_len(sexp_val,sexp_tag,len_val,           \
+                                   sexp_field,is_ptr_val,sexp_cast)     \
+  sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},                 \
+      .is_ptr=is_ptr_val,.len=len_val}
+#define construct_sexp_len(sexp_val,sexp_tag,sexp_field,is_ptr_val,len_val) \
+  construct_sexp_generic_len(sexp_val,sexp_tag,len_val,                 \
+                         sexp_field,is_ptr_val,(sexp))
+#define construct_sexp(sexp_val,sexp_tag,sexp_field,is_ptr_val)         \
+  construct_sexp_generic(sexp_val,sexp_tag,sexp_field,is_ptr_val,(sexp))
+#define construct_const_sexp(sexp_val,sexp_tag,sexp_field,is_ptr_val)   \
+  construct_sexp_generic(sexp_val,sexp_tag,sexp_field,is_ptr_val,)
+#define construct_simple(sexp_val,name,is_ptr_val)                 \
+  construct_sexp(sexp_val,_##name,name,is_ptr_val)
+#define construct_ptr(sexp_val,name)                        \
+  construct_simple(sexp_val,name,1)
+#define construct_atom(sexp_val,name)                        \
+  construct_simple(sexp_val,name,0)
+#define construct_simple_const(sexp_val,name)                           \
+  construct_const_sexp(sexp_val,_##name,name,0)
 //type_sexp macros for convience (kinda like constructors I suppose)
 #define typed_array_sexp(array_val,array_tag,array_len)              \
   (sexp){.tag=_typed_array,.meta=array_tag,.len=array_len,           \
       .val={.typed_array=array_val},.is_ptr=1}
-#define bigfloat_sexp(bigfloat_ptr) (sexp){.tag= _bigfloat,\
-      .val={.bigfloat=bigfloat_ptr},.is_ptr=1}
-#define bigint_sexp(bigint_ptr) (sexp){.tag= _bigint,.val={.bigint=bigint_ptr},.is_ptr=1}
-#define cons_sexp(cons_val) (sexp){.tag=_cons,.val={.cons = cons_val},.is_ptr=1}
+#define bigfloat_sexp(bigfloat_ptr) construct_ptr(bigfloat_ptr,bigfloat)
+#define bigint_sexp(bigint_ptr) construct_ptr(bigint_ptr,bigint)
+#define cons_sexp(cons_val) construct_ptr(cons_val,cons)
 #define cord_sexp(cord_val) string_sexp(cord_val)
-#define c_data_sexp(c_data_val) (sexp){.tag=_cdata,.val={.c_val=c_data_val}}
-#define double_sexp(double_val) (sexp){.tag=_double,.val={.real64=double_val}}
-#define env_sexp(env_val) (sexp) {.tag=_env,.val={.cur_env=env_val},.is_ptr=1}
-#define error_sexp(error_string) (sexp){.tag= _error,.val={.cord=error_string}}
-#define float_sexp(float_val) (sexp){.tag=_float,.val={.real32=float_val}}
-#define funargs_sexp(funargs_val) (sexp) {.tag=_funargs,.val={.funargs=funargs_val},.is_ptr=1}
-#define function_sexp(function_val) (sexp) {.tag=_fun,.val={.fun=function_val},.is_ptr=1}
-#define hashTable_sexp(hashtable_val) (sexp){.tag=_hashtable,\
-      .val={.hashtable=hashtable_val},.is_ptr=1}
-#define heap_sexp(heap_val) (sexp){.tag=_heap,.val={.heap=heap_val},.is_ptr=1}
-#define int_n_sexp(int_n_val,n) (sexp) {.tag=_int##n,\
-      .val={.int##n=int_n_val}}
-#define uint_n_sexp(uint_n_val,n) (sexp) {.tag=_uint##n,\
-      .val={.uint##n=uint_n_val}}
-#define keyword_sexp(keyword_val) (sexp){.tag=_keyword,\
-      .val={.keyword=keyword_val}}
-#define list_sexp(list_val) (sexp){.tag=_list,.val={.cons = list_val},.is_ptr=1}
-#define list_len_sexp(list_val,_len) (sexp){.tag=_list,.val={.cons = list_val},\
-      .is_ptr=1,.len=_len}
-#define long_sexp(long_val) (sexp){.tag=_long,.val={.int64=long_val}}
-#define ulong_sexp(ulong_val) (sexp){.tag=_ulong,.val={.uint64=ulong_val}}
-#define macro_sexp(macro_val) (sexp) {.tag = _macro,.val={.mac=macro_val},.is_ptr=1}
-#define meta_sexp(meta_val) (sexp) {.tag =_meta,.val={.meta=meta_val}}
-#define obarray_sexp(obarray_val) (sexp){.tag=_obarray,.val={.ob=obarray_val},.is_ptr=1}
-#define opaque_sexp(opaque_val) (sexp){.tag=_opaque,.val={.opaque=opaque_val},.is_ptr=1}
-#define re_match_sexp(re_match_val) (sexp){.tag=_re_data,\
-      .val={.re_data=re_match_val},.is_ptr=1}
-#define array_sexp(sarray_val,array_len)                        \
-  (sexp){.tag=_array,.len=array_len,.val={.array=sarray_val},.is_ptr=1}
-#define spec_sexp(spec_tag) (sexp) {.tag = _special,.val={.special=spec_tag}}
-#define stream_sexp(stream_val) (sexp){.tag=_env,.val={.stream=stream_val},.is_ptr=1}
-#define string_sexp(string_val) (sexp){.tag= _str,.val={.cord=string_val},.is_ptr=1}
-#define symref_sexp(symref_val) (sexp) {.tag=_sym,.val={.var=symref_val},.is_ptr=1}
-#define tree_sexp(tree_val) (sexp){.tag=_tree,.val={.tree=tree_val},.is_ptr=1}
+#define c_data_sexp(c_data_val) construct_sexp(c_data_val,_cdata,c_val,1)
+#define double_sexp(double_val) construct_atom(double_val,real64)
+#define env_sexp(env_val) construct_sexp(env_val,_env,cur_env,1)
+#define error_sexp(error_msg) construct_sexp(error_msg,_error,cord,1)
+#define float_sexp(float_val) construct_atom(float_val,real32)
+#define funargs_sexp(funargs_val) construct_ptr(funargs_val,funargs)
+#define function_sexp(fun_val) construct_ptr(fun_val,fun)
+#define hashtable_sexp(ht_val) construct_ptr(ht_val,hashtable)
+#define heap_sexp(heap_val) construct_ptr(heap_val,heap)
+#define int_n_sexp(int_val,n) construct_atom(int_val,int##n)
+#define int64_sexp(int64_val) int_n_sexp(int64_val,64)
+#define uint_n_sexp(uint_val,n) construct_atom(uint_val,uint##n)
+#define uint64_sexp(uint64_val) uint_n_sexp(uint64_val,64)
+#define keyword_sexp(keyword_val) construct_atom(keyword_val,keyword)
+#define list_sexp(list_val) construct_sexp(list_val,_list,cons,1)
+#define list_len_sexp(list_val,_len)                    \
+  construct_sexp_len(list_val,_list,cons,1,_len);
+#define long_sexp(long_val) construct_atom(long_val,int64)
+#define ulong_sexp(ulong_val) construct_atom(ulong_val,uint64)
+#define macro_sexp(macro_val) construct_sexp(macro_val,_macro,mac,1)
+#define meta_sexp(meta_val) construct_atom(meta_val,meta)
+#define obarray_sexp(ob_val) construct_sexp(ob_val(sexp),_obarray,ob,1)
+#define opaque_sexp(opaque_val) construct_ptr(opaque_val,opaque)
+#define re_match_sexp(match_val) construct_ptr(match_val,re_data)
+#define real64_sexp(real64_val) construct_atom(real64_val,real64)
+#define array_sexp(array_val,array_len)                         \
+  construct_sexp_len(array_val,_array,array,1,array_len)
+#define spec_sexp(spec_tag) construct_atom(spec_tag,special)
+#define stream_sexp(stream_val) construct_ptr(stream_val,stream)
+#define string_sexp(string_val) construct_sexp(string_val,_str,cord,1)
+#define symref_sexp(symref_val) construct_sexp(symref_val,_sym,var,1)
+#define tree_sexp(tree_val) construct_ptr(tree_val,tree)
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
@@ -102,7 +122,7 @@ static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
-                             .cdr={.tag = -1,.val={.meta = -1}}};
+                       .cdr={.tag = -1,.val={.meta = -1}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
 //global variables
 sexp* yylval;

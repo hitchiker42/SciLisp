@@ -156,6 +156,9 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
   error_sexp(type_error_str)
+#define const_real64_sexp(real64_val) {.tag=_real64,.val={.real64=real64_val}}
+#define const_int64_sexp(int64_val) {.tag=_int64,.val={.int64=int64_val}}
+#define const_uint64_sexp(uint64_val) {.tag=_uint64,.val={.uint64=uint64_val}}
 //key point to this enum is that arathmatic types are numbered in their type
 //heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the heirachy correcty
@@ -452,6 +455,9 @@ enum operator{
   _logior,
   _logxor,
 };
+static const sexp LISP_INT64_MAX=const_int64_sexp(INT64_MAX);
+static const sexp LISP_INT64_MIN=const_int64_sexp(INT64_MIN);
+static const sexp LISP_UINT64_MAX=const_uint64_sexp(UINT64_MAX);
 /*static sexp make_sexp_from_type_and_data(data val,_tag type){
   switch(type){
   case _double:return double_sexp(val);
