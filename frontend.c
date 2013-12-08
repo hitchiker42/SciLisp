@@ -64,6 +64,14 @@ static void truncate_and_rewind(FILE* stream,c_string name){
   truncate(name,0);
   rewind(stream);
 }
+#define init_sigstk()                                                   \
+  sigstk.ss_sp=malloc(SIGSTKSZ);                                        \
+  if(!sigstk.ss_sp){                                                    \
+  fprintf(stderr,"error, virtual memory exhausted\n");                  \
+  exit(EXIT_FAILURE);                                                   \
+  }                                                                     \
+  sigstk.ss_size=SIGSTKSZ;                                              \
+  sigaltstack(&sigstk,NULL)
 static void SciLisp_help(int exitCode) __attribute__((noreturn));
 static void SciLisp_version(int exitCode) __attribute__((noreturn));
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
@@ -244,6 +252,8 @@ int main(int argc,char* argv[]){
   CORD_debug_printf=default_CORD_debug_printf;
   #endif
   sigaction(SIGSEGV,sigsegv_action,NULL);
+  //allocate signal stack before gc init so gc doesn't have to worry about it
+  init_sigstk();
   GC_set_all_interior_pointers(1);
   GC_set_handle_fork(1);
   GC_init();

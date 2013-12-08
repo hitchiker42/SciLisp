@@ -28,7 +28,7 @@
 #define LEX_MSG(string)
 #define LEX_FMT(string,fmt...)
 #endif
-static void print_trace(void){ 
+static void print_trace(void){
   void *array[50];
   size_t size,i;
   char** strings;
@@ -58,3 +58,10 @@ static void default_debug_printf(CORD fmt,...){
   vfprintf(stderr,fmt,ap);
   return;
 }
+//not quite debugging but it fits best here
+#define return_errno(fn_name)                                           \
+  int ___errsave=errno;                                                 \
+  char* ___errmsg=strerror(errno);                                      \
+  CORD ___errorstr;                                                     \
+  CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
+  return error_sexp(___errorstr)

@@ -17,6 +17,7 @@
 #include "hash_fn.h"
 #include "regex.h"
 #include "sequence.h"
+#include "lisp_math.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -25,7 +26,7 @@
     } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
       register double xx=getDoubleVal(x);                               \
       register double yy=getDoubleVal(y);                               \
-      return (sexp){.tag=_double,.val={.real64=(xx op yy)}};            \
+      return double_sexp(xx op yy);                                     \
     } else {                                                            \
       return format_type_error2(#fun_name,"number",x.tag,"number",y.tag);\
     }                                                                   \
@@ -46,7 +47,7 @@
 //be careful about this
 #define lop_to_fun(op,fun_name)                                         \
   sexp fun_name(sexp x,sexp y){                                         \
-    return (sexp){.tag=_long,.val={.int64=(x.val.int64 op y.val.int64)}}; \
+    return long_sexp(x.val.int64 op y.val.int64);                       \
   }
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
@@ -180,33 +181,13 @@ mkMathFun1(sin,lisp_sin);
 mkMathFun1(tan,lisp_tan);
 mkMathFun1(exp,lisp_exp);
 mkMathFun1(log,lisp_log);
-/*sexp lisp_abs(sexp x){
-  if(x.tag==_long){return
-      (sexp){.tag=_long,.val={.int64 = (labs(x.val.int64))}};
-  } else if(x.tag == _double){
-    return (sexp){.tag=_double,.val={.real64=fabs(x.val.real64)}};
-  } else {
-    return error_sexp("Argument to Abs must be a number");
-  }
-  }*/
-sexp lisp_mod(sexp x,sexp y){
-  if((x.tag==y.tag)==_long){
-    return (sexp){.tag=_long,.val={.int64 = (x.val.int64 % y.val.int64)}};
-  } else if(NUMBERP(x) && NUMBERP(y)){
-    register double xx=getDoubleVal(x);
-    register double yy=getDoubleVal(y);
-    return (sexp){.tag=_double,.val={.real64=fmod(xx,yy)}};
-  } else {
-    return error_sexp("Arguments to mod must be numbers");
-  }
-}
 sexp ash(sexp x,sexp y){
   if(y.tag != _long || x.tag != _long){
     return error_sexp("arguments to ash must be integers");
   } else if(y.val.int64>=0){
     return lisp_rshift(x,y);
   } else{
-    return lisp_lshift(x,(sexp){.tag=_long,.val={.int64 = (labs(y.val.int64))}});
+    return lisp_lshift(x,long_sexp(labs(y.val.int64)));
   }
 }
 sexp lisp_randint(sexp un_signed){
@@ -227,16 +208,6 @@ sexp lisp_randfloat(sexp scale){
 }
 sexp lisp_eval(sexp obj,sexp env){
   return eval(obj,topLevelEnv);
-}
-sexp lisp_length(sexp obj){
-  if(obj.len > 0){
-    return (sexp){.tag=_long,.val={.int64 = obj.len}};
-  } else if (CONSP(obj)){
-    //    HERE();
-    return cons_length(obj);
-  } else {
-    return error_sexp("object does not have a meaningful length field");
-  }
 }
 sexp lisp_round(sexp float_num,sexp mode){
   double double_val=getDoubleVal(float_num);
@@ -397,8 +368,8 @@ sexp lisp_open(sexp filename,sexp mode){
   if (!STRINGP(filename) || !(STRINGP(mode))){
     return error_sexp("arguments to open must be strings");
   }
-  FILE* file = fopen(CORD_as_cstring(filename.val.cord),
-                     CORD_as_cstring(mode.val.cord));
+  FILE* file = fopen(CORD_to_const_char_star(filename.val.cord),
+                     CORD_to_const_char_star(mode.val.cord));
   if(file){
     return (sexp){.tag=_stream,.val={.stream=file}};
   } else {
@@ -425,74 +396,12 @@ sexp lisp_fputs(sexp string,sexp stream){
   } else if (!STRINGP(string)){
     return error_sexp("invalid string passed to fputs");
   } else if (string.tag == _str){
-    fputs(CORD_as_cstring(string.val.cord),stream.val.stream);
+    fputs(CORD_to_const_char_star(string.val.cord),stream.val.stream);
   } else {//string must be a w_char string
     fputws(string.val.ustr,stream.val.stream);
   }
   return NIL;
 }
-#if 0
-sexp arith_driver_simple(sexp required,sexp values,enum operator op){
-  sexp(*f)(sexp,sexp);
-  sexp retval;
-  if(!(NUMBERP(required))){
-    return error_sexp("arathmatic type error");
-  }
-  switch(op){
-    case _add:
-      f=lisp_add;
-      retval=required;
-      break;
-    case _sub:
-      if(NILP(values)){
-        if(INTP(required)){
-          return (sexp){.tag=_long,.meta=required.meta,
-              .val = {.int64 = (required.val.int64<0?
-                                required.val.int64:
-                                -required.val.int64)}};
-        } else if(FLOATP(required)){
-          return (sexp){.tag=_double,.meta=required.meta,
-              .val = {.real64 = (required.val.real64<0?
-                                required.val.real64:
-                                -required.val.real64)}};
-        } else {goto TYPE_ERROR;}
-      } else {
-        f=lisp_sub;
-        retval=required;
-      }
-    case _mul:
-      f=lisp_mul;
-      retval=required;
-    case _div:
-      if(NILP(values)){
-        if(NUMBERP(required)){
-        return (sexp){.tag=_double,.meta=required.meta,
-            .val={.real64=1/getDoubleVal(required)}};
-        } else {goto TYPE_ERROR;}
-      } else {
-        f=lisp_div;
-        retval=required;
-      }
-    case _min:
-      f=lisp_min;
-      retval=required;
-    case _max:
-      f=lisp_max;
-      retval=required;
-      //do bitwise stuff
-  }
-  while(CONSP(values)){
-    retval=f(retval,XCAR(values));
-    values=XCDR(values);
-    if(ERRORP(retval)){
-      goto TYPE_ERROR;
-    }
-  }
-  return retval;
- TYPE_ERROR:
-  return error_sexp("Type error");
-}
-#endif
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen, "

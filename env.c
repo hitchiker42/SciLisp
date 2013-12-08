@@ -221,7 +221,7 @@ obarray* init_prim_obarray(){
 obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
                                       obarray_entry *entry){
   uint64_t hashv=ob->hash_fn
-    (CORD_as_cstring(new_entry->name),CORD_len(new_entry->name));
+    (CORD_to_const_char_star(new_entry->name),CORD_len(new_entry->name));
   uint64_t index=hashv%ob->size;
   obarray_entry* test=ob->buckets[index];
   entry->hashv=hashv;
@@ -294,7 +294,7 @@ obarray_entry* obarray_add_entry_generic
     obarray_rehash(ob);
   }
   uint64_t hashv=ob->hash_fn
-    (CORD_as_cstring(new_entry->name),CORD_len(new_entry->name));
+    (CORD_to_const_char_star(new_entry->name),CORD_len(new_entry->name));
   uint64_t index=hashv%ob->size;
   obarray_entry* test=ob->buckets[index];
   if(!ob->buckets[index]){

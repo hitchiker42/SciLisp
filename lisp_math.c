@@ -229,3 +229,14 @@ mk_lisp_cmp(lt,<);
 mk_lisp_cmp(ge,>=);
 mk_lisp_cmp(le,<=);
 mk_lisp_cmp(ne,!=);
+sexp lisp_mod(sexp x,sexp y){
+  if((x.tag==y.tag)==_long){
+    return long_sexp(x.val.int64 % y.val.int64);
+  } else if(NUMBERP(x) && NUMBERP(y)){
+    register double xx=getDoubleValUnsafe(x);
+    register double yy=getDoubleValUnsafe(y);
+    return double_sexp(fmod(xx,yy));
+  } else {
+    return error_sexp("Arguments to mod must be numbers");
+  }
+}

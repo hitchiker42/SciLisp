@@ -19,40 +19,47 @@ sexp Cons(sexp car_cell,sexp cdr_cell){
   return retval;
 }
 sexp mklist(sexp head,...){
-  PRINT_MSG("Making a list");
   va_list ap;
   sexp retval,cur_loc;
   retval.tag=_list;
   cons *next=retval.val.cons=xmalloc(sizeof(cons));
-  cons *prev=next;
+  cons *trail=next;
+  int i=0;
   next->car=head;
   va_start(ap,head);
-  while((cur_loc=va_arg(ap,sexp)).tag != _nil){
+  while(!NILP((cur_loc=va_arg(ap,sexp)))){
     next->car=cur_loc;
     next->cdr.val.cons=xmalloc(sizeof(cons));
-    prev=next;
+    trail=next;
     next=next->cdr.val.cons;
+    i++;
   }
-  prev->cdr=NIL;
+  trail->cdr=NIL;
+  retval.is_ptr=1;
+  retval.len=i;
   return retval;
 }
 sexp mkImproper(sexp head,...){
   PRINT_MSG("Making an improper list");
-  cons* list=xmalloc(sizeof(cons)),*next=xmalloc(sizeof(cons));
-  list->car=head;
+  cons* next=xmalloc(sizeof(cons));
+  cons* trail=next;
+  next->car=head;
   va_list ap;
-  sexp cur_loc,next_sexp;
-  cons*next_cell;
+  sexp retval,cur_loc;
+  int i;
   va_start(ap,head);
-  while((cur_loc=va_arg(ap,sexp)).tag != _nil){
+  while(!NILP((cur_loc=va_arg(ap,sexp)))){
     next->car=cur_loc;
     next->cdr.val.cons=xmalloc(sizeof(cons));
-    list->cdr=(sexp){.tag=_cons,.val={.cons = next}};
+    trail=next;
     next=next->cdr.val.cons;
+    i++;
   }
   cur_loc=va_arg(ap,sexp);
   next->cdr=cur_loc;
-  return (sexp){.tag=_cons,.val={.cons=list}};
+  retval.len=i;
+  retval.is_ptr=1;
+  return retval;
 }
 sexp cons_reverse(sexp ls){
   if(!CONSP(ls)){
@@ -123,18 +130,6 @@ sexp nreverse(sexp ls){
   }
   XCDR(cur_cell)=last_cell;
   return cur_cell;
-  /*  cons* cur_cell=ls.val.cons,*next_cell=cur_cell->cdr.val.cons;
-  cons* last_cell=cur_cell;
-  cur_cell->cdr=NIL;
-  while(CONSP(next_cell)){
-    last_cell=cur_cell;
-    cur_cell=next_cell;
-    cur_cell->cdr=cons_sexp(last_cell);
-    next_cell=next_cell->cdr.val.cons;
-  }
-  cur_cell=next_cell;
-  cur_cell->cdr=cons_sexp(last_cell);
-  return cons_sexp(cur_cell);*/
 }
 sexp cons_nreverse(sexp ls){
   if(!CONSP(ls)){
@@ -143,16 +138,18 @@ sexp cons_nreverse(sexp ls){
   return nreverse(ls);
 }
 sexp nappend(sexp conses){
+  if(!CONSP(XCAR(conses))){
+    return format_type_error("append!","list of sequences",conses.tag);
+  }
   cons* retval=XCAR(conses).val.cons;
   cons* cur_cell=retval;
+  int len=XCAR(conses).len;
   while(CONSP(XCDR(conses))){
-    if(!CONSP(XCAR(conses))){
-      return error_sexp("append! requires arguments to be cons cells or lists");
-    }
     XCDR(last(XCAR(conses)))=XCAR(XCDR(conses));
-    conses=(sexp)XCDR(conses);
+    conses=XCDR(conses);
+    len+=conses.len;
   }
-  return (sexp){.tag = _list,.val={.cons=retval}};
+  return cons_sexp(retval);
 }
 
 
@@ -470,10 +467,30 @@ static sexp unsafe_copy_cons(sexp ls){
     copy=copy->cdr.val.cons;
     ls=XCDR(ls);
   }
+  trail->cdr=ls;//not nil so the same thing will work for improper lists too
+  return retval;
+}
+sexp c_shallow_copy_cons(sexp ls){
+  sexp retval;
+  retval=ls;
+  cons *copy=retval.val.cons=xmalloc(sizeof(cons));
+  cons *trail=copy;
+  while(CONSP(ls)){
+    copy->car=XCAR(ls);
+    copy->cdr.val.cons=xmalloc(sizeof(cons));
+    trail=copy;
+    copy=copy->cdr.val.cons;
+    ls=XCDR(ls);
+  }
   trail->cdr=ls;
   return retval;
 }
-
+sexp lisp_shallow_copy_cons(sexp ls){
+  if(!CONSP(ls)){
+    return format_type_error("shallow-copy-cons","cons cell",ls.tag);
+  }
+  c_shallow_copy_cons(ls);
+}
 sexp copy_cons(sexp ls){
   if(!CONSP(ls)){
     return format_type_error("copy-cons","cons cell",ls.tag);

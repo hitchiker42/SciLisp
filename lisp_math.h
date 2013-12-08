@@ -9,4 +9,5 @@ sexp lisp_min_driver(sexp required,sexp values);
 sexp lisp_max_driver(sexp required,sexp values);
 sexp arith_driver(sexp required,sexp values,enum operator op);
 sexp lisp_abs(sexp x);
+sexp lisp_mod(sexp x,sexp y);
 #endif

@@ -25,7 +25,7 @@ sexp lisp_bigint(sexp init){
     }
     case _str:{
       mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
-      mpz_init_set_str(*new_bignum,CORD_as_cstring(init.val.cord),0);
+      mpz_init_set_str(*new_bignum,CORD_to_const_char_star(init.val.cord),0);
       return bigint_sexp(new_bignum);
     }
     case _bigint:{
@@ -70,7 +70,7 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
     }
     case _str:{
       mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      mpfr_init_set_str(*new_bignum,CORD_as_cstring(init.val.cord),0,MPFR_RNDN);
+      mpfr_init_set_str(*new_bignum,CORD_to_const_char_star(init.val.cord),0,MPFR_RNDN);
       return bigfloat_sexp(new_bignum);
     }
     default:

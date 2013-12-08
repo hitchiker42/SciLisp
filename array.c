@@ -4,6 +4,21 @@
  ****************************************************************/
 #include "array.h"
 #include "prim.h"
+#ifdef swap
+#undef swap
+#endif
+static sexp stemp;
+#define swap(i,j,arr)  stemp=arr[i];arr[i]=arr[j];arr[j]=stemp
+static data dtemp;
+#define typed_swap(i,j,arr)  dtemp=arr[i];arr[i]=arr[j];arr[j]=dtemp
+//maybe use this, the 16 bit length parameter needs to be fixed
+struct lisp_array{
+  sexp *arr;
+  uint64_t len;
+  uint8_t atomic;
+  uint8_t mono_typed;
+  _tag type;
+};
 #define aref_generic(name,test,type,macro)                              \
   sexp name(sexp obj,sexp ind){                                         \
     if(!test(obj) || !INTP(ind)){                                       \
@@ -37,7 +52,7 @@ aref_generic(typed_aref,TYPED_ARRAYP,typed_array,TYPED_AREF)
   }                                                                     \
   dstep=getDoubleValUnsafe(step);                                       \
   int imax=ceil(fabs(range/dstep));                                     \
-  subtype* newarray=xmalloc(sizeof(subtype)*imax+1);                    \
+  subtype* newarray=xmalloc_atomic(sizeof(subtype)*imax+1);             \
   j=getDoubleValUnsafe(start);                                          \
   int rnd=!NILP(should_round);                                          \
   for(i=0;i<imax;i++){                                                  \
@@ -135,24 +150,32 @@ sexp array_to_list(sexp obj){
     return retval;
   }
 }
-sexp array_map(sexp arr,sexp map_fn,sexp inplace){
-  if(!ARRAYP(arr)||!(FUNP(map_fn))){
-    return format_type_error2("array-map","array",arr.tag,
-                              "function",map_fn.tag);
-  }
+sexp c_array_map(sexp arr,sexp map_fn){
   sexp *new_array;
   sexp(*f)(sexp)=map_fn.val.fun->comp.f1;
-  if(isTrue(inplace)){
-    new_array=arr.val.array;
-  } else {
-    new_array=xmalloc(sizeof(sexp)*arr.len);
-    memcpy(new_array,arr.val.array,arr.len*sizeof(sexp));
-  }
+  new_array=arr.val.array;
   int i;
   for(i=0;i<arr.len;i++){
     new_array[i]=f(new_array[i]);
   }
   return array_sexp(new_array,arr.len);
+}
+sexp array_nmap(sexp arr,sexp map_fn){
+  if(!ARRAYP(arr)||!(FUNP(map_fn))){
+    return format_type_error2("array-map!","array",arr.tag,
+                              "function",map_fn.tag);
+  }
+  return c_array_map(arr,map_fn);
+}
+sexp array_map(sexp arr,sexp map_fn){
+  if(!ARRAYP(arr)||!(FUNP(map_fn))){
+    return format_type_error2("array-map","array",arr.tag,
+                              "function",map_fn.tag);
+  }
+  sexp* new_array;
+  new_array=xmalloc(sizeof(sexp)*arr.len);
+  memcpy(new_array,arr.val.array,arr.len*sizeof(sexp));
+  return c_array_map(array_sexp(new_array,arr.len),map_fn);
 }
 sexp array_reduce(sexp arr,sexp red_fn,sexp init){
   if(!ARRAYP(arr)||!(FUNP(red_fn))){
@@ -181,7 +204,7 @@ sexp rand_array(sexp len,sexp type){
     return format_type_error("rand-array","integer",len.tag);
   } else {
     int i;
-    sexp *arr=xmalloc(sizeof(sexp)*len.val.int64);
+    sexp *arr=xmalloc_atomic(sizeof(sexp)*len.val.int64);
     if(NILP(type) || KEYWORD_COMPARE(":int64",type)){
       for(i=0;i<len.val.int64;i++){
         arr[i]=long_sexp(mrand48());
@@ -200,33 +223,26 @@ sexp rand_array(sexp len,sexp type){
     return error_sexp("invalid keyword passed to rand-array");
   }
 }
-sexp array_reverse_generic(sexp arr,sexp inplace){
+sexp array_reverse_inplace(sexp arr){
   if(!ARRAYP(arr)){
     return format_type_error("array-reverse","array",arr.tag);
   }
-  sexp *arr_data;
-  sexp temp;
-  if(!NILP(inplace)){
-    arr_data=arr.val.array;
-  } else {
-    arr_data=xmalloc(sizeof(sexp)*arr.len);
-    memcpy(arr_data,arr.val.array,sizeof(sexp)*arr.len);
-  }
+  sexp *arr_data=arr.val.array;
   int i,j;
   for(i=0,j=arr.len-1;i<arr.len;i++,j--){
-    temp=arr_data[i];
-    arr_data[i]=arr_data[j];
-    arr_data[j]=temp;
+    swap(i,j,arr_data);
   }
   return array_sexp(arr_data,arr.len);
 }
-sexp array_reverse(sexp arr){
-  return array_reverse_generic(arr,NIL);
-}
 sexp array_nreverse(sexp arr){
-  return array_reverse_generic(arr,LISP_TRUE);
+  return array_reverse_inplace(arr);
 }
-static data temp;
+sexp array_reverse(sexp arr){
+  sexp *new_arr;
+  new_arr=xmalloc(sizeof(sexp)*arr.len);
+  memcpy(new_arr,arr.val.array,sizeof(sexp)*arr.len);
+  return array_reverse_inplace(array_sexp(new_arr,arr.len));
+}
 static int typed_array_qsort_partition
 (data *arr,int left,int right,int pivot_ind,int(*f)(data,data)){
   data pivot=arr[pivot_ind];
@@ -236,9 +252,8 @@ static int typed_array_qsort_partition
   pivot_ind=left;
   for(i=left;i<right-1;i++){
     if(f(arr[i],pivot)){
-      temp=arr[i];
-      arr[i]=arr[pivot_ind];
-      arr[pivot_ind++]=temp;
+      typed_swap(i,pivot_ind,arr);
+      pivot_ind++;
     }
   }
   arr[right]=arr[pivot_ind];
@@ -270,14 +285,6 @@ sexp typed_array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   typed_array_qsort_inplace(sorted_array,0,arr.len,f);
   return typed_array_sexp(sorted_array,arr.tag,arr.len);
 }
-static sexp stemp;
-#ifdef swap
-#undef swap
-#endif
-#define swap(i,j,arr)                           \
-  stemp=arr[i];                                  \
-  arr[i]=arr[j];                                \
-  arr[j]=stemp
 static int array_qsort_partition
 (sexp *arr,int left,int right,int pivot,sexp(*f)(sexp,sexp)){
   sexp pivot_val=arr[pivot];
@@ -321,20 +328,21 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   return array_sexp(sorted_array,arr.len);
 }
 void slow_sort_acc(sexp *arr,int i,int j,sexp(*f)(sexp,sexp)){
-  if(f(arr[i],arr[j])){return;}
+  if(isTrue(f(arr[i],arr[j]))){return;}
   int m=(i+j)/2;
   slow_sort_acc(arr,i,m,f);
   slow_sort_acc(arr,m+1,j,f);
-  if(f(arr[m],arr[j])){
+  if(isTrue(f(arr[m],arr[j]))){
     swap(m,j,arr);
   }
   slow_sort_acc(arr,i,j-1,f);
 }
 sexp lisp_slow_sort(sexp arr,sexp fun){
-  if(!FUN2P(fun) || !(ARRAP(arr))){
+  if(!FUN2P(fun) || !(ARRAYP(arr))){
     return error_sexp("I'm not writing an error message for slowsort");
   } else {
-    return slow_sort_acc(arr.val.array,0,arr.len-1,fun.val.fun->comp.f2);
+    slow_sort_acc(arr.val.array,0,arr.len-1,fun.val.fun->comp.f2);
+    return arr;
   }
 }
 sexp array_insertion_sort(sexp* arr,int len,sexp(*f)(sexp,sexp)){
@@ -342,7 +350,7 @@ sexp array_insertion_sort(sexp* arr,int len,sexp(*f)(sexp,sexp)){
   sexp obj;
   for(i=1;i<len;i++){
     for(j=i-1;j>0;j++){
-      if(f(arr[j],arr[i])){
+      if(isTrue(f(arr[j],arr[i]))){
         swap(i,j,arr);
         break;
       }
