@@ -592,3 +592,6 @@ sexp queue_peek(sexp queue){
     return XCAAR(queue);
   }
 }
+#if 0
+sexp cons_insertion_sort
+#endif

@@ -181,4 +181,11 @@ static inline struct __jmp_buf_tag pop_jmp_buf(){
   jmp_buf_stack_len--;
   return jmp_buf_stack[jmp_buf_stack_len];
 }
+static inline void* xrecalloc(void *ptr,uint64_t old_size,uint64_t size){
+  ptr=xrealloc(ptr,size);
+  if(size>old_size){
+    memset(ptr+old_size,(size-old_size),'\0');
+  }
+  return ptr;
+}
 #endif
