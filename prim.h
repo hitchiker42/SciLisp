@@ -148,6 +148,7 @@ DEFUN(lisp_cmp_ne,2);
 DEFUN(lisp_read,1);
 DEFUN(lisp_read_string,1);
 DEFUN(lisp_pprint,1);
+DEFUN(lisp_hash_sexp,1);
 DEFUN(lisp_print_to_string,1);
 DEFUN(make_string_input_stream,1);
 DEFUN(lisp_sum,2);

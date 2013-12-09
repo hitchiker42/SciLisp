@@ -9,11 +9,11 @@
 #define DEFAULT_GROWTH_FACTOR 1.414f
 #define DEFAULT_SHRINK_THRESHOLD 0.0f
 #define DEFAULT_SHRINK_FACTOR 1.0f
-static hash_table* hashTable_rehash(hash_table *ht);
+static hash_table* hashtable_rehash(hash_table *ht);
 //assume keyword args are implemented
 //bit long, come up with a better way to parse and typecheck
 //keyword args
-sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,
+sexp makeHashtable(sexp comp_fun,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor){
   hash_table *ht=xmalloc(sizeof(hash_table));
@@ -102,9 +102,9 @@ sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,
   return hashtable_sexp(ht);
 }
 #define hash_get_param(name,param_name,type)    \
-  sexp hashTable_##name(sexp ht){               \
+  sexp hashtable_##name(sexp ht){               \
   if(!HASHTABLEP(ht)){                          \
-  return format_type_error("hashTable_"#name,"hashtable",ht.tag);\
+  return format_type_error("hashtable_"#name,"hashtable",ht.tag);\
   } else {                                                       \
   return(type##_sexp(ht.val.hashtable->param_name));                           \
   }                                                              \
@@ -150,6 +150,9 @@ static uint64_t _hash_sexp(sexp key,sexp ht_sexp){
       return ht->hash_fn(key.val.opaque,8);
   }
 }
+sexp lisp_hash_sexp(sexp obj){
+  return uint64_sexp(hash_sexp(obj,NIL));
+}
 static hash_entry *_get_entry(hashtable *ht,sexp key){
   uint64_t hashv=_hash_sexp(key,hashtable_sexp(ht));
   uint64_t index=hashv%ht->size;
@@ -167,9 +170,9 @@ static hash_entry *_get_entry(hashtable *ht,sexp key){
     return NULL;
   }
 }
-sexp hashTable_get_entry(sexp ht_sexp,sexp key){
+sexp hashtable_get_entry(sexp ht_sexp,sexp key){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("hashTable-lookup-entry","hashtable",ht_sexp.tag);
+    return format_type_error("hashtable-lookup-entry","hashtable",ht_sexp.tag);
   }
   hash_table *ht=ht_sexp.val.hashtable;
   hash_entry *entry=_get_entry(ht,key);
@@ -179,12 +182,39 @@ sexp hashTable_get_entry(sexp ht_sexp,sexp key){
     return entry->val;
   }
 }
-sexp hashTable_delete_entry(sexp ht_sexp,sexp key);
-static uint64_t _delete_entry(hash_table *ht,hash_entry *entry);
-sexp delete_entry(sexp ht,sexp entry);
-sexp hashTable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
+static uint64_t _delete_entry(hash_table *ht,hash_entry *entry){
+  if(!entry->prev){//first entry in the bucket
+    uint64_t index=entry->hashv%ht->size;
+    ht->buckets[index]=entry->next;
+    if(entry->next){
+      entry->next->prev=NULL;
+    } else {
+      ht->used--;
+    }
+  } else {
+    entry->prev->next=entry->next;
+    if(entry->next){
+      entry->next->prev=entry->prev;
+    }
+  }
+  ht->capacity-=ht->capacity_inc;
+  ht->entries--;
+  return entry->hashv;
+}
+sexp hashtable_delete_key(sexp ht_sexp,sexp key){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("hashTable-add-entry","hashtable",ht_sexp.tag);
+    return format_type_error("hashtable-delete-key","hashtable",ht_sexp.tag);
+  }
+  hash_entry *entry=_get_entry(ht_sexp.val.hashtable,key);
+  if(!entry){
+    return LISP_FALSE;
+  } else {
+    return uint64_sexp(_delete_entry(ht_sexp.val.hashtable,entry));
+  }
+} 
+sexp hashtable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
+  if(!HASHTABLEP(ht_sexp)){
+    return format_type_error("hashtable-add-entry","hashtable",ht_sexp.tag);
   }
   hash_table *ht=ht_sexp.val.hashtable;
   uint64_t hashv=_hash_sexp(key,ht_sexp);
@@ -196,7 +226,7 @@ sexp hashTable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
     conflict_opt=_update;//implement later
   }
   if(ht->capacity>=ht->gthresh){
-    ht_sexp=hashtable_sexp(hashTable_rehash(ht));
+    ht_sexp=hashtable_sexp(hashtable_rehash(ht));
   }
   if(!ht->buckets[index]){
     ht->buckets[index]=xmalloc(sizeof(hash_entry));
@@ -235,8 +265,7 @@ sexp hashTable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
     }
   }
 }
-    
-static hash_table* hashTable_rehash(hash_table *ht){
+static hash_table* hashtable_rehash(hash_table *ht){
   uint64_t old_len=ht->size;
   //update hash parameters
   ht->size*=ht->gfactor;
@@ -258,7 +287,7 @@ static hash_table* hashTable_rehash(hash_table *ht){
         old_bucket=bucket;
         if(bucket->prev){
           bucket->prev->next=bucket->next;
-        } 
+        }
         if(bucket->next){
           bucket->next->prev=bucket->prev;
         }
@@ -285,10 +314,10 @@ static hash_table* hashTable_rehash(hash_table *ht){
   }
   return ht;
 }
-sexp hashTable_lisp_rehash(sexp ht){
+sexp hashtable_lisp_rehash(sexp ht){
   if(!HASHTABLEP(ht)){
     return format_type_error("rehash","hashtable",ht.tag);
-  } else {    
-    return hashtable_sexp(hashTable_rehash(ht.val.hashtable));
+  } else {
+    return hashtable_sexp(hashtable_rehash(ht.val.hashtable));
   }
 }

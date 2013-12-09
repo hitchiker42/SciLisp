@@ -16,3 +16,10 @@ make_sequence_function(nreverse);
 sexp sequence_length(sexp obj){
   return lisp_length(obj);
 }
+sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist,sexp rnd){
+  if(NILP(arrayorlist)){
+    return list_iota(start, stop, step);
+  } else {
+    return array_iota(start,stop,step,rnd);
+  }
+}

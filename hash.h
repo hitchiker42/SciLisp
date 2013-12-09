@@ -34,35 +34,34 @@ struct hash_table {
   sexp (*hash_cmp)(sexp,sexp);
 };
 /* return the total number of buckets in the hash table */
-sexp hashTable_size(sexp ht) __attribute__((pure));
+sexp hashtable_size(sexp ht) __attribute__((pure));
 /* Return the number of slots in use (non-empty buckets).  */
-sexp hashTable_buckets_used(sexp ht) __attribute__((pure));
+sexp hashtable_buckets_used(sexp ht) __attribute__((pure));
 /* Return the number of active entries.  */
-sexp hashTable_num_entries(sexp ht) __attribute__((pure));
+sexp hashtable_num_entries(sexp ht) __attribute__((pure));
 /* Return the length of the longest chain (bucket).  */
-sexp hashTable_max_length(sexp ht) __attribute__((pure));
-sexp hashTable_avg_capacity(sexp ht)__attribute__((pure));
-sexp hashTable_growth_threshold(sexp ht)__attribute__((pure));
-sexp hashTable_growth_factor(sexp ht)__attribute__((pure));
-sexp hashTable_shrink_threshold(sexp ht)__attribute__((pure));
-sexp hashTable_shrink_factor(sexp ht)__attribute__((pure));
+sexp hashtable_max_length(sexp ht) __attribute__((pure));
+sexp hashtable_avg_capacity(sexp ht)__attribute__((pure));
+sexp hashtable_growth_threshold(sexp ht)__attribute__((pure));
+sexp hashtable_growth_factor(sexp ht)__attribute__((pure));
+sexp hashtable_shrink_threshold(sexp ht)__attribute__((pure));
+sexp hashtable_shrink_factor(sexp ht)__attribute__((pure));
 /* If ENTRY matches an entry already in the hash table, return the
    entry from the table.  Otherwise, return NIL.  */
-sexp hashTable_get_entry(sexp ht, sexp key);
-sexp hashTable_add_entry(sexp ht,sexp key,sexp value,sexp add_opt);
-sexp hashTable_walk(sexp ht,sexp walk_fn);
-sexp hashTable_lisp_rehash(sexp ht);
+sexp hashtable_get_entry(sexp ht, sexp key);
+sexp hashtable_add_entry(sexp ht,sexp key,sexp value,sexp add_opt);
+sexp hashtable_walk(sexp ht,sexp walk_fn);
+sexp hashtable_lisp_rehash(sexp ht);
 //all arguments are optional, should probably be keyargs
 //also should proba
-sexp makeHashTable(sexp comp_fun,sexp size,sexp hash_fn,
+sexp makeHashtable(sexp comp_fun,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor);
-sexp hashTable_reinit(sexp ht,sexp comp_fun,sexp size,sexp hash_fn,
+sexp hashtable_reinit(sexp ht,sexp comp_fun,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor);
 //hash an sexp
 uint64_t hash_sexp(sexp key,sexp hash_fn);
-static sexp lisp_hash_sexp(sexp key,sexp hash_fn){
-  return ulong_sexp(hash_sexp(key,hash_fn));
-}
+sexp lisp_hash_sexp(sexp obj);
+sexp hashtable_delete_key(sexp ht_sexp,sexp key);
 #endif

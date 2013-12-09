@@ -287,13 +287,6 @@ sexp lisp_oddp(sexp obj){
     }
   }
 }
-sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist,sexp rnd){
-  if(NILP(arrayorlist)){
-    return list_iota(start, stop, step);
-  } else {
-    return array_iota(start,stop,step,rnd);
-  }
-}
 void hello_world(){
   printf("hello, world!\n");
   return;
@@ -318,6 +311,19 @@ sexp lisp_inc(sexp num){
             .val={.real64=(++num.val.real64)}};
     }
 }
+sexp lisp_inc_ref(sexp sym){
+  if(!SYMBOLP(sym)){
+    return format_type_error("++!","symbol",sym.tag);
+  }
+  sexp temp=lisp_inc(sym.val.var->val);
+  if(ERRORP(temp)){
+    return temp;
+  } else {
+    sym.val.var->val=temp;
+    return temp;
+  }
+}
+
 sexp lisp_dec(sexp num){
   if(!NUMBERP(num)){
     if(SYMBOLP(num)){
@@ -336,6 +342,18 @@ sexp lisp_dec(sexp num){
         num.val.real64-=1;
         return num;
     }
+}
+sexp lisp_dec_ref(sexp sym){
+  if(!SYMBOLP(sym)){
+    return format_type_error("++!","symbol",sym.tag);
+  }
+  sexp temp=lisp_dec(sym.val.var->val);
+  if(ERRORP(temp)){
+    return temp;
+  } else {
+    sym.val.var->val=temp;
+    return temp;
+  }
 }
 sexp lisp_min(sexp a,sexp b){
   if (!NUMBERP(a) || !(NUMBERP(b))){
@@ -714,6 +732,7 @@ DEFUN("ne",lisp_cmp_ne,2,0,0,0,2);
 DEFUN("read",lisp_read,1,0,0,0,1);
 DEFUN("read-string",lisp_read_string,1,0,0,0,1);
 DEFUN("pprint",lisp_pprint,1,0,0,0,1);
+DEFUN("sxhash",lisp_hash_sexp,1,0,0,0,1);
 DEFUN("print-to-string",lisp_print_to_string,1,0,0,0,1);
 DEFUN("make-string-input-stream",make_string_input_stream,1,0,0,0,1);
 DEFUN("sum",lisp_sum,1,0,0,1,2);
@@ -932,6 +951,7 @@ MAKE_SYMBOL("ne",lisp_cmp_ne,0xede7131a87c330ca );
 MAKE_SYMBOL("read",lisp_read,0x16333b13dcac994e );
 MAKE_SYMBOL("read-string",lisp_read_string,0xb5a93464a384d2e6 );
 MAKE_SYMBOL("pprint",lisp_pprint,0x87d98d8e66d04385 );
+MAKE_SYMBOL("sxhash",lisp_hash_sexp,0x65409b56d1224893 );
 MAKE_SYMBOL("print-to-string",lisp_print_to_string,0xc340695be04fd959 );
 MAKE_SYMBOL("make-string-input-stream",make_string_input_stream,0xca7ce21f3cd53c3 );
 MAKE_SYMBOL("sum",lisp_sum,0x62c6bb2523165f29 );
@@ -1198,6 +1218,7 @@ INIT_SYMBOL(lisp_cmp_ne);
 INIT_SYMBOL(lisp_read);
 INIT_SYMBOL(lisp_read_string);
 INIT_SYMBOL(lisp_pprint);
+INIT_SYMBOL(lisp_hash_sexp);
 INIT_SYMBOL(lisp_print_to_string);
 INIT_SYMBOL(make_string_input_stream);
 INIT_SYMBOL(lisp_sum);

@@ -85,7 +85,7 @@
     ("lt" "lisp_cmp_lt" 2)("ge" "lisp_cmp_ge" 2)("le" "lisp_cmp_le" 2)
     ("ne" "lisp_cmp_ne" 2)("read" "lisp_read" 1)
     ("read-string" "lisp_read_string" 1)
-    ("pprint" "lisp_pprint" 1)
+    ("pprint" "lisp_pprint" 1)("sxhash" "lisp_hash_sexp" 1)
     ("print-to-string" "lisp_print_to_string" 1)
     ("make-string-input-stream" "make_string_input_stream" 1)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp" "bignump" "errorp" "functionp" "streamp"))

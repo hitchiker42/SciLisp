@@ -287,13 +287,6 @@ sexp lisp_oddp(sexp obj){
     }
   }
 }
-sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist,sexp rnd){
-  if(NILP(arrayorlist)){
-    return list_iota(start, stop, step);
-  } else {
-    return array_iota(start,stop,step,rnd);
-  }
-}
 void hello_world(){
   printf("hello, world!\n");
   return;
@@ -318,6 +311,19 @@ sexp lisp_inc(sexp num){
             .val={.real64=(++num.val.real64)}};
     }
 }
+sexp lisp_inc_ref(sexp sym){
+  if(!SYMBOLP(sym)){
+    return format_type_error("++!","symbol",sym.tag);
+  }
+  sexp temp=lisp_inc(sym.val.var->val);
+  if(ERRORP(temp)){
+    return temp;
+  } else {
+    sym.val.var->val=temp;
+    return temp;
+  }
+}
+
 sexp lisp_dec(sexp num){
   if(!NUMBERP(num)){
     if(SYMBOLP(num)){
@@ -336,6 +342,18 @@ sexp lisp_dec(sexp num){
         num.val.real64-=1;
         return num;
     }
+}
+sexp lisp_dec_ref(sexp sym){
+  if(!SYMBOLP(sym)){
+    return format_type_error("++!","symbol",sym.tag);
+  }
+  sexp temp=lisp_dec(sym.val.var->val);
+  if(ERRORP(temp)){
+    return temp;
+  } else {
+    sym.val.var->val=temp;
+    return temp;
+  }
 }
 sexp lisp_min(sexp a,sexp b){
   if (!NUMBERP(a) || !(NUMBERP(b))){

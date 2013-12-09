@@ -32,16 +32,16 @@ XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h sequence.h
 COMMON_HEADERS:=common.h debug.h types.h env.h
-FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c\
+FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c \
 	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system.c unicode.c \
-	tree.c sequence.c
-FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o\
-	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o\
-	tree.o sequence.o
-#STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o
-# lisp_system.o unicode.o
-#STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c
-# lisp_system.c unicode.c
+	tree.c sequence.c hash.c
+FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o \
+	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o \
+	tree.o sequence.o hash.o
+STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o \
+	lisp_system.o unicode.o hash.o
+STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c \
+	lisp_system.c unicode.c hash.c
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -106,6 +106,7 @@ regex.o: regex.c regex.h $(COMMON_HEADERS) emacs_regex.o
 prim.c prim.h: extra/generate_prims.el extra/primc_header.c extra/primh_header.h fnv_hash
 	./extra/generate_prims.el
 lisp_system.o: lisp_system.c $(COMMON_HEADERS)
+hash.o: hash.c hash.h $(COMMON_HEADERS) hash_fn.h
 #making libraries
 LIBSCILISP_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
 lib_files:

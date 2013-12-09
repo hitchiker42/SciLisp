@@ -231,5 +231,4 @@ static const struct sigaction sigusr1_object={.sa_handler=default_condition_hand
 static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};
 static const struct sigaction *sigusr1_action=&sigusr1_object;
 static const struct sigaction *sigusr2_action=&sigusr2_object;
->>>>>>> 1eb9a99a6539ce1f8d0919f512b5fdf960fd9428
 #endif

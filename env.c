@@ -364,12 +364,23 @@ uint64_t obarray_delete_entry(obarray *ob,symref entry){
   if(!existing_entry){
     return 0;//0==no entry found to delete
   } else {
-    if(existing_entry->prev){
+    if(!existing_entry->prev){
+      uint64_t index=existing_entry->hashv%ob->size;
+      ob->buckets[index]=existing_entry->next;
+      if(existing_entry->next){
+        existing_entry->next->prev=NULL;
+      } else {
+        ob->used--;
+      }
+    } else {
       existing_entry->prev=existing_entry->next;
-    } if(existing_entry->next){
-      existing_entry->next=existing_entry->prev;
+      if(existing_entry->next){
+        existing_entry->next=existing_entry->prev;
+      }
     }
-    return 1;
+    ob->capacity-=ob->capacity_inc;
+    ob->entries--;
+    return existing_entry->hashv;
   }
 }
 int obarray_rehash(obarray *ob){
