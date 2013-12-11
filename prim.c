@@ -10,26 +10,27 @@
 #include "print.h"
 #include "prim.h"
 #include "hash_fn.h"
+#include "hash.h"
 #include "regex.h"
 #include "sequence.h"
 #include "lisp_math.h"
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
-#define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  function_args c_name##_args=                                            \
+#define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)    \
+  function_args c_name##_args=                                          \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
-      .has_rest_arg=restarg,.args=0,.max_args=maxargs };      \
-  function c_name##_call=                                             \
-    { .args=&c_name##_args,.lname=l_name,.cname=#c_name,                   \
-      .comp = {.f##maxargs=c_name},            \
+      .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
+  function c_name##_call=                                               \
+    { .args=&c_name##_args,.lname=l_name,.cname=#c_name,                \
+      .comp = {.f##maxargs=c_name},                                     \
       .type = _compiled_fun };
-#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)  \
-  function_args c_name##_args=                                            \
+#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs) \
+  function_args c_name##_args=                                          \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
   macro c_name##_expander=                                              \
     {.args=&c_name##_args,.lname=l_name,                                \
-      .comp = {.f##maxargs=c_name}}
+     .comp = {.f##maxargs=c_name}}
 #define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
   symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}}; \
   symref c_name ## _ptr=0;                                              \
@@ -43,7 +44,7 @@
 #define MAKE_TYPE(l_name,l_tag)                                         \
   symref l_name##_ptr=0;                                                \
   symbol l_name##_sym = {.name="#<"#l_name">",                          \
-                         .val={.tag=_type,.val={.meta = l_tag}},         \
+                         .val={.tag=_type,.val={.meta = l_tag}},        \
                          .props={.is_const=1,.global=1,.type=_type}};   \
   obarray_entry l_name##_ob_entry={.prev=0,.next=0,.ob_symbol=0,.hashv=0}
 #define INIT_SYMBOL(c_name)                                     \
@@ -51,14 +52,14 @@
   c_name##_ptr->val.val.fun=&c_name##_call;                     \
   c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
-#define INIT_MACRO_SYMBOL(c_name)                                    \
-  c_name##_ptr=&c_name##_sym;                                        \
-  c_name##_ptr->val.val.fun=&c_name##_expander;                      \
-  c_name##_ob_entry.ob_symbol=c_name##_ptr;                          \
+#define INIT_MACRO_SYMBOL(c_name)                               \
+  c_name##_ptr=&c_name##_sym;                                   \
+  c_name##_ptr->val.val.fun=&c_name##_expander;                 \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
-#define INIT_GLOBAL(c_name)                                      \
-  c_name##_ptr=&c_name##_sym;                                    \
-  c_name##_ob_entry.ob_symbol=c_name##_ptr;                      \
+#define INIT_GLOBAL(c_name)                                     \
+  c_name##_ptr=&c_name##_sym;                                   \
+  c_name##_ob_entry.ob_symbol=c_name##_ptr;                     \
   prim_obarray_add_entry(ob,c_name##_ptr,&c_name##_ob_entry)
 #define INIT_SYNONYM(c_name,l_name,gensym_counter)                      \
   symref c_name##_ptr_syn ##gensym_counter= xmalloc(sizeof(symbol));    \
@@ -69,11 +70,6 @@
   c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter; \
   prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter, \
                          c_name##_ob_entry##gensym_counter)  
-
-sexp lisp_eval(sexp obj,sexp env){
-  return eval(obj,topLevelEnv);
-}
-
 void hello_world(){
   printf("hello, world!\n");
   return;
@@ -142,8 +138,6 @@ sexp lisp_dec_ref(sexp sym){
     return temp;
   }
 }
-
-
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){
     return error_sexp("this shouldn't happen, "
@@ -172,22 +166,12 @@ sexp lisp_sum(sexp required,sexp values){
     }
   }
 }
-
 sexp lisp_error(sexp error_message){
   if(!STRINGP(error_message) && !ERRORP(error_message)){
     return format_type_error_opt2("raise-error","string","error",
                                   error_message.tag);
   }
   return error_sexp(error_message.val.cord);
-}
-sexp lisp_not_eq(sexp obj1,sexp obj2){
-  return lisp_not(lisp_eq(obj1,obj2));
-}
-sexp lisp_not_eql(sexp obj1,sexp obj2){
-  return lisp_not(lisp_eql(obj1,obj2));
-}
-sexp lisp_not_equal(sexp obj1,sexp obj2){
-  return lisp_not(lisp_equal(obj1,obj2));
 }
 sexp lisp_assert(sexp expr){
   if(isTrue(expr)){
@@ -198,11 +182,11 @@ sexp lisp_assert(sexp expr){
 }
 #define make_lisp_assert_eq(name,fun,error_string)                      \
   sexp name(sexp obj1,sexp obj2){                                       \
-  if(isTrue(fun(obj1,obj2))){                                           \
-    return NIL;                                                         \
-  } else {                                                              \
-    return format_error_sexp(error_string,print(obj1),print(obj2));     \
-  }                                                                     \
+    if(isTrue(fun(obj1,obj2))){                                         \
+      return NIL;                                                       \
+    } else {                                                            \
+      return format_error_sexp(error_string,print(obj1),print(obj2));   \
+    }                                                                   \
   }
 make_lisp_assert_eq(lisp_assert_eq,lisp_eq,
                     "Assertation error, %r is not eq to %r")
@@ -216,31 +200,6 @@ make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
                     "Assertation error, %r is equal to %r")
 make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
                     "Assertation error, %r is eql to %r")
-sexp lisp_gensym(){
-  symref retval=xmalloc(sizeof(symbol));
-  CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
-  retval->val=UNBOUND;
-  return symref_sexp(retval);
-}
-sexp _getKeywordType(sexp obj){
-  CORD type_symbol_name=CORD_catn
-    (3,"#<",CORD_substr(obj.val.keyword->name,1,
-                        CORD_len(obj.val.keyword->name)-1),">");
-  symref type_sym=getGlobalSym(type_symbol_name);
-  if(!type_sym){
-    return error_sexp("unknown typename passed to get-type");
-  } else if(!TYPEP(type_sym->val)){
-    return error_sexp("non type keyword passed to get-type");
-  } else {
-    return type_sym->val;
-  }
-}
-sexp getKeywordType(sexp obj){
-  if(!KEYWORDP(obj)){
-    return format_type_error("get-type","keyword",obj.tag);
-  }
-  return _getKeywordType(obj);
-}
 #define set_global_vars()                               \
   lisp_stderr_sym.val.val.stream=stderr;                \
   lisp_stdout_sym.val.val.stream=stdout;                \
@@ -328,6 +287,8 @@ DEFUN("not",lisp_not,1,0,0,0,1);
 DEFUN("assert",lisp_assert,1,0,0,0,1);
 DEFUN("assert-eq",lisp_assert_eq,2,0,0,0,2);
 DEFUN("gensym",lisp_gensym,0,0,0,0,0);
+DEFUN("not-eq",lisp_not_eq,2,0,0,0,2);
+DEFUN("not-equal",lisp_not_equal,2,0,0,0,2);
 DEFUN("assert-not-eq",lisp_assert_not_eq,2,0,0,0,2);
 DEFUN("assert-not-equal",lisp_assert_not_equal,2,0,0,0,2);
 DEFUN("reverse!",cons_nreverse,1,0,0,0,1);
@@ -546,6 +507,8 @@ MAKE_SYMBOL("not",lisp_not,0x878ab2581416323 );
 MAKE_SYMBOL("assert",lisp_assert,0x305cd7213a55a78c );
 MAKE_SYMBOL("assert-eq",lisp_assert_eq,0x9a99e8fcb03e0ccf );
 MAKE_SYMBOL("gensym",lisp_gensym,0xbeed9f84963fc95b );
+MAKE_SYMBOL("not-eq",lisp_not_eq,0x5f5180daec9a8756 );
+MAKE_SYMBOL("not-equal",lisp_not_equal,0xc6473989d8c9aeac );
 MAKE_SYMBOL("assert-not-eq",lisp_assert_not_eq,0xc2b543a9529529c9 );
 MAKE_SYMBOL("assert-not-equal",lisp_assert_not_equal,0xb2309949c09d3e59 );
 MAKE_SYMBOL("reverse!",cons_nreverse,0xae2278ac6ff9a29 );
@@ -671,9 +634,9 @@ MAKE_SYMBOL("caaaar",caaaar,0xbae350b16532ef54 );
 MAKE_GLOBAL("Meps",lisp_mach_eps,1);
 MAKE_GLOBAL("pi",lisp_pi,1);
 MAKE_GLOBAL("e",lisp_euler,1);
-MAKE_GLOBAL("max_long",lisp_max_long,1);
+MAKE_GLOBAL("max-int64",lisp_max_long,1);
 MAKE_GLOBAL("nil",lisp_NIL,1);
-MAKE_GLOBAL("t",lisp_LISP_TRUE,1);
+MAKE_GLOBAL("#t",lisp_LISP_TRUE,1);
 MAKE_GLOBAL("#f",lisp_LISP_FALSE,1);
 MAKE_GLOBAL("stdin",lisp_stdin,0);
 MAKE_GLOBAL("stdout",lisp_stdout,0);
@@ -812,6 +775,8 @@ INIT_SYMBOL(lisp_not);
 INIT_SYMBOL(lisp_assert);
 INIT_SYMBOL(lisp_assert_eq);
 INIT_SYMBOL(lisp_gensym);
+INIT_SYMBOL(lisp_not_eq);
+INIT_SYMBOL(lisp_not_equal);
 INIT_SYMBOL(lisp_assert_not_eq);
 INIT_SYMBOL(lisp_assert_not_equal);
 INIT_SYMBOL(cons_nreverse);

@@ -128,6 +128,8 @@ DEFUN(lisp_not,1);
 DEFUN(lisp_assert,1);
 DEFUN(lisp_assert_eq,2);
 DEFUN(lisp_gensym,0);
+DEFUN(lisp_not_eq,2);
+DEFUN(lisp_not_equal,2);
 DEFUN(lisp_assert_not_eq,2);
 DEFUN(lisp_assert_not_equal,2);
 DEFUN(cons_nreverse,1);
