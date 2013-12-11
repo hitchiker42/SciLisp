@@ -227,6 +227,9 @@ static inline void* xrecalloc(void *ptr,uint64_t old_size,uint64_t size){
 static void __attribute__((noreturn))default_condition_handler(int signum){
   longjmp(error_buf,-1);
 }
+static sexp lisp_eval(sexp obj,sexp env){
+  return eval(obj,topLevelEnv);
+}
 static const struct sigaction sigusr1_object={.sa_handler=default_condition_handler};
 static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};
 static const struct sigaction *sigusr1_action=&sigusr1_object;

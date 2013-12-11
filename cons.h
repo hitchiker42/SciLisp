@@ -228,4 +228,5 @@ sexp lisp_enqueue(sexp val,sexp queue);
 sexp lisp_dequeue(sexp queue,sexp noerror);
 sexp queue_empty(sexp queue);
 sexp queue_peek(sexp queue);
+sexp merge_sort(sexp ls,sexp sort_fn);
 #endif

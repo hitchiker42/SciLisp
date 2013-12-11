@@ -133,3 +133,44 @@ sexp lisp_load(sexp pathname){
   }
   return LISP_TRUE;
 }
+sexp lisp_open(sexp filename,sexp mode){
+  if(NILP(mode)){
+    mode=string_sexp("r");
+  }
+  if (!STRINGP(filename) || !(STRINGP(mode))){
+    return error_sexp("arguments to open must be strings");
+  }
+  FILE* file = fopen(CORD_to_const_char_star(filename.val.cord),
+                     CORD_to_const_char_star(mode.val.cord));
+  if(file){
+    return (sexp){.tag=_stream,.val={.stream=file}};
+  } else {
+    PRINT_MSG(filename.val.cord);
+    PRINT_MSG(mode.val.cord);
+    return_errno("fopen");
+  }
+}
+sexp lisp_close(sexp stream){
+  if(!STREAMP(stream)){
+    return error_sexp("invalid file descriptor passed to close");
+  } else {
+    //fclose returns 0 on success and EOF on failure
+    if(fclose(stream.val.stream)){
+      return_errno("fclose");
+    } else {
+        return NIL;
+    }
+  }
+}
+sexp lisp_fputs(sexp string,sexp stream){
+  if(!STREAMP(stream)){
+    return error_sexp("invalid stream passed to fputs");
+  } else if (!STRINGP(string)){
+    return error_sexp("invalid string passed to fputs");
+  } else if (string.tag == _str){
+    fputs(CORD_to_const_char_star(string.val.cord),stream.val.stream);
+  } else {//string must be a w_char string
+    fputws(string.val.ustr,stream.val.stream);
+  }
+  return NIL;
+}

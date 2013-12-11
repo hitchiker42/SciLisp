@@ -454,3 +454,10 @@ function *stack_ptr=call_stack;
 #define peek_fun() (*stack_ptr)
 #define check_underflow() (if (stack_ptr<call_stack){handle_error();}
 #define check_overflow() (if (stack_ptr>(call_stack+STACK_SIZE)){handle_error()};
+//I suppose this fits here
+sexp lisp_gensym(){
+  symref retval=xmalloc(sizeof(symbol));
+  CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
+  retval->val=UNBOUND;
+  return symref_sexp(retval);
+}

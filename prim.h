@@ -151,7 +151,6 @@ DEFUN(lisp_pprint,1);
 DEFUN(lisp_hash_sexp,1);
 DEFUN(lisp_print_to_string,1);
 DEFUN(make_string_input_stream,1);
-DEFUN(lisp_sum,2);
 DEFUN(lisp_iota,5);
 DEFUN(array_iota,4);
 DEFUN(array_qsort,3);

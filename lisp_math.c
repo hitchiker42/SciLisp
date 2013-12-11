@@ -2,6 +2,103 @@
 #include "bignum.h"
 #include "lisp_math.h"
 #include "cons.h"
+#include "prim.h"
+#define binop_to_fun(op,fun_name)                                       \
+  sexp fun_name(sexp x,sexp y){                                         \
+    if((x.tag==y.tag)==_long){                                          \
+      return                                                            \
+        (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}}; \
+    } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
+      register double xx=getDoubleVal(x);                               \
+      register double yy=getDoubleVal(y);                               \
+      return double_sexp(xx op yy);                                     \
+    } else {                                                            \
+      return format_type_error2(#fun_name,"number",x.tag,"number",y.tag);\
+    }                                                                   \
+  }
+//ignore tags, allow logical operations on doubles(or anything else)
+//be careful about this
+#define lop_to_fun(op,fun_name)                                         \
+  sexp fun_name(sexp x,sexp y){                                         \
+    return long_sexp(x.val.int64 op y.val.int64);                       \
+  }
+#define mkMathFun1(cname,lispname)                                      \
+  sexp lispname (sexp obj){                                             \
+    if(!NUMBERP(obj)){return format_type_error(#lispname,"number",obj.tag);} \
+  return double_sexp(cname(getDoubleValUnsafe(obj)));                   \
+  }
+#define mkMathFun2(cname,lispname)                              \
+  sexp lispname(sexp x,sexp y){                                 \
+    if(!NUMBERP(x)||!NUMBERP(y))                                \
+      {return format_type_error2(#lispname,"number",            \
+                                 x.tag,"number",y.tag);}        \
+    register double xx=getDoubleValUnsafe(x);                   \
+    register double yy=getDoubleValUnsafe(y);                   \
+    return double_sexp(cname(xx,yy));                           \
+  }
+#define mkLisp_cmp(op,cname)                                    \
+  sexp cname(sexp x,sexp y){                                    \
+    if((x.tag == y.tag)==_long){                                \
+      return (x.val.int64 op y.val.int64 ? LISP_TRUE : LISP_FALSE);    \
+    } else if(NUMBERP(x)&&NUMBERP(y)){                          \
+      register double xx=getDoubleVal(x);                       \
+      register double yy=getDoubleVal(y);                       \
+      return (xx op yy ? LISP_TRUE : LISP_FALSE);                      \
+    } else {                                                    \
+      return format_type_error2(#cname,"number",x.tag,"number",y.tag); \
+    }                                                           \
+  }
+//arithmatic primitives
+binop_to_fun(+,lisp_add);
+binop_to_fun(-,lisp_sub);
+binop_to_fun(*,lisp_mul);
+binop_to_fun(/,lisp_div);
+//bitwise primitives(need to add !)
+lop_to_fun(^,lisp_xor);
+lop_to_fun(>>,lisp_rshift);
+lop_to_fun(<<,lisp_lshift);
+lop_to_fun(&,lisp_logand);
+lop_to_fun(|,lisp_logor);
+//math primitives
+mkMathFun2(pow,lisp_pow);
+mkMathFun1(sqrt,lisp_sqrt);
+mkMathFun1(cos,lisp_cos);
+mkMathFun1(sin,lisp_sin);
+mkMathFun1(tan,lisp_tan);
+mkMathFun1(exp,lisp_exp);
+mkMathFun1(log,lisp_log);
+//compairson primitives
+mkLisp_cmp(>,lisp_gt);
+mkLisp_cmp(<,lisp_lt);
+mkLisp_cmp(>=,lisp_gte);
+mkLisp_cmp(<=,lisp_lte);
+mkLisp_cmp(!=,lisp_ne);
+mkLisp_cmp(==,lisp_numeq);
+sexp ash(sexp x,sexp y){
+  if(y.tag != _long || x.tag != _long){
+    return error_sexp("arguments to ash must be integers");
+  } else if(y.val.int64>=0){
+    return lisp_rshift(x,y);
+  } else{
+    return lisp_lshift(x,long_sexp(labs(y.val.int64)));
+  }
+}
+sexp lisp_randint(sexp un_signed){
+  if(NILP(un_signed)){
+    return long_sexp(mrand48());
+  } else {
+    return long_sexp(lrand48());
+  }
+}
+sexp lisp_randfloat(sexp scale){
+  double retval;
+  if(scale.tag != _nil){
+    retval=drand48()*getDoubleVal(scale);
+  } else {
+    retval = drand48();
+  }
+  return double_sexp(retval);
+}
 sexp lisp_bigint_unsafe_min(sexp obj1, sexp obj2){
   return error_sexp("bigint unsafe min unimplemented");
 }
@@ -19,6 +116,68 @@ sexp lisp_bigfloat_unsafe_max(sexp obj1, sexp obj2){
 }
 sexp lisp_bigint_unsafe_div(sexp obj1, sexp obj2){
   return error_sexp("bigint unsafe div won't be implemented");
+}
+sexp lisp_round(sexp float_num,sexp mode){
+  double double_val=getDoubleVal(float_num);
+  if(double_val == NAN){
+    return error_sexp("round argument is not a number");
+  } else if(NILP(mode)){
+    return long_sexp(lround(double_val));
+  } else if(!(KEYWORDP(mode))){
+    return format_type_error("round","keyword",mode.tag);
+  } else {
+    if(KEYWORD_COMPARE(":floor",mode)){
+      return long_sexp(lround(floor(double_val)));
+    } else if (KEYWORD_COMPARE(":round",mode)){
+      return long_sexp(lround(double_val));
+    } else if (KEYWORD_COMPARE(":ceil",mode)){
+      return long_sexp(lround(ceil(double_val)));
+    } else if (KEYWORD_COMPARE(":trunc",mode)){
+      return long_sexp(lround(trunc(double_val)));
+    } else {
+      return error_sexp("error, invalid keyword passed to round");
+    }
+    switch (mode.val.int64){
+    //ceil,floor & trunc return doubles, there is a function
+    //lrint which rounds to integers based on the current rounding mode
+    //but because rounding modes are tricky we use a bit of a hack by
+    //using lround to get an integer from the specified rounding function
+      case -1:
+        return long_sexp(lround(floor(double_val)));
+      case 0:
+        return long_sexp(lround(double_val));
+      case 1:
+        return long_sexp(lround(ceil(double_val)));
+      case 2:
+        return long_sexp(lround(trunc(double_val)));
+      default:
+        return error_sexp("round error,undefined rounding mode");
+    }
+  }
+}
+sexp lisp_min(sexp a,sexp b){
+  if (!NUMBERP(a) || !(NUMBERP(b))){
+    return error_sexp("arguments to min must be numbers");
+  } if (a.tag == b.tag && a.tag==_long){
+    return (a.val.int64 > b.val.int64?a:b);
+  } else {
+    return (getDoubleVal(a) > getDoubleVal(b)?a:b);
+  }
+}
+sexp lisp_max(sexp a,sexp b){
+  if (!NUMBERP(a) || !(NUMBERP(b))){
+    return error_sexp("arguments to max must be numbers");
+  } if (a.tag == b.tag && a.tag==_long){
+    return (a.val.int64 < b.val.int64?a:b);
+  } else {
+    return (getDoubleVal(a) < getDoubleVal(b)?a:b);
+  }
+}
+sexp lisp_zerop(sexp obj){
+  if(!BIGNUMP(obj)){
+    return error_sexp("error expected an number");
+  }
+  return lisp_numeq(obj,long_sexp(0));
 }
 //c isn't very functional, we need to define these functions staticly
 //and outside of any function
@@ -238,5 +397,45 @@ sexp lisp_mod(sexp x,sexp y){
     return double_sexp(fmod(xx,yy));
   } else {
     return error_sexp("Arguments to mod must be numbers");
+  }
+}
+sexp lisp_evenp(sexp obj){
+  if(!BIGNUMP(obj)){
+    return error_sexp("even? type error, expected a number");
+  } else {
+    switch(obj.tag){
+      case _int64:
+        return (obj.val.int64 &1 ? LISP_FALSE : LISP_TRUE);
+      case _real64:
+        return (obj.val.real64 == (lisp_round(obj,NIL)).val.int64 ?
+                ((lisp_round(obj,NIL)).val.int64 &1 ? LISP_FALSE :LISP_TRUE): 
+                LISP_FALSE);
+      case _bigint:
+        return (mpz_tstbit(*obj.val.bigint,0) ? LISP_FALSE :LISP_TRUE);
+      case _bigfloat:
+        return LISP_FALSE;//too lazy to do this now
+      default:
+        return error_sexp("even? unimplemented numeric type");
+    }
+  }
+}
+sexp lisp_oddp(sexp obj){
+  if(!BIGNUMP(obj)){
+    return error_sexp("even? type error, expected a number");
+  } else {
+    switch(obj.tag){
+      case _int64:
+        return (obj.val.int64 &1 ? LISP_TRUE : LISP_FALSE);
+      case _real64:
+        return (obj.val.real64 == (lisp_round(obj,NIL)).val.int64 ? 
+                ((lisp_round(obj,NIL)).val.int64 &1 ? LISP_TRUE : LISP_FALSE) :
+                LISP_FALSE);
+      case _bigint:
+        return (mpz_tstbit(*obj.val.bigint,0) ? LISP_TRUE : LISP_FALSE);
+      case _bigfloat:
+        return LISP_FALSE;//too lazy to do this now
+      default:
+        return error_sexp("even? unimplemented numeric type");
+    }
   }
 }

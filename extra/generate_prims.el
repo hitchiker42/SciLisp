@@ -94,8 +94,6 @@
 (define SciLisp-prims (append
                        basic-SciLisp-prims
   '(
-    ((:lname . "sum") (:cname . "lisp_sum") (:minargs . 1) (:maxargs . 2)
-     (:optargs . 0) (:keyargs . 0) (:restarg . 1))
     ((:lname . "iota") (:cname ."lisp_iota") (:minargs . 1) (:maxargs . 5)
      (:optargs . 4) (:keyargs . 0) (:restarg . 0))
     ;array functions
