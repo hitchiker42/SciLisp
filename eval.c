@@ -2,7 +2,7 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
-/* TODO: Figure out how to pass enviroments to macros in a somewhat consistant
+/* TODO: Figure out how to pass enviroments to macros in a somewhat consistent
    and elegant way*/
 #include "common.h"
 #include "cons.h"
