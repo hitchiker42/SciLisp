@@ -12,21 +12,26 @@
   return;
   }*/
 sexp make_c_ptr(sexp c_value,sexp deg_of_indir){
-  if(!INTP(deg_of_indir)){
+  int indir=1;
+  if(NILP(deg_of_indir)){
+    indir=1;
+  } else if(!INTP(deg_of_indir)){    
     return format_type_error("make-cpointer","integer",deg_of_indir.tag);
+  } else {
+    indir=deg_of_indir.val.int64;
   }
   //check that c_value is of some c type
-  ctype_val* pointer_mem=xmalloc(sizeof(ctype_val)*deg_of_indir.val.int64+1);
+  ctype_val* pointer_mem=xmalloc(sizeof(ctype_val)*indir+1);
   int i=0;
   //because sexp data and ctype_vals are both unions of the same size
   //I should be fine just setting the c_value to the sexp value
   pointer_mem[i]=*(ctype_val*)&c_value.val;
-  for(i=1;i<deg_of_indir.val.int64+1;i++){
+  for(i=1;i<indir+1;i++){
     pointer_mem[i].pointer=pointer_mem+(i-1);
   }
   c_data *retval=xmalloc(sizeof(c_data));
   *retval=(c_data){.val={.pointer=pointer_mem},.type=c_value.tag,
-                   .ptr_depth=deg_of_indir.val.int64};
+                   .ptr_depth=indir};
   return c_data_sexp(retval);
 }
 static ctype_val dereference_c_ptr_helper(ctype_val *ptr_data,int depth){
@@ -38,7 +43,7 @@ static ctype_val dereference_c_ptr_helper(ctype_val *ptr_data,int depth){
 }
 sexp dereference_c_ptr(c_data *pointer){
   ctype_val value=
-    dereference_c_ptr_helper(&pointer->val,pointer->ptr_depth);
+    dereference_c_ptr_helper(pointer->val.pointer,pointer->ptr_depth);
   switch(pointer->type){
     case _ctype_int8:
       return int_n_sexp(value.ctype_int8,8);
@@ -70,6 +75,13 @@ sexp dereference_c_ptr(c_data *pointer){
       return opaque_sexp(value.ctype_struct);
   }
 }
+sexp lisp_dereference_c_ptr(sexp c_val){
+  if(!CDATAP(c_val)){
+    return format_type_error("dereference-c-ptr","c-data",c_val.tag);
+  } else {
+    return dereference_c_ptr(c_val.val.c_val);
+  }
+}
 int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type){
   if(pointer.tag == _cdata){
     c_data *ptr=pointer.val.c_val;
@@ -81,8 +93,12 @@ int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type){
   }
   return 0;
 }
-//I wrote all of this, but it's probably not necessary
+sexp get_c_type(sexp ctype_keysym){
+  return getKeywordType(ctype_keysym);
+}
+//I wrote all of this, but it's probably not necessary(kinda yeah)
 #include "regex.h"
+#if 0
 sexp get_c_type(sexp ctype_keysym){
   if(!KEYWORDP(ctype_keysym)){
     return error_sexp("argument to get_c_type must be a keyword symbol");
@@ -179,3 +195,4 @@ sexp get_c_type(sexp ctype_keysym){
  FAIL:
   return error_sexp("invalid typename passed to get_c_type");
 }
+#endif

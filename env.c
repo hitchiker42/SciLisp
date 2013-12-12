@@ -147,11 +147,6 @@ sexp getKeySymSexp(CORD name){
   //PRINT_FMT("%#0d",keysym);
   return keyword_sexp(keysym);
 }
-static sexp getKeywordType(sexp type_key){
-  if(!KEYWORDP(type_key)){
-    return format_type_error("get-type","keyword",type_key.tag);
-  }
-}
 /*obarray implementation (as usual with lisp, a name for historical reasons)*/
 const struct timespec one_ms={.tv_nsec=1e6};
 struct timespec rmtp;

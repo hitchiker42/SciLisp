@@ -69,6 +69,7 @@ symref getSymLocalOnly(local_env *cur_env,CORD name);
 symref getSymFunctionOnly(function_env* cur_env,CORD name);
 symref getSymObarrayOnly(obarray_env* ob_env,CORD name);
 symref getSymNotGlobal(env *cur_env,CORD name);
+sexp getKeywordType(sexp obj);
 //check if name refers to a function argument, return NULL if not
 long isFunctionArg(function_env *cur_env,CORD name);
 //type punning macros

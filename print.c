@@ -180,7 +180,7 @@ CORD print(sexp obj){
     case _tree:
       obj=obj.val.tree->tree;//fallthrough
     case _list:
-    case _cons:      
+    case _cons:
       acc=CORD_cat(acc,"(");
       int i=0;
       while(CONSP(obj)){
@@ -192,7 +192,7 @@ CORD print(sexp obj){
       if(!NILP(obj)){
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
-        acc=CORD_cat(acc,")");        
+        acc=CORD_cat(acc,")");
         retval=acc;
       }
       //      PRINT_MSG(retval);
@@ -300,7 +300,7 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,"]"));
     }
-    case _special:     
+    case _special:
       return specialForm_name(obj);
     case _false:
       return "#f";
@@ -324,6 +324,22 @@ CORD print(sexp obj){
       return retval;
     case _regex:
       return ("#<regular-expression>");
+    case _cdata:{
+      c_data* c_obj=obj.val.c_val;
+      if(c_obj->ptr_depth){
+        acc=CORD_cat(acc,"#<");
+        register int depth=c_obj->ptr_depth;
+        while(depth){
+          acc=CORD_cat(acc,"*");
+          depth--;
+        }
+        acc=CORD_cat(acc,print(dereference_c_ptr(c_obj)));
+        acc=CORD_cat(acc,">");
+        return acc;
+      } else {
+        return print(c_data_to_sexp(c_obj));
+      }
+    }
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;
@@ -414,4 +430,4 @@ CORD token_name(TOKEN token){
   }
 }
 CORD prin1(sexp obj);//print readably
-CORD princ(sexp obj);//pretty print 
+CORD princ(sexp obj);//pretty print

@@ -123,6 +123,7 @@ typedef wchar_t char32_t;
 #define IS_POINTER(obj) (obj.is_ptr == 1)
 #define LISP_TREEP(obj) (obj.tag == _tree)
 #define HASHTABLEP(obj) (obj.tag == _hashtable)
+#define CDATAP(obj) (obj.tag == _cdata)
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
