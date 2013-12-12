@@ -125,7 +125,6 @@ static inline sexp eval_special(sexp expr,env *cur_env){
   //this is always called on a cons, no need to check
   sexp special_sexp=car(expr);
   switch(special_sexp.val.special){
-    //for now focus on def,defun,if and do
     case _def:
       return eval_def(expr,cur_env);
     case _setq:
