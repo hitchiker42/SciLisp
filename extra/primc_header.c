@@ -201,21 +201,30 @@ make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
 make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
                     "Assertation error, %r is eql to %r")
 #define set_global_vars()                               \
-  lisp_stderr_sym.val.val.stream=stderr;                \
-  lisp_stdout_sym.val.val.stream=stdout;                \
-  lisp_stdin_sym.val.val.stream=stdin;                  \
-  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));            \
-  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));            \
-  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));         \
-  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));         \
-  mpz_init((*mpz_const_0));                             \
-  mpfr_init((*mpfr_const_0));                           \
-  mpz_init_set_ui((*mpz_const_1),1);                    \
-  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);        \
-  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;         \
-  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;         \
-  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;    \
-  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1
+  lisp_stderr_sym.val.val.stream=stderr;                                \
+  lisp_stdout_sym.val.val.stream=stdout;                                \
+  lisp_stdin_sym.val.val.stream=stdin;                                  \
+  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));                            \
+  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));                            \
+  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_e=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_pi_var=xmalloc(sizeof(mpfr_t));                    \
+  mpz_init((*mpz_const_0));                                             \
+  mpfr_init((*mpfr_const_0));                                           \
+  mpz_init_set_ui((*mpz_const_1),1);                                    \
+  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);                        \
+  mpfr_init((*mpfr_const_e));                                           \
+  mpfr_init((*mpfr_const_pi_var));                                      \
+  mpfr_exp(*mpfr_const_e,*mpfr_const_1,MPFR_RNDN);                      \
+  mpfr_const_pi(*mpfr_const_pi_var,MPFR_RNDN);                          \
+  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;                         \
+  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;                         \
+  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;                    \
+  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1;                    \
+  lisp_bigfloat_e_sym.val.val.bigfloat=mpfr_const_e;                    \
+  lisp_bigfloat_pi_sym.val.val.bigfloat=mpfr_const_pi_var
+
 #define lisp_stderr {.tag = _stream,.val={.stream=0}}
 #define lisp_stdout {.tag = _stream,.val={.stream=0}}
 #define lisp_stdin {.tag = _stream,.val={.stream=0}}
@@ -232,6 +241,8 @@ make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
 #define lisp_bigint_1  {.tag=_bigint,.val={.bigint=0}}
 #define lisp_bigfloat_0   {.tag=_bigfloat,.val={.bigfloat=0}}
 #define lisp_bigfloat_1   {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_e {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_pi {.tag=_bigfloat,.val={.bigfloat=0}}
 #define lisp_NIL {.tag = -1,.val={.meta = -1}}
 #define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
 #define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}

@@ -1,3 +1,6 @@
+/* NOTE: Write common functions and constants for bigfloats,
+   I need an exponential function, log function and basic power function
+   I also need arbitary precision versions of e and pi */
 #include "common.h"
 #include "bignum.h"
 #include "lisp_math.h"

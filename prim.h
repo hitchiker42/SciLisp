@@ -192,6 +192,7 @@ DEFUN(lisp_get_re_backref,2);
 DEFUN(make_c_ptr,2);
 DEFUN(lisp_list,1);
 DEFUN(cons_split,2);
+DEFUN(lisp_time,2);
 DEFUN(lisp_bigfloat_add,2);
 DEFUN(lisp_bigfloat_sub,2);
 DEFUN(lisp_bigfloat_mul,2);

@@ -201,21 +201,30 @@ make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
 make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
                     "Assertation error, %r is eql to %r")
 #define set_global_vars()                               \
-  lisp_stderr_sym.val.val.stream=stderr;                \
-  lisp_stdout_sym.val.val.stream=stdout;                \
-  lisp_stdin_sym.val.val.stream=stdin;                  \
-  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));            \
-  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));            \
-  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));         \
-  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));         \
-  mpz_init((*mpz_const_0));                             \
-  mpfr_init((*mpfr_const_0));                           \
-  mpz_init_set_ui((*mpz_const_1),1);                    \
-  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);        \
-  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;         \
-  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;         \
-  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;    \
-  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1
+  lisp_stderr_sym.val.val.stream=stderr;                                \
+  lisp_stdout_sym.val.val.stream=stdout;                                \
+  lisp_stdin_sym.val.val.stream=stdin;                                  \
+  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));                            \
+  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));                            \
+  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_e=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_pi_var=xmalloc(sizeof(mpfr_t));                    \
+  mpz_init((*mpz_const_0));                                             \
+  mpfr_init((*mpfr_const_0));                                           \
+  mpz_init_set_ui((*mpz_const_1),1);                                    \
+  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);                        \
+  mpfr_init((*mpfr_const_e));                                           \
+  mpfr_init((*mpfr_const_pi_var));                                      \
+  mpfr_exp(*mpfr_const_e,*mpfr_const_1,MPFR_RNDN);                      \
+  mpfr_const_pi(*mpfr_const_pi_var,MPFR_RNDN);                          \
+  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;                         \
+  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;                         \
+  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;                    \
+  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1;                    \
+  lisp_bigfloat_e_sym.val.val.bigfloat=mpfr_const_e;                    \
+  lisp_bigfloat_pi_sym.val.val.bigfloat=mpfr_const_pi_var
+
 #define lisp_stderr {.tag = _stream,.val={.stream=0}}
 #define lisp_stdout {.tag = _stream,.val={.stream=0}}
 #define lisp_stdin {.tag = _stream,.val={.stream=0}}
@@ -232,6 +241,8 @@ make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
 #define lisp_bigint_1  {.tag=_bigint,.val={.bigint=0}}
 #define lisp_bigfloat_0   {.tag=_bigfloat,.val={.bigfloat=0}}
 #define lisp_bigfloat_1   {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_e {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_pi {.tag=_bigfloat,.val={.bigfloat=0}}
 #define lisp_NIL {.tag = -1,.val={.meta = -1}}
 #define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
 #define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}
@@ -351,6 +362,7 @@ DEFUN("re-subexpr",lisp_get_re_backref,2,0,0,0,2);
 DEFUN("make-cpointer",make_c_ptr,2,0,0,0,2);
 DEFUN("list",lisp_list,0,0,0,1,1);
 DEFUN("split",cons_split,1,1,0,0,2);
+DEFUN("time",lisp_time,0,1,0,0,2);
 DEFUN("bigfloat-add",lisp_bigfloat_add,2,0,0,0,2);
 DEFUN("bigfloat-sub",lisp_bigfloat_sub,2,0,0,0,2);
 DEFUN("bigfloat-mul",lisp_bigfloat_mul,2,0,0,0,2);
@@ -571,6 +583,7 @@ MAKE_SYMBOL("re-subexpr",lisp_get_re_backref,0x8a116ddc4ad390f1 );
 MAKE_SYMBOL("make-cpointer",make_c_ptr,0xc453eec8f4f7885c );
 MAKE_SYMBOL("list",lisp_list,0xddb41bcc6bde9f82 );
 MAKE_SYMBOL("split",cons_split,0xd2efdcf6197c2073 );
+MAKE_SYMBOL("time",lisp_time,0x11f528022f8d3a4f );
 MAKE_SYMBOL("bigfloat-add",lisp_bigfloat_add,0x5ce208f741cde6d2 );
 MAKE_SYMBOL("bigfloat-sub",lisp_bigfloat_sub,0xd42552f784c9600b );
 MAKE_SYMBOL("bigfloat-mul",lisp_bigfloat_mul,0x7d86d2f753b9f1e7 );
@@ -648,6 +661,8 @@ MAKE_GLOBAL("long-1",lisp_long_1,1);
 MAKE_GLOBAL("ans",lisp_ans,0);
 MAKE_GLOBAL("bigfloat-0",lisp_bigfloat_0,1);
 MAKE_GLOBAL("bigfloat-1",lisp_bigfloat_1,1);
+MAKE_GLOBAL("bigfloat-e",lisp_bigfloat_e,1);
+MAKE_GLOBAL("bigfloat-pi",lisp_bigfloat_pi,1);
 MAKE_GLOBAL("bigint-0",lisp_bigint_0,1);
 MAKE_GLOBAL("bigint-1",lisp_bigint_1,1);
 MAKE_TYPE(int8,_int8);
@@ -839,6 +854,7 @@ INIT_SYMBOL(lisp_get_re_backref);
 INIT_SYMBOL(make_c_ptr);
 INIT_SYMBOL(lisp_list);
 INIT_SYMBOL(cons_split);
+INIT_SYMBOL(lisp_time);
 INIT_SYMBOL(lisp_bigfloat_add);
 INIT_SYMBOL(lisp_bigfloat_sub);
 INIT_SYMBOL(lisp_bigfloat_mul);
@@ -916,6 +932,8 @@ INIT_GLOBAL(lisp_long_1);
 INIT_GLOBAL(lisp_ans);
 INIT_GLOBAL(lisp_bigfloat_0);
 INIT_GLOBAL(lisp_bigfloat_1);
+INIT_GLOBAL(lisp_bigfloat_e);
+INIT_GLOBAL(lisp_bigfloat_pi);
 INIT_GLOBAL(lisp_bigint_0);
 INIT_GLOBAL(lisp_bigint_1);
 INIT_GLOBAL(int8);

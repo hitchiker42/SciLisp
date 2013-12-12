@@ -22,6 +22,7 @@
 #include <math.h>
 #include <signal.h>
 #include <errno.h>
+#include <time.h>
 //several other headers are included in types.h
 #include "types.h"
 #include "env.h"

@@ -105,7 +105,7 @@ CORD print_num_format(sexp obj,CORD format){
       if(format != 0){
         CORD_sprintf(&retval,format,(double)obj.val.real64);
       } else {
-        CORD_sprintf(&retval,"%g",(double)obj.val.real64);
+        CORD_sprintf(&retval,"%.6g",(double)obj.val.real64);
       }
     } else if (INTP(obj)){
       if(format != 0){
@@ -132,7 +132,7 @@ CORD print_num_format(sexp obj,CORD format){
         //        mpfr_free_str(temp);
       } else {
         char *temp;
-        mpfr_asprintf(&temp,"%RG",(*obj.val.bigfloat));
+        mpfr_asprintf(&temp,"%.10RG",(*obj.val.bigfloat));
         retval=temp;
         //        retval=CORD_from_char_star(temp);
         //        mpfr_free_str(temp);

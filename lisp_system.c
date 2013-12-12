@@ -174,3 +174,18 @@ sexp lisp_fputs(sexp string,sexp stream){
   }
   return NIL;
 }
+sexp lisp_time(sexp raw){
+  time_t cur_time=time(NULL);
+  if(isTrue(raw)){
+    return int64_sexp(cur_time);
+  } else {
+    //man page for ctime_r says to allocate a buffer of at least
+    //23 characters so allocate 32 to be safe/make allocation eaiser
+    char *time_str=xmalloc(32*sizeof(char));
+    if(!ctime_r(&cur_time,time_str)){
+      return_errno("time");
+    } else {
+      return cord_sexp(time_str);
+    }
+  }
+}
