@@ -28,6 +28,11 @@
 #define LEX_MSG(string)
 #define LEX_FMT(string,fmt...)
 #endif
+#ifdef static_assert
+#undef static_assert
+#endif
+#define static_assert(val,error)                \
+  static const char error[(val)?1:-1]
 static void print_trace(void){
   void *array[50];
   size_t size,i;
@@ -65,3 +70,4 @@ static void default_debug_printf(CORD fmt,...){
   CORD ___errorstr;                                                     \
   CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
   return error_sexp(___errorstr)
+#define CAT(x,rest...) x##rest

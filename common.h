@@ -55,22 +55,22 @@
       .is_ptr=is_ptr_val,.len=len_val}
 #define construct_sexp_len(sexp_val,sexp_tag,sexp_field,is_ptr_val,len_val) \
   construct_sexp_generic_len(sexp_val,sexp_tag,len_val,                 \
-                         sexp_field,is_ptr_val,(sexp))
+                             sexp_field,is_ptr_val,(sexp))
 #define construct_sexp(sexp_val,sexp_tag,sexp_field,is_ptr_val)         \
   construct_sexp_generic(sexp_val,sexp_tag,sexp_field,is_ptr_val,(sexp))
 #define construct_const_sexp(sexp_val,sexp_tag,sexp_field,is_ptr_val)   \
   construct_sexp_generic(sexp_val,sexp_tag,sexp_field,is_ptr_val,)
-#define construct_simple(sexp_val,name,is_ptr_val)                 \
+#define construct_simple(sexp_val,name,is_ptr_val)      \
   construct_sexp(sexp_val,_##name,name,is_ptr_val)
-#define construct_ptr(sexp_val,name)                        \
+#define construct_ptr(sexp_val,name)            \
   construct_simple(sexp_val,name,1)
-#define construct_atom(sexp_val,name)                        \
+#define construct_atom(sexp_val,name)           \
   construct_simple(sexp_val,name,0)
-#define construct_simple_const(sexp_val,name)                           \
+#define construct_simple_const(sexp_val,name)   \
   construct_const_sexp(sexp_val,_##name,name,0)
 //type_sexp macros for convience (kinda like constructors I suppose)
-#define typed_array_sexp(array_val,array_tag,array_len)              \
-  (sexp){.tag=_typed_array,.meta=array_tag,.len=array_len,           \
+#define typed_array_sexp(array_val,array_tag,array_len)         \
+  (sexp){.tag=_typed_array,.meta=array_tag,.len=array_len,      \
       .val={.typed_array=array_val},.is_ptr=1}
 #define bigfloat_sexp(bigfloat_ptr) construct_ptr(bigfloat_ptr,bigfloat)
 #define bigint_sexp(bigint_ptr) construct_ptr(bigint_ptr,bigint)
@@ -108,14 +108,15 @@
 #define string_sexp(string_val) construct_sexp(string_val,_str,cord,1)
 #define symref_sexp(symref_val) construct_sexp(symref_val,_sym,var,1)
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
+#define uchar_sexp(uchar_val) construct_acom(uchar_val,uchar)
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 #define NIL_MACRO() {.tag = -1,.val={.meta = -1}}
 #define format_error_str(format,args...) CORD_sprintf(&error_str,format,##args)
-#define format_error_sexp(format,args...)            \
-  format_error_str(format,args),                     \
+#define format_error_sexp(format,args...)       \
+  format_error_str(format,args),                \
     error_sexp(CORD_to_char_star(error_str))
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.meta = -1},.len=0};
@@ -190,15 +191,15 @@ static int jmp_buf_stack_len=0;
 static void jmp_buf_hack(jmp_buf buf){
   //(hopefully temporary) but very ugly hack
   //but it's better than random segfaults
-    jmp_buf_stack[0]=buf[0];
-    struct __jmp_buf_tag temp=jmp_buf_stack[0];
-    int i;
-    for(i=0;i<7;i++){
-      temp=jmp_buf_stack[i+1];
-      jmp_buf_stack[i+1]=jmp_buf_stack[i];
-      jmp_buf_stack[i]=temp;
-    }
-    return;
+  jmp_buf_stack[0]=buf[0];
+  struct __jmp_buf_tag temp=jmp_buf_stack[0];
+  int i;
+  for(i=0;i<7;i++){
+    temp=jmp_buf_stack[i+1];
+    jmp_buf_stack[i+1]=jmp_buf_stack[i];
+    jmp_buf_stack[i]=temp;
+  }
+  return;
 }
 static inline void push_jmp_buf(jmp_buf buf){
   if(jmp_buf_stack_len>=8){

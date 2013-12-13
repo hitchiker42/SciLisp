@@ -1,12 +1,47 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
+/* A note about SciLisp strings and characters,
+   SciLisp characters are represented by a single wchar_t value, regardless of 
+   the value of the character, while SciLisp strings are represented by CORDs, so 
+   SciLisp characters are wide characters, while SciLisp strings are multibyte
+   strings, This may change at some point, but that's how it is for now*/
 #include "unicode.h"
+static char temp_ustring[MB_LEN_MAX];
 struct lisp_ustring {
-  wchar_t * restrict str;
+  wchar_t *restrict str;
   uint32_t len;
 };
 union utf8_hack{
   char bytes[4];
   wchar_t wchar;
 };
+sexp lisp_char_to_string(sexp lisp_char){
+  if(!CHARP(lisp_char)){
+    return format_type_error("char->string","character",lisp_char.tag);
+  } else {
+    mbstate_t state;
+    size_t nbytes;
+    memset(&state,'\0',sizeof(state));
+    nbytes=wcrtomb(temp_ustring,lisp_char.val.uchar,&state);
+    if(nbytes==(size_t)-1){
+      return error_sexp("conversion error in char->string");
+    } else {
+      char *retval=xmalloc(nbytes);
+      memcpy(retval,temp_ustring,nbytes);
+      return cord_sexp(retval);
+    }
+  }
+}
+/*
+sexp lisp_string_to_char(sexp lisp_str){
+  static_assert(0,error_check);
+  wchar_t retval;
+  mbstate state;
+  memset(&state,'\0',sizeof(state));
+} 
+*/
 union utf8_hack utf8_escape={.wchar=L'\0'};
 wchar_t lex_char(char* cur_yytext){
   if(cur_yytext[1]=='\\'){

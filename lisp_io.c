@@ -29,4 +29,3 @@ sexp lisp_substr(sexp lisp_cord,sexp start,sexp end){
                    end.val.int64-start.val.int64));
   }
 }                                  
-

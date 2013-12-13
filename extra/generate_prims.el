@@ -185,6 +185,11 @@
   (collect #'mk-predicate predicates)
   (collect #'arith-driver-funs arith-driver-funs-list)
   (collect  (lambda (x) (apply #'mkPrimBasic x)) *cadrs*)))
+(define SciLisp-prim-macros
+  '(((:lname . "incf") (:cname ."lisp_inc_ref") (:minargs . 1) (:maxargs . 1)
+     (:optargs . 0) (:keyargs . 0) (:restarg . 0))
+    ((:lname . "decf") (:cname ."lisp_dec_ref") (:minargs . 1) (:maxargs . 1)
+     (:optargs . 0) (:keyargs . 0) (:restarg . 0))))
 (require 'cl)
 (delete-duplicates SciLisp-prims :test #'equal)
 (define SciLisp-globals
@@ -286,6 +291,11 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 (defun primc-format (prim)
   (format
    "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
+   (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
+   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
+(defun defmacro-format (prim)
+  (format
+   "DEFMACRO(\"%s\",%s,%d,%d,%d,%d,%d);\n"
    (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
    (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
 (defun primh-format (prim)
