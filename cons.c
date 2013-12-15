@@ -61,10 +61,7 @@ sexp mkImproper(sexp head,...){
   retval.is_ptr=1;
   return retval;
 }
-sexp cons_reverse(sexp ls){
-  if(!CONSP(ls)){
-    return format_type_error("reverse","cons",ls.tag);
-  }
+static inline sexp _cons_reverse(sexp ls){
   cons *cons_ptr=xmalloc(sizeof(cons));
   cons *trail=cons_ptr;
   int i,len=ls.len;
@@ -81,6 +78,15 @@ sexp cons_reverse(sexp ls){
   retval.tag=_list;
   retval.len=(len ? len : i);
   return retval;
+}
+sexp c_cons_reverse(sexp ls){
+  return _cons_reverse(ls);
+}
+sexp cons_reverse(sexp ls){
+  if(!CONSP(ls)){
+    return format_type_error("reverse","cons",ls.tag);
+  }
+  return _cons_reverse(ls);
 }
 
 sexp c_cons_split(sexp ls,sexp num){
@@ -155,9 +161,8 @@ sexp nappend(sexp conses){
 
 sexp cons_reduce(sexp ls,sexp reduce_fn){
   if(!CONSP(ls) || !FUNP(reduce_fn)){
-    return error_sexp("reduce type error");
+    return format_type_error2("reduce","list",ls.tag,"function",reduce_fn.tag);
   }
-  HERE();
   sexp result=XCAR(ls);
   sexp(*f)(sexp,sexp);
   switch(reduce_fn.tag){
@@ -175,7 +180,7 @@ sexp cons_reduce(sexp ls,sexp reduce_fn){
 }
 sexp mapcar(sexp ls,sexp map_fn){
   if(!CONSP(ls) || !FUNCTIONP(map_fn)){
-    return error_sexp("mapcar map_fn type error");
+    return format_type_error2("mapcar","list",ls.tag,"function",map_fn.tag);
   }
   sexp result;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
@@ -245,7 +250,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   int i=0;
   double dstep;
   if(!NUMBERP(start)){
-    return error_sexp("iota type error, arguments must be numbers");
+    return format_type_error("iota","number",start.tag);
   }
   if(NILP(stop)){
     int imax=lrint(getDoubleVal(start));
@@ -325,16 +330,22 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
 static sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len);
 static sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp));
 //as is this will only work for proper lists
-sexp merge_sort(sexp ls,sexp sort_fn){
-  if(!CONSP(ls) || !FUNP(sort_fn)){
-    return error_sexp("merge sort sort_fn type error");
-  }
+static inline sexp _merge_sort(sexp ls,sexp sort_fn){
   sexp(*f)(sexp,sexp);
   f=sort_fn.val.fun->comp.f2;
   //test code
   sexp retval=merge_sort_acc(ls,f,cons_length(ls).val.int64);
   return retval;
   return merge_sort_acc(ls,f,cons_length(ls).val.int64);
+}
+sexp c_merge_sort(sexp ls,sexp sort_fn){
+  return _merge_sort(ls,sort_fn);
+}
+sexp merge_sort(sexp ls,sexp sort_fn){
+  if(!CONSP(ls) || !FUNP(sort_fn)){
+    return format_type_error("merge sort","list",ls.tag,"funciton",sort_fn.tag);
+  }
+  return _merge_sort(ls,sort_fn);
 }
 sexp cons_qsort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNP(sort_fn)){
@@ -395,7 +406,7 @@ sexp assoc(sexp obj,sexp ls,sexp eq_fn){
 }
 sexp lisp_assoc(sexp obj,sexp ls,sexp eq_fn){
   if(!CONSP(ls)){
-    return error_sexp("argument 2 of assoc must be an alist");
+    return format_type_error_key("assoc","ls","list",ls.tag);
   }
   if(NILP(eq_fn)){
     eq_fn=function_sexp(&lisp_eq_call);
