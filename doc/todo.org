@@ -1,0 +1,20 @@
+*Compiler [%]
+** C-Backend [/]
+** LLVM-Backend [/]
+* Library
+** C-Bindings
+** Hashes
+** Sequences
+** Text Processing
+*** Strings
+*** Regexes
+*** Unicode Support
+** Mathematics
+* Interpreter
+** Read
+** Eval
+** Print
+*** TODO Make the print function print objects `read`ably
+* Interface
+** TODO Seperate the frontend and the backend
+* Build

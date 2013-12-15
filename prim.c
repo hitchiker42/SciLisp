@@ -96,7 +96,7 @@ sexp lisp_inc(sexp num){
 }
 sexp lisp_inc_ref(sexp sym){
   if(!SYMBOLP(sym)){
-    return format_type_error("++!","symbol",sym.tag);
+    return format_type_error("incf","symbol",sym.tag);
   }
   sexp temp=lisp_inc(sym.val.var->val);
   if(ERRORP(temp)){
@@ -106,7 +106,6 @@ sexp lisp_inc_ref(sexp sym){
     return temp;
   }
 }
-
 sexp lisp_dec(sexp num){
   if(!NUMBERP(num)){
     if(SYMBOLP(num)){
@@ -128,7 +127,7 @@ sexp lisp_dec(sexp num){
 }
 sexp lisp_dec_ref(sexp sym){
   if(!SYMBOLP(sym)){
-    return format_type_error("++!","symbol",sym.tag);
+    return format_type_error("decf","symbol",sym.tag);
   }
   sexp temp=lisp_dec(sym.val.var->val);
   if(ERRORP(temp)){

@@ -23,6 +23,7 @@ temp
 # Generated Documentation
 doc/*
 !doc/*.texi
+!doc/*.org
 
 # Generated Files (that should be regenerated when recompiled)
 prim.ll
