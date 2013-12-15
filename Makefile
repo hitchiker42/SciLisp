@@ -42,14 +42,14 @@ SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h 
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c \
 	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system.c unicode.c \
-	tree.c sequence.c hash.c lisp_types.c
+	tree.c sequence.c hash.c lisp_types.c setf.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o \
 	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o \
-	tree.o sequence.o hash.o lisp_types.o
+	tree.o sequence.o hash.o lisp_types.o setf.o
 STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o \
-	lisp_system.o unicode.o hash.o lisp_types.o
+	lisp_system.o unicode.o hash.o lisp_types.o setf.o
 STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c \
-	lisp_system.c unicode.c hash.c lisp_type.c
+	lisp_system.c unicode.c hash.c lisp_type.c setf.c
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -89,6 +89,7 @@ ccall.o:cffi.h $(COMMON_HEADERS)
 cffi.o:cffi.h $(COMMON_HEADERS)
 cons.o: cons.c $(COMMON_HEADERS) cons.h
 emacs_regex.o: emacs_regex.c emacs_regex.h
+setf.o: setf.c $(COMMON_HEADERS) prim.h
 env.o: env.c $(COMMON_HEADERS)
 eval.o: eval.c $(COMMON_HEADERS) cons.h array.h
 frontend.o: frontend.c $(COMMON_HEADERS) prim.h

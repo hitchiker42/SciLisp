@@ -452,7 +452,7 @@ static sexp eval_dolist(sexp expr,env *cur_env){
 static sexp eval_and(sexp expr,env *cur_env){
 
   expr=cdr(expr);//discard and
-  sexp retval=NIL;
+  sexp retval=LISP_TRUE;
   while(CONSP(expr)){
     retval=eval(XCAR(expr),cur_env);
     if(!(isTrue(retval))){
@@ -619,17 +619,23 @@ function_args* getNamedMacroArgs
 sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
   function_args *args=curFun.val.fun->args;
-  args->args=alloca(sizeof(symbol)*args->max_args);
-  if(MACROP(curFun)){
+  long numargs;
+  if(curFun.meta==_builtin_macro){
+    args->args=alloca(sizeof(symbol)*args->max_args+1);
     args=getNamedMacroArgs(cdr(expr),args,cur_env,curFun.val.fun->lname);
+    args->args[args->max_args]=(symbol)
+      {.name=0,.val=env_sexp(cur_env),.props={0}};
+    numargs=args->max_args+1;
   } else {
+    args->args=alloca(sizeof(symbol)*args->max_args);
     args=getNamedFunctionArgs(cdr(expr),args,cur_env,curFun.val.fun->lname);
+    numargs=args->maxargs;
   }
   if(!args){
     handle_error();
   }
   int i;
-  long numargs=args->max_args;
+
   switch (numargs){
     case 0:
       if(!NILP(XCDR(expr))){
@@ -740,9 +746,6 @@ static sexp call_macro(sexp expr,env *cur_env){
   sexp cur_macro=car(expr).val.var->val;
   macro *mac=cur_macro.val.mac;
   PRINT_FMT("Macro body=%r",print(mac->body));
-  if(expr.meta==_builtin_macro){
-    return eval(call_builtin(expr,cur_env),cur_env);
-  }
   function_args *args=alloca(sizeof(function_args));
   *args=*mac->args;
   args->args=alloca(sizeof(symbol)*args->max_args);

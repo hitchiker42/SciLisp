@@ -401,21 +401,28 @@ struct function_args{
   uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
   uint16_t has_rest_arg;//0 or 1(only one restarg allowed
   symbol* args;
-  int max_args;//number of args in c/llvm must be max_args
+  union{
+    int max_args;//number of args in c/llvm must be max_args
+    int maxargs;//because I tend to use this by mistake
+  };
 };
-//typedef function_new* fxn_ptr
+//The layout of the function and macro structures is important, the first three
+//fields are the same. When calling a builtin macro it is treated for the most
+//part as a function, so if the args,lname ,and comp fields don't match we'll
+//get and error when evaling builtin macros
 #define CALL_PRIM(fxn) (fxn.val.fun->comp)
 struct function{//36 bytes
   function_args* args;//64
   CORD lname;//lambdas should be #<lambda{number via global counter}>(64)
-  CORD cname;//name in c, and llvm I suppose(64)
   union {
     lambda* lam;
     funcall comp;
   };//(64)
+  CORD cname;//name in c, and llvm I suppose(64)
   enum {//(32)
     _lambda_fun,
     _compiled_fun,
+    _compiled_macro=_builtin_macro,
   } type;
   uint32_t maxargs;//extra 32 bits, so we can save a bit of
   //indirection, though I probably won't use this

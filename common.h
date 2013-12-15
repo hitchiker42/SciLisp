@@ -114,7 +114,7 @@
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 #define NIL_MACRO() {.tag = -1,.val={.meta = -1}}
-#define format_error_str(format,args...) CORD_sprintf(&error_str,format,##args)
+#define format_error_str(format,args...) (CORD_sprintf(&error_str,format,##args))
 #define format_error_sexp(format,args...)       \
   format_error_str(format,args),                \
     error_sexp(CORD_to_char_star(error_str))

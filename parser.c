@@ -122,7 +122,10 @@ sexp parse_sexp(){
 }
 sexp parse_cons(){
   //sexp* result=xmalloc(sizeof(sexp));
-  nextTok();
+  if(nextTok()==TOK_RPAREN){
+    format_error_str("invalid construct ()");
+    handle_error();
+  }
   sexp result;
   symref tmpsym=0;
   result.tag=_cons;
@@ -527,7 +530,11 @@ static inline sexp parse_list(){
   retval.is_ptr=1;
   cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
   cons* prev_loc=cur_loc;
-  while(nextTok() != TOK_RPAREN && yytag != TOK_DOT){
+  if(nextTok() == TOK_RPAREN){
+    format_error_str("invalid construct ()");
+    handle_error();
+  }
+  do{
     if(yytag == TOK_LPAREN){
       cur_loc->car=parse_list();
     } else {
@@ -537,9 +544,12 @@ static inline sexp parse_list(){
     prev_loc=cur_loc;
     cur_loc=cur_loc->cdr.val.cons;
     i++;
-  }
+  }  while(nextTok() != TOK_RPAREN && yytag != TOK_DOT);
   if(yytag == TOK_DOT){
-    nextTok();
+    if(nextTok() == TOK_RPAREN){
+      format_error_str("Expected expression after '.', got ')'");
+      handle_error();
+    }
     //some kind of error handling needs to go here
     prev_loc->cdr=parse_sexp();
     //how do I tag this?

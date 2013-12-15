@@ -176,6 +176,7 @@
 (assert-eq (add44 94) 138)
 (make-addr2 add22-and-44 22 44)
 (assert-eq 132 (add22-and-44 66))
+;test a couple basic macros
 (defmacro ++! (x) `(setq ,x (++ ,x)))
 (defmacro --! (x) `(setq ,x (-- ,x)))
 (def x 0)
@@ -186,6 +187,19 @@
 (-- x)
 (assert-eq x 1)
 (--! x)
+(assert-eq x 0)
+;test builtin macros
+(decf x)
+(assert-eq x -1)
+(incf x)
+(assert-eq x 0)
+;test scoping of builtin macro
+(let ((x 77))
+  (progn
+    (incf x)
+    (assert-eq x 78)
+    (decf x)
+    (assert-eq x 77)))
 (assert-eq x 0)
 (let ((ls (list-mergesort (rand-list 20) >)))
   (assert (is-sorted ls >)))

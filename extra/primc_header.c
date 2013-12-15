@@ -24,15 +24,21 @@
     { .args=&c_name##_args,.lname=l_name,.cname=#c_name,                \
       .comp = {.f##maxargs=c_name},                                     \
       .type = _compiled_fun };
-#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs) \
+#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs,cargs) \
   function_args c_name##_args=                                          \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
-  macro c_name##_expander=                                              \
-    {.args=&c_name##_args,.lname=l_name,                                \
-     .comp = {.f##maxargs=c_name}}
+  function c_name##_expander=                                           \
+    {.args=&c_name##_args,.lname=l_name,.cname=#c_name,                 \
+     .comp = {.f##cargs=c_name},.type=_compiled_fun}
 #define MAKE_SYMBOL(l_name,c_name,hash_v)                               \
   symbol c_name ## _sym = {.name=l_name,.val={.tag=_fun,.val={.fun=0}}}; \
+  symref c_name ## _ptr=0;                                              \
+  obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
+                                    .hashv=hash_v}
+#define MAKE_MACRO_SYMBOL(l_name,c_name,hash_v)                         \
+  symbol c_name ## _sym = {.name=l_name,.val=                           \
+                           {.tag=_fun,.meta=_builtin_macro,.val={.fun=0}}}; \
   symref c_name ## _ptr=0;                                              \
   obarray_entry c_name ##_ob_entry={.prev=0,.next=0,.ob_symbol=0,       \
                                     .hashv=hash_v}
@@ -76,16 +82,10 @@ void hello_world(){
 }
 sexp lisp_inc(sexp num){
   if(!NUMBERP(num)){
-    if(SYMBOLP(num)){
-      sexp retval=lisp_inc(num.val.var->val);
-      if(!ERRORP(retval)){
-        num.val.var->val=retval;
-        return retval;
-      }
-    }
     return format_error_sexp("cannot increment a(n) %s",tag_name(num.tag));
     //    return error_sexp("cannot increment something that is not a number");
-  } else switch(num.tag){
+  } else {
+    switch(num.tag){
       case _long:
         return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
             .val={.int64=(++num.val.int64)}};
@@ -93,30 +93,30 @@ sexp lisp_inc(sexp num){
         return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
             .val={.real64=(++num.val.real64)}};
     }
-}
-sexp lisp_inc_ref(sexp sym){
-  if(!SYMBOLP(sym)){
-    return format_type_error("incf","symbol",sym.tag);
   }
-  sexp temp=lisp_inc(sym.val.var->val);
+}
+sexp lisp_inc_ref(sexp sym_sexp,sexp cur_env_sexp){
+  if(!SYMBOLP(sym_sexp)){
+    return format_type_error("incf","symbol",sym_sexp.tag);
+  }
+  env *cur_env=cur_env_sexp.val.cur_env;
+  symref sym=getSym(cur_env,sym_sexp.val.var->name);
+  if(!sym){
+    return format_error_sexp("undefined variable %r",sym->name);
+  }
+  sexp temp=lisp_inc(sym->val);
   if(ERRORP(temp)){
     return temp;
   } else {
-    sym.val.var->val=temp;
+    sym->val=temp;
     return temp;
   }
 }
 sexp lisp_dec(sexp num){
   if(!NUMBERP(num)){
-    if(SYMBOLP(num)){
-      sexp retval=lisp_inc(num.val.var->val);
-      if(!ERRORP(retval)){
-        num.val.var->val=retval;
-        return retval;
-      }
-    }
     return format_error_sexp("cannot decrement a(n) %s",tag_name(num.tag));
-  } else switch(num.tag){
+  } else {
+    switch(num.tag){
       case _long:
         num.val.int64-=1;
         return num;
@@ -124,18 +124,37 @@ sexp lisp_dec(sexp num){
         num.val.real64-=1;
         return num;
     }
-}
-sexp lisp_dec_ref(sexp sym){
-  if(!SYMBOLP(sym)){
-    return format_type_error("decf","symbol",sym.tag);
   }
-  sexp temp=lisp_dec(sym.val.var->val);
+}
+sexp lisp_dec_ref(sexp sym_sexp,sexp cur_env_sexp){
+  if(!SYMBOLP(sym_sexp)){
+    return format_type_error("decf","symbol",sym_sexp.tag);
+  }
+  env *cur_env=cur_env_sexp.val.cur_env;
+  symref sym=getSym(cur_env,sym_sexp.val.var->name);
+  if(!sym){
+    return format_error_sexp("undefined variable %r",sym->name);
+  }
+  sexp temp=lisp_dec(sym->val);
   if(ERRORP(temp)){
     return temp;
   } else {
-    sym.val.var->val=temp;
+    sym->val=temp;
     return temp;
   }
+}
+/* minargs=0,maxarg=1,restarg=1*/
+sexp lisp_and(sexp exprs,sexp cur_env_sexp){
+  env *cur_env=cur_env_sexp.val.cur_env;
+  sexp retval=LISP_TRUE;
+  while(CONSP(exprs)){
+    if(!(isTrue(eval(XCAR(exprs),cur_env)))){
+      return LISP_FALSE;
+    } else {
+      exprs=XCDR(exprs);
+    }
+  }
+  return retval;
 }
 sexp lisp_sum(sexp required,sexp values){
   if(!CONSP(values) && !NILP(values)){

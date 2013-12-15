@@ -142,7 +142,6 @@ DEFUN(array_nreverse,1);
 DEFUN(getKeywordType,1);
 DEFUN(lisp_sort,2);
 DEFUN(lisp_cmp_gt,2);
-DEFUN(lisp_cmp_eq,2);
 DEFUN(lisp_cmp_lt,2);
 DEFUN(lisp_cmp_ge,2);
 DEFUN(lisp_cmp_le,2);
@@ -290,5 +289,7 @@ DEFTYPE(true,_true);
 DEFTYPE(false,_false);
 DEFTYPE(uninterned,_uninterned);
 DEFTYPE(cons,_cons);
+DEFUN(lisp_inc_ref,2);
+DEFUN(lisp_dec_ref,2);
 #undef DEFUN
 #endif

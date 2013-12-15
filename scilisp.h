@@ -7,4 +7,6 @@
 #include "array.h"
 #include "print.h"
 #include "bignum.h"
+#include "sequence.h"
+#include "cffi.h"
 #endifo

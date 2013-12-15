@@ -5,24 +5,16 @@
 #include "common.h"
 #include "gc/include/gc/gc.h"
 #include "prim.h"
-#include "lex.yy.h"
 #include "print.h"
 #include "codegen.h"
+#include "lex.yy.h"
 #include <sys/mman.h>
 #define HAVE_READLINE
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
 #endif
-jmp_buf main_loop,error_buf;
-static c_string current_version="0.01";
-static c_string banner=
-  "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
-  "SciLisp is free software licensed under the GNU GPL V3+";
-static c_string SciLisp_Banner;
-static int no_banner=0;
-static int no_copyright=0;
-static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
+#define DEFAULT_LISP_HIST_SIZE 100
 #if defined(MULTI_THREADED)
 static pthread_once_t pthread_prims_initialized = PTHREAD_ONCE_INIT;
 static void* initPrims_pthread(void*);
@@ -36,12 +28,23 @@ int quiet_signals=1;
 #else
 int quiet_signals=0;
 #endif
+jmp_buf main_loop,error_buf;
+static c_string current_version="0.01";
+static c_string banner=
+  "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
+  "SciLisp is free software licensed under the GNU GPL V3+";
+static c_string SciLisp_Banner;
+static int no_banner=0;
+static int no_copyright=0;
+static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
+static sexp (*evalFun)(sexp,env*)=NULL;
+static FILE *logfile;
 static long lisp_hist_size=-1;
 static sexp *lisp_history;
-#define DEFAULT_LISP_HIST_SIZE 100
 int evalError=0;
 static char *line_read;
 static void SciLisp_getopt(int argc,char *argv[]);
+static sexp eval_log(sexp expr,env *cur_env);
 void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
   if(!quiet_signals){
@@ -128,9 +131,10 @@ int compile(FILE* input,const char *output,FILE* c_code){
       CORD_fprintf(stderr,error_str);
       exit(5);
     }
-    char tmpFilename[L_tmpnam];
-    tmpnam_r(tmpFilename);
-    FILE* tmpFile=fopen(tmpFilename,"w");
+    char tmpFilename[]={'/','t','m','p','/','t','m','p',
+                        'X','X','X','X','X','X','.','c','\0'};
+    int fd=mkstemps(tmpFilename,2);
+    FILE* tmpFile=fdopen(fd,"w");
     CORD_put(generated_code,tmpFile);
     char* cc_command;
     //need to fix this eventually
@@ -277,12 +281,12 @@ int main(int argc,char* argv[]){
   initPrims();
   SciLisp_getopt(argc,argv);
 #endif
-  sexp(*evalFun)(sexp,env*)=eval;
   static char *line_read =(char *)NULL;
   int parens,start_pos;
-  char tmpFile[L_tmpnam];
-  tmpnam_r(tmpFile);
-  FILE* my_pipe=fopen(tmpFile,"w+");
+  char tmpFile[]={'/','t','m','p','/','S','c','i','L','i','s','p','_','P','i','p','e',
+                  'X','X','X','X','X','X','\0'};
+  int fd=mkstemp(tmpFile);
+  FILE* my_pipe=fdopen(fd,"w+");
   yyin=my_pipe;
   #ifdef HAVE_READLINE
   rl_set_signals();
@@ -300,8 +304,11 @@ int main(int argc,char* argv[]){
   }
   if(lisp_hist_size==-1){
     lisp_hist_size=DEFAULT_LISP_HIST_SIZE;
-  }
+  }  
   lisp_history=xmalloc(sizeof(sexp)*lisp_hist_size);
+  if(!evalFun){
+    evalFun=eval;
+  }
   sexp ast;
  REPL:while(1){
     if(setjmp(error_buf)){
@@ -569,4 +576,9 @@ static void SciLisp_getopt(int argc,char *argv[]){
     printf("error: -o|--output requires a file of SciLisp code to compile\n");
     exit(2);
   }
+}
+static sexp eval_log(sexp expr,env *cur_env){
+  sexp retval=eval(expr,cur_env);
+  CORD_fprintf(logfile,print(retval));
+  return retval;
 }

@@ -343,7 +343,7 @@ sexp c_merge_sort(sexp ls,sexp sort_fn){
 }
 sexp merge_sort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNP(sort_fn)){
-    return format_type_error("merge sort","list",ls.tag,"funciton",sort_fn.tag);
+    return format_type_error2("merge sort","list",ls.tag,"funciton",sort_fn.tag);
   }
   return _merge_sort(ls,sort_fn);
 }
