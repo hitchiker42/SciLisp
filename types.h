@@ -128,8 +128,8 @@ typedef wchar_t char32_t;
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
-  error_sexp(type_error_str)
-#define format_type_error_named(fun,expected,got,name)                      \
+    error_sexp(type_error_str)
+#define format_type_error_named(fun,expected,got,name)                  \
   CORD_sprintf(&type_error_str,                                         \
                "type error in %r, expected a(n) %r for %r but got a(n) %r", \
                fun,expected,name,tag_name(got)),                        \
@@ -138,26 +138,26 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
                ", but got %r and %r",fun,expected1,expected2,           \
                tag_name(got1),tag_name(got2)),                          \
-  error_sexp(type_error_str)
+    error_sexp(type_error_str)
 #define format_type_error3(fun,expected1,got1,expected2,got2,expected3,got3) \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r and %r"   \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r and %r" \
                ", but got %r,%r and %r",fun,expected1,expected2,expected3, \
                tag_name(got1),tag_name(got2),tag_name(got3)),           \
-  error_sexp(type_error_str)
+    error_sexp(type_error_str)
 #define format_type_error_opt(fun,expected,got)                         \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
-               ", but got %r",fun,expected,tag_name(got)),   \
-  error_sexp(type_error_str)
+               ", but got %r",fun,expected,tag_name(got)),              \
+    error_sexp(type_error_str)
 #define format_type_error_opt_named(fun,name,expected,got)              \
   CORD_sprintf(&type_error_str,"type error in %r,expected %r or nothing for argument %r" \
                ", but got %r",fun,expected,name,tag_name(got)),         \
-  error_sexp(type_error_str)
-#define format_type_error_key(fun,named,expected,got)                   \
+    error_sexp(type_error_str)
+#define format_type_error_key(fun,named,expected,got)   \
   format_type_error_opt_named(fun,named,expected,got)
 #define format_type_error_opt2(fun,expected1,expected2,got)             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
-  error_sexp(type_error_str)
+    error_sexp(type_error_str)
 #define const_real64_sexp(real64_val) {.tag=_real64,.val={.real64=real64_val}}
 #define const_int64_sexp(int64_val) {.tag=_int64,.val={.int64=int64_val}}
 #define const_uint64_sexp(uint64_val) {.tag=_uint64,.val={.uint64=uint64_val}}
@@ -412,19 +412,19 @@ struct function_args{
 //get and error when evaling builtin macros
 #define CALL_PRIM(fxn) (fxn.val.fun->comp)
 struct function{//36 bytes
-  function_args* args;//64
-  CORD lname;//lambdas should be #<lambda{number via global counter}>(64)
+  function_args* args;//8 | 8 
+  CORD lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
   union {
     lambda* lam;
     funcall comp;
-  };//(64)
-  CORD cname;//name in c, and llvm I suppose(64)
-  enum {//(32)
+  };//8 | 24
+  CORD cname;//name in c, and llvm I suppose 8 | 32
+  enum {// 4 | 36
     _lambda_fun,
     _compiled_fun,
     _compiled_macro=_builtin_macro,
   } type;
-  uint32_t maxargs;//extra 32 bits, so we can save a bit of
+  uint32_t maxargs;//extra 32 bits, so we can save a bit of 4 | 40
   //indirection, though I probably won't use this
 };
 struct macro{
@@ -444,8 +444,8 @@ struct lambda{
 #define isTrue(x)                                                       \
   (x.tag == _false ? 0 :                                                \
    (x.tag == _nil ? 0 :                                                 \
-     (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) :                \
-      ((x.tag == _long || x.is_ptr) ? (x.val.int64 == 0 ? 0 : 1) : 1))))
+    (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) :                 \
+     ((x.tag == _long || x.is_ptr) ? (x.val.int64 == 0 ? 0 : 1) : 1))))
 //possible compilier backends
 enum backend{
   c=0,
@@ -474,32 +474,32 @@ static const sexp LISP_UINT64_MAX=const_uint64_sexp(UINT64_MAX);
   }
   }*/
 /*static sexp lisp_copy(sexp obj);
-static sexp copy_array(sexp arr){
+  static sexp copy_array(sexp arr){
   sexp *retval=xmalloc(sizeof(sexp)*arr.len);
   memcpy(retval,arr.val.array,arr.len*sizeof(sexp));
   return array_sexp(retval,arr.len);
-}
-static sexp copy_symref(sexp sym){
+  }
+  static sexp copy_symref(sexp sym){
   sexp retval=sym;
   retval.val.var=xmalloc(sizeof(symbol));
   *retval.val.var=*sym.val.var;//shallow copy, copy name and props
   retval.val.var->val=lisp_copy(sym.val.var->val);
   return retval;
-}
+  }
 
-static sexp lisp_copy(sexp obj){
+  static sexp lisp_copy(sexp obj){
   if(!IS_POINTER(obj)){
-    return obj;
+  return obj;
   }
   sexp retval;
   retval=obj;//shallow copy, to copy tag and metadata
   switch(obj.tag){
-    case _list:
-    case _cons:
-      return copy_cons(obj);
-    case _array:
-      return copy_array(obj);
-    case _sym:
-      return copy_symref(obj);
+  case _list:
+  case _cons:
+  return copy_cons(obj);
+  case _array:
+  return copy_array(obj);
+  case _sym:
+  return copy_symref(obj);
   }
   }*/

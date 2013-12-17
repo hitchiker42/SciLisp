@@ -72,6 +72,23 @@ symref getSymNotGlobal(env *cur_env,CORD name);
 sexp getKeywordType(sexp obj);
 //check if name refers to a function argument, return NULL if not
 long isFunctionArg(function_env *cur_env,CORD name);
+obarray* obarray_init_custom(float gthresh,uint64_t(*hash_fn)(const void*,int),
+                      uint64_t size,int32_t is_weak_hash);
+obarray* obarray_init_default(uint64_t size);
+obarray* obarray_init(uint64_t size,float gthresh);
+obarray* init_prim_obarray();
+obarray_entry*  obarray_add_entry_generic
+(obarray *ob,symref new_entry,enum add_option conflict_opt,int append);
+obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
+int obarray_rehash(obarray *ob);
+obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);
+obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
+symref getObarraySym(obarray_env *ob_env,CORD name);
+symref addObarraySym(obarray_env *ob_env,symref Var);
+int bucketLength(obarray_entry* bucket);
+uint64_t obarray_delete_entry(obarray *ob,symref entry);
+obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
+                                      obarray_entry *entry);
 //type punning macros
 #define toSymbol(sym) (*(symbol*)&sym)
 #define toSymref(ref) (*(symref*)&(ref))
@@ -109,23 +126,6 @@ enum add_option{//conflict resolution for an existing symbol
   _overwrite=4,//explictly overwrite current entry
   _use_current=5,//keep current entry and ignore update
 };
-obarray* obarray_init_custom(float gthresh,uint64_t(*hash_fn)(const void*,int),
-                      uint64_t size,int32_t is_weak_hash);
-obarray* obarray_init_default(uint64_t size);
-obarray* obarray_init(uint64_t size,float gthresh);
-obarray* init_prim_obarray();
-obarray_entry*  obarray_add_entry_generic
-(obarray *ob,symref new_entry,enum add_option conflict_opt,int append);
-obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
-int obarray_rehash(obarray *ob);
-obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);
-obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
-symref getObarraySym(obarray_env *ob_env,CORD name);
-symref addObarraySym(obarray_env *ob_env,symref Var);
-int bucketLength(obarray_entry* bucket);
-uint64_t obarray_delete_entry(obarray *ob,symref entry);
-obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
-                                      obarray_entry *entry);
 static inline size_t symbolSize(env *cur_env){
   switch(cur_env->tag){
     case _local:
