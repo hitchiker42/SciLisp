@@ -44,7 +44,7 @@ aref_generic(typed_aref,TYPED_ARRAYP,typed_array,TYPED_AREF)
   } else if(!NUMBERP(stop)){                                            \
     format_type_error_opt(#name,"number",stop.tag);                     \
   }                                                                     \
-  double range=getDoubleValUnsafe(lisp_sub(stop,start));                \
+  double range=getDoubleValUnsafe(lisp_sub_num(stop,start));            \
   if(NILP(step)){                                                       \
     step=(range < 0)?long_sexp(-1):long_sexp(1);                        \
   } else if(!NUMBERP(step)){                                            \

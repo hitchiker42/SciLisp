@@ -6,7 +6,7 @@
 #|SciLisp regression tests|#
 #|definations|#
 (defun fact-acc (acc n) (if (<= n 1) acc (fact-acc (* n acc) (-- n))))
-(defun sum (x)(reduce x +))
+(defun sum (x)(reduce x add-num))
 (defun is-even (n) (if (= 0 n) #t (is-odd (-- n))))
 (defun is-odd (n) (if (= 0 n) #f (is-even (-- n))))
 #|the fact this function works is kinda awesome because it's so much
@@ -67,8 +67,8 @@
 (mod 39.88 8.8)
 (ash 344 4)
 (ash 344 -4)
-(add (bigfloat "1e77") (bigint "1003847") 83 11.0 00.1 99)
-(sub (bigfloat "1e999") (bigint "10294857") 884 11.0 110.9 93.9)
+(+ (bigfloat "1e77") (bigint "1003847") 83 11.0 00.1 99)
+(- (bigfloat "1e999") (bigint "10294857") 884 11.0 110.9 93.9)
 (lrand)
 (drand)
 (drand 1000)
@@ -166,7 +166,7 @@
 (defmacro make-addr (name num)
   `(defun ,name (x)(+ ,num x)))
 (defmacro make-addr2 (name num1 num2)
-  `(defun ,name (x)(add ,num1 ,num2 x)))
+  `(defun ,name (x)(+ ,num1 ,num2 x)))
 (def thirty-three 33)
 (make-addr add33 thirty-three)
 (assert-eq (add33 22) 55)

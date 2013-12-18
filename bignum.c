@@ -174,12 +174,26 @@ int mpfr_compare_generic(sexp obj1,sexp obj2){
       return LISP_FALSE;                                            \
     }                                                               \
   }
+#define lisp_bigfloat_cmp_driver_fun(name,op)                       \
+  sexp lisp_bigfloat_unsafe_##name (sexp obj1,sexp obj2){           \
+    if(mpfr_compare_generic(obj1,obj2) op 0){                       \
+      return lisp_bigfloat(obj2,NIL,NIL);                           \
+    } else {                                                        \
+      return LISP_FALSE;                                            \
+    }                                                               \
+  }
 lisp_bigfloat_cmp(gt,>);
 lisp_bigfloat_cmp(eq,==);
 lisp_bigfloat_cmp(lt,<);
 lisp_bigfloat_cmp(ge,>=);
 lisp_bigfloat_cmp(le,<=);
 lisp_bigfloat_cmp(ne,!=);
+lisp_bigfloat_cmp_driver_fun(gt_driv,>);
+lisp_bigfloat_cmp_driver_fun(eq_driv,==);
+lisp_bigfloat_cmp_driver_fun(lt_driv,<);
+lisp_bigfloat_cmp_driver_fun(ge_driv,>=);
+lisp_bigfloat_cmp_driver_fun(le_driv,<=);
+lisp_bigfloat_cmp_driver_fun(ne_driv,!=);
 #define lisp_bigint_cmp(name,op)                                        \
   sexp lisp_bigint_##name (sexp obj1,sexp obj2){                        \
     if(setjmp(cmp_err)){                                                \
@@ -191,12 +205,26 @@ lisp_bigfloat_cmp(ne,!=);
       return LISP_FALSE;                                                \
     }                                                                   \
   }
+#define lisp_bigint_cmp_driver_fun(name,op)                             \
+  sexp lisp_bigint_unsafe_##name (sexp obj1,sexp obj2){                 \
+    if(gmp_compare_generic(obj1,obj2) op 0){                            \
+      lisp_bigint(obj2);                                                \
+    } else {                                                            \
+      return LISP_FALSE;                                                \
+    }                                                                   \
+  }
 lisp_bigint_cmp(gt,>);
 lisp_bigint_cmp(eq,==);
 lisp_bigint_cmp(lt,<);
 lisp_bigint_cmp(ge,>=);
 lisp_bigint_cmp(le,<=);
 lisp_bigint_cmp(ne,!=);
+lisp_bigint_cmp_driver_fun(gt_driv,>);
+lisp_bigint_cmp_driver_fun(eq_driv,==);
+lisp_bigint_cmp_driver_fun(lt_driv,<);
+lisp_bigint_cmp_driver_fun(ge_driv,>=);
+lisp_bigint_cmp_driver_fun(le_driv,<=);
+lisp_bigint_cmp_driver_fun(ne_driv,!=);
 int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
   return mpfr_pow(ROP,OP1,
                   *(lisp_bigfloat(double_sexp(OP2),NIL,NIL).val.bigfloat),RND);

@@ -159,6 +159,10 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
     error_sexp(type_error_str)
+#define format_type_error_opt2_named(fun,name,expected1,expected2,got)  \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r or nothing" \
+               "for %r, but got %r",fun,expected1,expected2,name,tag_name(got)), \
+    error_sexp(type_error_str)
 #define const_real64_sexp(real64_val) {.tag=_real64,.val={.real64=real64_val}}
 #define const_int64_sexp(int64_val) {.tag=_int64,.val={.int64=int64_val}}
 #define const_uint64_sexp(uint64_val) {.tag=_uint64,.val={.uint64=uint64_val}}
@@ -464,6 +468,12 @@ enum operator{
   _logand,
   _logior,
   _logxor,
+  _lt,
+  _le,
+  _eq,
+  _ne,
+  _ge,
+  _gt,
 };
 static const sexp LISP_INT64_MAX=const_int64_sexp(INT64_MAX);
 static const sexp LISP_INT64_MIN=const_int64_sexp(INT64_MIN);

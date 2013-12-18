@@ -264,7 +264,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     newlist[abs(i)-1].cdr=NIL;
     return (sexp){.tag=_list,.val={.cons=newlist},.len=abs(i)};
   } else if(NILP(step)){
-    if(isTrue(lisp_lt(stop,start))){
+    if(isTrue(lisp_numlt(stop,start))){
       dstep=-1;
     } else {
       dstep/1;
@@ -273,7 +273,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     dstep=getDoubleVal(step);
     if(dstep == 0) return NIL;
   }
-  int imax=ceil(fabs(getDoubleVal(lisp_sub(stop,start))/dstep));
+  int imax=ceil(fabs(getDoubleVal(lisp_sub_num(stop,start))/dstep));
   cons* newlist=xmalloc(sizeof(cons)*imax+1);
   double j=getDoubleVal(start);
   for(i=0;i<imax;i++){

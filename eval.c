@@ -766,7 +766,7 @@ static sexp call_macro(sexp expr,env *cur_env){
  *matter if the function was defined in lisp or c*/
 sexp lisp_funcall(sexp fun,env *cur_env){
   if(!FUNCTIONP(fun)){
-    return error_sexp("argument to funcall not a function");
+    return format_type_error("funcall","function",fun.tag);
   }
   if(FUNP(fun)){
     return call_builtin(fun,cur_env);
@@ -818,15 +818,19 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     return macro_body;
   }
 }
+//this doesn't work
+//I should call call_builtin at the end
+//but if I do that I get a segfault
+//but if I leave it as this I get a lisp error
 sexp lisp_apply(sexp fun,sexp args,sexp environment){
   if(!FUNCTIONP(fun)){
-    return error_sexp("first argument to apply should be a funciton");
+    return format_type_error("apply","function",fun.tag);
   }
   if(NILP(environment)){
     environment=env_sexp(topLevelEnv);
   }
   if(!ENVP(environment)){
-    return error_sexp("last argument to apply should be an environment or nil");
+    return format_type_error_key("apply","environment","environment",environment.tag);
   }
   if(!CONSP(args)){
     cons* one_arg=alloca(sizeof(cons));
