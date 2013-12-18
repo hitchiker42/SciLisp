@@ -78,7 +78,7 @@ obarray* obarray_init_default(uint64_t size);
 obarray* obarray_init(uint64_t size,float gthresh);
 obarray* init_prim_obarray();
 obarray_entry*  obarray_add_entry_generic
-(obarray *ob,symref new_entry,enum add_option conflict_opt,int append);
+(obarray *ob,symref new_entry,add_option conflict_opt,int append);
 obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
 int obarray_rehash(obarray *ob);
 obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);

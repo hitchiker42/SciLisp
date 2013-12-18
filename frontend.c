@@ -41,7 +41,6 @@ static sexp (*evalFun)(sexp,env*)=NULL;
 static FILE *logfile;
 static long lisp_hist_size=-1;
 static sexp *lisp_history;
-int evalError=0;
 static char *line_read;
 static void SciLisp_getopt(int argc,char *argv[]);
 static sexp eval_log(sexp expr,env *cur_env);
@@ -67,14 +66,6 @@ static void truncate_and_rewind(FILE* stream,c_string name){
   truncate(name,0);
   rewind(stream);
 }
-#define init_sigstk()                                                   \
-  sigstk.ss_sp=malloc(SIGSTKSZ);                                        \
-  if(!sigstk.ss_sp){                                                    \
-  fprintf(stderr,"error, virtual memory exhausted\n");                  \
-  exit(EXIT_FAILURE);                                                   \
-  }                                                                     \
-  sigstk.ss_size=SIGSTKSZ;                                              \
-  sigaltstack(&sigstk,NULL)
 static void SciLisp_help(int exitCode) __attribute__((noreturn));
 static void SciLisp_version(int exitCode) __attribute__((noreturn));
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
@@ -570,6 +561,11 @@ static void SciLisp_getopt(int argc,char *argv[]){
   if(optind < argc){
     output_file = (output_file == NULL?"a.out":output_file);
     FILE* file=fopen(argv[optind],"r");
+    if(!file){
+      perror("Error in fopen");
+      fprintf(stderr,"File %s not found\n",argv[optind]);
+      exit(EXIT_FAILURE);
+    }
     ENSURE_PRIMS_INITIALIZED();
     compile(file,output_file,NULL);
   } else if (output_file){

@@ -50,4 +50,5 @@ sexp sequence_nreverse(sexp seq);
 sexp lisp_length(sexp obj);
 sexp sequence_length(sexp obj);
 sexp lisp_iota(sexp start,sexp stop,sexp step,sexp arrayorlist,sexp rnd);
+sexp sequence_merge_sort(sexp seq,sexp sort_fn);
 #endif

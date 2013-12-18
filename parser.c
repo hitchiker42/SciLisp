@@ -14,6 +14,7 @@
 sexp ast;//generated ast
 cons* cur_pos;//pointer to current location in ast
 TOKEN yytag;//current token
+int evalError=0;
 static jmp_buf ERROR;//location of error handling function
 static int inside_backquote=0;//global flag to determine how to handle a comma
 static sexp parse_atom();

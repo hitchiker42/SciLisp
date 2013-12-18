@@ -118,6 +118,14 @@
 #define format_error_sexp(format,args...)       \
   format_error_str(format,args),                \
     error_sexp(CORD_to_char_star(error_str))
+#define init_sigstk()                                                   \
+  sigstk.ss_sp=malloc(SIGSTKSZ);                                        \
+  if(!sigstk.ss_sp){                                                    \
+  fprintf(stderr,"error, virtual memory exhausted\n");                  \
+  exit(EXIT_FAILURE);                                                   \
+  }                                                                     \
+  sigstk.ss_size=SIGSTKSZ;                                              \
+  sigaltstack(&sigstk,NULL)
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.meta = -1},.len=0};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
@@ -236,4 +244,5 @@ static const struct sigaction sigusr1_object={.sa_handler=default_condition_hand
 static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};
 static const struct sigaction *sigusr1_action=&sigusr1_object;
 static const struct sigaction *sigusr2_action=&sigusr2_object;
+void SciLisp_init();
 #endif

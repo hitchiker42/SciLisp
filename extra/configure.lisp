@@ -1,6 +1,9 @@
 (require 'cl-ppcre)
+(require 'inferior-shell)
 (use-package 'iterate)
 (use-package 'cl-ppcre)
+(use-package 'inferior-shell)
+(defconstant *src-dir* (run/s "realpath .."))
 (defmacro strcat (&rest strings)
   `(concatenate 'string ,@strings))
 (defun parse-headers (c-file)
@@ -25,4 +28,4 @@
                               (set-difference car-headers headers :test #'equal))
                       (append headers car-headers))))))
       (acc (list (file-namestring c-file)) nil))))
-
+;(defconstant *common-headers* (parse-headers

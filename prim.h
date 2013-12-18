@@ -98,7 +98,7 @@ DEFUN(pop_cons,1);
 DEFUN(mapcar,2);
 DEFUN(cons_reduce,2);
 DEFUN(cons_qsort,2);
-DEFUN(merge_sort,2);
+DEFUN(sequence_merge_sort,2);
 DEFUN(sequence_qsort,2);
 DEFUN(lisp_length,1);
 DEFUN(aref,2);

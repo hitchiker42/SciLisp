@@ -265,3 +265,17 @@ make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
 #define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
 #define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}
 #define lisp_ans {.tag=-1,.val={.meta=-1}}
+void SciLisp_init(){
+    //setup handler for sigsegv, so we can exit gracefully on a segfault
+#ifdef DEBUG
+  debug_printf=default_debug_printf;
+  CORD_debug_printf=default_CORD_debug_printf;
+#endif
+  //allocate signal stack before gc init so gc doesn't have to worry about it
+  init_sigstk();
+  GC_set_all_interior_pointers(1);
+  GC_set_handle_fork(1);
+  GC_init();
+  pthread_once_t pthread_prims_initialized = PTHREAD_ONCE_INIT;
+  pthread_once(&pthread_prims_initialized,initPrims);
+}

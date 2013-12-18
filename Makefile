@@ -42,14 +42,14 @@ SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h 
 COMMON_HEADERS:=common.h debug.h types.h env.h
 FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c \
 	hash_fn.c lisp_math.c cffi.c ccall.c regex.c lisp_system.c unicode.c \
-	tree.c sequence.c hash.c lisp_types.c setf.c
+	tree.c sequence.c hash.c lisp_types.c #setf.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o \
 	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o \
-	tree.o sequence.o hash.o lisp_types.o setf.o
+	tree.o sequence.o hash.o lisp_types.o #setf.o
 STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o \
-	lisp_system.o unicode.o hash.o lisp_types.o setf.o
+	lisp_system.o unicode.o hash.o lisp_types.o #setf.o
 STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c \
-	lisp_system.c unicode.c hash.c lisp_type.c setf.c
+	lisp_system.c unicode.c hash.c lisp_type.c #setf.c
 BACKEND_SRC:=eval.c codegen.c prim.c
 BACKEND:=eval.o codegen.o prim.o
 CFLAGS:=$(CFLAGS) $(XCFLAGS) $(OPT_FLAGS)
@@ -119,44 +119,24 @@ codegen.o: codegen.h $(COMMON_HEADERS) prim.h c_codegen.c cons.h
 # or $(CXX) $(XCFLAGS) $(LLVM_FLAGS) c_codegen.o llvm_codegen.o -o codegen.o
 #making libraries
 LIBSCILISP_FLAGS:=$(COMMON_CFLAGS) $(INCLUDE_FLAGS) -O3
+LIBSCILISP_CC:=$(CC) $(LIBSCILISP_FLAGS)
 lib_files:
 	mkdir -p lib_files
-#should be a way to do this in less lines
-define start_libSciLisp =
-	$(eval CC_TEMP:=$(CC) $(LIBSCILISP_FLAGS))#$(QUIET_FLAGS)
-	$(CC_TEMP) -o lib_files/libSciLisp_prim.o -c prim.c
-	$(CC_TEMP) -o lib_files/libSciLisp_cons.o -c  cons.c
-	$(CC_TEMP) -o lib_files/libSciLisp_array.o -c array.c
-	$(CC_TEMP) -o lib_files/libSciLisp_eval.o -c eval.c
-	$(CC_TEMP) -o lib_files/libSciLisp_print.o -c print.c
-	$(CC_TEMP) -o lib_files/libSciLisp_env.o -c env.c
-	$(CC_TEMP) -o lib_files/libSciLisp_bignum.o -c bignum.c
-	$(CC_TEMP) -o lib_files/libSciLisp_hash_fn.o -c hash_fn.c
-	$(CC_TEMP) -o lib_files/libSciLisp_math.o -c lisp_math.c
-	$(CC_TEMP) -o lib_files/libSciLisp_ccall.o -c ccall.c
-	$(CC_TEMP) -o lib_files/libSciLisp_cffi.o -c cffi.c
-	$(CC_TEMP) -o lib_files/libSciLisp_system.o -c lisp_system.c
-endef
-libSciLisp_reqs: prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c lisp_math.c lib_files ccall.c cffi.c lisp_system.c
-define libSciLisp_files :=
-lib_files/libSciLisp_prim.o lib_files/libSciLisp_env.o lib_files/libSciLisp_cons.o \
-	lib_files/libSciLisp_array.o lib_files/libSciLisp_eval.o  \
-	lib_files/libSciLisp_print.o lib_files/libSciLisp_bignum.o \
-	lib_files/libSciLisp_hash_fn.o lib_files/libSciLisp_math.o \
-	lib_files/libSciLisp_ccall.o lib_files/libSciLisp_cffi.o \
-	lib_files/libSciLisp_system.o
-endef
+compile_lib_file = $(CC_TEMP) -o lib_files/libSciLisp_$(file:.c=.o) -c $(file)
+libSciLisp_reqs := prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c \
+	lisp_math.c ccall.c cffi.c lisp_system.c sequence.c regex.c lisp_types.c \
+	parser.c lex.yy.c hash.c tree.c unicode.c
+libSciLisp_files := $(addprefix lib_files/libSciLisp_,$(libSciLisp_reqs:.c=.o))
+start_libSciLisp: $(libSciLisp_files)
+$(libSciLisp_files): lib_files/libSciLisp_%.o: %.c
+	$(LIBSCILISP_CC) -o $@ -c 
 LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
-libSciLisp.o: libSciLisp_reqs
-	$(start_libSciLisp)
+libSciLisp.o: start_libSciLisp
 	$(CC) -o libSciLisp.o $(LIBSCILISP_FLAGS) -lm -lgc -lcord
-libSciLisp.a: libSciLisp_reqs
-	$(start_libSciLisp)
+libSciLisp.a: start_libSciLisp
 	ar rcs $@ $(libSciLisp_files)
-	rm $(libSciLisp_files)
-libSciLisp.so: libSciLisp_reqs
-	$(start_libSciLisp)
-	$(CC) $(XCFLAGS) -shared -lcord -lm -lgc $(LD_SHARED_FLAGS) \
+libSciLisp.so: start_libSciLisp
+	$(CC) $(XCFLAGS) -shared $(LD_SHARED_FLAGS) \
 	$(libSciLisp_files) -o $@
 libs: libSciLisp.a libSciLisp.so
 prim.bc: prim.c eval.c print.c env.c cons.c array.c bignum.c

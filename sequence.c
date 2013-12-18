@@ -37,8 +37,16 @@ sexp lisp_sort(sexp seq,sexp fun){
   switch(seq.tag){
     case _list:
     case _cons:
-      return merge_sort(seq,fun);
+      return cons_merge_sort(seq,fun);
     case _array:
       return array_qsort(seq,fun,NIL);
+  }
+}
+sexp sequence_merge_sort(sexp seq,sexp sort_fn){
+  if(!SEQUENCEP(seq)){
+    return format_type_error("merge-sort","sequence",seq.tag);
+  }
+  if(CONSP(seq)){
+    return cons_merge_sort(seq,sort_fn);
   }
 }

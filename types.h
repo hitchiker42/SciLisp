@@ -21,6 +21,7 @@ typedef enum _tag _tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum special_form special_form;//different types of special forms
 typedef enum sexp_meta sexp_meta;
+typedef enum add_option add_option;
 typedef union data data;//core representation of a lisp object
 typedef union env_type env_type;//generic environment
 typedef union symbol_type symbol_type;//generic symbol

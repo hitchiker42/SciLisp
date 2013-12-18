@@ -62,7 +62,7 @@
     ("cons" "Cons" 2) ("set-car!" "set_car" 2) ("set-cdr!" "set_cdr" 2)
     ("last" "lisp_last" 1) ("push!" "push_cons" 2) ("pop!" "pop_cons" 1)
     ("mapcar" "mapcar" 2) ("reduce" "cons_reduce" 2)("list-qsort" "cons_qsort" 2)
-    ("list-mergesort" "merge_sort" 2)("qsort" "sequence_qsort" 2)
+    ("merge-sort" "sequence_merge_sort" 2)("qsort" "sequence_qsort" 2)
     ("length" "lisp_length" 1) ("aref" "aref" 2) ("array->list" "array_to_list" 1)
     ("typeName" "lisp_typeName" 1) ("print" "lisp_print" 1)
     ("fclose" "lisp_close" 1) ("fputs" "lisp_fputs" 2) ("fprint" "lisp_fprint" 2)

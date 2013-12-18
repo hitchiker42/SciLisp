@@ -341,7 +341,7 @@ static inline sexp _merge_sort(sexp ls,sexp sort_fn){
 sexp c_merge_sort(sexp ls,sexp sort_fn){
   return _merge_sort(ls,sort_fn);
 }
-sexp merge_sort(sexp ls,sexp sort_fn){
+sexp cons_merge_sort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNP(sort_fn)){
     return format_type_error2("merge sort","list",ls.tag,"funciton",sort_fn.tag);
   }
