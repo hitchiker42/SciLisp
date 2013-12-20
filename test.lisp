@@ -223,6 +223,8 @@
 (assert-eq (sxhash "sxhash") (sxhash "sxhash"))
 (assert-equal "sxhash" "sxhash")
 (assert-!eq "sxhash" "sxhash")
+(assert-equal '(1 2 3 4 5 6 7 8 9) (iota 1 9))
+(assert-equal '(-10 -8 -6 -4 -2 0) (iota -10 0 2))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

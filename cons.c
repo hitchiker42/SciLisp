@@ -244,40 +244,85 @@ sexp cons_drop(sexp ls,sexp num){
     }
   }
 }
+static inline sexp int_iota_helper(int64_t j,int64_t jstep,int64_t imax){
+  int64_t i;
+  cons *newlist=xmalloc(sizeof(cons)*imax+1);  
+  for(i=0;i<=imax;i++){
+    newlist[i].car=int64_sexp(j);
+    newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
+    j+=jstep;
+  }
+  newlist[i-1].cdr=NIL;
+  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
+}
+sexp list_int_iota(sexp start,sexp stop,sexp step){
+  int64_t i,j,imax,jstep;
+  if(NILP(stop)){
+    imax=start.val.int64;
+    jstep=1;
+    j=0;
+  } else {
+    j=start.val.int64;
+    int direction=(stop.val.int64-start.val.int64)<0;
+    if(NILP(step)){
+      jstep=(direction?-1:1);
+      imax=abs(stop.val.int64-start.val.int64);
+    } else {
+      jstep=step.val.int64;
+      imax=abs((stop.val.int64-start.val.int64)/jstep);
+      if(j>>63 != direction){
+        return error_sexp
+          ("error in iota, sign of step not equal to sign of stop-start");
+      }
+    }
+  }
+  return int_iota_helper(j,jstep,imax);
+}
 //lisp declaration would be
 //(defun iota (start &optional stop step))
 sexp list_iota(sexp start,sexp stop,sexp step){
   int i=0;
+  int istep;
   double dstep;
   if(!NUMBERP(start)){
     return format_type_error("iota","number",start.tag);
   }
   if(NILP(stop)){
-    int imax=lrint(getDoubleVal(start));
-    cons* newlist=xmalloc(sizeof(cons)*abs(imax)+1);
-    while(abs(i)<abs(imax)){
-      newlist[abs(i)].car=(sexp){.tag=_long,.val={.int64=i}};
-      newlist[abs(i)].cdr=(sexp){.tag=_list,.val={.cons=&newlist[abs(i)+1]}};
-      if(imax<0){i--;}
-      else {i++;}
-    }
-    newlist[abs(i)-1].cdr=NIL;
-    return (sexp){.tag=_list,.val={.cons=newlist},.len=abs(i)};
+    int64_t jmax=lrint(getDoubleVal(start));
+    int64_t j=0;
+    int64_t jstep=(jmax>>63?-1:1);
+    return int_iota_helper(j,jstep,abs(jmax));
+    /* cons* newlist=xmalloc(sizeof(cons)*abs(imax)+1);     */
+    /* while(abs(i)<abs(imax)){ */
+    /*   newlist[abs(i)].car=int64_sexp(i); */
+    /*   newlist[abs(i)].cdr=(sexp){.tag=_list,.val={.cons=&newlist[abs(i)+1]}}; */
+    /*   if(imax<0){i--;} */
+    /*   else {i++;} */
+    /* } */
+    /* newlist[abs(i)-1].cdr=NIL; */
+    /* return (sexp){.tag=_list,.val={.cons=newlist},.len=abs(i)}; */
   } else if(NILP(step)){
+    step.tag=_int64;
     if(isTrue(lisp_numlt(stop,start))){
       dstep=-1;
     } else {
-      dstep/1;
+      dstep=1;
     }
   } else {
     dstep=getDoubleVal(step);
     if(dstep == 0) return NIL;
   }
+  if(start.tag==stop.tag && stop.tag==step.tag && step.tag == _int64){
+  int64_t j=start.val.int64;
+  int64_t jstep=(int64_t)dstep;
+  int64_t imax=abs((stop.val.int64-j)/jstep);
+    return int_iota_helper(j,jstep,imax);
+  }
   int imax=ceil(fabs(getDoubleVal(lisp_sub_num(stop,start))/dstep));
   cons* newlist=xmalloc(sizeof(cons)*imax+1);
   double j=getDoubleVal(start);
   for(i=0;i<imax;i++){
-    newlist[i].car=(sexp){.tag=_double,.val={.real64=j}};
+    newlist[i].car=double_sexp(j);
     newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
     j+=dstep;
   }

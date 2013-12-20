@@ -5,25 +5,24 @@
   (if load-in-progress
       (file-name-directory load-file-name)
     (file-name-directory (pwd))))
+;Just to quiet the byte compilier
 (defmacro define (var defn)
+  "define and/or set a variable"
   (progn
     `(defvar ,var)
     `(setq ,var ,defn)))
-(defun collect (fun args)
-  (let ((ls ()))
-    (dolist (i args)
-      (push (funcall fun i) ls))
-    (nreverse ls)))
 (defun indent-buffer ()
   "Indent entire buffer using indent-region"
   (interactive)
   (indent-region (point-min) (point-max)))
+;;functions to make primitives
+;;in elisp a primitive is represented as alist
 (cl-defun mk-prim (lname cname minargs &key (optargs 0) (keyargs 0) (restarg 0))
   (let ((maxargs (+ minargs optargs keyargs restarg)))
     `((:lname . ,lname) (:cname . ,cname) (:minargs . ,minargs) (:maxargs . ,maxargs)
     (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg))))
 (defun bignum-ops (op-list typename nargs)
-  (collect
+  (mapcar
    (lambda (op)
      (mk-prim (format "%s-%s" typename op) (format "lisp_%s_%s" typename op) nargs))
    op-list))
@@ -37,14 +36,14 @@
   (mk-prim name (format "lisp_%s" name) 1))
 ;;lists of primitives
 (define *cadrs*
-(let ((ls ()))
-  (dolist (i '("a" "d"))
-    (dolist (j '("a" "d" ""))
-      (dolist (k '("a" "d" ""))
-        (dolist (l '("a" "d" ""))
-          (add-to-list
-           'ls (list (concat "c" i j k l "r") (concat "c" i j k l "r") 1))))))
-  ls))
+  (let ((ls ()))
+    (dolist (i '("a" "d"))
+      (dolist (j '("a" "d" ""))
+        (dolist (k '("a" "d" ""))
+          (dolist (l '("a" "d" ""))
+            (add-to-list
+             'ls (list (concat "c" i j k l "r") (concat "c" i j k l "r") 1))))))
+    ls))
 (define mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "fdiv_q" "tdiv_q"
                           "cdiv_r""fdiv_r" "tdiv_r" "and" "ior" "xor"
                           "gt" "eq" "lt" "ge" "le" "ne"))
@@ -205,18 +204,16 @@
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp"
                      "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
-  (collect (lambda (x) (apply #'mk-prim x)) basic-prims-list))
+  (mapcar (lambda (x) (apply #'mk-prim x)) basic-prims-list))
 (define SciLisp-prims
   (append
    basic-SciLisp-prims
   (mpfr-binops mpfr-binops-list)
-  (collect #'mk-predicate predicates)
-  (collect  (lambda (x) (apply #'mk-prim x)) *cadrs*)))
+  (mapcar #'mk-predicate predicates)
+  (mapcar  (lambda (x) (apply #'mk-prim x)) *cadrs*)))
 (define SciLisp-prim-macros
-  '(((:lname . "incf") (:cname . "lisp_inc_ref") (:minargs . 1) (:maxargs . 1)
-     (:optargs . 0) (:keyargs . 0) (:restarg . 0))
-    ((:lname . "decf") (:cname . "lisp_dec_ref") (:minargs . 1) (:maxargs . 1)
-     (:optargs . 0) (:keyargs . 0) (:restarg . 0))))
+  (list (mk-prim "incf" "lisp_inc_ref" 1)
+        (mk-prim "decf" "lisp_dec_ref" 1)))
 (setq SciLisp-prims (delete-duplicates SciLisp-prims :test #'equal))
 (define SciLisp-globals
   (list (vector "lisp_mach_eps" "Meps" 1) (vector "lisp_pi" "pi" 1)
@@ -241,8 +238,29 @@
     "list" "fun" "symbol" "macro" "type" "keyword" "hashtable" "spec" "regex"
     "nil" "dpair" "lenv" "env" "obarray" "funargs" "true" "false" "uninterned"
     "cons"))
+(defun mk-type-tests (type)
+  (let 
+      ((type-macro
+        (format "#define %sP(obj) (obj.tag ==_%s)\n"
+                upcase(type) type))
+       (type-function-c
+        (format "int is_%s(sexp obj){\n  return %sP(obj);\n}\n"
+                type upcase(type)))
+       (type-function-lisp
+        (format 
+         "sexp lisp_%sp(sexp obj){
+  return(%sP(obj)?LISP_TRUE:LISP_FALSE);\n}\n" type upcase(type))))
+    (list type-macro type-function-c type-function-lisp)))
+;;need to actually use this, because I don't do anything with it right now
 (define SciLisp-aliases
-  '(("lisp_consp" "\"cons?\"" 1)))
+  (mapcar
+   (lambda (x) 
+     (list 
+      (concat "lisp_" x)
+      (concat "\"" (replace-regexp-in-string "\\(.*\\)p" "\\1?" x) "\"")
+      1))
+   predicates))
+;  '(("lisp_consp" "\"cons?\"" 1)))
 (defvar initPrimsObarray-header)
 (setq initPrimsObarray-header
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;
@@ -410,8 +428,9 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 ;; Local Variables:
 ;; auto-async-byte-compile-display-function: (lambda (&rest pargs) nil)
 ;; End:
-(let 
-    ((auto-mode-alist nil)
-     (vc-handled-backends nil))
-  (generate-SciLisp-prims))
+(if load-in-progress
+    (let
+        ((auto-mode-alist nil)
+         (vc-handled-backends nil))
+      (generate-SciLisp-prims)))
 
