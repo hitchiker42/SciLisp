@@ -9,6 +9,10 @@
 (defun sum (x)(reduce x add-num))
 (defun is-even (n) (if (= 0 n) #t (is-odd (-- n))))
 (defun is-odd (n) (if (= 0 n) #f (is-even (-- n))))
+(defmacro assert-eq (x y) `(assert (eq ,x ,y)))
+(defmacro assert-equal (x y) `(assert (equal ,x ,y)))
+(defmacro assert-!eq (x y) `(assert (not (eq ,x ,y))))
+(defmacro assert-!equal (x y) `(assert (not (equal ,x ,y))))
 #|the fact this function works is kinda awesome because it's so much
  |in the spirit of lisp, it uses a recursive higher order function that
  |is locally bound and uses a variable from it's enclosing environment
@@ -215,6 +219,10 @@
   (println "testing when")
   (println "still testing")
   (println "done testing"))
+(assert-eq (sxhash 17) (sxhash 17))
+(assert-eq (sxhash "sxhash") (sxhash "sxhash"))
+(assert-equal "sxhash" "sxhash")
+(assert-!eq "sxhash" "sxhash")
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

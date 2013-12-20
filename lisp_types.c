@@ -147,3 +147,22 @@ sexp getKeywordType(sexp obj){
   }
   return _getKeywordType(obj);
 }
+sexp lisp_cast_to_float(sexp obj){
+  if(!NUMBERP(obj)){
+    return format_type_error("float","number",obj.tag);
+  }
+  return real64_sexp(getDoubleValUnsafe(obj));
+}
+
+sexp lisp_strtod(sexp obj){
+  if(!STRINGP(obj)){
+    return format_type_error("string->real","string",obj.tag);
+  }
+  char *err_test;
+  double retval=strtod(CORD_to_const_char_star(obj.val.cord),&err_test);
+  if(err_test){
+    return error_sexp("invalid string passed to string->real");
+  } else {
+    return real64_sexp(retval);
+  }
+}

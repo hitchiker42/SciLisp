@@ -547,3 +547,5 @@ mk_lisp_cmp_select(gt,>);
 mk_lisp_cmp_select(lt,<);
 mk_lisp_cmp_select(eq,=);
 mk_lisp_cmp_select(ne,!=);
+//sexp bitwise_driver(sexp required,sexp rest){
+  

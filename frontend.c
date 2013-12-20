@@ -305,6 +305,7 @@ int main(int argc,char* argv[]){
     if(setjmp(error_buf)){
       PRINT_MSG("jumped to error");
       //printf(error_str);
+      yyrestart(yyin);
     }
     if(evalError){
       truncate_and_rewind(my_pipe,tmpFile);

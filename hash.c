@@ -13,17 +13,33 @@ static hash_table* hashtable_rehash(hash_table *ht);
 //assume keyword args are implemented
 //bit long, come up with a better way to parse and typecheck
 //keyword args
-sexp makeHashtable(sexp comp_fun,sexp size,sexp hash_fn,
+sexp make_hashtable_default(){
+  return makeHashtable(NIL,NIL,NIL,NIL,NIL,NIL,NIL);
+}
+sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor){
   hash_table *ht=xmalloc(sizeof(hash_table));
-  if(NILP(comp_fun)){
+  if(NILP(comp_fn)){
     ht->hash_cmp=lisp_eq;
+    ht->test_fn=_heq;
     //need to add a test for function arity
-  } else if(!FUNCTIONP(comp_fun)){
-    return format_type_error_key("make-hashtable","comp-fun","function",comp_fun.tag);
+  } else if(!KEYWORDP(comp_fn)){
+    return format_type_error_key("make-hashtable","comp-fun","test",comp_fn.tag);
   } else {
-    ht->hash_cmp=comp_fun.val.fun->comp.f2;
+    if(KEYWORD_COMPARE("eq",comp_fn)){
+      ht->hash_cmp=lisp_eq;
+      ht->test_fn=_heq;
+    } else if(KEYWORD_COMPARE("eql",comp_fn)){
+      ht->hash_cmp=lisp_eql;
+      ht->test_fn=_heql;
+    } else if(KEYWORD_COMPARE("equal",comp_fn)){
+      ht->hash_cmp=lisp_equal;
+      ht->test_fn=_hequal;
+    } else {
+      return format_error_sexp
+        ("invalid hash test function %r",comp_fn.val.keyword->name);
+    }
   }
   if(NILP(size)){
     ht->size=DEFAULT_SIZE;
@@ -133,25 +149,27 @@ uint64_t hash_sexp(sexp key,sexp hash_fun){
       return hash_fn(key.val.opaque,8);
   }
 }
-static uint64_t _hash_sexp(sexp key,sexp ht_sexp){
+static uint64_t _hash_sexp(sexp key,sexp hash_fn){
   //temporary untill I actually implement selectable hash functions
-  hash_table *ht=ht_sexp.val.hashtable;
+  //  hash_table *ht=ht_sexp.val.hashtable;
+  uint64_t(*hash_fp)(const void*,int);
+  hash_fp=fnv_hash;
   switch(key.tag){
     case _cord:
-      return ht->hash_fn(key.val.cord,CORD_len(key.val.cord));
+      return hash_fp(key.val.cord,CORD_len(key.val.cord));
     case _symbol:
-      //symbols should hash the same regardless of type, so
+      //symbols should hash the same regardless of the kind of symbol, so
       //use only the bits common to all symbols
-      return ht->hash_fn(key.val.var,sizeof(symbol));
+      return hash_fp(key.val.var,sizeof(symbol));
     case _list:
     case _cons:
-      return ht->hash_fn(key.val.cons,sizeof(cons));
+      return hash_fp(key.val.cons,sizeof(cons));
     default:
-      return ht->hash_fn(key.val.opaque,8);
+      return hash_fp(&key.val.uint64,sizeof(void*));
   }
 }
 sexp lisp_hash_sexp(sexp obj){
-  return uint64_sexp(hash_sexp(obj,NIL));
+  return uint64_sexp(_hash_sexp(obj,NIL));
 }
 static hash_entry *_get_entry(hashtable *ht,sexp key){
   uint64_t hashv=_hash_sexp(key,hashtable_sexp(ht));
@@ -320,4 +338,20 @@ sexp hashtable_lisp_rehash(sexp ht){
   } else {
     return hashtable_sexp(hashtable_rehash(ht.val.hashtable));
   }
+}
+CORD hashtable_test_fn_name(sexp ht){
+  switch(ht.val.hashtable->test_fn){
+    case _heq:
+      return "eq";
+    case _heql:
+      return "eql";
+    case _hequal:
+      return "equal";
+  }
+}
+sexp hashtable_test_fn(sexp ht){
+  if(!HASHTABLEP(ht)){
+    return format_type_error("hashtable-test-fn","hashtable",ht.tag);
+  }
+  return cord_sexp(hashtable_test_fn_name(ht));
 }

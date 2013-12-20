@@ -32,6 +32,11 @@ struct hash_table {
   float sfactor;
   uint64_t (*hash_fn)(const void*,int);
   sexp (*hash_cmp)(sexp,sexp);
+  enum {
+    _heq,
+    _heql,
+    _hequal,
+  } test_fn;
 };
 /* return the total number of buckets in the hash table */
 sexp hashtable_size(sexp ht) __attribute__((pure));
@@ -48,19 +53,21 @@ sexp hashtable_shrink_threshold(sexp ht)__attribute__((pure));
 sexp hashtable_shrink_factor(sexp ht)__attribute__((pure));
 /* If ENTRY matches an entry already in the hash table, return the
    entry from the table.  Otherwise, return NIL.  */
+CORD hashtable_test_fn_name(sexp ht);
+sexp hashtable_test_fn(sexp ht);
 sexp hashtable_get_entry(sexp ht, sexp key);
 sexp hashtable_add_entry(sexp ht,sexp key,sexp value,sexp add_opt);
 sexp hashtable_walk(sexp ht,sexp walk_fn);
 sexp hashtable_lisp_rehash(sexp ht);
+sexp make_hashtable_default();
 //all arguments are optional, should probably be keyargs
-//also should proba
 sexp makeHashtable(sexp comp_fun,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor);
 sexp hashtable_reinit(sexp ht,sexp comp_fun,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor);
-//hash an sexp
+//hash a(n) sexp
 uint64_t hash_sexp(sexp key,sexp hash_fn);
 sexp lisp_hash_sexp(sexp obj);
 sexp hashtable_delete_key(sexp ht_sexp,sexp key);

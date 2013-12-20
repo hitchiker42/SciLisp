@@ -7,6 +7,7 @@
 #include "regex.h"
 #include "print.h"
 #include "tree.h"
+#include "hash.h"
 #define mk_tag_name(tag,name) case tag: return #name
 c_string tag_name(_tag obj_tag){
   switch(obj_tag){
@@ -113,7 +114,14 @@ CORD print_num_format(sexp obj,CORD format){
       } else {
         CORD_sprintf(&retval,"%ld",(long)obj.val.int64);
       }
-    } else if (BIGINTP(obj)){
+    } else if (UINT64P(obj)){
+      if(format != 0){
+        CORD_sprintf(&retval,format,(uint64_t)obj.val.uint64);
+      } else {
+        CORD_sprintf(&retval,"0x%lx",(uint64_t)obj.val.uint64);
+      }
+    }
+    else if (BIGINTP(obj)){
       if(format != 0){
         char *temp;
         gmp_asprintf(&temp,format,(*obj.val.bigint));
@@ -137,6 +145,8 @@ CORD print_num_format(sexp obj,CORD format){
         //        retval=CORD_from_char_star(temp);
         //        mpfr_free_str(temp);
       }
+    } else {
+      return "print num error";
     }
     return retval;
   }
@@ -157,6 +167,7 @@ CORD print(sexp obj){
     HERE();
     case _double:
     case _long:
+    case _ulong:
     case _bigint:
     case _bigfloat:
       return print_num(obj);
@@ -339,6 +350,12 @@ CORD print(sexp obj){
       } else {
         return print(c_data_to_sexp(c_obj));
       }
+    }
+    case _hashtable:{
+      hash_table *hash=obj.val.hashtable;
+      CORD_sprintf(&retval,"#<hash-table :test %r :entries %d>",
+                   hashtable_test_fn_name(obj),hash->entries);
+      return retval;
     }
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));

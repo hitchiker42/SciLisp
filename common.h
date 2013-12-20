@@ -176,6 +176,7 @@ static inline double getDoubleVal(sexp x){
   switch(x.tag){
     case _double:
       return x.val.real64;
+    case _ulong:
     case _long:
       return (double)x.val.int64;
     default:

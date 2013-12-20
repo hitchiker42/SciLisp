@@ -489,7 +489,7 @@ static sexp dont_eval(sexp obj,env *cur_env){
   return eval(obj,cur_env);
 }
 static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,env* cur_env,CORD name,int eval_args){
-  sexp(*eval_ptr)(sexp,env*);
+  sexp(*eval_ptr)(sexp,env*);  
   if(eval_args){
     eval_ptr=eval;
   } else {
@@ -515,7 +515,6 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
       setArg();
     }
   }
-  //I think I just did that
   //still need to work out how to do number of keyword arguments
   //i.e, I clearly treat keyword arguments as a single list entity
   //but I have num_keyword_args, not has_keyword_args
@@ -683,7 +682,22 @@ sexp call_lambda(sexp expr,env *cur_env){
   symbol *save_defaults=args->args;
   args->args=xmalloc(sizeof(symbol)*args->max_args);
   memcpy(args->args,save_defaults,(sizeof(symbol)*args->max_args));
-  args=getFunctionArgs(cdr(expr),args,cur_env);
+  /* I should find a more efficent way to do this,but I do need it.
+     Think of things like this, without this block recursive function
+     calls act as if they are bound using let*, whereas with this
+     they get bound as if using let*/
+  if(cur_env->head.function == args){
+    function_args *args_copy=xmalloc(sizeof(function_args));
+    memcpy(args_copy,args,sizeof(function_args));
+    args_copy->args=xmalloc(args_copy->maxargs*sizeof(symbol));
+    memcpy(args_copy->args,args->args,(args->maxargs*sizeof(symbol)));
+    env temp_env[1];
+    *temp_env=(env){.enclosing=cur_env->enclosing,
+                    .head={.function=args_copy},.tag=_funArgs};
+    args=getFunctionArgs(cdr(expr),args,temp_env);
+    } else {
+    args=getFunctionArgs(cdr(expr),args,cur_env);
+  }
   if(!args){
     handle_error();
   }
@@ -818,13 +832,9 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     return macro_body;
   }
 }
-//this doesn't work
-//I should call call_builtin at the end
-//but if I do that I get a segfault
-//but if I leave it as this I get a lisp error
 sexp lisp_apply(sexp fun,sexp args,sexp environment){
-  if(!FUNCTIONP(fun)){
-    return format_type_error("apply","function",fun.tag);
+  if(!SYMBOLP(fun)){
+    return format_type_error("apply","symbol",fun.tag);
   }
   if(NILP(environment)){
     environment=env_sexp(topLevelEnv);
@@ -840,8 +850,8 @@ sexp lisp_apply(sexp fun,sexp args,sexp environment){
   }
   cons *funcall_code=alloca(sizeof(cons));
   funcall_code->car=fun;
-  funcall_code->cdr=XCAR(args);
-  return lisp_funcall(cons_sexp(funcall_code),environment.val.cur_env);
+  funcall_code->cdr=args;
+  return eval(cons_sexp(funcall_code),environment.val.cur_env);
 }
 static sexp macroexpand_helper(sexp body,env *cur_env){
   sexp retval=body;
@@ -897,4 +907,37 @@ static sexp macroexpand_helper(sexp body,env *cur_env){
     }
   }
   return retval;
+}
+//naieve way of doing this, but it should do for now
+//I should probably find a better way of doing this eventually
+sexp parse_keyargs(sexp args_passed,CORD* keywords,sexp *types,function_args *args){
+  int i,j;
+  int numargs=args->maxargs;
+  j=args->num_req_args+args->num_opt_args;
+  while(CONSP(args_passed)){
+    if(!CONSP(XCDR(args_passed))){
+      return error_sexp("uneven number of keyword arguments passed");
+    }
+    for(i=0;i<numargs;i++){
+      if(KEYWORD_COMPARE(keywords[i],XCAR(args_passed))){
+        args->args[i+j].val=XCADR(args_passed);
+        j++;
+        break;
+      }
+    }
+    if(i==numargs){
+      return format_error_sexp("unknown keyword argument %s passed",
+                               XCAR(args_passed).val.keyword->name);
+    } else {
+      args_passed=XCDR(args_passed);
+    }
+  }
+  return funargs_sexp(args);
+}
+FILE *logfile;
+sexp eval_log(sexp expr,env *cur_env){
+  //here we'll assume a global variable logfile
+  register sexp val=eval(expr,cur_env);
+  CORD_fprintf(logfile,print(val));
+  return val;
 }
