@@ -321,7 +321,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   int imax=ceil(fabs(getDoubleVal(lisp_sub_num(stop,start))/dstep));
   cons* newlist=xmalloc(sizeof(cons)*imax+1);
   double j=getDoubleVal(start);
-  for(i=0;i<imax;i++){
+  for(i=0;i<=imax;i++){
     newlist[i].car=double_sexp(j);
     newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
     j+=dstep;

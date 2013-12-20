@@ -13,6 +13,8 @@
 (defmacro assert-equal (x y) `(assert (equal ,x ,y)))
 (defmacro assert-!eq (x y) `(assert (not (eq ,x ,y))))
 (defmacro assert-!equal (x y) `(assert (not (equal ,x ,y))))
+(defmacro assert-error (expr)
+  `(assert (errorp ,expr)))
 #|the fact this function works is kinda awesome because it's so much
  |in the spirit of lisp, it uses a recursive higher order function that
  |is locally bound and uses a variable from it's enclosing environment
@@ -49,11 +51,11 @@
 (print (cons ls ls2))
 (def ls4 (cons 4 ls3))
 (def ls5 (array->list arr))
-(+ 1 2)
-(+ 1.9 2)
+(assert-eq 3 (+ 1 2))
+(assert-eq 3.9 (+ 1.9 2))
 (- 2 3 )
 (- 3.4 88)
-(cons 3 3)
+(assert-equal '(3 . 3) (cons 3 3))
 (cdr (cons 83 9))
 (log 388.8)
 (cos pi)
@@ -225,6 +227,7 @@
 (assert-!eq "sxhash" "sxhash")
 (assert-equal '(1 2 3 4 5 6 7 8 9) (iota 1 9))
 (assert-equal '(-10 -8 -6 -4 -2 0) (iota -10 0 2))
+(assert-error (/ 1 0))
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

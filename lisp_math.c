@@ -55,7 +55,23 @@
 binop_to_fun(+,lisp_add_num);
 binop_to_fun(-,lisp_sub_num);
 binop_to_fun(*,lisp_mul_num);
-binop_to_fun(/,lisp_div_num);
+//division is special
+sexp lisp_div_num(sexp x,sexp y){
+  if((x.tag==y.tag)==_long){
+    if(y.val.int64 == 0){
+      return error_sexp("error, integer division by 0");
+    }
+    return
+      (sexp){.tag=_long,.val={.int64 = (x.val.int64 / y.val.int64)}};
+  } else if(NUMBERP(x)&&NUMBERP(y)){
+    register double yy=getDoubleVal(y);
+    register double xx=getDoubleVal(x);
+    return double_sexp(xx / yy);
+  } else {
+    return format_type_error2("lisp_div_num","number",x.tag,"number",y.tag);
+  }
+}
+//binop_to_fun(/,lisp_div_num);
 //bitwise primitives(need to add !)
 lop_to_fun(^,lisp_xor);
 lop_to_fun(>>,lisp_rshift);
@@ -270,7 +286,13 @@ static sexp lisp_double_min(sexp a,sexp b)
 op_to_fun(add,+);
 op_to_fun(sub,-);
 op_to_fun(mul,*);
-op_to_fun(div,/);
+static sexp lisp_long_div(sexp a,sexp b){
+  if(b.val.int64==0){
+    return error_sexp("error, integer division by 0");
+  } else {
+    return long_sexp(a.val.int64 / b.val.int64);
+  }
+}
 op_to_fun(eq_driv,==);
 op_to_fun(ne_driv,!=);
 op_to_fun(lt_driv,<);
@@ -375,7 +397,8 @@ sexp arith_driver(sexp required,sexp values,enum operator op){
     switch(cmp){
       case 0:
         while(CONSP(values)){
-          if(XCAR(values).tag > type){
+          if(XCAR(values).tag > type || XCAR(values).tag<=0){
+            if(ERRORP(XCAR(values))){return XCAR(values);}
             CORD retval;
             CORD_sprintf(&retval,"arithmatic type error, can't convert a %r to a %r",
                          tag_name(XCAR(values).tag),tag_name(type));
@@ -388,6 +411,7 @@ sexp arith_driver(sexp required,sexp values,enum operator op){
       case 1:
         while(CONSP(values)){
           if(XCAR(values).tag > type || XCAR(values).tag<=0){
+            if(ERRORP(XCAR(values))){return XCAR(values);}
             CORD retval;
             CORD_sprintf(&retval,"arithmatic type error, can't convert a %r to a %r",
                          tag_name(XCAR(values).tag),tag_name(type));
@@ -548,4 +572,3 @@ mk_lisp_cmp_select(lt,<);
 mk_lisp_cmp_select(eq,=);
 mk_lisp_cmp_select(ne,!=);
 //sexp bitwise_driver(sexp required,sexp rest){
-  
