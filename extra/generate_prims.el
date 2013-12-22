@@ -213,7 +213,9 @@
   (mapcar  (lambda (x) (apply #'mk-prim x)) *cadrs*)))
 (define SciLisp-prim-macros
   (list (mk-prim "incf" "lisp_inc_ref" 1)
-        (mk-prim "decf" "lisp_dec_ref" 1)))
+        (mk-prim "decf" "lisp_dec_ref" 1)
+        (mk-prim "and" "lisp_and" 0 :restarg 1)
+        (mk-prim "or" "lisp_or" 0 :restarg 1)))
 (setq SciLisp-prims (delete-duplicates SciLisp-prims :test #'equal))
 (define SciLisp-globals
   (list (vector "lisp_mach_eps" "Meps" 1) (vector "lisp_pi" "pi" 1)
@@ -425,9 +427,6 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
       (write-file (expand-file-name "../prim.c" current-dir-name))
       (kill-buffer))
     (progn (kill-buffer primc)(kill-buffer primh)(kill-buffer initPrimsObarray))))
-;; Local Variables:
-;; auto-async-byte-compile-display-function: (lambda (&rest pargs) nil)
-;; End:
 (if load-in-progress
     (let
         ((auto-mode-alist nil)

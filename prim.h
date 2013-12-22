@@ -304,5 +304,7 @@ DEFTYPE(uninterned,_uninterned);
 DEFTYPE(cons,_cons);
 DEFUN(lisp_inc_ref,2);
 DEFUN(lisp_dec_ref,2);
+DEFUN(lisp_and,2);
+DEFUN(lisp_or,2);
 #undef DEFUN
 #endif

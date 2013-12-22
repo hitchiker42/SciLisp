@@ -4,6 +4,7 @@
  ****************************************************************/
 //FIXME: this (assert-eq (1 (+ ` 1))) causes a segfault
 //this is not acceptable, it's malformed input, but it shouldn't cause a segfault
+//FIXME: PARSING BACKQUOTES HAS SOME SERIOUS ISSUES
 #include "common.h"
 #include "cons.h"
 #include "lex.yy.h"
@@ -107,6 +108,7 @@ sexp parse_sexp(){
     case TOK_QUASI:{
       inside_backquote=1;
       //kind of a hack
+      //sexp retval=parse_backtick();
       sexp retval = XCAR(parse_backtick());
       retval.has_comma=1;
       retval.quoted=1;
@@ -486,6 +488,7 @@ sexp parse_backtick(){
     cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
     cons* prev_loc=cur_loc;
     while (yytag != TOK_RPAREN && yytag != TOK_DOT){
+      HERE();
       switch(yytag){
         case TOK_COMMA:{
           int is_spliced_list=0;
@@ -515,10 +518,20 @@ sexp parse_backtick(){
       nextTok();
     }
     if(yytag == TOK_DOT){
-      format_error_str("erorr, macro body must be a proper list");
+      if(nextTok() == TOK_RPAREN){
+        format_error_str("Expected expression after '.', got ')'");
+        handle_error();
+      }
+      //some kind of error handling needs to go here
+      prev_loc->cdr=parse_sexp();
+      //how do I tag this?
+      nextTok();
+    } else {
+    /*      format_error_str("erorr, macro body must be a proper list");
       handle_error();
-    }
+      }*/
     prev_loc->cdr=NIL;
+    }
     return retval;
   }
   format_error_str("Shouldn't get here, end of parse macro");

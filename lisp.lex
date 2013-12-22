@@ -157,10 +157,10 @@ main {LEX_MSG("lexing mainl");
   yylval->tag=_special;yylval->val.special=_main;return TOK_SPECIAL;}
 defmacro {LEX_MSG("lexing defmacro");
   yylval->tag=_special;yylval->val.special=_defmacro;return TOK_MACRO;}
-or {LEX_MSG("lexing or");
+                   /*or {LEX_MSG("lexing or");
   yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
-and {LEX_MSG("lexing and");
-  yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}
+                   and {LEX_MSG("lexing and");
+                     yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}*/
 return {LEX_MSG("lexing return");
   yylval->tag=_special;yylval->val.special=_return;return TOK_SPECIAL;}
 dotimes {LEX_MSG("lexing dotimes");

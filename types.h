@@ -131,7 +131,7 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
     error_sexp(type_error_str)
-#define format_type_error_named(fun,expected,got,name)                  \
+#define format_type_error_named(fun,name,expected,got)                  \
   CORD_sprintf(&type_error_str,                                         \
                "type error in %r, expected a(n) %r for %r but got a(n) %r", \
                fun,expected,name,tag_name(got)),                        \

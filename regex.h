@@ -9,12 +9,10 @@
 #define _REGEX_H_
 #include "common.h"
 #include "emacs_regex.h"
-//#include "regex/pcre/include/pcre.h"
-//pcre_malloc=xmalloc;
-//pcre_free=xfree;
-//pcre32_malloc=xmalloc;
-//pcre32_free=xfree;
-struct re_match_data{
+#ifdef _HAVE_PCRE_
+#include "pcre_regex.h"
+#endif
+struct re_match_data {
   CORD re_string;
   struct re_registers *match_data;    
   regex_t *matched_re;
@@ -26,6 +24,7 @@ sexp lisp_re_optimize(sexp regex);
 sexp lisp_re_match(sexp regex,sexp string,sexp start,
                    sexp dont_return_matches,sexp only_true_or_false);
 sexp lisp_get_re_backref(sexp match_data,sexp ref_num);
+sexp lisp_re_replace(sexp regex,sexp replacement,sexp string);
 /*
 struct re_registers
 {

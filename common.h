@@ -100,6 +100,7 @@
 #define obarray_sexp(ob_val) construct_sexp(ob_val(sexp),_obarray,ob,1)
 #define opaque_sexp(opaque_val) construct_ptr(opaque_val,opaque)
 #define re_match_sexp(match_val) construct_ptr(match_val,re_data)
+#define regex_sexp(regex_val) construct_ptr(regex_val,regex)
 #define real64_sexp(real64_val) construct_atom(real64_val,real64)
 #define array_sexp(array_val,array_len)                         \
   construct_sexp_len(array_val,_array,array,1,array_len)

@@ -93,7 +93,7 @@ sexp lisp_eql(sexp obj1,sexp obj2){
 sexp lisp_equal(sexp obj1,sexp obj2){
   if(obj1.tag != obj2.tag){
     return LISP_FALSE;
-  } 
+  }
   switch(obj1.tag){
     case _cons:
     case _list:

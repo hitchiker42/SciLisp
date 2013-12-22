@@ -7,15 +7,10 @@
 #include "prim.h"
 //I tried to simplify this a bit, but it broke things, so it stays like it is
 sexp Cons(sexp car_cell,sexp cdr_cell){
-  /*cons *retval=xmalloc(sizeof(cons));
-  *retval=(cons){.car=car_cell,.cdr=cdr_cell};
-  return cons_sexp(retval);*/
   sexp retval;
-  retval.tag=_list;
-  retval.is_ptr=1;
-  retval.val.cons=xmalloc(sizeof(cons));
-  retval.val.cons->car=car_cell;
-  retval.val.cons->cdr=cdr_cell;
+  cons *new_cell=xmalloc(sizeof(cons));
+  *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
+  return list_sexp(new_cell);
   return retval;
 }
 sexp mklist(sexp head,...){

@@ -4,7 +4,7 @@
   re_set_syntax(RE_SYNTAX_EMACS);*/
 sexp lisp_re_compile(sexp regex,sexp opts){
   if(!STRINGP(regex)){
-    return error_sexp("argument to regex-compile must be a string");
+    return format_type_error("re-compile","string",regex.tag);
   }
   char* error_string;
   const char* pattern=CORD_to_const_char_star(regex.val.cord);
@@ -14,14 +14,16 @@ sexp lisp_re_compile(sexp regex,sexp opts){
   if((error_string = (char*)re_compile_pattern(pattern,length,re_buffer))){
     return error_sexp(error_string);
   } else {
-    return (sexp){.tag=_regex,.val={.regex=re_buffer}};
+    return regex_sexp(re_buffer);
   }
 }
 sexp lisp_re_match(sexp re,sexp string,sexp start,
                    sexp dont_return_matches,sexp only_true_or_false){
-  if((!REGEXP(re) && !STRINGP(re))||!STRINGP(string)){
-    return error_sexp("re-match type error, expected a regex or a string, and a string");
-  } 
+  if((!REGEXP(re) && !STRINGP(re))){
+    return format_type_error_opt2("re-match","string","regex",re.tag);
+  } if(!STRINGP(string)){
+    return format_type_error_named("re-match","string","string",string.tag);
+  }
   if(STRINGP(re)){
     re=lisp_re_compile(re,NIL);
   }
