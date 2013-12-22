@@ -80,35 +80,6 @@ void hello_world(){
   printf("hello, world!\n");
   return;
 }
-sexp lisp_inc(sexp num){
-  if(!NUMBERP(num)){
-    return format_error_sexp("cannot increment a(n) %s",tag_name(num.tag));
-    //    return error_sexp("cannot increment something that is not a number");
-  } else {
-    switch(num.tag){
-      case _long:
-        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
-            .val={.int64=(++num.val.int64)}};
-      case _double:
-        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
-            .val={.real64=(++num.val.real64)}};
-    }
-  }
-}
-sexp lisp_dec(sexp num){
-  if(!NUMBERP(num)){
-    return format_error_sexp("cannot decrement a(n) %s",tag_name(num.tag));
-  } else {
-    switch(num.tag){
-      case _long:
-        num.val.int64-=1;
-        return num;
-      case _double:
-        num.val.real64-=1;
-        return num;
-    }
-  }
-}
 //kinda messy
 sexp lisp_decf_expander(sexp sym_sexp){
   /* (incf <var>) ->
@@ -139,36 +110,6 @@ sexp lisp_decf_expander(sexp sym_sexp){
   retval.has_comma=1;
   return retval;
 }
-#if 0
-sexp lisp_sum(sexp required,sexp values){
-  if(!CONSP(values) && !NILP(values)){
-    return error_sexp("this shouldn't happen, "
-                      "rest arg to sum is not a list or nil");
-  } else {
-    switch (required.tag){
-      case _double:{
-        sexp result= required;
-        while(CONSP(values)){
-          result.val.real64 += getDoubleVal(XCAR(values));
-          values = XCDR(values);
-        }
-        return result;
-      }
-      case _long:{
-        sexp result = required;
-        while(CONSP(values)){
-          //unsafe, but assume if the first arg is a long they all are
-          result.val.int64 += XCAR(values).val.int64;
-          values=XCDR(values);
-        }
-        return result;
-      }
-      default:
-        return error_sexp("args to sum must be numbers");
-    }
-  }
-}
-#endif
 sexp lisp_error(sexp error_message){
   if(!STRINGP(error_message) && !ERRORP(error_message)){
     return format_type_error_opt2("raise-error","string","error",

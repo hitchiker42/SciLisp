@@ -42,6 +42,10 @@ sexp lisp_dec_ref(sexp sym_sexp,sexp cur_env_sexp){
     return temp;
   }
 }
+/*sexp lisp_defconst(sexp sym_sexp,sexp val_sexp,sexp cur_env_sexp){
+  sexp code=Cons(spec_sexp(_def),Cons(sym_sexp,Cons(val_sexp,NIL)));
+  eval(code,cur_env_sexp.val.cur_env);
+  }*/
 sexp lisp_inc_ref(sexp sym_sexp,sexp cur_env_sexp){
   if(!SYMBOLP(sym_sexp)){
     return format_type_error("incf","symbol",sym_sexp.tag);

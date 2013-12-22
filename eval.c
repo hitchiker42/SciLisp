@@ -166,6 +166,9 @@ static inline sexp eval_special(sexp expr,env *cur_env){
 }
 static inline sexp eval_setq(sexp expr,env *cur_env){
   symref newSym;
+  if(!SYMBOLP(cadr(expr))){
+    return format_type_error("setq","symbol",XCADR(expr).tag);
+  }
   newSym = getSym(cur_env,cadr(expr).val.var->name);
   sexp symVal=eval(caddr(expr),cur_env);
   if(!newSym){
@@ -207,8 +210,11 @@ static inline sexp eval_def(sexp expr,env *cur_env){
   //should i go with the lisp standard of define only assigning
   //to a value once or not?, for now, yes.
   symref newSym;
-  PRINT_FMT("%s",typeName(cadr(expr)));
-  newSym=getSym(cur_env,cadr(expr).val.var->name);
+  if(!SYMBOLP(cadr(expr))){
+    return format_type_error("define","symbol",XCADR(expr).tag);
+  }
+  //PRINT_FMT("%s",typeName(cadr(expr)));
+  newSym=getSym(cur_env,XCADR(expr).val.var->name);
   sexp symVal=eval(caddr(expr),cur_env);
   if(!newSym){
     newSym=xmalloc(symbolSize(cur_env));

@@ -572,3 +572,32 @@ mk_lisp_cmp_select(lt,<);
 mk_lisp_cmp_select(eq,=);
 mk_lisp_cmp_select(ne,!=);
 //sexp bitwise_driver(sexp required,sexp rest){
+sexp lisp_inc(sexp num){
+  if(!NUMBERP(num)){
+    return format_error_sexp("cannot increment a(n) %s",tag_name(num.tag));
+    //    return error_sexp("cannot increment something that is not a number");
+  } else {
+    switch(num.tag){
+      case _long:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.int64=(++num.val.int64)}};
+      case _double:
+        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+            .val={.real64=(++num.val.real64)}};
+    }
+  }
+}
+sexp lisp_dec(sexp num){
+  if(!NUMBERP(num)){
+    return format_error_sexp("cannot decrement a(n) %s",tag_name(num.tag));
+  } else {
+    switch(num.tag){
+      case _long:
+        num.val.int64-=1;
+        return num;
+      case _double:
+        num.val.real64-=1;
+        return num;
+    }
+  }
+}
