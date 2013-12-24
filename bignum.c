@@ -23,6 +23,11 @@ sexp lisp_bigint(sexp init){
       mpz_init_set_si(*new_bignum,init.val.int64);
       return bigint_sexp(new_bignum);
     }
+    case _ulong:{
+      mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
+      mpz_init_set_ui(*new_bignum,init.val.int64);
+      return bigint_sexp(new_bignum);
+    }
     case _str:{
       mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
       mpz_init_set_str(*new_bignum,CORD_to_const_char_star(init.val.cord),0);
@@ -41,7 +46,7 @@ sexp lisp_bigint(sexp init){
       return bigint_sexp(new_bignum);
     }
     default:
-      return error_sexp("bigint type error");
+      return format_type_error("bigint","bignum",init.tag);
   }
 }
 #define init_set(suffix,value,star)                                     \
@@ -57,6 +62,10 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
     case _long:{
       mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
       init_set(_si,int64,);
+    }
+    case _ulong:{
+      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
+      init_set(_ui,uint64,);
     }
     case _bigint:{
       mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
@@ -74,7 +83,7 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
       return bigfloat_sexp(new_bignum);
     }
     default:
-      return error_sexp("bigfloat type error");
+      return format_type_error("bigfloat","bignum",init.tag);
   }
 }
 #undef init_set
@@ -93,14 +102,14 @@ static sexp promoteInt(sexp obj1,_tag type){
     case _long:
       break;
     default:
-      return error_sexp("non integer value");
+      return format_type_error("promote-int","Integer",obj1.tag);
   }
   obj1.tag=type;
   return obj1;
 }
 sexp promoteNum(sexp obj1,sexp obj2){
   if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){
-    return error_sexp("type error expected a number");
+    return format_type_error2("promote","bignum",obj1.tag,"bignum",obj2.tag);
   }
   if(obj1.tag == obj2.tag){return obj2;}
   if(obj2.tag > obj1.tag){
@@ -233,8 +242,7 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
 #define mpfr_binop(op,unsafe)                                           \
   sexp lisp_bigfloat_##unsafe##op(sexp obj1,sexp obj2){                 \
     if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){                           \
-      return error_sexp                                                 \
-        ("bigfloat arithmatic funcitons require numeric arguments");    \
+      return format_type_error2(#op,"bignum",obj1.tag,"bignum",obj2.tag); \
     }                                                                   \
     if(!(BIGFLOATP(obj1))&& BIGFLOATP(obj2)){                           \
       sexp temp_obj=obj1;                                               \
@@ -261,8 +269,7 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
 #define gmp_binop(op,unsafe)                                            \
   sexp lisp_bigint_##unsafe##op(sexp obj1,sexp obj2){                   \
     if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){                            \
-      return error_sexp                                                 \
-        ("bigint arithmatic funcitons require numeric arguments");      \
+      return format_type_error2(#op,"bignum",obj1.tag,"bignum",obj2.tag); \
     }                                                                   \
     if(!(BIGINTP(obj1)) && (BIGINTP(obj2))){                            \
       sexp temp_obj = obj1;                                             \
@@ -322,28 +329,28 @@ mpfr_binop(pow,unsafe_);
 #define gmp_binop_mpz(op)                                               \
   sexp lisp_bigint_##op(sexp obj1,sexp obj2){                           \
     if(!(BIGINTP(obj1))||!(BIGINTP(obj2))){                             \
-      return error_sexp("bigint-op functions require bigint operands"); \
+      return format_type_error2(#op,"bigint",obj1.tag,"bigint",obj2.tag); \
     }                                                                   \
     gmp_wrapper(mpz_##op,*obj1.val.bigint,*obj2.val.bigint);            \
   }
 #define gmp_unop_mpz(op)                                                \
   sexp lisp_bigint_##op(sexp obj1){                                     \
     if(!(BIGINTP(obj1))){                                               \
-      return error_sexp("bigint-op functions require bigint operands"); \
+      return format_type_error(#op,"bigint",obj1.tag);                  \
     }                                                                   \
     gmp_wrapper(mpz_##op,*obj1.val.bigint);                             \
   }
 #define mpfr_binop_mpfr(op)                                             \
   sexp lisp_mpfr_##op(sexp obj1,sexp obj2){                             \
     if(!(BIGFLOATP(obj1))||!(BIGFLOATP(obj2))){                         \
-      return error_sexp("bigfloat-op functions require bigfloat operands"); \
+      return format_type_error2(#op,"bigfloat",obj1.tag,"bigfloat",obj2.tag); \
     }                                                                   \
     mpfr_wrapper(mpfr_##op,*obj1.val.bigfloat,*obj2.val.bigfloat);      \
   }
 #define mpfr_unop_mpfr(op)                                              \
   sexp lisp_bigfloat_##op(sexp obj1){                                   \
     if(!(BIGFLOATP(obj1))){                                             \
-      return error_sexp("bigfloat-op functions require bigfloat operands"); \
+      return format_type_error(#op,"bigfloat",obj1.tag);               \
     }                                                                   \
     mpfr_wrapper(mpfr_##op,*obj1.val.bigfloat);                         \
   }

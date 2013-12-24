@@ -115,12 +115,34 @@ union data {
 {KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
   sexp temp=(sexp)getKeySymSexp(name);yylval->tag=temp.tag;yylval->val=temp.val;return TOK_KEYSYM;}
  /*Special forms, generating function at end of file*/
+ /* replace all the def(...) 's  with this at some point:
+    def(ine|fun|macro|var|const)? {LEX_MSG("lexing define");
+    yylval->tag=special;
+    switch(yytext[4]){
+    case 'i': 
+    case 'v':
+    case '\0':
+      yylval->val.special=_def;
+      return TOK_SPECIAL;
+    case 'c':
+    yylval->val.special=_defconst:/*need to add this somehow/
+    return TOK_SPECIAL;
+    case 'f':
+      yylval->val.special=_defun;
+      return TOK_LAMBDA;
+    case 'm':
+      yylval->val.special=_defmacro:
+      return TOK_MACRO;
+    }
+    }*/
 def(ine)? {LEX_MSG("lexing define");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
 defun {LEX_MSG("lexing defun");
   yylval->tag=_special;yylval->val.special=_defun;return TOK_LAMBDA;}
 defvar {LEX_MSG("lexing defvar");
   yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
+defmacro {LEX_MSG("lexing defmacro");
+  yylval->tag=_special;yylval->val.special=_defmacro;return TOK_MACRO;}
 setq {LEX_MSG("lexing setq");
   yylval->tag=_special;yylval->val.special=_setq;return TOK_SPECIAL;}
 datatype {LEX_MSG("lexing datatype");
@@ -155,8 +177,6 @@ while {LEX_MSG("lexing while");
   yylval->tag=_special;yylval->val.special=_while;return TOK_SPECIAL;}
 main {LEX_MSG("lexing mainl");
   yylval->tag=_special;yylval->val.special=_main;return TOK_SPECIAL;}
-defmacro {LEX_MSG("lexing defmacro");
-  yylval->tag=_special;yylval->val.special=_defmacro;return TOK_MACRO;}
                    /*or {LEX_MSG("lexing or");
   yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
                    and {LEX_MSG("lexing and");

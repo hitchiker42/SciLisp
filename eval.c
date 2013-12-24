@@ -2,7 +2,7 @@
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
-/* TODO: Figure out how to pass enviroments to macros in a somewhat consistent
+/* TODO: Figure out how to pass environments to macros in a somewhat consistent
    and elegant way*/
 #include "common.h"
 #include "cons.h"
@@ -11,7 +11,7 @@ static long lambda_counter=0;
 sexp call_builtin(sexp expr,env *cur_env);
 sexp call_lambda(sexp expr,env *cur_env);
 env *cur_env_ptr;
-//relies on the fact I consistantly name the env argument cur_env
+//relies on the fact I consistently name the env argument cur_env
 #define SET_CUR_ENV_PTR_DEFAULT (cur_env_ptr=cur_env)
 #define SET_CUR_ENV_PTR(cur_env) (cur_env_ptr=cur_env)
 #define CUR_ENV_SEXP                                            \
@@ -364,7 +364,7 @@ static inline sexp eval_do(sexp expr,env *cur_env){
   sexp loop_params=car(expr);//(var init step end)
   if(!CONSP(loop_params) || !CONSP(XCDR(loop_params)) ||
      !CONSP(XCDDR(loop_params)) || !CONSP(XCDDDR(loop_params))){
-    return error_sexp("incomplete paramenter list for do expression");
+    return error_sexp("incomplete parameter list for do expression");
   }
   //create environment for loop
   local_symref loop_var=alloca(sizeof(local_symbol));
@@ -404,7 +404,7 @@ static inline sexp eval_dotimes(sexp expr,env *cur_env){
   sexp loop_params=car(expr);//(var init step end)
   if(!CONSP(loop_params) || !CONSP(XCDR(loop_params)) ||
      !CONSP(XCDDR(loop_params)) || !CONSP(XCDDDR(loop_params))){
-    return error_sexp("incomplete paramenter list for do expression");
+    return error_sexp("incomplete parameter list for do expression");
   }
   //create environment for loop
   local_symref loop_var=alloca(sizeof(local_symbol));
@@ -429,7 +429,7 @@ static sexp eval_dolist(sexp expr,env *cur_env){
   expr=cdr(expr);
   sexp loop_params=car(expr);//(var list)
   if(!CONSP(loop_params) || !CONSP(XCDR(loop_params))){
-    return error_sexp("incomplete paramenter list for dolist expression");
+    return error_sexp("incomplete parameter list for dolist expression");
   }
   //create environment for loop
   local_symref loop_var=alloca(sizeof(local_symbol));
@@ -469,7 +469,7 @@ static sexp eval_and(sexp expr,env *cur_env){
   }
   return retval;
 }
-/* evaluate a list of sexp's, return the first value that evalueates to true
+/* evaluate a list of sexp's, return the first value that evaluates to true
  * if all values are false return false
  * syntax: (or sexp*) */
 static sexp eval_or(sexp expr,env *cur_env){
@@ -688,7 +688,7 @@ sexp call_lambda(sexp expr,env *cur_env){
   symbol *save_defaults=args->args;
   args->args=xmalloc(sizeof(symbol)*args->max_args);
   memcpy(args->args,save_defaults,(sizeof(symbol)*args->max_args));
-  /* I should find a more efficent way to do this,but I do need it.
+  /* I should find a more efficient way to do this,but I do need it.
      Think of things like this, without this block recursive function
      calls act as if they are bound using let*, whereas with this
      they get bound as if using let*/
@@ -914,7 +914,7 @@ static sexp macroexpand_helper(sexp body,env *cur_env){
   }
   return retval;
 }
-//naieve way of doing this, but it should do for now
+//naive way of doing this, but it should do for now
 //I should probably find a better way of doing this eventually
 sexp parse_keyargs(sexp args_passed,CORD* keywords,sexp *types,function_args *args){
   int i,j;

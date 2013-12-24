@@ -2,6 +2,7 @@
 #include "cons.h"
 /*should run before any regex stuff
   re_set_syntax(RE_SYNTAX_EMACS);*/
+//(defun re-compile (regex &optional opts))
 sexp lisp_re_compile(sexp regex,sexp opts){
   if(!STRINGP(regex)){
     return format_type_error("re-compile","string",regex.tag);
@@ -17,6 +18,7 @@ sexp lisp_re_compile(sexp regex,sexp opts){
     return regex_sexp(re_buffer);
   }
 }
+//(defun re-match (re string &optional start no-subexprs t-or-f-only))
 sexp lisp_re_match(sexp re,sexp string,sexp start,
                    sexp dont_return_matches,sexp only_true_or_false){
   if((!REGEXP(re) && !STRINGP(re))){
@@ -61,6 +63,7 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,
     }
   }
 }
+//(defun re-subexpr (match-data ref-num))
 sexp lisp_get_re_backref(sexp match_data,sexp ref_num){
   if(!RE_MATCHP(match_data) || !INTP(ref_num)){
     return format_type_error2 ("re-subexpr","re-match-data",
@@ -78,12 +81,15 @@ sexp lisp_get_re_backref(sexp match_data,sexp ref_num){
 }
   
 #if 0
+//(defun re-replace (regex string))
 sexp lisp_re_replace(sexp regex,sexp string){
   if(STRINGP(regex)){
     regex=lisp_re_compile(regex);
   } else if(!REGEXP(regex)){
-    return error_sexp 
-      ("1st argument to replace-regexp must be a string or a compiled regexp");
+    return format_type_error_opt2("re-replace","regex","string",regex.tag);
+  }
+  if(!STRINGP(string)){
+    return format_type_error_named("re-replace","string","string",string.tag);
   }
   int length = CORD_len(string.val.cord);
   struct re_registers *back_refs;

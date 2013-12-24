@@ -61,7 +61,7 @@ typedef struct lisp_heap lisp_heap;
 typedef struct lisp_condition lisp_condition;//error handling
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
-typedef symbol *symref;//type of generic symbol referances
+typedef symbol *symref;//type of generic symbol references
 typedef local_symbol *local_symref;//"" local ""
 typedef symbol *keyword_symref;
 typedef symbol keyword_symbol;
@@ -164,12 +164,17 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r or nothing" \
                "for %r, but got %r",fun,expected1,expected2,name,tag_name(got)), \
     error_sexp(type_error_str)
+#define format_type_error_rest(fun,expected,got,failed_arg)                       \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r for the rest argument,"\
+               "but received an %r (value was %r)",                     \
+               fun,expected,tag_name(got),print(failed_arg)),           \
+    error_sexp(type_error_str)
 #define const_real64_sexp(real64_val) {.tag=_real64,.val={.real64=real64_val}}
 #define const_int64_sexp(int64_val) {.tag=_int64,.val={.int64=int64_val}}
 #define const_uint64_sexp(uint64_val) {.tag=_uint64,.val={.uint64=uint64_val}}
-//key point to this enum is that arathmatic types are numbered in their type
-//heriarchy, ints by size < floats by size < bigint < bigfloat, if you add any
-//new types make sure it fits in the heirachy correcty
+//key point to this enum is that arithmetic types are numbered in their type
+//hierarchy, ints by size < floats by size < bigint < bigfloat, if you add any
+//new types make sure it fits in the hierarchy correctly
 enum _tag {
   _unbound=-0xf,
   _error = -4,//type of errors, value is a string
@@ -184,16 +189,16 @@ enum _tag {
    * seem to work out. But it's worth knowing this, because if i ever change
    * this to a non 0 value everything will probably break*/
   _cons = 0,//type of cons cells(aka lisp programs), value is cons
-  //arithmatic types, room for 7 more types currently
+  //arithmetic types, room for 7 more types currently
   //unlike some other enum aliases these are both meant to be useable
-  //they exist for convience
+  //they exist for convenience
   _byte = 1,_int8 = 1,
   _ubyte = 2,_uint8 = 2,
   _short = 3,_int16 = 3,
   _ushort = 4,_uint16 = 4,
   _int = 5,_int32 = 5,
   _uint = 6,_uint32 = 6,
-  _long = 7,_int64 = 7,//type of integers, vaule is int64
+  _long = 7,_int64 = 7,//type of integers, value is int64
   _ulong = 8,_uint64 = 8,
   _float = 9,_real32 = 9,
   _double = 10,_real64 = 10,//type of floating point numbers, value is real64
@@ -204,7 +209,7 @@ enum _tag {
   _array = 21,//type of arrays, element type in meta, vaule is array
   _ustr = 22,//utf8 string
   _regex = 23,//compiled regular expression
-  _stream = 24,_file=24,//type of input/output streams, corrsponds to c FILE*
+  _stream = 24,_file=24,//type of input/output streams, corresponds to c FILE*
   _matrix =25,//array for mathematical calculations
   _list = 26,//type of lists,value is cons
   _dpair = 27,_dotted_pair=27,
@@ -212,7 +217,7 @@ enum _tag {
   _sym = 32,_symbol=32,//type of symbols,value is var
   _special = 33,_spec=33,//type of special form,value is meta(a _tag value)
   _macro = 34,//type of macros, unimplemented
-  _type = 35,//type of types, unimplemened
+  _type = 35,//type of types, unimplemented
   _lam = 36,//type of lambda, value is lam
   _lenv = 37,//type of local environments,value is lenv
   _env = 38,_environment=38,
@@ -321,8 +326,8 @@ union data {//keep max size at 64 bits
   wchar_t uchar;//try to change all utf8_chars to this
   wchar_t utf8_char;//depreciated
 };
-//meta is for mutualy exclusvie information
-//whlie the next 8 bits are for inclusive information
+//meta is for mutually exclusive information
+//while the next 8 bits are for inclusive information
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  | 32
   sexp_meta meta : 8;//random metadata    | 40
@@ -398,7 +403,7 @@ union funcall{
 #define ADD_OPT_ARG(funarg) funarg->num_opt_args++;funarg->max_args++
 #define ADD_KEYWORD_ARG(funarg) funarg->num_keyword_args++;funarg->max_args++
 #define ADD_REST_ARG(funarg) funarg->has_rest_arg++;funarg->max_args++
-//the one issue with this structure is looping throgh it requires
+//the one issue with this structure is looping through it requires
 //two loop variables, one for the index in args and one for
 //the index in num_req/opt/keyword_args
 struct function_args{
@@ -415,7 +420,7 @@ struct function_args{
 //The layout of the function and macro structures is important, the first three
 //fields are the same. When calling a builtin macro it is treated for the most
 //part as a function, so if the args,lname ,and comp fields don't match we'll
-//get and error when evaling builtin macros
+//get and error when evaluating builtin macros
 #define CALL_PRIM(fxn) (fxn.val.fun->comp)
 struct function{//36 bytes
   function_args* args;//8 | 8 
@@ -425,13 +430,14 @@ struct function{//36 bytes
     funcall comp;
   };//8 | 24
   CORD cname;//name in c, and llvm I suppose 8 | 32
-  enum {// 4 | 36
+  CORD docstring;//documentation on function 8 | 40
+  enum {// 4 | 44
     _lambda_fun,
     _compiled_fun,
     _compiled_macro=_builtin_macro,
   } type;
-  uint32_t maxargs;//extra 32 bits, so we can save a bit of 4 | 40
-  //indirection, though I probably won't use this
+  uint32_t maxargs;//extra 32 bits, so we can save a bit of  (4 | 48)
+  //indirection, though I probably won't use this 
 };
 struct macro{
   function_args* args;
@@ -440,6 +446,7 @@ struct macro{
     sexp body;
     funcall comp;
   };
+  CORD docstring;
 };
 struct lambda{
   env *env;//for closures
@@ -452,7 +459,7 @@ struct lambda{
    (x.tag == _nil ? 0 :                                                 \
     (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) :                 \
      ((x.tag == _long || x.is_ptr) ? (x.val.int64 == 0 ? 0 : 1) : 1))))
-//possible compilier backends
+//possible compiler backends
 enum backend{
   c=0,
   llvm=1,

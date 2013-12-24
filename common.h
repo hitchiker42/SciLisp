@@ -132,6 +132,8 @@ static const sexp NIL={.tag = -1,.val={.meta = -1},.len=0};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
+static const sexp LISP_EMPTY_STRING=construct_simple_const(0,cord);
+//(defconst empty-list (cons nil nil))
 static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
                        .cdr={.tag = -1,.val={.meta = -1}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};

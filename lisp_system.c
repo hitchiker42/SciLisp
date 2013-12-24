@@ -1,7 +1,14 @@
 #include "common.h"
 #include "cons.h"
+//(defun cat (&rest strings)
 sexp lisp_cat(sexp string,sexp rest){
-  if(!STRINGP(string)){goto CAT_ERR;}
+  if(!STRINGP(string)){
+    if(NILP(string)){
+      return LISP_EMPTY_STRING;
+    } else {
+      goto CAT_ERR;
+    }
+  }
   CORD retval = string.val.cord;
   while(CONSP(rest)){
     if(!STRINGP(XCAR(rest))){goto CAT_ERR;}
@@ -9,8 +16,11 @@ sexp lisp_cat(sexp string,sexp rest){
     rest=XCDR(rest);
   }
   return (sexp){.tag = _str,.val={.cord=retval}};
-  CAT_ERR:return error_sexp("arguments to cat must be strings");
+  CAT_ERR:
+  return 
+    format_type_error_rest("cat","strings",XCAR(rest).tag,XCAR(rest));
 }
+//(defun cwd ())
 sexp lisp_getcwd(){
   //probabaly not the most efficent way to do this
   char* temp_cwdname=get_current_dir_name();
@@ -20,7 +30,7 @@ sexp lisp_getcwd(){
 }
 sexp lisp_system_simple(sexp command){
   if(!STRINGP(command)){
-    return error_sexp("argument to system must be a string");
+    return format_type_error("system","string",command.tag);
   } else {
     int retval=system(command.val.cord);//should probably be CORD_as_cstring
     return long_sexp(retval);
@@ -119,7 +129,7 @@ sexp lisp_load(sexp pathname){
   if(ERRORP(pathname)){return pathname;}
   sexp ast;
   FILE* file=fopen(CORD_to_const_char_star(pathname.val.cord),"r");
-  if(!file){
+  if(!file){    
     return error_sexp("invalid filename passed to load");
   }
   ast=yyparse(file);
@@ -138,7 +148,7 @@ sexp lisp_open(sexp filename,sexp mode){
     mode=string_sexp("r");
   }
   if (!STRINGP(filename) || !(STRINGP(mode))){
-    return error_sexp("arguments to open must be strings");
+    return format_type_error2("open","string",filename.tag,"string",mode.tag);
   }
   FILE* file = fopen(CORD_to_const_char_star(filename.val.cord),
                      CORD_to_const_char_star(mode.val.cord));
@@ -152,7 +162,8 @@ sexp lisp_open(sexp filename,sexp mode){
 }
 sexp lisp_close(sexp stream){
   if(!STREAMP(stream)){
-    return error_sexp("invalid file descriptor passed to close");
+    return format_type_error("close","stream",stream.tag);
+    //    return error_sexp("invalid file descriptor passed to close");
   } else {
     //fclose returns 0 on success and EOF on failure
     if(fclose(stream.val.stream)){
@@ -163,10 +174,8 @@ sexp lisp_close(sexp stream){
   }
 }
 sexp lisp_fputs(sexp string,sexp stream){
-  if(!STREAMP(stream)){
-    return error_sexp("invalid stream passed to fputs");
-  } else if (!STRINGP(string)){
-    return error_sexp("invalid string passed to fputs");
+  if(!STREAMP(stream)||!STRINGP(string)){
+    format_type_error2("fputs","string",string.tag,"stream",stream.tag);
   } else if (string.tag == _str){
     fputs(CORD_to_const_char_star(string.val.cord),stream.val.stream);
   } else {//string must be a w_char string

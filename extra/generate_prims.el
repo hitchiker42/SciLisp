@@ -17,10 +17,12 @@
   (indent-region (point-min) (point-max)))
 ;;functions to make primitives
 ;;in elisp a primitive is represented as alist
-(cl-defun mk-prim (lname cname minargs &key (optargs 0) (keyargs 0) (restarg 0))
+(cl-defun mk-prim (lname cname minargs &key (optargs 0) (keyargs 0)
+                         (restarg 0) (doc ""))
   (let ((maxargs (+ minargs optargs keyargs restarg)))
     `((:lname . ,lname) (:cname . ,cname) (:minargs . ,minargs) (:maxargs . ,maxargs)
-    (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg))))
+    (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
+    (:doc . ,doc))))
 (defun bignum-ops (op-list typename nargs)
   (mapcar
    (lambda (op)
@@ -226,7 +228,7 @@
         (vector "lisp_stderr" "stderr" 0)
         (vector "lisp_double_0" "double-0" 1) (vector "lisp_double_1" "double-1" 1)
         (vector "lisp_long_0" "long-0" 1) (vector "lisp_long_1" "long-1" 1)
-        (vector "lisp_ans" "ans" 0) 
+        (vector "lisp_ans" "ans" 0)
         ;(vector "lisp_max_real64" "max-real64")(vector "lisp_min_real64" "min-real64")
         (vector "lisp_bigfloat_0" "bigfloat-0" 1)
         (vector "lisp_bigfloat_1" "bigfloat-1" 1)
@@ -241,7 +243,7 @@
     "nil" "dpair" "lenv" "env" "obarray" "funargs" "true" "false" "uninterned"
     "cons"))
 (defun mk-type-tests (type)
-  (let 
+  (let
       ((type-macro
         (format "#define %sP(obj) (obj.tag ==_%s)\n"
                 upcase(type) type))
@@ -249,15 +251,15 @@
         (format "int is_%s(sexp obj){\n  return %sP(obj);\n}\n"
                 type upcase(type)))
        (type-function-lisp
-        (format 
+        (format
          "sexp lisp_%sp(sexp obj){
   return(%sP(obj)?LISP_TRUE:LISP_FALSE);\n}\n" type upcase(type))))
     (list type-macro type-function-c type-function-lisp)))
 ;;need to actually use this, because I don't do anything with it right now
 (define SciLisp-aliases
   (mapcar
-   (lambda (x) 
-     (list 
+   (lambda (x)
+     (list
       (concat "lisp_" x)
       (concat "\"" (replace-regexp-in-string "\\(.*\\)p" "\\1?" x) "\"")
       1))
@@ -331,7 +333,7 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
       (insert "#define mkTypeCase(type,tag) case tag: return type\n"
               "sexp typeOfTag(_tag tag){\n  switch(tag){\n")
       (dolist (type SciLisp-Types)
-        (insert (format "    mkTypeCase(%s,%s);\n" 
+        (insert (format "    mkTypeCase(%s,%s);\n"
                         (concat "Q" type)(concat "_" type))))
       (insert "  }\n}\n"
               "sexp typeOf(sexp obj){\n  return typeOfTag(obj.tag);\n}\n")
@@ -370,14 +372,14 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 (defun makePrimSymbols-format(prim)
   (format "MAKE_SYMBOL(\"%s\",%s,%s);\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))
-          (shell-command-to-string 
+          (shell-command-to-string
            (format "%s '%s'"
             (expand-file-name "../fnv_hash" current-dir-name)
             (cdr (assq :cname prim))))))
 (defun makePrimMacroSymbols-format (prim)
   (format "MAKE_MACRO_SYMBOL(\"%s\",%s,%s);\n"
           (cdr (assq :lname prim))(cdr (assq :cname prim))
-          (shell-command-to-string 
+          (shell-command-to-string
            (format "%s '%s'"
             (expand-file-name "../fnv_hash" current-dir-name)
             (cdr (assq :cname prim))))))
@@ -408,7 +410,7 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
     (princ primc-suffix primc)
     (with-current-buffer primh
       (goto-char (point-min))
-      (insert-file-contents 
+      (insert-file-contents
        (expand-file-name "primh_header.h" current-dir-name))
       (goto-char (point-max))
       (insert "#undef DEFUN\n#endif")
@@ -416,7 +418,7 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
       (kill-buffer))
     (with-current-buffer primc
       (goto-char (point-min))
-      (insert-file-contents 
+      (insert-file-contents
        (expand-file-name "primc_header.c" current-dir-name))
       (goto-char (point-max))
       (insert (make-lookupType))
@@ -432,4 +434,3 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
         ((auto-mode-alist nil)
          (vc-handled-backends nil))
       (generate-SciLisp-prims)))
-

@@ -25,7 +25,7 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
     ht->test_fn=_heq;
     //need to add a test for function arity
   } else if(!KEYWORDP(comp_fn)){
-    return format_type_error_key("make-hashtable","comp-fun","test",comp_fn.tag);
+    return format_type_error_key("make-hash-table","comp-fun","test",comp_fn.tag);
   } else {
     if(KEYWORD_COMPARE("eq",comp_fn)){
       ht->hash_cmp=lisp_eq;
@@ -44,7 +44,7 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
   if(NILP(size)){
     ht->size=DEFAULT_SIZE;
   } else if(!INTP(size)){
-    return format_type_error_key("make-hashtable","size","integer",size.tag);
+    return format_type_error_key("make-hash-table","size","integer",size.tag);
   } else {
     ht->size=size.val.int64;
   }
@@ -53,20 +53,20 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
   if(NILP(hash_fn)){
     ht->hash_fn=fnv_hash;
   } else if(!KEYWORDP(hash_fn)){
-    return format_type_error_key("make-hashtable","hash-fun","keyword",hash_fn.tag);
+    return format_type_error_key("make-hash-table","hash-fun","keyword",hash_fn.tag);
   } else {
     return error_sexp("selectable hash functions unimplemented");
   }
   if(NILP(growth_threshold)){
     ht->gthresh=DEFAULT_GROWTH_THRESHOLD;
-    //FIXME: need to change this to be float or double
+    //FIXME: need to change this to be float or double(not just double)
   } else if(!(REAL64P(growth_threshold))){
-    return format_type_error_opt("make-hashtable","growth-threshold"
+    return format_type_error_opt("make-hash-table","growth-threshold"
                                  "floating point",growth_threshold.tag);
   } else {
     double gt=growth_threshold.val.real64;
     if(gt>1 || gt<=0){
-      return error_sexp("invalid growth threshold value in make-hashtable");
+      return error_sexp("invalid growth threshold value in make-hash-table");
     } else {
       ht->gthresh=gt;
     }
@@ -75,12 +75,12 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
     ht->gfactor=DEFAULT_GROWTH_FACTOR;
     //FIXME: need to change this to be float or double
   } else if(!(REAL64P(growth_factor))){
-    return format_type_error_opt("make-hashtable","growth-factor"
+    return format_type_error_opt("make-hash-table","growth-factor"
                                  "floating point",growth_factor.tag);
   } else {
     double gf=growth_factor.val.real64;
     if(gf<=1){
-      return error_sexp("invalid growth factor value in make-hashtable");
+      return error_sexp("invalid growth factor value in make-hash-table");
     } else {
       ht->gfactor=gf;
     }
@@ -89,12 +89,12 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
     ht->sthresh=DEFAULT_SHRINK_THRESHOLD;
     //FIXME: need to change this to be float or double
   } else if(!(REAL64P(shrink_threshold))){
-    return format_type_error_opt("make-hashtable","shrink-threshold"
+    return format_type_error_opt("make-hash-table","shrink-threshold"
                                  "floating point",shrink_threshold.tag);
   } else {
     double st=shrink_threshold.val.real64;
     if(st>1 || st<0){
-      return error_sexp("invalid shrink threshold value in make-hashtable");
+      return error_sexp("invalid shrink threshold value in make-hash-table");
     } else {
       ht->sthresh=st;
     }
@@ -103,12 +103,12 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
     ht->sfactor=DEFAULT_SHRINK_FACTOR;
     //FIXME: need to change this to be float or double
   } else if(!(REAL64P(shrink_factor))){
-    return format_type_error_opt("make-hashtable","shrink-factor"
+    return format_type_error_opt("make-hash-table","shrink-factor"
                                  "floating point",shrink_factor.tag);
   } else {
     double sf=shrink_factor.val.real64;
     if(sf>1 || sf<=0){
-      return error_sexp("invalid shrink factor value in make-hashtable");
+      return error_sexp("invalid shrink factor value in make-hash-table");
     } else {
       ht->sfactor=sf;
     }
@@ -120,7 +120,7 @@ sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
 #define hash_get_param(name,param_name,type)    \
   sexp hashtable_##name(sexp ht){               \
   if(!HASHTABLEP(ht)){                          \
-  return format_type_error("hashtable_"#name,"hashtable",ht.tag);\
+  return format_type_error("hash-table_"#name,"hashtable",ht.tag);\
   } else {                                                       \
   return(type##_sexp(ht.val.hashtable->param_name));                           \
   }                                                              \
@@ -190,7 +190,7 @@ static hash_entry *_get_entry(hashtable *ht,sexp key){
 }
 sexp hashtable_get_entry(sexp ht_sexp,sexp key){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("hashtable-lookup-entry","hashtable",ht_sexp.tag);
+    return format_type_error("gethash","hashtable",ht_sexp.tag);
   }
   hash_table *ht=ht_sexp.val.hashtable;
   hash_entry *entry=_get_entry(ht,key);
@@ -221,7 +221,7 @@ static uint64_t _delete_entry(hash_table *ht,hash_entry *entry){
 }
 sexp hashtable_delete_key(sexp ht_sexp,sexp key){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("hashtable-delete-key","hashtable",ht_sexp.tag);
+    return format_type_error("hash-table-delete-key","hashtable",ht_sexp.tag);
   }
   hash_entry *entry=_get_entry(ht_sexp.val.hashtable,key);
   if(!entry){
@@ -232,7 +232,7 @@ sexp hashtable_delete_key(sexp ht_sexp,sexp key){
 } 
 sexp hashtable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("hashtable-add-entry","hashtable",ht_sexp.tag);
+    return format_type_error("addhash","hashtable",ht_sexp.tag);
   }
   hash_table *ht=ht_sexp.val.hashtable;
   uint64_t hashv=_hash_sexp(key,ht_sexp);
