@@ -47,6 +47,14 @@ sexp assoc(sexp ls,sexp obj,sexp eq_fn);
 sexp assq(sexp ls, sexp obj);
 //recursively copy ls
 sexp copy_cons(sexp ls);
+//return a cons cell containing a copy of the first num elements
+//of ls and the list begining at the num'th value of ls
+//mostly used as a means of implementing drop and take
+sexp cons_split(sexp ls,sexp num);
+//return the first num elements of ls
+sexp cons_take(sexp ls,sexp num);
+//return the list starting at the num'th element of ls
+sexp cons_drop(sexp ls,sexp num);
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
