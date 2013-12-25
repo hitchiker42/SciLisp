@@ -6,6 +6,7 @@
 #include "lisp_math.h"
 #include "cons.h"
 #include "prim.h"
+//#include "SFMT/SFMT.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -102,6 +103,146 @@ sexp ash(sexp x,sexp y){
     return lisp_lshift(x,long_sexp(labs(y.val.int64)));
   }
 }
+#if 0
+//some helper functions to make translating things to lisp eaiser
+//essentially translate everything to functions of one argument
+struct sfmt_and_buf {
+  sfmt_t sfmt;
+  sfmt_buf buf;
+};
+typedef struct sfmt_and_buf sfmt_and_buf;
+static uint32_t sfmt_and_buf_nrand32(sfmt_and_buf *sfmt){
+  return sfmt_nrand32_buf(&sfmt->sfmt,&sfmt->buf);
+}
+static int32_t sfmt_and_buf_jrand32(sfmt_and_buf *sfmt){
+  return (int32_t)sfmt_and_buf_nrand32(sfmt);
+}
+static uint64_t sfmt_and_buf_nrand64(sfmt_and_buf *sfmt){
+  return sfmt_nrand64_buf(&sfmt->sfmt,&sfmt->buf);
+}
+static int64_t sfmt_and_buf_jrand64(sfmt_and_buf *sfmt){
+  return (int64_t)sfmt_and_buf_nrand64(&sfmt->sfmt,&sfmt->buf);
+}
+static double sfmt_and_buf_erand64(sfmt_and_buf *sfmt){
+  return sfmt_to_res53(sfmt_and_buf_nrand64(sfmt));
+}
+static void sfmt_and_buf_init(sfmt_and_buf *sfmt,uint32_t seed){
+  if(seed){
+    sfmt_init_fast_r(&sfmt->sfmt);
+  } else {
+    sfmt_init_explicit_r(&sfmt->sfmt,seed);
+  }
+  sfmt_init_buf_r(&sfmt->sfmt,&sfmt->buf);
+}
+//(defun init-rand (&optional seed)
+//when I add better support for unsigned/specific sized ints
+//I should look at this again
+sexp lisp_init_rand(sexp seed){
+  if(NILP(seed)){
+    sfmt_init_fast_static();
+    return NIL;
+  } else if (!INTP(seed)){
+    return format_type_error_opt("init-rand","integer",seed.tag);
+  } else {
+    uint32_t seed_val=(uint32_t)seed.val.int64;
+    sfmt_init_explicit_static(seed_val);
+    return NIL;
+  }
+}
+//(defun init-rand-r (&optional seed)
+sexp lisp_init_rand_r(sexp seed){
+  if(!NILP(seed) || !INTP(seed)){
+    return format_type_error_opt("init-rand","integer",seed.tag);
+  }
+  sfmt_and_buf *sfmt=xmalloc_atomic(sizeof(sfmt_and_buf));
+  uint32_t seed_val=(NILP(seed)?0:(uint32_t)seed.val.int64);
+  sfmt_and_buf_init(sfmt);
+  return opaque_sexp(retval);
+}
+//(defun rand-int (&optional unsigned))
+sexp lisp_randint(sexp un_signed){
+  if(isTrue(un_signed)){
+    return long_sexp(sfmt_lrand64());
+  } else {
+    return long_sexp(sfmt_mrand64());
+  }
+}
+//(defun rand-int-r (sfmt &optional unsigned))
+sexp lisp_randint_r(sexp sfmt,sexp un_signed){
+  sfmt_and_buf *sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
+  if(isTrue(un_signed)){
+    return long_sexp(sfmt_and_buf_nrand64(sfmt_val));
+  } else {
+    return long_sexp(sfmt_and_buf_jrand64(sfmt_val));
+  }
+}
+//(defun rand-float (&optional scale))
+sexp lisp_randfloat(sexp scale){
+  if(NILP(scale)){
+    return double_sexp(sfmt_drand64());
+  } else if (!NUMBERP(scale)){
+    return format_type_error_opt("rand-float","number",scale.tag);
+  } else {
+    return lisp_mul_num(scale,double_sexp(sfmt_drand64()));
+  }
+}
+//(defun rand-float-r (sfmt &optional scale))
+sexp lisp_randfloat_r(sexp sfmt,sexp scale){
+  sfmt_and_buf *sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
+  if(NILP(scale)){
+    return double_sexp(sfmt_and_buf_erand64(sfmt_val));
+  } else if (!NUMBERP(scale)){
+    return format_type_error_opt("rand-float","number",scale.tag);
+  } else {
+    return lisp_mul_num(scale,
+                        double_sexp(sfmt_and_buf_erand64(sfmt_val)));
+  }
+}
+static sexp c_rand_array(int len,sfmt *sfmt,_tag type){
+  sexp *retval=xmalloc_atomic(sizeof(sexp)*array_len);
+  uint32_t *sfmt_array=alloca(sizeof(uint32_t)*array_len);
+  //needs typechecking
+  sfmt_fill_array32(sfmt,sfmt_array,array_len*2);
+  int i;
+  //should compile no a noop
+  uint64_t *sfmt_array64=(uint64_t*)(sfmt_array);
+  switch(type){
+    case _int64:
+      for(i=0;i<array_len;i++){
+        retval[i]=long_sexp(sfmt_array64[i]);
+      };
+      return array_sexp(retval);
+    case _real64:
+      for(i=0;i<array_len;i++){
+        retval[i]=double_sexp(sfmt_to_res53(sfmt_array64[i]));
+      }
+      return array_sexp(retval);
+  }
+}
+//(defun rand-array-r (sfmt &optional len type))
+sexp rand_array_r(sexp sfmt,sexp len,sexp type){
+  static_assert(0,type_check);
+  uint64_t array_len=len.val.int64;
+  sfmt *sfmt_val=&((sfmt_and_buf)(sfmt.val.opaque))->sfmt;
+  sexp type_sexp=getKeywordType(type);
+  if(!TYPEP(type_sexp)){
+    return type_sexp;
+  }
+  _tag type_tag=type_sexp.val.meta;
+  return c_rand_array(array_len,sfmt_val,type);
+}
+//(defun rand-array (&optional len type))
+sexp rand_array_static(sexp len,sexp type){
+  sexp type_sexp=getKeywordType(type);
+  uint64_t array_len=len.val.int64;
+  if(!TYPEP(type_sexp)){
+    return type_sexp;
+  }
+  _tag type_tag=type_sexp.val.meta;
+  sfmt *sfmt_val=sfmt_static;
+  return c_rand_array(array_len,sfmt_val,type_tag);
+}
+#endif
 sexp lisp_randint(sexp un_signed){
   if(NILP(un_signed)){
     return long_sexp(mrand48());
@@ -174,6 +315,7 @@ sexp lisp_round(sexp float_num,sexp mode){
     }
   }
 }
+//(defun min (num1 num2))
 sexp lisp_min(sexp a,sexp b){
   if (!NUMBERP(a) || !(NUMBERP(b))){
     return error_sexp("arguments to min must be numbers");
@@ -183,6 +325,7 @@ sexp lisp_min(sexp a,sexp b){
     return (getDoubleVal(a) > getDoubleVal(b)?a:b);
   }
 }
+//(defun max (num1 num2))
 sexp lisp_max(sexp a,sexp b){
   if (!NUMBERP(a) || !(NUMBERP(b))){
     return error_sexp("arguments to max must be numbers");
@@ -192,6 +335,7 @@ sexp lisp_max(sexp a,sexp b){
     return (getDoubleVal(a) < getDoubleVal(b)?a:b);
   }
 }
+//(defun zero? (number))
 sexp lisp_zerop(sexp obj){
   if(!BIGNUMP(obj)){
     return error_sexp("error expected an number");
@@ -217,6 +361,7 @@ sexp lisp_neg(sexp num){
       return NIL;
   }
 }
+//(defun abs (number))
 sexp lisp_abs(sexp num){
   if(!BIGNUMP(num)){
     return error_sexp("can't take the absolute value of something that's not a number");

@@ -282,6 +282,8 @@ enum sexp_meta{
   _utf8_string=_char,
   _splice_list=_list,
   _builtin_macro=_macro,
+  //  _smft=_opaque,//if I add another opaque type to the core library
+  //I'll need to change this
 };
 union data {//keep max size at 64 bits
   CORD cord;

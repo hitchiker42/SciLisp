@@ -25,12 +25,11 @@ CFLAGS:= $(CFLAGS) $(CCFLAGS)
 all: SFMT.so
 test: SFMT_test
 SFMT_lib.o: SFMT_lib.c SFMT_lib.h SFMT-sse2.h
-SFMT_r.o: SFMT_r.c SFMT_r.h SFMT_lib.h
-SFMT_static.o: SFMT_static.c SFMT_lib.h SFMT_static.h
-SFMT.so: SFMT_r.o SFMT_static.o SFMT_lib.o
-	$(CC) $(CFLAGS) SFMT_r.o SFMT_static.o SFMT_lib.o -shared -o SFMT.so
-SFMT.a: SFMT_r.o SFMT_static.o SFMT_lib.o
-	ar rcs $@ SFMT_r.o SFMT_static.o SFMT_lib.o
+SFMT.o: SFMT.c SFMT_r.h SFMT_lib.h
+SFMT.so: SFMT.o SFMT_lib.o
+	$(CC) $(CFLAGS) SFMT.o SFMT_lib.o -shared -o SFMT.so
+SFMT.a: SFMT.o SFMT_lib.o
+	ar rcs $@ SFMT.o SFMT_lib.o
 SFMT_test: SFMT_test.c SFMT.so SFMT.h SFMT.a
 	$(CC) $(CFLAGS) -o SFMT_test SFMT_test.c SFMT.a
 std: $(STD_TARGET)

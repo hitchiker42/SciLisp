@@ -4,22 +4,22 @@
 #include <stdint.h>
 int main(){
   sfmt_t *sfmt=malloc(sizeof(sfmt_t));
-  sfmt_buf *buf=malloc(1000*(sizeof(uint32_t))+sizeof(uint32_t)+sizeof(int));
-  sfmt32_init_fast_static();
+  sfmt_buf *buf=malloc(sizeof(sfmt_buf));
+  sfmt_init_fast_static();
   uint32_t randu32_static=sfmt_lrand32();
   int32_t randi32_static=sfmt_mrand32();
-  double randr32_static=sfmt_drand32();
-  sfmt64_init_stable_static();
+  double randr32_static=sfmt_drand64();
+  sfmt_init_stable_static();
   uint64_t randu64_static=sfmt_lrand64();
   int64_t randi64_static=sfmt_mrand64();
   double randr64_static=sfmt_drand64();
-  sfmt32_init_fast_r(sfmt);
-  sfmt_init_buf32(sfmt,buf);
+  sfmt_init_fast_r(sfmt);
+  sfmt_init_buf_r(sfmt,buf);
   uint32_t randu32_r=sfmt_nrand32(sfmt,buf);
   int32_t randi32_r=sfmt_jrand32(sfmt,NULL);
-  double randr32_r=sfmt_erand32(sfmt,buf);
-  sfmt64_init_fast_r(sfmt);
-  sfmt_init_buf64(sfmt,buf);
+  double randr32_r=sfmt_erand64(sfmt,buf);
+  sfmt_init_stable_r(sfmt);
+  sfmt_init_buf_r(sfmt,buf);
   uint64_t randu64_r=sfmt_nrand64(sfmt,buf);
   int64_t randi64_r=sfmt_jrand64(sfmt,NULL);
   double randr64_r=sfmt_erand64(sfmt,buf);
