@@ -432,7 +432,7 @@ struct function{//36 bytes
     funcall comp;
   };//8 | 24
   CORD cname;//name in c, and llvm I suppose 8 | 32
-  CORD docstring;//documentation on function 8 | 40
+  CORD signature;//function signature 8 | 40
   enum {// 4 | 44
     _lambda_fun,
     _compiled_fun,

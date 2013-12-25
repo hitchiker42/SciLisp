@@ -397,8 +397,7 @@ sexp lisp_recip(sexp num){
   }
 }
 //I could write using c types which would be faster
-//but it's a lot eaiser to use sexps, because generic funtions woo
-//basically I'm lazy
+//but it's a lot eaiser to use sexps
 #define op_to_fun(name,op)                                      \
   static sexp lisp_double_##name(sexp a,sexp b)                 \
   {return double_sexp(a.val.real64 op getDoubleValUnsafe(b));}

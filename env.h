@@ -11,6 +11,7 @@ struct symbol_props {
   int typed :1;
   int global :1;
   _tag type;
+  CORD doc;//this takes up more space than I'd like
 };
 struct symbol {
   CORD name;
@@ -41,7 +42,7 @@ union symbol_val{
 };
 struct env{
   env* enclosing;
-  symbol_ref head;  
+  symbol_ref head;
   enum {
     _local=0,
     _global=1,
@@ -97,7 +98,7 @@ obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
 
 //not sure if this should be a parameter
 #define OBARRAY_BKT_CAPACITY 10
-struct obarray {  
+struct obarray {
   obarray_entry **buckets;//points to first bucket
   int size;//memory allocated for the obarray
   int used;//buckets used

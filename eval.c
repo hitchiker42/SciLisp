@@ -4,6 +4,13 @@
  ****************************************************************/
 /* TODO: Figure out how to pass environments to macros in a somewhat consistent
    and elegant way*/
+//KINDA obvious thing to do which I haven't done,
+//rest arguments to c functions should be arrays not lists
+//so that something like addition (obviously it's a bit more compilicated)
+//would be defined as sexp lisp_add(int numargs,sexp *args)
+//well... this is how emacs does it, but that'll require
+//quite a bit of tinkering, and I should probably start
+//focusing on the compiler(s) rather than that
 #include "common.h"
 #include "cons.h"
 jmp_buf error_buf;
@@ -838,6 +845,15 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     return macro_body;
   }
 }
+/* TODO: change what is now lisp_apply 
+   (defun apply fun args &optional envrionment)
+   to a new functon lisp_apply_in_env (call it apply-in-env)
+   and define a new lisp apply so apply is
+   (defun apply fun &rest args) where args are n arguments
+   followed by a list of arguments which is spliced into
+   the argument list thus 
+   (apply '+ 1 2 '(3 4)) -> (+ 1 2 3 4)-> 10
+*/
 sexp lisp_apply(sexp fun,sexp args,sexp environment){
   if(!SYMBOLP(fun)){
     return format_type_error("apply","symbol",fun.tag);
