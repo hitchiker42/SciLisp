@@ -219,8 +219,8 @@ CORD print(sexp obj){
       }
     case _error:
     case _str:
-      CORD_sprintf(&retval,"\"%r\"",obj.val.cord);
-      return retval;
+      //need to figure out how to do esacpe sequences
+      return CORD_catn(3,"\"",obj.val.cord,"\"");
     case _lenv:{
       local_symref cur_sym=obj.val.lenv;
       acc="(";
@@ -444,6 +444,21 @@ CORD token_name(TOKEN token){
     mk_tok_name(TOK_LIST_SPLICE);
     default:
       return "forgot to implemnt that token";
+  }
+}
+sexp lisp_get_signature(sexp fun_or_macro){
+  if(!FUNCTIONP(fun_or_macro) || !MACROP(fun_or_macro)){
+    return format_type_error_opt2
+      ("signature","function","macro",fun_or_macro.tag);
+  } else {
+    return cord_sexp(get_signature(fun_or_macro.val.fun));
+  }
+}
+sexp lisp_get_docstring(sexp lisp_symbol){
+  if(!SYMBOLP(lisp_symbol)){
+    return format_type_error("documentation","symbol",lisp_symbol.tag);
+  } else {
+    return cord_sexp(get_docstring(lisp_symbol.val.var));
   }
 }
 CORD prin1(sexp obj);//print readably

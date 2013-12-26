@@ -405,6 +405,7 @@ static struct option long_options[];
 static struct option long_options[] = {
   {"backend"   ,1,0,'b'},
   {"eval"      ,1,0,'e'},
+  {"debug-test",0,0,'d'},
   {"help"      ,0,0,'h'},
   {"load"      ,1,0,'l'},
   {"no-debug"  ,0,0,'n'},
@@ -418,7 +419,7 @@ static struct option long_options[] = {
 static void SciLisp_getopt(int argc,char *argv[]){
   int c;
   while(1){
-    c=getopt_long(argc,argv,"e:hl:o:qvtb:nr",long_options,NULL);
+    c=getopt_long(argc,argv,"de:hl:o:qvtb:nr",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':

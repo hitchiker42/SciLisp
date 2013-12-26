@@ -128,18 +128,21 @@ sexp lisp_not_eql(sexp obj1,sexp obj2){
 sexp lisp_not_equal(sexp obj1,sexp obj2){
   return lisp_not(lisp_equal(obj1,obj2));
 }
-sexp _getKeywordType(sexp obj){
-  CORD type_symbol_name=CORD_catn
-    (3,"#<",CORD_substr(obj.val.keyword->name,1,
-                        CORD_len(obj.val.keyword->name)-1),">");
+inline sexp get_type_from_string(CORD typestring){
+  CORD type_symbol_name=CORD_catn(3,"#<",typestring,">");
   symref type_sym=getGlobalSym(type_symbol_name);
   if(!type_sym){
-    return error_sexp("unknown typename passed to get-type");
+    return format_error_sexp("unknown typename %s",typestring);
   } else if(!TYPEP(type_sym->val)){
-    return error_sexp("non type keyword passed to get-type");
+    return format_error_sexp("%s is not a type)",typestring);
   } else {
     return type_sym->val;
   }
+}
+sexp _getKeywordType(sexp obj){
+  return get_type_from_string
+    (CORD_substr(obj.val.keyword->name,1,
+                 CORD_len(obj.val.keyword->name)-1));
 }
 sexp getKeywordType(sexp obj){
   if(!KEYWORDP(obj)){

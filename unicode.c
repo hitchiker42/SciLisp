@@ -3,11 +3,12 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 /* A note about SciLisp strings and characters,
-   SciLisp characters are represented by a single wchar_t value, regardless of 
-   the value of the character, while SciLisp strings are represented by CORDs, so 
+   SciLisp characters are represented by a single wchar_t value, regardless of
+   the value of the character, while SciLisp strings are represented by CORDs, so
    SciLisp characters are wide characters, while SciLisp strings are multibyte
    strings, This may change at some point, but that's how it is for now*/
 #include "unicode.h"
+#include <endian.h>
 static char temp_ustring[MB_LEN_MAX];
 struct lisp_ustring {
   wchar_t *restrict str;
@@ -40,10 +41,11 @@ sexp lisp_string_to_char(sexp lisp_str){
   wchar_t retval;
   mbstate state;
   memset(&state,'\0',sizeof(state));
-} 
+}
 */
-union utf8_hack utf8_escape={.wchar=L'\0'};
+union utf8_hack utf8_escape;
 wchar_t lex_char(char* cur_yytext){
+  utf8_escape.wchar=L'\0';
   if(cur_yytext[1]=='\\'){
     if(cur_yytext[2]=='?'){return '?';}
     if(cur_yytext[2]=='x'){
@@ -51,20 +53,26 @@ wchar_t lex_char(char* cur_yytext){
       char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
       return strtol(byte,NULL,16);
     } else if(cur_yytext[2]=='u'){
+      HERE();
       char byte1[3]={cur_yytext[3],cur_yytext[4],'\0'};
       char byte2[3]={cur_yytext[5],cur_yytext[6],'\0'};
-#if __BYTE__ORDER__ ==  __ORDER_LITTLE_ENDIAN__
+#if __BYTE_ORDER ==  __LITTLE_ENDIAN
+      HERE();
       utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
       utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
-#elif __BYTE__ORDER__ == __ORDER_BIG__ENDIAN__
+#elif __BYTE_ORDER == __BIG_ENDIAN
+      HERE();
       utf8_escape.bytes[2]=(unsigned char)strtol(byte1,NULL,16);
       utf8_escape.bytes[3]=(unsigned char)strtol(byte2,NULL,16);
 #else
+      HERE();
       fprintf(stderr,"unknown byte order, exiting");
       exit(1);
-#endif      
+#endif
+      return utf8_escape.wchar;
+    } else {
+      cur_yytext=cur_yytext+1;
     }
-    return utf8_escape.wchar;
   }
   wchar_t result[1];
   mbstate_t state;
@@ -88,7 +96,7 @@ wchar_t lex_char(char* cur_yytext){
     return (wchar_t)L'\0';
   }
 }
- #if 0 
+ #if 0
 /* Copyright 2012
  * Kaz Kylheku <kaz@kylheku.com>
  * Vancouver, Canada
@@ -420,7 +428,7 @@ wint_t utf8_decode(utf8_decoder_t *ud, int (*get)(void *ctx), void *ctx){
         ud->wch |= (ch & 0x3F);
         ud->state = (enum utf8_state) (ud->state - 1);
         if (ud->state == utf8_init) {
-          if (ud->wch < ud->wch_min || 
+          if (ud->wch < ud->wch_min ||
               (ud->wch <= 0xFFFF && (ud->wch & 0xFF00) == 0xDC00) ||
               (ud->wch > 0x10FFFF))
           {

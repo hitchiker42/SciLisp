@@ -7,52 +7,7 @@
 #include "prim.h"
 #include "unicode.h"
 #define YY_DECL TOKEN yylex(void)
-#if 0
-union utf8_hack{
-  char bytes[2];
-  wchar_t wchar;
-};
-union utf8_hack utf8_escape={.wchar=L'\0'};
-static wchar_t lex_char(char* cur_yytext){
-  wchar_t result[1];
-  mbstate_t state;
-  size_t len,nbytes;
-  char* cvt_str;
-  memset(&state,'\0',sizeof(state));
-  /* this is so horrendously non portable it's kinda funny,
-     it relies on the size of chars,specific input and output encoding
-     and little endian byte ordering*/
-  if(cur_yytext[1]=='\\'){
-    if(cur_yytext[2]=='?'){return '?';}
-    if(cur_yytext[2]=='x'){
-      //without this if you gave \x0000 you'd segfault
-      char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
-      utf8_escape.bytes[1]=0x00;
-      utf8_escape.bytes[0]=(unsigned char)strtol(byte,NULL,16);
-    } else if(cur_yytext[2]=='u'){
-      char byte1[3]={cur_yytext[3],cur_yytext[4],'\0'};
-      char byte2[3]={cur_yytext[5],cur_yytext[6],'\0'};
-      utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
-      utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
-    }
-    /*} else {
-    utf8_escape.bytes[1]=0x00;
-    utf8_escape.bytes[0]=cur_yytext[1];
-    }*/
-    PRINT_FMT("%lc",utf8_escape.wchar);
-    return utf8_escape.wchar;
-  } else {
-      cvt_str=cur_yytext+1;
-  } 
-  if(0<=mbrtowc(result,cvt_str,strlen(cvt_str),&state)){
-    return (wchar_t)result[0];
-  } else {
-    fprintf(stderr,"error lexing char, returning null\n");
-    return (wchar_t)L'\0';
-  }
-}
-#endif
- static int comment_depth=0;
+static int comment_depth=0;
 %}
 DIGIT [0-9]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
@@ -109,7 +64,7 @@ union data {
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
 "\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
   yylval->val.cord=CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2));
-                               return TOK_STRING;}
+  return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
   yylval->val.uchar=(wchar_t)lex_char(yytext);return TOK_CHAR;}
 {KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
@@ -219,7 +174,11 @@ dotimes {LEX_MSG("lexing dotimes");
 [ \t\n]+ /*whitespace*/
 ";"[^\n]* /*one line comments*/
 <<EOF>> return -1;
-. {LEX_MSG("unknown token");PRINT_MSG("Error, unknown token");return TOK_UNKN;}
+. {LEX_MSG("unknown token");
+  PRINT_FMT("Error, unknown token, value %d, character %c",
+            yytext[0],yytext[0]);
+  *yylval=uchar_sexp(btowc(yytext[0]));
+  return TOK_UNKN;}
 
  /*(defun special (name) (insert (format "\n%s {LEX_MSG(\"lexing %s\");
    yylval->tag=_special;yylval->val.string=\"%s\"

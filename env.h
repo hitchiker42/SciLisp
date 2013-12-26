@@ -5,13 +5,19 @@
 #ifndef __ENV_H__
 #define __ENV_H__
 #include "common.h"
+enum symbol_interned{
+    _symbol_interned = 0,
+    _symbol_uninterned = 1,
+    _symbol_interned_in_initial_obarray = 2
+};
 struct symbol_props {
-  int is_const :1;
-  int setfable :1;
-  int typed :1;
-  int global :1;
+  CORD doc;
+  unsigned int is_const :1;
+  unsigned int global :1;
+  unsigned int setfable :1;//move this to functions?
+  unsigned int typed :1;
+  unsigned int interned : 2;
   _tag type;
-  CORD doc;//this takes up more space than I'd like
 };
 struct symbol {
   CORD name;
@@ -138,5 +144,8 @@ static inline size_t symbolSize(env *cur_env){
     default:
       return 0;
   }
+}
+static inline CORD get_docstring(symref lisp_var){
+  return lisp_var->props.doc;
 }
 #endif

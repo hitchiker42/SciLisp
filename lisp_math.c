@@ -17,14 +17,21 @@
       register double yy=getDoubleVal(y);                               \
       return double_sexp(xx op yy);                                     \
     } else {                                                            \
-      return format_type_error2(#fun_name,"number",x.tag,"number",y.tag);\
+      return format_type_error2(#fun_name,"number",x.tag,"number",y.tag); \
     }                                                                   \
   }
 //ignore tags, allow logical operations on doubles(or anything else)
 //be careful about this
-#define lop_to_fun(op,fun_name)                                         \
-  sexp fun_name(sexp x,sexp y){                                         \
+#define lop_to_fun(op,op_name)                                          \
+  sexp lisp_unchecked_##op_name (sexp x,sexp y){                        \
     return long_sexp(x.val.int64 op y.val.int64);                       \
+  }                                                                     \
+  sexp lisp_##op_name(sexp x,sexp y){                                   \
+  if(!INTP(x) || !INTP(y)){                                             \
+    return format_type_error2(#op_name,"integer",x.tag,"integer",y.tag); \
+  } else {                                                              \
+    return long_sexp(x.val.uint64 op y.val.uint64);                     \
+  }                                                                     \
   }
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
@@ -74,11 +81,12 @@ sexp lisp_div_num(sexp x,sexp y){
 }
 //binop_to_fun(/,lisp_div_num);
 //bitwise primitives(need to add !)
-lop_to_fun(^,lisp_xor);
-lop_to_fun(>>,lisp_rshift);
-lop_to_fun(<<,lisp_lshift);
-lop_to_fun(&,lisp_logand);
-lop_to_fun(|,lisp_logor);
+lop_to_fun(^,xor);
+lop_to_fun(>>,rshift);
+lop_to_fun(<<,lshift);
+lop_to_fun(&,logand);
+lop_to_fun(&~,logandn);
+lop_to_fun(|,logior);
 //math primitives
 mkMathFun2(pow,lisp_pow);
 mkMathFun1(sqrt,lisp_sqrt);
@@ -95,12 +103,19 @@ mkLisp_cmp(<=,lisp_numle);
 mkLisp_cmp(!=,lisp_numne);
 mkLisp_cmp(==,lisp_numeq);
 sexp ash(sexp x,sexp y){
-  if(y.tag != _long || x.tag != _long){
-    return error_sexp("arguments to ash must be integers");
+  if(!INTP(x) || !INTP(y)){
+    return format_type_error2("ash","integer",x.tag,"integer",y.tag);
   } else if(y.val.int64>=0){
     return lisp_rshift(x,y);
   } else{
     return lisp_lshift(x,long_sexp(labs(y.val.int64)));
+  }
+}
+sexp lisp_lognot(sexp x){
+  if(!INTP(x)){
+    return format_type_error("lognot","integer",x.tag);
+  } else {
+    return long_sexp(~x.val.uint64);
   }
 }
 #if 0
@@ -426,10 +441,14 @@ static sexp lisp_double_min(sexp a,sexp b)
   {return long_sexp(a.val.int64 op b.val.int64);}
 #define cmp_driver_fun(name,op)                         \
   static sexp lisp_long_##name(sexp a,sexp b)           \
-  {return (a.val.int64 op b.val.int64?b:LISP_FALSE);}
+  {return long_sexp(a.val.int64 op b.val.int64?b:LISP_FALSE);}
 op_to_fun(add,+);
 op_to_fun(sub,-);
 op_to_fun(mul,*);
+op_to_fun(logior,|);
+op_to_fun(logxor,^);
+op_to_fun(logand,&);
+op_to_fun(logandn,&~);
 static sexp lisp_long_div(sexp a,sexp b){
   if(b.val.int64==0){
     return error_sexp("error, integer division by 0");

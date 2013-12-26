@@ -312,7 +312,7 @@ extern int yylex (void);
 #undef YY_DECL
 #endif
 
-#line 228 "lisp.lex"
+#line 187 "lisp.lex"
 
 #line 318 "lex.yy.h"
 #undef yyIN_HEADER

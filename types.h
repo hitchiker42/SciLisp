@@ -420,19 +420,16 @@ struct function_args{
   };
 };
 //The layout of the function and macro structures is important, the first three
-//fields are the same. When calling a builtin macro it is treated for the most
-//part as a function, so if the args,lname ,and comp fields don't match we'll
-//get and error when evaluating builtin macros
 #define CALL_PRIM(fxn) (fxn.val.fun->comp)
-struct function{//36 bytes
+struct function {
   function_args* args;//8 | 8 
   CORD lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
   union {
     lambda* lam;
     funcall comp;
   };//8 | 24
-  CORD cname;//name in c, and llvm I suppose 8 | 32
-  CORD signature;//function signature 8 | 40
+  CORD signature;//function signature 8 | 32
+  CORD cname;//name in c, and llvm I suppose 8 | 40
   enum {// 4 | 44
     _lambda_fun,
     _compiled_fun,
@@ -441,15 +438,18 @@ struct function{//36 bytes
   uint32_t maxargs;//extra 32 bits, so we can save a bit of  (4 | 48)
   //indirection, though I probably won't use this 
 };
-struct macro{
+struct macro {
   function_args* args;
   CORD lname;
   union {
     sexp body;
     funcall comp;
   };
-  CORD docstring;
+  CORD signature;
 };
+static inline CORD get_signature(function *fun_or_macro){
+  return fun_or_macro->signature;
+}
 struct lambda{
   env *env;//for closures
   sexp body;
@@ -478,6 +478,7 @@ enum operator{
   _logand,
   _logior,
   _logxor,
+  _logandn,
   _lt,
   _le,
   _eq,
@@ -488,6 +489,7 @@ enum operator{
 static const sexp LISP_INT64_MAX=const_int64_sexp(INT64_MAX);
 static const sexp LISP_INT64_MIN=const_int64_sexp(INT64_MIN);
 static const sexp LISP_UINT64_MAX=const_uint64_sexp(UINT64_MAX);
+extern sexp get_type_from_string(CORD typestring);
 /*static sexp make_sexp_from_type_and_data(data val,_tag type){
   switch(type){
   case _double:return double_sexp(val);

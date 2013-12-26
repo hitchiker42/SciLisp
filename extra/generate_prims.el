@@ -25,6 +25,9 @@
     `((:lname . ,lname) (:cname . ,cname) (:minargs . ,minargs) (:maxargs . ,maxargs)
     (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
     (:sig . ,sig) (:doc . ,doc))))
+(cl-defun mk-global (lname cname &key (const 0) (type 0) (doc ""))
+  `((:lname . ,lname) (:cname . ,cname) (:const . ,const)
+    (:type . ,type) (:doc . ,doc)))
 (defun iota (num &optional end)
   (let ((ls nil)
         (end (if (null end) 0 end))
@@ -159,9 +162,11 @@
     ("load" "lisp_load" 1 :sig "(file)")
     ("log" "lisp_log" 1 :sig "(number)")
 ;these need to be made into arith-driver functions
-    ("logand" "lisp_logand" 2)
-    ("logor" "lisp_logor" 2)
-    ("logxor" "lisp_xor" 2)
+    ("logand" "lisp_logand" 2 :sig "(int1 int2)")
+    ("logandn" "lisp_logandn" 2 :sig "(int1 int2)")
+    ("logior" "lisp_logior" 2 :sig "(int1 int2)")
+    ("logxor" "lisp_xor" 2 :sig "(int1 int2)")
+    ("lognot" "lisp_lognot" 1 :sig "(integer)")
     ("lrand" "lisp_randint" 0 :optargs 1 :sig "(&optional unsigned)")
     ("lt" "lisp_cmp_lt" 2 :sig "(num1 num2)")
     ("make-c-ptr" "make_c_ptr" 1 :optargs 1)
@@ -198,8 +203,8 @@
     ("re-compile" "lisp_re_compile" 1 :optargs 1)
     ("re-match" "lisp_re_match" 2 :optargs 3)
     ("re-subexpr" "lisp_get_re_backref" 2)
-    ("read" "lisp_read" 1)
-    ("read-string" "lisp_read_string" 1)
+    ("read-string" "lisp_read_string" 1 :sig "(string)")
+    ("read" "lisp_read" 1 :sig "(stream)")
 ;make into sequence functions asap
     ("reduce" "cons_reduce" 2 :sig "(seq function)")
     ("reverse!" "cons_nreverse" 1 :sig "(seq)")
@@ -344,6 +349,13 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
   (format
    "MAKE_GLOBAL(\"%s\",%s,%d);\n" (aref global 1) (aref global 0)
    (aref global 2)))
+(defun makeGlobals-format-new (global)
+  (cl-macrolet 
+      ((global-val (keyword) `(cdr (assq ,keyword global))))
+    (format
+     "MAKE_GLOBAL(\"%s\",%s,%d,%s,%s)"
+     (global-val :lname) (global-val :cname) (global-val :const)
+     (global-val :type) (global-val :doc))))
 (defun make-lookupType ()
   (let ((type-case (generate-new-buffer "type-case")))
     (with-current-buffer type-case

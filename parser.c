@@ -118,6 +118,11 @@ sexp parse_sexp(){
     case TOK_LPAREN:{
       return parse_cons();
     }
+    case TOK_UNKN:{
+      format_error_str("unknown token %lc recieved, discarding current input",
+                       yylval->val.uchar);
+      handle_error();
+    }
     default:{
       return parse_atom();
     }
@@ -429,8 +434,6 @@ sexp parse_atom(){
       handle_error();
   }
 }
-
-
 sexp read_string(CORD code) {
   PRINT_MSG(code);
   FILE* stringStream=fmemopen(CORD_to_char_star(code),CORD_len(code),"r");
@@ -740,6 +743,7 @@ static sexp parse_function(int has_name,int need_rparen){
 #define mkTypeCase(hash,name)                 \
   case hash: return name
 _tag parse_tagname(CORD tagname){
+  return get_type_from_string(tagname).val.meta;
   uint64_t taghash=fnv_hash(tagname,CORD_len(tagname));
   switch(taghash){
     //    mkTypeCase(0x74b7d17aa973b4f5,_false);
