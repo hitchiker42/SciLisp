@@ -35,24 +35,45 @@ sexp lisp_char_to_string(sexp lisp_char){
     }
   }
 }
-/*
 sexp lisp_string_to_char(sexp lisp_str){
-  static_assert(0,error_check);
+  if(!STRINGP(lisp_str)){
+    return format_type_error("string->char","string",lisp_str.tag);
+  }
   wchar_t retval;
-  mbstate state;
+  mbstate_t state;
+  size_t nbytes;
   memset(&state,'\0',sizeof(state));
+  //we need at most 4 bytes, if the cord in lisp_str is say 100 bytes
+  //CORD_to_const_char_star would need to process 96 excess bytes
+  //presumably running CORD_substr doesn't take too long, so this
+  //should be much more efficient
+  const char *mb_str=CORD_to_const_char_star
+    (CORD_substr(lisp_str.val.cord,0,4));
+  nbytes=mbrtowc(&retval,mb_str,4,&state);
+  if(nbytes==(size_t)-1){
+    return_errno("string->char");
+  } else if (nbytes==(size_t)-2){
+    //shouldn't happen,this only happens if n is too small
+    //and 4 should be the max, so 
+    return error_sexp("Shouldn't get here");
+  } else {
+    return uchar_sexp(retval);
+  }
 }
-*/
 union utf8_hack utf8_escape;
 wchar_t lex_char(char* cur_yytext){
   utf8_escape.wchar=L'\0';
   if(cur_yytext[1]=='\\'){
-    if(cur_yytext[2]=='?'){return '?';}
-    if(cur_yytext[2]=='x'){
+    switch(cur_yytext[2]){
+      case '?':{
+        return '?';
+      }
+      case 'x':{
       //without this if you gave \x0000 you'd segfault
       char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
       return strtol(byte,NULL,16);
-    } else if(cur_yytext[2]=='u'){
+      }
+      case 'u':{
       HERE();
       char byte1[3]={cur_yytext[3],cur_yytext[4],'\0'};
       char byte2[3]={cur_yytext[5],cur_yytext[6],'\0'};
@@ -70,7 +91,15 @@ wchar_t lex_char(char* cur_yytext){
       exit(1);
 #endif
       return utf8_escape.wchar;
-    } else {
+      }
+      case 'n':
+        return (wchar_t) '\n';
+      case 't':
+        return (wchar_t) '\t';
+      case '\\':
+        return (wchar_t) '\\';
+        //I'll add the rest later
+      default:
       cur_yytext=cur_yytext+1;
     }
   }

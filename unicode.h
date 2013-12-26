@@ -6,4 +6,6 @@
 #define UNICODE_H
 #include "common.h"
 wchar_t lex_char(char* cur_yytext);
+sexp lisp_char_to_string(sexp lisp_char);
+sexp lisp_string_to_char(sexp lisp_str);
 #endif

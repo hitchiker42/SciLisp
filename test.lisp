@@ -105,21 +105,21 @@
   (if (not (errorp error-message))
       error-message
       nil))
-;(cons? ls4)
-;(cons? '(3 3 4 5 5))
-(setq copyright-literal ?©)
+(cons? ls4)
+(cons? '(3 3 4 5 5))
+;(setq copyright-literal ?©)
 (setq utf8-copyright ?\u00a9)
 (println ?\?)
 (println ?\x3f)
-#|(print copyright-literal)|#
+;(print copyright-literal)
 (println utf8-copyright)
 (pwd)
-(system "ls")
+(system "ls >/dev/null")
 (system "touch temp.temp")
 (def file (fopen "temp.temp" "w"))
 (fputs "Hello, World!
 " file)
-(fprintln utf8-copyright file)
+#|this fails (fprintln (char->string utf8-copyright) file)|#
 (fclose file)
 (system "cat temp.temp")
 (system "rm temp.temp")

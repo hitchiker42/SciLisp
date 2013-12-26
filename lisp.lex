@@ -29,7 +29,7 @@ U4      [\xf0-\xf4]
 UANY    {ASC}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U} 
 UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
-UCHAR "?"("\\?"|"\\\\"|"\\x"([[:xdigit:]]{2})|"\\u"([[:xdigit:]]{4})|{UANY})
+UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{2})|"\\u"([[:xdigit:]]{4})|{UANY})
 KEYSYM ":"{ID}
 /*
 union data {
