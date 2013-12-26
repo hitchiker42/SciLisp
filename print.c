@@ -311,6 +311,8 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,"]"));
     }
+    case _opaque:
+      return "<#opaque pointer>";
     case _special:
       return specialForm_name(obj);
     case _false:

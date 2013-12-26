@@ -6,7 +6,7 @@
 #include "lisp_math.h"
 #include "cons.h"
 #include "prim.h"
-//#include "SFMT/SFMT.h"
+#include "SFMT/SFMT.h"
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
@@ -118,7 +118,6 @@ sexp lisp_lognot(sexp x){
     return long_sexp(~x.val.uint64);
   }
 }
-#if 0
 //some helper functions to make translating things to lisp eaiser
 //essentially translate everything to functions of one argument
 struct sfmt_and_buf {
@@ -136,7 +135,7 @@ static uint64_t sfmt_and_buf_nrand64(sfmt_and_buf *sfmt){
   return sfmt_nrand64_buf(&sfmt->sfmt,&sfmt->buf);
 }
 static int64_t sfmt_and_buf_jrand64(sfmt_and_buf *sfmt){
-  return (int64_t)sfmt_and_buf_nrand64(&sfmt->sfmt,&sfmt->buf);
+  return (int64_t)sfmt_nrand64_buf(&sfmt->sfmt,&sfmt->buf);
 }
 static double sfmt_and_buf_erand64(sfmt_and_buf *sfmt){
   return sfmt_to_res53(sfmt_and_buf_nrand64(sfmt));
@@ -166,13 +165,13 @@ sexp lisp_init_rand(sexp seed){
 }
 //(defun init-rand-r (&optional seed)
 sexp lisp_init_rand_r(sexp seed){
-  if(!NILP(seed) || !INTP(seed)){
+  if(!NILP(seed) && !INTP(seed)){
     return format_type_error_opt("init-rand","integer",seed.tag);
   }
   sfmt_and_buf *sfmt=xmalloc_atomic(sizeof(sfmt_and_buf));
   uint32_t seed_val=(NILP(seed)?0:(uint32_t)seed.val.int64);
-  sfmt_and_buf_init(sfmt);
-  return opaque_sexp(retval);
+  sfmt_and_buf_init(sfmt,seed_val);
+  return opaque_sexp(sfmt);
 }
 //(defun rand-int (&optional unsigned))
 sexp lisp_randint(sexp un_signed){
@@ -184,6 +183,9 @@ sexp lisp_randint(sexp un_signed){
 }
 //(defun rand-int-r (sfmt &optional unsigned))
 sexp lisp_randint_r(sexp sfmt,sexp un_signed){
+  if(!OPAQUEP(sfmt)){
+    return format_type_error("lrand-r","random-state",sfmt.tag);
+  }
   sfmt_and_buf *sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   if(isTrue(un_signed)){
     return long_sexp(sfmt_and_buf_nrand64(sfmt_val));
@@ -203,6 +205,9 @@ sexp lisp_randfloat(sexp scale){
 }
 //(defun rand-float-r (sfmt &optional scale))
 sexp lisp_randfloat_r(sexp sfmt,sexp scale){
+  if(!OPAQUEP(sfmt)){
+    return format_type_error("drand-r","random-state",sfmt.tag);
+  }
   sfmt_and_buf *sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   if(NILP(scale)){
     return double_sexp(sfmt_and_buf_erand64(sfmt_val));
@@ -213,6 +218,7 @@ sexp lisp_randfloat_r(sexp sfmt,sexp scale){
                         double_sexp(sfmt_and_buf_erand64(sfmt_val)));
   }
 }
+#if 0
 static sexp c_rand_array(int len,sfmt *sfmt,_tag type){
   sexp *retval=xmalloc_atomic(sizeof(sexp)*array_len);
   uint32_t *sfmt_array=alloca(sizeof(uint32_t)*array_len);
@@ -258,7 +264,7 @@ sexp rand_array_static(sexp len,sexp type){
   return c_rand_array(array_len,sfmt_val,type_tag);
 }
 #endif
-sexp lisp_randint(sexp un_signed){
+/*sexp lisp_randint(sexp un_signed){
   if(NILP(un_signed)){
     return long_sexp(mrand48());
   } else {
@@ -273,7 +279,7 @@ sexp lisp_randfloat(sexp scale){
     retval = drand48();
   }
   return double_sexp(retval);
-}
+  }*/
 sexp lisp_bigint_unsafe_min(sexp obj1, sexp obj2){
   return error_sexp("bigint unsafe min unimplemented");
 }

@@ -125,6 +125,7 @@
     ("cos" "lisp_cos" 1 :sig "(number)")
     ("div-num" "lisp_div_num" 2 :sig "(num1 num2)")
     ("drand" "lisp_randfloat" 0 :optargs 1 :sig "(&optional scale)")
+    ("drand-r" "lisp_randfloat_r" 1 :optargs 1 :sig "(state &optional scale)")
     ("driv-!=" "lisp_ne_driver" 1 :restarg 1 :sig "(number &rest numbers)")
     ("driv-<" "lisp_lt_driver" 1 :restarg 1 :sig "(number &rest numbers)")
     ("driv-<=" "lisp_le_driver" 1 :restarg 1 :sig "(number &rest numbers)")
@@ -169,6 +170,7 @@
     ("logxor" "lisp_xor" 2 :sig "(int1 int2)")
     ("lognot" "lisp_lognot" 1 :sig "(integer)")
     ("lrand" "lisp_randint" 0 :optargs 1 :sig "(&optional unsigned)")
+    ("lrand-r" "lisp_randint_r" 1 :optargs 1 :sig "(state &optional unsigned)")
     ("lt" "lisp_cmp_lt" 2 :sig "(num1 num2)")
     ("make-c-ptr" "make_c_ptr" 1 :optargs 1)
     ("make-hash-table" "makeHashtable" 0 :keyargs 7)
@@ -201,6 +203,8 @@
     ("raise-error" "lisp_error" 1 :sig "(error-string)")
     ("rand-array" "rand_array" 1 :optargs 1)
     ("rand-list" "rand_list" 1 :optargs 1)
+    ("seed-rand" "lisp_init_rand" 0 :optargs 1 :sig "(seed-val)")
+    ("seed-rand-r" "lisp_init_rand_r" 0 :optargs 1 :sig "(seed-val)")
     ("re-compile" "lisp_re_compile" 1 :optargs 1)
     ("re-match" "lisp_re_match" 2 :optargs 3)
     ("re-subexpr" "lisp_get_re_backref" 2)
@@ -325,6 +329,7 @@ mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
 set_global_vars();
 srand48(time(NULL));
+lisp_init_rand(NIL);
 INIT_SYNONYM(lisp_consp,\"cons?\",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){

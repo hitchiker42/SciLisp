@@ -45,9 +45,9 @@ FRONTEND_SRC:=lex.yy.c parser.c cons.c print.c frontend.c env.c array.c bignum.c
 	tree.c sequence.c hash.c lisp_types.c lisp_macros.c #setf.c
 FRONTEND:=lex.yy.o parser.o cons.o print.o frontend.o env.o array.o bignum.o \
 	hash_fn.o lisp_math.o cffi.o ccall.o emacs_regex.o regex.o lisp_system.o unicode.o \
-	tree.o sequence.o hash.o lisp_types.o lisp_macros.o #setf.o
+	tree.o sequence.o hash.o lisp_types.o lisp_macros.o SFMT.a #setf.o
 STD_LIB:= cons.o array.o bignum.o lisp_math.o cffi.o ccall.o regex.o emacs_regex.o \
-	lisp_system.o unicode.o hash.o lisp_types.o lisp_macros.o #setf.o
+	lisp_system.o unicode.o hash.o lisp_types.o lisp_macros.o SFMT.a #setf.o
 STD_LIB_SRC:=cons.c array.c bignum.c lisp_math.c cffi.c ccall.c regex.c emacs_regex.c \
 	lisp_system.c unicode.c hash.c lisp_type.c lisp_macros.c #setf.c
 BACKEND_SRC:=eval.c codegen.c prim.c
@@ -95,7 +95,7 @@ eval.o: eval.c $(COMMON_HEADERS) cons.h array.h
 frontend.o: frontend.c $(COMMON_HEADERS) prim.h
 hash.o: hash.c hash.h $(COMMON_HEADERS) hash_fn.h
 hash_fn.o: hash_fn.c hash_fn.h
-lisp_math.o: lisp_math.c $(COMMON_HEADERS) bignum.h
+lisp_math.o: lisp_math.c $(COMMON_HEADERS) bignum.h SFMT.a
 lisp_system.o: lisp_system.c $(COMMON_HEADERS)
 lisp_types.o: lisp_types.c $(COMMON_HEADERS) prim.h
 lisp_macros.o: lisp_macros.c $(COMMON_HEADERS) prim.h
@@ -106,6 +106,8 @@ regex.o: regex.c regex.h $(COMMON_HEADERS) emacs_regex.o
 sequence.o: sequence.c $(COMMON_HEADERS) sequence.h
 tree.o: tree.c $(COMMON_HEADERS) cons.h array.h
 unicode.o: unicode.c
+SFMT.a: SFMT/Makefile
+	cd SFMT && $(MAKE) SciLisp
 fnv_hash: fnv_hash.c
 	$(CC) $(CFLAGS) -O3 fnv_hash.c -o fnv_hash
 prim.h: prim.c

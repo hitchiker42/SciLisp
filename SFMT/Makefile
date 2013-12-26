@@ -16,13 +16,16 @@ OPTI = -O3 -finline-functions -fomit-frame-pointer -DNDEBUG \
 -fkeep-inline-functions
 STD = -std=c99 -D_GNU_SOURCE
 CC = gcc
-CCFLAGS = $(OPTI) $(WARN) $(STD) -fPIC -rdynamic
+CCFLAGS = $(OPTI) $(WARN) $(STD) -fPIC -rdynamic -mavx
 SSE2FLAGS = -msse2 -DHAVE_SSE2
 CFLAGS:= $(CFLAGS) $(CCFLAGS)
 #STD_TARGET = test-std-M19937
 #CCFLAGS += --param inline-unit-growth=500 \
 #--param large-function-growth=900
-all: SFMT.so
+.PHONY: SciLisp all
+all: SFMT.so SFMT.a
+SciLisp: all
+	cp SFMT.a ..
 test: SFMT_test
 SFMT_lib.o: SFMT_lib.c SFMT_lib.h SFMT-sse2.h
 SFMT.o: SFMT.c SFMT_r.h SFMT_lib.h

@@ -102,6 +102,7 @@ typedef wchar_t char32_t;
 #define STREAMP(obj)(obj.tag ==_stream)
 #define REGEXP(obj)(obj.tag == _regex)
 #define ERRORP(obj)(obj.tag == _error)
+#define OPAQUEP(obj) (obj.tag == _opaque)
 #define SEQUENCEP(obj) (CONSP(obj) || ARRAYP(obj))
 #define BIGINTP(obj)(obj.tag == _bigint)
 #define BIGFLOATP(obj) (obj.tag == _bigfloat)
