@@ -24,14 +24,16 @@ c_string get_cType(sexp obj){
     case _bigfloat:
       return "mpfr_t*";
     case _array:
-      switch(obj.meta){
-      }
+      return "sexp*";
     default:
       return "void";
   }
 }
 
-#define get_c_char(c) (isalnum(c)?c:'_') 
+#define get_c_char(c) (isalnum(c)?c:'_')
+/* Generate a valid C identifier for the lisp variable name symName
+   replace any non alphanumeric character with an underscore and
+   append a unique number to the end (generated using an increasing counter)*/
 CORD to_c_symbol(CORD symName){
   char* c_name=CORD_to_char_star(symName);
   int i;

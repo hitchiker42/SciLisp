@@ -1,8 +1,8 @@
 #!/usr/bin/emacs --script
-;TODO: change what is currently :doc to :sig so :doc
-;can hold actual documenation while :sig is the function signature
-;;utitily functions
+;;-*- lexical-binding: t -*-
 (require 'cl)
+(assert (eq t lexical-binding))
+;;utitily functions
 (defvar current-dir-name
   (if load-in-progress
       (file-name-directory load-file-name)
@@ -67,8 +67,8 @@
       (dolist (j '("a" "d" ""))
         (dolist (k '("a" "d" ""))
           (dolist (l '("a" "d" ""))
-            (add-to-list
-             'ls (list (concat "c" i j k l "r") (concat "c" i j k l "r") 1 :sig "(cell)"))))))
+            (push
+             (list (concat "c" i j k l "r") (concat "c" i j k l "r") 1 :sig "(cell)") ls)))))
     ls))
 (define mpz-binops-list '("add" "sub" "mul" "mod" "cdiv_q" "fdiv_q" "tdiv_q"
                           "cdiv_r""fdiv_r" "tdiv_r" "and" "ior" "xor"
@@ -274,14 +274,14 @@
   (let
       ((type-macro
         (format "#define %sP(obj) (obj.tag ==_%s)\n"
-                upcase(type) type))
+                (upcase (type)) type))
        (type-function-c
         (format "int is_%s(sexp obj){\n  return %sP(obj);\n}\n"
-                type upcase(type)))
+                type (upcase(type))))
        (type-function-lisp
         (format
          "sexp lisp_%sp(sexp obj){
-  return(%sP(obj)?LISP_TRUE:LISP_FALSE);\n}\n" type upcase(type))))
+  return(%sP(obj)?LISP_TRUE:LISP_FALSE);\n}\n" type (upcase(type)))))
     (list type-macro type-function-c type-function-lisp)))
 ;;need to actually use this, because I don't do anything with it right now
 (define SciLisp-aliases
@@ -380,7 +380,7 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 (defmacro prim-val (keysym)
   `(cdr (assq ,keysym prim)))
 (defun make-signature (prim)
-  (format "%s: %s" (prim-val :lname) (prim-name :sig)))
+  (format "%s: %s" (prim-val :lname) (prim-val :sig)))
 (defun primc-format (prim)
   (format
    "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"

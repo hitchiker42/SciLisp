@@ -5,6 +5,8 @@
 #include "array.h"
 #include "prim.h"
 //trees
+//structurally trees are just recursive lists
+//and a sorting function
 #define AS_TREE(_tree_) _tree_.val.tree
 struct lisp_tree {
   sexp tree;//.meta values == tree type

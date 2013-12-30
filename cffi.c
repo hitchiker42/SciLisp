@@ -1,16 +1,5 @@
 #include "common.h"
 #include "prim.h"
-//not sure the point of this
-/*void fill_c_ptr(c_ptr *pointer,ctype_val ctype_data){
-  ctype_val *pointers=xmalloc(sizeof(pointer->depth));
-  int i,n=pointer->depth-1;
-  for(i=0;i<n;i++){
-    pointers[i].pointer=pointers+(i+1);
-  }
-  pointers[n]=ctype_data;
-  pointer->c_data=pointers;
-  return;
-  }*/
 sexp make_c_ptr(sexp c_value,sexp deg_of_indir){
   int indir=1;
   if(NILP(deg_of_indir)){
@@ -97,8 +86,8 @@ sexp get_c_type(sexp ctype_keysym){
   return getKeywordType(ctype_keysym);
 }
 //I wrote all of this, but it's probably not necessary(kinda yeah)
-#include "regex.h"
 #if 0
+#include "regex.h"
 sexp get_c_type(sexp ctype_keysym){
   if(!KEYWORDP(ctype_keysym)){
     return error_sexp("argument to get_c_type must be a keyword symbol");

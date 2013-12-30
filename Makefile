@@ -28,14 +28,13 @@ QUIET_FLAGS:= -DHERE_OFF -DQUIET_LEXING -DNDEBUG
 WARNING_FLAGS:=$(WARNING_FLAGS) -Wparentheses -Wsequence-point -Warray-bounds -Wenum-compare \
 	 -Wmissing-field-initializers -Wimplicit -Wstrict-aliasing -fmax-errors=30 -Wmissing-braces -Wcomment
 COMMON_CFLAGS=-std=gnu99 -D_GNU_SOURCE -foptimize-sibling-calls -fshort-enums	\
-	-rdynamic #-fstrict-aliasing
+	-rdynamic -L$(shell pwd)/gc/lib -L$(shell pwd)/bignum/lib #-fstrict-aliasing
 #-I$(shell pwd)/llvm/llvm/include
 INCLUDE_FLAGS:=-I$(shell pwd)/gc/include/gc -I$(shell pwd)/bignum/include
 #-Wl,-rpath=$(shell pwd)/readline/lib	-I$(shell pwd)/readline/include
-XLDFLAGS:=-Wl,-rpath=$(shell pwd)/gc/lib \
-	-Wl,-rpath=$(shell pwd)/bignum/lib \
+XLDFLAGS:=-Wl,-rpath="$(shell pwd)/gc/lib $(shell pwd)/bignum/lib" \
 	-lgc -lm -lreadline -lcord -rdynamic -lpthread -lgmp -lmpfr -ldl
-XCFLAGS=$(WARNING_FLAGS) $(XLDFLAGS) $(COMMON_CFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
+XCFLAGS=$(WARNING_FLAGS) $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 XCFLAGS_NOWARN=-g $(COMMON_CFLAGS) $(XLDFLAGS) $(INCLUDE_FLAGS) $(OPT_FLAGS)
 LEX:=flex
 SCILISP_HEADERS:=common.h prim.h types.h cons.h lex.yy.h print.h array.h cffi.h sequence.h
@@ -132,15 +131,14 @@ libSciLisp_reqs := prim.c eval.c print.c env.c cons.c array.c bignum.c hash_fn.c
 libSciLisp_files := $(addprefix lib_files/libSciLisp_,$(libSciLisp_reqs:.c=.o))
 start_libSciLisp: $(libSciLisp_files)
 $(libSciLisp_files): lib_files/libSciLisp_%.o: %.c
-	$(LIBSCILISP_CC) -o $@ -c 
-LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so
+	$(LIBSCILISP_CC) -o $@ -c $<
+LD_SHARED_FLAGS:= -Wl,-R$(shell pwd) -Wl,-shared -Wl,-soname=libSciLisp.so -shared
 libSciLisp.o: start_libSciLisp
 	$(CC) -o libSciLisp.o $(LIBSCILISP_FLAGS) -lm -lgc -lcord
 libSciLisp.a: start_libSciLisp
 	ar rcs $@ $(libSciLisp_files)
 libSciLisp.so: start_libSciLisp
-	$(CC) $(XCFLAGS) -shared $(LD_SHARED_FLAGS) \
-	$(libSciLisp_files) -o $@
+	$(CC) $(libSciLisp_files) $(XCFLAGS) $(LD_SHARED_FLAGS) -o $@
 libs: libSciLisp.a libSciLisp.so
 prim.bc: prim.c eval.c print.c env.c cons.c array.c bignum.c
 	$(eval CC:=clang $(QUIET_FLAGS) $(LIBPRIM_FLAGS) -w)

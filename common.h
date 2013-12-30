@@ -13,7 +13,7 @@
 #include <sys/wait.h>
 #define GC_THREADS
 #define THREAD_LOCAL_ALLOC
-#define USE_MMAP
+//#define USE_MMAP
 #include "gc/include/gc/gc.h"
 #include <pthread.h>
 #include <ctype.h>

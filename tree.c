@@ -14,20 +14,27 @@
  * tree = [(parent pointer?),(data,pointer to next),
  [pointer to child1,...,pointer to child n]
  */
-//This is badly written (I'm sorry) and really needs to be
-//cleaned up, concidering it probably doesn't work
-//start and end should always be powers of 2
-//start is starting index into tree memory
-//end is ending """"
-//ind is starting index into tree values
-//ind_max is ending """"
+/* recursive helper function to build a tree
+   the arguments are:
+   mem, the location of the tree in memory
+   vals, an array contaning the initial values of the tree
+   start, starting index of the current subtree in mem
+   end, ending index of current subtree in mem
+   ind, stating index in vals of current subtree
+   ind_max, ending index in vals of current subtree
+   called from make tree with mem an array with stride 2
+   (it's an array of lists of the form (x . (y . z)))
+   and vals just a normal arary, start is 0 end is
+   the length of mem, ind is len/2 and ind_max is len
+ */
 static inline void make_tree_acc
 (cons *mem,sexp *vals,int start,int end,int ind,int ind_max){
   mem[start].car=vals[ind];//set the value of the current node
-  //necessarly complicated way of saying if ind == ind_max
-  //i.e if we're at a leaf, set the children to nil
+  /*if the index is 0 and the max index is < 1 we're at a leaf,
+    so set the children to nil and return*/
   if(ind<1 && ind+1>=ind_max){
     mem[start].cdr=tree_NIL;
+    return;
   } else {
     mem[start].cdr=cons_sexp(mem+start+1);
     //next cell holds previous value in list
@@ -45,8 +52,9 @@ static inline void make_tree_acc
     }
   }
 }
+//(defun make-tree (predicate &key type initial-contents))
 sexp make_tree(sexp comp_fun,sexp tree_type,sexp contents){
-  if(!FUNCTIONP(comp_fun)){
+  if(!FUN2P(comp_fun)){
     return format_type_error("make-tree","function",comp_fun.tag);
   }
   lisp_tree *new_tree=xmalloc(sizeof(lisp_tree));
@@ -64,14 +72,17 @@ sexp make_tree(sexp comp_fun,sexp tree_type,sexp contents){
     contents=array_from_list(contents);
     contents=array_qsort(contents,comp_fun,long_sexp(1));
     int len=contents.len;
-    //this is an array of sets of 2 conses
+    //this is an array of sets of 2 conses(i.e [(x . (y . z))*])
     cons *new_tree_mem=xmalloc(sizeof(cons)*2*len);
     new_tree->tree=cons_sexp(new_tree_mem);
     make_tree_acc(new_tree_mem,contents.val.array,0,len*2,len/2,len);
     return tree_sexp(new_tree);
   }
 }
-#define TREE_INSERT_GENERIC(tree,access_fn,unused_side) \
+//access_fn is either XCADR or XCDDR, unused side is XCDDR or XCADR respectively
+//this inserts new_node into either the left or right child of tree
+//based on the values of access_fn and unused side
+#define TREE_INSERT_GENERIC(tree,new_node,access_fn,unused_side)      \
   if(NILP(XCDR(tree))){                                               \
     XCDR(tree)=cons_sexp((cons*)(((uint8_t*)&tree)+sizeof(cons)));    \
     tree_add_node(tree,new_node,access_fn);                           \
@@ -86,12 +97,13 @@ sexp basic_tree_insert(sexp tree,sexp new_node){
   sexp node=tree.val.tree->tree;
   while(CONSP(tree)){
     if(isTrue(f(XCAR(node),new_node))){
-      TREE_INSERT_GENERIC(node,XCADR,XCDDR);
+      TREE_INSERT_GENERIC(node,new_node,XCADR,XCDDR);
     } else {
-      TREE_INSERT_GENERIC(node,XCDDR,XCADR);
+      TREE_INSERT_GENERIC(node,new_node,XCDDR,XCADR);
     }
   }
 }
+//(defun tree-insert (tree new))
 sexp lisp_tree_insert(sexp tree,sexp new_node){
   if(!LISP_TREEP(tree)){
     return format_type_error("tree-insert","tree",tree.tag);
@@ -235,6 +247,9 @@ sexp tree_lookup(sexp tree,sexp val){
  * 3. A RED node has BLACK children only
  * 4. Path from a node to any leafs has the same number of BLACK nodes.
  */
+
+
+
 /* Heap
    -tree with compairson function f
    -the tree satisfies the headp property
@@ -376,7 +391,7 @@ sexp heap_insert(sexp heap,sexp new_val){
   }
 }
 
-//lets try using keyargs(though I suppose that changes nothing here)
+//(defun make-heap (predicate &key size initial-contents
 sexp make_heap(sexp comp_fun,sexp arr,sexp size){
   if(!FUN2P(comp_fun)){
     return format_type_error("make-heap","function of two arguments",comp_fun.tag);
