@@ -1,4 +1,3 @@
-;-*- mode: SciLisp; -*-
 #|*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
@@ -225,7 +224,7 @@
     (assert-equal ls (array->list (list->array ls)))
     (assert-equal (list-qsort ls >) (merge-sort ls >))
     (assert-equal arr (eval (read-string (print-to-string arr))))))
-(defmacro when (cond-test &rest args) 
+(defmacro when (cond-test &rest args)
   `(if ,cond-test (progn ,@args) nil))
 (when (> 2 1)
   (println "testing when")

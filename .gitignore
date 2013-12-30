@@ -4,12 +4,14 @@
 # Libraries
 *.lib
 *.a
+*.la
 
 # Shared objects (inc. Windows DLLs)
 *.dll
 *.so
 *.so.*
 *.dylib
+*.lo
 
 # Executables
 *.exe
@@ -43,3 +45,21 @@ gc/gc_config.stamp
 gc/include
 gc/lib
 gc/share
+
+#autotools files
+build-aux/
+configure
+config.log
+config.status
+m4/
+aclocal.m4
+autom4te.cache
+Makefile.in
+stamp-h1
+missing
+install.sh
+config.h.in
+config.h
+libtool
+.deps
+.libs
