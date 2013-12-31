@@ -63,3 +63,33 @@ sexp lisp_inc_ref(sexp sym_sexp,sexp cur_env_sexp){
     return temp;
   }
 }
+//kinda messy
+sexp lisp_decf_expander(sexp sym_sexp){
+  /* (incf <var>) ->
+     `(setq ,var (++ ,var))
+     (setq . (var . ((++ . (var . nil)) . nil)))
+  */
+  cons *code=xmalloc(5*sizeof(cons));
+  cons *code_ptr=code;
+  code_ptr->car=spec_sexp(_setq);// (setq .
+  code_ptr->cdr=cons_sexp(code+1);// (setq . (
+  code_ptr=code_ptr->cdr.val.cons;
+  code_ptr->car=sym_sexp;//(setq . (var
+  code_ptr->car.has_comma=1;//(setq . (,var
+  code_ptr->cdr=cons_sexp(code+2);
+  code_ptr=code_ptr->cdr.val.cons;
+  code_ptr->cdr=NIL;//(setq . (,var . (_ . nil)))
+  code_ptr->car=cons_sexp(code+3);
+  code_ptr=code_ptr->car.val.cons;
+  symref inc_symbol=xmalloc(sizeof(symbol));
+  inc_symbol->name="++";
+  inc_symbol->val=UNBOUND;
+  code_ptr->car=symref_sexp(inc_symbol);
+  code_ptr->cdr=cons_sexp(code+4);
+  code_ptr->car=sym_sexp;
+  code_ptr->cdr=NIL;
+  sexp retval=cons_sexp(code);
+  retval.quoted=1;
+  retval.has_comma=1;
+  return retval;
+}

@@ -4,11 +4,7 @@
  ****************************************************************/
 #include <assert.h>
 #include <execinfo.h>
-#if defined (HERE_ON) && !(defined (HERE_OFF))\
-  || (defined (DEBUG)) && !(defined (NDEBUG))
-#ifndef DEBUG
-#define DEBUG
-#endif
+#if (defined (DEBUG)) && !(defined (NDEBUG))
 #define HERE() debug_printf("here at %s,line %d\n",__FILE__,__LINE__)
 #define HERE_MSG(string) debug_printf("here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)

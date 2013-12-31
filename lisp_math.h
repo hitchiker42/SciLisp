@@ -20,8 +20,6 @@ sexp lisp_dec(sexp val);
 sexp lisp_inc(sexp val);
 sexp lisp_init_rand(sexp seed);
 sexp lisp_init_randr(sexp seed);
-sexp lisp_randint(sexp un_signed);
-sexp lisp_randint_r(sexp sfmt,sexp un_signed);
-sexp lisp_randfloat(sexp scale);
-sexp lisp_randfloat_r(sexp sfmt,sexp scale);
+sexp lisp_randint(sexp sfmt,sexp un_signed);
+sexp lisp_randfloat(sexp sfmt,sexp scale);
 #endif

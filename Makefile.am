@@ -14,19 +14,22 @@ BACKEND_SRC = c_codegen.c
 INCLUDE_FLAGS = -I$$PWD/gc/include/gc -I$$PWD/bignum/include
 #Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
-AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" \
-	-L$$PWD/gc/lib -L$$PWD/bignum/lib
+#AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" 
+AM_CFLAGS=-L$$PWD/gc/lib -L$$PWD/bignum/lib -rdynamic
+if GCC
+AM_CFLAGS+=-flto
+endif
 BUILT_SOURCES = prim.c prim.h lex.yy.c lex.yy.h
 ACLOCAL_AMFLAGS=-I m4
 SUBDIRS = SFMT
 #Things to be built
 bin_PROGRAMS = SciLisp
-SciLisp_LDADD = SFMT/libSFMT.a
-SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(STD_LIB_SRC) $(SCILISP_INCLUDES)
-SciLisp_CFLAGS= $(AM_CFLAGS)
+SciLisp_LDADD = SFMT/libSFMT.la libSciLisp.la
+SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)
+#SciLisp_CFLAGS= $(AM_CFLAGS)
 lib_LTLIBRARIES = libSciLisp.la
 libSciLisp_la_SOURCES = $(STD_LIB_SRC)
-libSciLisp_la_LIBADD = SFMT/libSFMT.a
+libSciLisp_la_LIBADD = SFMT/libSFMT.la
 info_TEXINFOS = doc/SciLisp.texi
 test: SciLisp_test
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_INCLUDES) llvm_codegen.o
@@ -67,12 +70,7 @@ quiet:
 	CFLAGS=$(QUIET_FLAGS) $(MAKE) -B all
 force:
 	$(MAKE) -B all
-set_optimized:
-	$(eval OPT_FLAGS:=-O3 -march=native)
-	$(eval CFLAGS:=$(COMMON_CFLAGS) $(QUIET_FLAGS) $(OPT_FLAGS))
 optimized:set_optimized all
 gen_cffi: gen_cffi.c gen_cffi.h
 	gcc -o gen_cffi $(XLDFLAGS) -lclang -O2 -g gen_cffi.c -std=gnu99
-check: SciLisp
-	./SciLisp -r
 #http://physics.nist.gov/cuu/Constants/Table/allascii.txt

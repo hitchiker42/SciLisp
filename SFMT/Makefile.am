@@ -21,5 +21,5 @@ AM_CFLAGS = $(CFLAGS) $(CCFLAGS)
 #STD_TARGET = test-std-M19937
 #CCFLAGS += --param inline-unit-growth=500 \
 #--param large-function-growth=900
-noinst_LIBRARIES = libSFMT.a
-libSFMT_a_SOURCES = SFMT.c SFMT_r.h SFMT_lib.h SFMT_lib.c
+noinst_LTLIBRARIES = libSFMT.la
+libSFMT_la_SOURCES = SFMT.c SFMT_r.h SFMT_lib.h SFMT_lib.c

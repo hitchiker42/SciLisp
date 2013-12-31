@@ -104,16 +104,14 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-LIBRARIES = $(noinst_LIBRARIES)
-ARFLAGS = cru
-AM_V_AR = $(am__v_AR_$(V))
-am__v_AR_ = $(am__v_AR_$(AM_DEFAULT_VERBOSITY))
-am__v_AR_0 = @echo "  AR      " $@;
-am__v_AR_1 = 
-libSFMT_a_AR = $(AR) $(ARFLAGS)
-libSFMT_a_LIBADD =
-am_libSFMT_a_OBJECTS = SFMT.$(OBJEXT) SFMT_lib.$(OBJEXT)
-libSFMT_a_OBJECTS = $(am_libSFMT_a_OBJECTS)
+LTLIBRARIES = $(noinst_LTLIBRARIES)
+libSFMT_la_LIBADD =
+am_libSFMT_la_OBJECTS = SFMT.lo SFMT_lib.lo
+libSFMT_la_OBJECTS = $(am_libSFMT_la_OBJECTS)
+AM_V_lt = $(am__v_lt_$(V))
+am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
+am__v_lt_0 = --silent
+am__v_lt_1 = 
 AM_V_P = $(am__v_P_$(V))
 am__v_P_ = $(am__v_P_$(AM_DEFAULT_VERBOSITY))
 am__v_P_0 = false
@@ -132,10 +130,6 @@ am__depfiles_maybe = depfiles
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-AM_V_lt = $(am__v_lt_$(V))
-am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
-am__v_lt_0 = --silent
-am__v_lt_1 = 
 LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
 	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
@@ -152,8 +146,8 @@ AM_V_CCLD = $(am__v_CCLD_$(V))
 am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libSFMT_a_SOURCES)
-DIST_SOURCES = $(libSFMT_a_SOURCES)
+SOURCES = $(libSFMT_la_SOURCES)
+DIST_SOURCES = $(libSFMT_la_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -311,8 +305,8 @@ AM_CFLAGS = $(CFLAGS) $(CCFLAGS)
 #STD_TARGET = test-std-M19937
 #CCFLAGS += --param inline-unit-growth=500 \
 #--param large-function-growth=900
-noinst_LIBRARIES = libSFMT.a
-libSFMT_a_SOURCES = SFMT.c SFMT_r.h SFMT_lib.h SFMT_lib.c
+noinst_LTLIBRARIES = libSFMT.la
+libSFMT_la_SOURCES = SFMT.c SFMT_r.h SFMT_lib.h SFMT_lib.c
 all: all-am
 
 .SUFFIXES:
@@ -348,13 +342,19 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
-clean-noinstLIBRARIES:
-	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+clean-noinstLTLIBRARIES:
+	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
+	@list='$(noinst_LTLIBRARIES)'; \
+	locs=`for p in $$list; do echo $$p; done | \
+	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
+	      sort -u`; \
+	test -z "$$locs" || { \
+	  echo rm -f $${locs}; \
+	  rm -f $${locs}; \
+	}
 
-libSFMT.a: $(libSFMT_a_OBJECTS) $(libSFMT_a_DEPENDENCIES) $(EXTRA_libSFMT_a_DEPENDENCIES) 
-	$(AM_V_at)-rm -f libSFMT.a
-	$(AM_V_AR)$(libSFMT_a_AR) libSFMT.a $(libSFMT_a_OBJECTS) $(libSFMT_a_LIBADD)
-	$(AM_V_at)$(RANLIB) libSFMT.a
+libSFMT.la: $(libSFMT_la_OBJECTS) $(libSFMT_la_DEPENDENCIES) $(EXTRA_libSFMT_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(LINK)  $(libSFMT_la_OBJECTS) $(libSFMT_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -362,8 +362,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/SFMT.Po
-include ./$(DEPDIR)/SFMT_lib.Po
+include ./$(DEPDIR)/SFMT.Plo
+include ./$(DEPDIR)/SFMT_lib.Plo
 
 .c.o:
 	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -476,7 +476,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LIBRARIES)
+all-am: Makefile $(LTLIBRARIES)
 installdirs:
 install: install-am
 install-exec: install-exec-am
@@ -510,7 +510,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-noinstLIBRARIES \
+clean-am: clean-generic clean-libtool clean-noinstLTLIBRARIES \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -582,7 +582,7 @@ uninstall-am:
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstLIBRARIES cscopelist-am ctags \
+	clean-libtool clean-noinstLTLIBRARIES cscopelist-am ctags \
 	ctags-am distclean distclean-compile distclean-generic \
 	distclean-libtool distclean-tags distdir dvi dvi-am html \
 	html-am info info-am install install-am install-data \

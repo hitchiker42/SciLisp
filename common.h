@@ -12,8 +12,9 @@
 #include <sched.h>
 #include <sys/wait.h>
 #include "config.h"
-#define GC_THREADS
+#ifdef GC_THREADS
 #define THREAD_LOCAL_ALLOC
+#endif
 //#define USE_MMAP
 #include "gc/include/gc/gc.h"
 #include <pthread.h>
@@ -31,11 +32,6 @@
 #include "bignum.h"
 #include "cffi.h"
 #include "llvm_externs.h"
-//enable/disable debugging/lexing output
-#define HERE_ON
-#define DEBUG
-//enable/disable SciLisp multithreading (gc is always multithreaded)
-//#define MULTI_THREADED
 //print what is being lexed, very verbose, rarely useful
 //#define VERBOSE_LEXING
 #include "debug.h"

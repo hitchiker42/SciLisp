@@ -169,3 +169,37 @@ sexp lisp_strtod(sexp obj){
     return real64_sexp(retval);
   }
 }
+sexp lisp_error(sexp error_message){
+  if(!STRINGP(error_message) && !ERRORP(error_message)){
+    return format_type_error_opt2("raise-error","string","error",
+                                  error_message.tag);
+  }
+  return error_sexp(error_message.val.cord);
+}
+sexp lisp_assert(sexp expr){
+  if(isTrue(expr)){
+    return NIL;
+  } else {
+    return error_sexp("Assertation faliure");
+  }
+}
+#define make_lisp_assert_eq(name,fun,error_string)                      \
+  sexp name(sexp obj1,sexp obj2){                                       \
+    if(isTrue(fun(obj1,obj2))){                                         \
+      return NIL;                                                       \
+    } else {                                                            \
+      return format_error_sexp(error_string,print(obj1),print(obj2));   \
+    }                                                                   \
+  }
+make_lisp_assert_eq(lisp_assert_eq,lisp_eq,
+                    "Assertation error, %r is not eq to %r")
+make_lisp_assert_eq(lisp_assert_equal,lisp_equal,
+                    "Assertation error, %r is not equal to %r")
+make_lisp_assert_eq(lisp_assert_eql,lisp_eq,
+                    "Assertation error, %r is not eql to %r")
+make_lisp_assert_eq(lisp_assert_not_eq,lisp_not_eq,
+                    "Assertation error, %r is eq to %r")
+make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
+                    "Assertation error, %r is equal to %r")
+make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
+                    "Assertation error, %r is eql to %r")

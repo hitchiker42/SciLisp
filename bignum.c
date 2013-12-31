@@ -34,9 +34,8 @@ sexp lisp_bigint(sexp init){
       return bigint_sexp(new_bignum);
     }
     case _bigint:{
-      //      mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
-      //      mpz_init_set(*new_bignum,*init.val.bigint);
-      //      return bigint_sexp(new_bignum);
+      //bignum's are effectively immutable (at least from lisp)
+      //so we can just return the same thing we got
       return init;
     }
     case _bigfloat:{
@@ -73,8 +72,6 @@ sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
       init_set(_z,bigint,*);
     }
     case _bigfloat:{
-      //mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      //init_set(,bigfloat,*);
       return init;
     }
     case _str:{
@@ -117,7 +114,7 @@ sexp promoteNum(sexp obj1,sexp obj2){
   }
   switch(obj1.tag){
     case _short:
-      return (sexp){.tag=_short,.val={.int16=obj2.val.int8}};
+      return int_n_sexp(obj2.val.int8,16);
     case _int:
       return promoteInt(obj2,_int);
     case _long:

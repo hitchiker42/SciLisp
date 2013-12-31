@@ -11,7 +11,7 @@
   sexp fun_name(sexp x,sexp y){                                         \
     if((x.tag==y.tag)==_long){                                          \
       return                                                            \
-        (sexp){.tag=_long,.val={.int64 = (x.val.int64 op y.val.int64)}}; \
+        long_sexp(x.val.int64 op y.val.int64);                          \
     } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
       register double xx=getDoubleVal(x);                               \
       register double yy=getDoubleVal(y);                               \
@@ -20,8 +20,6 @@
       return format_type_error2(#fun_name,"number",x.tag,"number",y.tag); \
     }                                                                   \
   }
-//ignore tags, allow logical operations on doubles(or anything else)
-//be careful about this
 #define lop_to_fun(op,op_name)                                          \
   sexp lisp_unchecked_##op_name (sexp x,sexp y){                        \
     return long_sexp(x.val.int64 op y.val.int64);                       \
@@ -36,7 +34,7 @@
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
     if(!NUMBERP(obj)){return format_type_error(#lispname,"number",obj.tag);} \
-  return double_sexp(cname(getDoubleValUnsafe(obj)));                   \
+    return double_sexp(cname(getDoubleValUnsafe(obj)));                 \
   }
 #define mkMathFun2(cname,lispname)                              \
   sexp lispname(sexp x,sexp y){                                 \
@@ -70,7 +68,7 @@ sexp lisp_div_num(sexp x,sexp y){
       return error_sexp("error, integer division by 0");
     }
     return
-      (sexp){.tag=_long,.val={.int64 = (x.val.int64 / y.val.int64)}};
+      long_sexp(x.val.int64 / y.val.int64);
   } else if(NUMBERP(x)&&NUMBERP(y)){
     register double yy=getDoubleVal(y);
     register double xx=getDoubleVal(x);
@@ -148,10 +146,13 @@ static void sfmt_and_buf_init(sfmt_and_buf *sfmt,uint32_t seed){
   }
   sfmt_init_buf_r(&sfmt->sfmt,&sfmt->buf);
 }
+static sfmt_and_buf sfmt_and_buf_static[1];
 //(defun init-rand (&optional seed)
 //when I add better support for unsigned/specific sized ints
 //I should look at this again
 sexp lisp_init_rand(sexp seed){
+  sfmt_and_buf_static->sfmt=sfmt_static;
+  sfmt_and_buf_static->buf=sfmt_static_buf;
   if(NILP(seed)){
     sfmt_init_fast_static();
     return NIL;
@@ -173,42 +174,34 @@ sexp lisp_init_rand_r(sexp seed){
   sfmt_and_buf_init(sfmt,seed_val);
   return opaque_sexp(sfmt);
 }
-//(defun rand-int (&optional unsigned))
-sexp lisp_randint(sexp un_signed){
-  if(isTrue(un_signed)){
-    return long_sexp(sfmt_lrand64());
-  } else {
-    return long_sexp(sfmt_mrand64());
+//(defun rand-int (&optional state unsigned)
+sexp lisp_randint(sexp sfmt,sexp un_signed){
+  if(!OPAQUEP(sfmt) && !NILP(sfmt)){
+    return format_type_error_opt("float","random-state",sfmt.tag);
   }
-}
-//(defun rand-int-r (sfmt &optional unsigned))
-sexp lisp_randint_r(sexp sfmt,sexp un_signed){
-  if(!OPAQUEP(sfmt)){
-    return format_type_error("lrand-r","random-state",sfmt.tag);
+  sfmt_and_buf *sfmt_val;
+  if(NILP(sfmt)){
+    sfmt_val=sfmt_and_buf_static;
+  } else{
+    sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   }
-  sfmt_and_buf *sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   if(isTrue(un_signed)){
     return long_sexp(sfmt_and_buf_nrand64(sfmt_val));
   } else {
     return long_sexp(sfmt_and_buf_jrand64(sfmt_val));
   }
 }
-//(defun rand-float (&optional scale))
-sexp lisp_randfloat(sexp scale){
-  if(NILP(scale)){
-    return double_sexp(sfmt_drand64());
-  } else if (!NUMBERP(scale)){
-    return format_type_error_opt("rand-float","number",scale.tag);
-  } else {
-    return lisp_mul_num(scale,double_sexp(sfmt_drand64()));
+//(defun rand-float (&optional state scale))
+sexp lisp_randfloat(sexp sfmt,sexp scale){
+  if(!OPAQUEP(sfmt) && !NILP(sfmt)){
+    return format_type_error_opt("rand-float","random-state",sfmt.tag);
   }
-}
-//(defun rand-float-r (sfmt &optional scale))
-sexp lisp_randfloat_r(sexp sfmt,sexp scale){
-  if(!OPAQUEP(sfmt)){
-    return format_type_error("drand-r","random-state",sfmt.tag);
+  sfmt_and_buf *sfmt_val;
+  if(NILP(sfmt)){
+    sfmt_val=sfmt_and_buf_static;
+  } else{
+    sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   }
-  sfmt_and_buf *sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   if(NILP(scale)){
     return double_sexp(sfmt_and_buf_erand64(sfmt_val));
   } else if (!NUMBERP(scale)){
@@ -218,52 +211,62 @@ sexp lisp_randfloat_r(sexp sfmt,sexp scale){
                         double_sexp(sfmt_and_buf_erand64(sfmt_val)));
   }
 }
-#if 0
-static sexp c_rand_array(int len,sfmt *sfmt,_tag type){
-  sexp *retval=xmalloc_atomic(sizeof(sexp)*array_len);
-  uint32_t *sfmt_array=alloca(sizeof(uint32_t)*array_len);
+//I wonder if it'd be faster to allocate one array
+//and fill it with 2x the needed number of random numbers
+//then modify it in place to get the result, being as it
+//would only need 1 allocation
+static sexp c_rand_array(int len,sfmt_t *sfmt,_tag type){
+  sexp *retval=xmalloc_atomic(sizeof(sexp)*len);
+  uint32_t *sfmt_array=alloca(sizeof(uint32_t)*len);
   //needs typechecking
-  sfmt_fill_array32(sfmt,sfmt_array,array_len*2);
+  sfmt_fill_array32(sfmt,sfmt_array,len*2);
   int i;
   //should compile no a noop
   uint64_t *sfmt_array64=(uint64_t*)(sfmt_array);
   switch(type){
     case _int64:
-      for(i=0;i<array_len;i++){
+      for(i=0;i<len;i++){
         retval[i]=long_sexp(sfmt_array64[i]);
       };
-      return array_sexp(retval);
+      return array_sexp(retval,len);
     case _real64:
-      for(i=0;i<array_len;i++){
+      for(i=0;i<len;i++){
         retval[i]=double_sexp(sfmt_to_res53(sfmt_array64[i]));
       }
-      return array_sexp(retval);
+      return array_sexp(retval,len);
   }
 }
-//(defun rand-array-r (sfmt &optional len type))
-sexp rand_array_r(sexp sfmt,sexp len,sexp type){
-  static_assert(0,type_check);
-  uint64_t array_len=len.val.int64;
-  sfmt *sfmt_val=&((sfmt_and_buf)(sfmt.val.opaque))->sfmt;
-  sexp type_sexp=getKeywordType(type);
-  if(!TYPEP(type_sexp)){
-    return type_sexp;
+//(defun rand-array (len &optional sfmt type))
+sexp rand_array_r(sexp len,sexp sfmt,sexp type){
+  if(!INTP(len)){
+    return format_type_error("rand-array-r","integer",len.tag);
   }
-  _tag type_tag=type_sexp.val.meta;
-  return c_rand_array(array_len,sfmt_val,type);
-}
-//(defun rand-array (&optional len type))
-sexp rand_array_static(sexp len,sexp type){
-  sexp type_sexp=getKeywordType(type);
-  uint64_t array_len=len.val.int64;
-  if(!TYPEP(type_sexp)){
-    return type_sexp;
+  if(!OPAQUEP(sfmt) && !NILP(sfmt)){
+    return format_type_error_opt_named
+      ("rand-array","state","random-state",sfmt.tag);
   }
-  _tag type_tag=type_sexp.val.meta;
-  sfmt *sfmt_val=sfmt_static;
+  sfmt_t *sfmt_val;
+  if(NILP(sfmt)){
+    sfmt_val=&(sfmt_and_buf_static->sfmt);
+  } else {
+    sfmt_val=&(((sfmt_and_buf*)(sfmt.val.opaque))->sfmt);
+  }
+  uint64_t array_len=len.val.int64;
+  _tag type_tag;
+  if(!KEYWORDP(type) && !NILP(type)){
+    return format_type_error_opt("rand-array-r","keyword",type.tag);
+  }
+  if(NILP(type)){
+    type_tag=_long;
+  } else {//type must be a keyword
+    sexp type_sexp=getKeywordType(type);
+    if(!TYPEP(type_sexp)){
+      return type_sexp;
+    }
+    type_tag=type_sexp.val.meta;
+  }
   return c_rand_array(array_len,sfmt_val,type_tag);
 }
-#endif
 /*sexp lisp_randint(sexp un_signed){
   if(NILP(un_signed)){
     return long_sexp(mrand48());

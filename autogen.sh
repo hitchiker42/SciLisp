@@ -1,2 +1,2 @@
 #!/bin/bash
-autoreconf --no-recursive -i
+./bootstrap.sh && ./configure

@@ -28,7 +28,6 @@ int quiet_signals=1;
 int quiet_signals=0;
 #endif
 jmp_buf main_loop,error_buf;
-static c_string current_version="0.01";
 static c_string banner=
   "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+";
@@ -127,10 +126,12 @@ int compile(FILE* input,const char *output,FILE* c_code){
     FILE* tmpFile=fdopen(fd,"w");
     CORD_put(generated_code,tmpFile);
     char* cc_command;
+    CORD cc_command_CORD;
     //need to fix this eventually
-    asprintf(&cc_command,
-             "gcc -o %s -O2 -g %s libSciLisp.so -wl,-rpath=$PWD -lgc -lm -lcord -lgmp -lmpfr",
-             output,tmpFilename);
+    CORD_sprintf(&cc_command_CORD,
+                 "gcc -o %s -O2 -g %s -lSciLisp -Wl,-rpath=$PWD",
+                 output,tmpFilename);
+    cc_command=CORD_to_char_star(cc_command_CORD);
     int retval=system(cc_command);
     exit(retval);
   }
@@ -333,7 +334,7 @@ int main(int argc,char* argv[]){
 }
 static CORD Make_SciLisp_verson_string(c_string Version_no){
   CORD version_string;
-  CORD_sprintf(&version_string,"SciLisp %s",Version_no);
+  CORD_sprintf(&version_string,"SciLisp %s",PACKAGE_VERSION);
   return version_string;
 }
 static CORD Make_SciLisp_Copyright_string(){
@@ -345,7 +346,7 @@ static CORD Make_SciLisp_Copyright_string(){
 }
 static CORD Make_SciLisp_help_string(){
   CORD copyright_string=Make_SciLisp_Copyright_string();
-  CORD version_string=Make_SciLisp_verson_string(current_version);
+  CORD version_string=Make_SciLisp_verson_string(PACKAGE_VERSION);
   CORD help_string=CORD_catn(4,version_string," ",copyright_string,"\n");
   help_string=CORD_cat
     (help_string,
@@ -365,7 +366,7 @@ static void SciLisp_help(int exitCode){
   exit(exitCode);
 }
 static void SciLisp_version(int exitCode){
-  puts(Make_SciLisp_verson_string(current_version));
+  puts(Make_SciLisp_verson_string(PACKAGE_VERSION));
   exit(exitCode);
 }
 /*just to note I didn't write this I got it from
@@ -410,15 +411,15 @@ static struct option long_options[] = {
   {"no-debug"  ,0,0,'n'},
   {"output"    ,1,0,'o'},
   {"quiet"     ,0,0,'q'},
-  {"regression",0,0,'r'},
-  {"test"      ,0,0,'t'},
+  {"regression",2,0,'r'},
+  {"test"      ,2,0,'t'},
   {"version"   ,0,0,'v'},
   {0,0,0,0}
 };
 static void SciLisp_getopt(int argc,char *argv[]){
   int c;
   while(1){
-    c=getopt_long(argc,argv,"de:hl:o:qvtb:nr",long_options,NULL);
+    c=getopt_long(argc,argv,"b:de:hl:no:qr::vt::",long_options,NULL);
     if(c==-1){break;}
     switch(c){
       case 'o':
@@ -487,7 +488,22 @@ static void SciLisp_getopt(int argc,char *argv[]){
         CORD failed_exprs=0;
         CORD_debug_printf=CORD_ndebug_printf;
         debug_printf=ndebug_printf;
-        FILE* file=fopen("test.lisp","r");
+        FILE* file;
+        CORD filename;
+        if(optarg){
+          file=fopen(optarg,"r");
+          filename=CORD_from_char_star(optarg);
+        } else if (argv[optind] && argv[optind][0] != '-'){
+          file=fopen(argv[optind],"r");
+          filename=CORD_from_char_star(argv[optind]);
+        } else {
+          file=fopen("test.lisp","r");
+          filename="test.lisp";
+        }
+        if(!file){
+          CORD_fprintf(stderr,"File %r not found, exiting.\n",filename);
+          exit(EXIT_FAILURE);
+        }          
         int my_stdout_fd=dup(STDOUT_FILENO);
         int my_stderr_fd=dup(STDERR_FILENO);
         freopen("/dev/null","w",stdout);
@@ -527,24 +543,41 @@ static void SciLisp_getopt(int argc,char *argv[]){
       }
       case 't':{
         CORD_debug_printf=CORD_ndebug_printf;
-        debug_printf=ndebug_printf;
-        FILE* file=fopen("test.lisp","r");
+        debug_printf=ndebug_printf;        
+        FILE* file;
+        CORD filename;
+        if(optarg){
+          file=fopen(optarg,"r");
+          filename=CORD_from_char_star(optarg);
+        } else if (argv[optind] && argv[optind][0] != '-'){
+          file=fopen(argv[optind],"r");
+          filename=CORD_from_char_star(argv[optind]);
+        } else {
+          file=fopen("test.lisp","r");
+          filename="test.lisp";
+        }
+        if(!file){
+          CORD_fprintf(stderr,"File %r not found, exiting.\n",filename);
+          exit(EXIT_FAILURE);
+        }
         ENSURE_PRIMS_INITIALIZED();
         if(setjmp(error_buf)){
           fprintf(stderr,"parsing failed exiting\n");
           exit(1);
         }
         sexp ast=yyparse(file);
+        int exit_value=0;
         puts("Testing:");
         while (CONSP(ast)){
           CORD_printf(CORD_cat("evaluating: ",print(XCAR(ast))));
           puts("");
           sexp result=eval(XCAR(ast),topLevelEnv);
+          if(ERRORP(result)){exit_value=99;}
           CORD_printf(CORD_cat("result: ",print(result)));
           puts("");
           ast=XCDR(ast);
         }
-        exit(0);
+        exit(exit_value);
       }
       case 'b':
         switch(optarg[0]){
