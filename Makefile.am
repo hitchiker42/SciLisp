@@ -73,4 +73,6 @@ set_optimized:
 optimized:set_optimized all
 gen_cffi: gen_cffi.c gen_cffi.h
 	gcc -o gen_cffi $(XLDFLAGS) -lclang -O2 -g gen_cffi.c -std=gnu99
+check: SciLisp
+	./SciLisp -r
 #http://physics.nist.gov/cuu/Constants/Table/allascii.txt
