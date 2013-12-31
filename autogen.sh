@@ -1,2 +1,2 @@
 #!/bin/bash
-autoreconf --no-recursive
+autoreconf --no-recursive -i

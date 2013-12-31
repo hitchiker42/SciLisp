@@ -26,14 +26,14 @@ AC_CHECK_LIB([gc], [GC_malloc])
 AC_CHECK_LIB([cord], [CORD_cat])
 AC_CHECK_LIB([clang], [clang_visitChildren])
 AC_CHECK_LIB([dl], [dlsym])
-AC_CHECK_LIB([gmp], [__gmpz_add],
+AC_CHECK_LIB([gmp], [__gmpz_add],,
                     [AC_MSG_ERROR([Error, required library gmp not found])])
 AC_CHECK_LIB([m], [cos])
-AC_CHECK_LIB([mpfr], [mpfr_init2],
+AC_CHECK_LIB([mpfr], [mpfr_init2],,
                     [AC_MSG_ERROR([Error, required library mpfr not found])])
 AC_CHECK_LIB([pthread], [pthread_create])
 AC_CHECK_LIB([readline], [readline],
-                         [AC_DEFINE([HAVE_READLINE])],
+                         [AC_DEFINE([HAVE_READLINE],[],[Define if Readline found]) LIBS="$LIBS -lreadline"],
                          [AC_MSG_WARN([Readline not found])])
 AC_FUNC_ALLOCA
 AC_CHECK_HEADERS([fcntl.h float.h inttypes.h langinfo.h libintl.h limits.h locale.h stddef.h stdint.h stdlib.h string.h sys/file.h sys/time.h unistd.h wchar.h wctype.h endian.h])
