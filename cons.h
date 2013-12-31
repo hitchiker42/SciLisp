@@ -127,7 +127,7 @@ static sexp as_list(sexp obj){
 }
 static sexp push_cons(sexp obj,sexp ls){
   if(!(CONSP(ls))){
-    return error_sexp("push! type error, expected cons cell or list");
+    return format_type_error("push!","cons cell",ls.tag);    
   } else {
     sexp new_cons;
     new_cons.val.cons=xmalloc(sizeof(cons));    
