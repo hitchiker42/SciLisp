@@ -194,7 +194,7 @@ static inline sexp eval_setq(sexp expr,env *cur_env){
 
 static inline sexp eval_progn(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
-  sexp retval;
+  sexp retval={0};
   while(CONSP(prog)){
     retval = eval(XCAR(prog),cur_env);
     if(ERRORP(retval)){break;}
@@ -204,7 +204,7 @@ static inline sexp eval_progn(sexp expr, env *cur_env){
 }
 static inline sexp eval_prog1(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
-  sexp retval,error_test;
+  sexp retval={0},error_test={0};
   error_test=retval=eval(XCAR(prog),cur_env);   
   while(CONSP(prog)){
     if(ERRORP(error_test)){return error_test;}
@@ -238,7 +238,6 @@ static inline sexp eval_def(sexp expr,env *cur_env){
 static inline sexp eval_defun(sexp expr,env *cur_env){
 
   expr=cdr(expr);
-  sexp temp_lambda;
   symref fun_sym=getGlobalSym(car(expr).val.var->name);
   if(!fun_sym){
     fun_sym=xmalloc(symbolSize(cur_env));

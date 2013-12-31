@@ -134,7 +134,7 @@ sexp parse_cons(){
     format_error_str("invalid construct ()");
     handle_error();
   }
-  sexp result;
+  sexp result={0};
   symref tmpsym=0;
   result.tag=_cons;
   result.is_ptr=1;
@@ -176,7 +176,7 @@ sexp parse_cons(){
             handle_error();
           }
           fun_list->car=parse_function(1,1);
-          fun_list->cdr.val.cons=xmalloc(sizeof(cons));
+          fun_list->cdr=cons_sexp(xmalloc(sizeof(cons)));
           trail=fun_list;
           fun_list=fun_list->cdr.val.cons;
         }
@@ -198,7 +198,7 @@ sexp parse_cons(){
             handle_error();
           }
           var_list->car=parse_sexp();
-          var_list->cdr.val.cons=xmalloc(sizeof(cons));
+          var_list->cdr=cons_sexp(xmalloc(sizeof(cons)));
           trail=var_list;
           var_list=var_list->cdr.val.cons;
         }
@@ -235,7 +235,7 @@ sexp parse_cons(){
           //because defun is (defun var (args) (body))
           //and lambda is (lambda (args) (body)) we need to parse
           //the var in defun seperately(that's what this is)
-          retval.val.cons->cdr.val.cons=xmalloc(sizeof(cons));
+          retval.val.cons->cdr=cons_sexp(xmalloc(sizeof(cons)));
           fake_retval=XCDR(retval);
           XCAR(fake_retval)=parse_sexp();
         }  else {
@@ -246,7 +246,7 @@ sexp parse_cons(){
       cons* temp;
       temp=XCDR(fake_retval).val.cons=xmalloc(sizeof(cons));
       temp->car=parse_function_args();
-      temp->cdr.val.cons=xmalloc(sizeof(cons));
+      temp->cdr=cons_sexp(xmalloc(sizeof(cons)));
       temp=temp->cdr.val.cons;
       temp->cdr=NIL;
       //parse the function body
@@ -260,14 +260,6 @@ sexp parse_cons(){
         }
       }
       return retval;
-      /*      if(nextTok() == TOK_LPAREN){
-        temp->car=parse_list();
-        temp->car.tag=_cons;
-      } else {
-        temp->car=parse_atom();
-      }
-
-      return retval;*/
     }
     case TOK_MACRO:{
       //(defmacro name (args) (body))
@@ -278,25 +270,6 @@ sexp parse_cons(){
       XCAR(retval)=*yylval;
       XCDR(retval)=parse_function(1,0);
       return retval;
-      /*      XCDR(retval).val.cons=xmalloc(sizeof(cons));
-      nextTok();
-      XCADR(retval)=parse_sexp();//macro name
-      if(!SYMBOLP(XCADR(retval))){
-        format_error_str("error, expected identifer for macro name");
-        handle_error();
-      }
-      if(nextTok() != TOK_LPAREN){
-        format_error_str("macro defination is missing argument list");
-        handle_error();
-      }
-      XCDDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADDR(retval)=parse_function_args();//macro args
-      nextTok();
-      XCDDDR(retval).val.cons=xmalloc(sizeof(cons));
-      XCADDDR(retval)=parse_sexp();
-      XCDDDDR(retval)=NIL;
-      //      XCADDDR(retval)=parse_sexp();//macro body
-      return retval;*/
     }
     default: {//an unquoted list that's not a function call or special form
       //should probably be a parse error, but I'm not totally confidient
@@ -311,7 +284,7 @@ sexp parse_cons(){
   while((nextTok())!=TOK_RPAREN){
     temp=parse_sexp();
     cons_pos->car=temp;
-    cons_pos->cdr.val.cons=xmalloc(sizeof(cons));
+    cons_pos->cdr=cons_sexp(xmalloc(sizeof(cons)));
     old_pos=cons_pos;
     cons_pos=cons_pos->cdr.val.cons;
   }
@@ -319,7 +292,7 @@ sexp parse_cons(){
   return result;
 }
 sexp parse_atom(){
-  sexp retval;
+  sexp retval={0};
   symref tmpsym=0;
   switch(yytag){
     case TOK_EOF:
@@ -356,7 +329,7 @@ sexp parse_atom(){
       */
     case TOK_LBRACE:{
       int size=8,i=0;
-      sexp retval;
+      sexp retval={0};
       retval.tag=_array;
       retval.is_ptr=1;
       sexp *arr=retval.val.array=xmalloc(sizeof(sexp)*size);
@@ -373,7 +346,7 @@ sexp parse_atom(){
     case TOK_DBL_LBRACE:{
       //      HERE();
       nextTok();
-      sexp retval;
+      sexp retval={0};
       int size=8,i=-1;
       data* arr=retval.val.typed_array=xmalloc_atomic(size*sizeof(data));
       retval.tag=_typed_array;
@@ -504,7 +477,7 @@ sexp parse_backtick(){
             cur_loc->car.meta=_splice_list;
           }
           cur_loc->car.has_comma=1;
-          cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+          cur_loc->cdr=cons_sexp(xmalloc(sizeof(cons)));
           prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
           break;
@@ -512,7 +485,7 @@ sexp parse_backtick(){
         default: {
           cur_loc->car=parse_sexp();
           //          cur_loc->car.quoted+=1;
-          cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
+          cur_loc->cdr=cons_sexp(xmalloc(sizeof(cons)))
           prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
           break;

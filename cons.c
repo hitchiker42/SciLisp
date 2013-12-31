@@ -24,7 +24,7 @@ sexp mklist(sexp head,...){
   va_start(ap,head);
   while(!NILP((cur_loc=va_arg(ap,sexp)))){
     next->car=cur_loc;
-    next->cdr.val.cons=xmalloc(sizeof(cons));
+    next->cdr=cons_sexp(xmalloc(sizeof(cons)));
     trail=next;
     next=next->cdr.val.cons;
     i++;
@@ -98,7 +98,7 @@ sexp c_cons_split(sexp ls,sexp num){
   left_retval.tag=_list,left_retval.is_ptr=1,left_retval.len=i;
   while(i>0 && CONSP(ls)){
     left->car=XCAR(ls);
-    left->cdr.val.cons=xmalloc(sizeof(cons));
+    left->cdr=cons_sexp(xmalloc(sizeof(cons)));
     trail=left;
     left=left->cdr.val.cons;
     ls=XCDR(ls);
@@ -155,18 +155,12 @@ sexp nappend(sexp conses){
 
 
 sexp cons_reduce(sexp ls,sexp reduce_fn){
-  if(!CONSP(ls) || !FUNP(reduce_fn)){
+  if(!CONSP(ls) || !FUN2P(reduce_fn)){
     return format_type_error2("reduce","list",ls.tag,"function",reduce_fn.tag);
   }
   sexp result=XCAR(ls);
   sexp(*f)(sexp,sexp);
-  switch(reduce_fn.tag){
-    case _fun:
-      f=reduce_fn.val.fun->comp.f2;
-      break;
-    case _lam:
-      break;
-  }
+  f=reduce_fn.val.fun->comp.f2;
   while(CONSP(cdr(ls))){
     ls=XCDR(ls);
     result=f(XCAR(ls),result);
@@ -191,7 +185,7 @@ sexp mapcar(sexp ls,sexp map_fn){
       cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),
                          map_fn.val.fun->lam->env);
     }
-    cur_cell->cdr.val.cons=xmalloc(sizeof(cons));
+    cur_cell->cdr=cons_sexp(xmalloc(sizeof(cons)));
     cur_cell=cur_cell->cdr.val.cons;
     ls=XCDR(ls);
   }
@@ -265,7 +259,7 @@ sexp list_int_iota(sexp start,sexp stop,sexp step){
     } else {
       jstep=step.val.int64;
       imax=abs((stop.val.int64-start.val.int64)/jstep);
-      if(j>>63 != direction){
+      if(j>>63 != direction){//check the sign bit
         return error_sexp
           ("error in iota, sign of step not equal to sign of stop-start");
       }
@@ -287,15 +281,6 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     int64_t j=0;
     int64_t jstep=(jmax>>63?-1:1);
     return int_iota_helper(j,jstep,abs(jmax));
-    /* cons* newlist=xmalloc(sizeof(cons)*abs(imax)+1);     */
-    /* while(abs(i)<abs(imax)){ */
-    /*   newlist[abs(i)].car=int64_sexp(i); */
-    /*   newlist[abs(i)].cdr=(sexp){.tag=_list,.val={.cons=&newlist[abs(i)+1]}}; */
-    /*   if(imax<0){i--;} */
-    /*   else {i++;} */
-    /* } */
-    /* newlist[abs(i)-1].cdr=NIL; */
-    /* return (sexp){.tag=_list,.val={.cons=newlist},.len=abs(i)}; */
   } else if(NILP(step)){
     step.tag=_int64;
     if(isTrue(lisp_numlt(stop,start))){
@@ -466,6 +451,7 @@ sexp lisp_nth(sexp ls,sexp n){
     return nth(ls,n.val.int64);
   }
 }
+//(defun last (list))
 sexp lisp_last(sexp ls){
   if(!CONSP(ls)){
     return error_sexp("last type error, expected a cons cell");
@@ -495,9 +481,13 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
   }
   return start;
 }
+//(defun list (&rest args))
 sexp lisp_list(sexp args){
   return args;
 }
+//recursively copy a list
+//any non list/cons data structures are not
+//copied (well, they're shallow copied)
 static sexp unsafe_copy_cons(sexp ls){
   sexp retval;
   retval=ls;//shallow copy, to copy metadata
@@ -506,14 +496,15 @@ static sexp unsafe_copy_cons(sexp ls){
   while(CONSP(ls)){
     if(CONSP(XCAR(ls))){
       copy->car=unsafe_copy_cons(XCAR(ls));
-    } else  if(IS_POINTER(XCAR(ls))){
+    } else if(IS_POINTER(XCAR(ls))){
         copy->car=XCAR(ls);
         void *mem=xmalloc(sizeof(*XCAR(ls).val.opaque));
-        copy->car.val.opaque=memcpy(mem,XCAR(ls).val.opaque,sizeof(*XCAR(ls).val.opaque));
+        copy->car=opaque_sexp(memcpy(mem,XCAR(ls).val.opaque,
+                                     sizeof(*XCAR(ls).val.opaque)));
     } else {
       copy->car=XCAR(ls);
     }
-    copy->cdr.val.cons=xmalloc(sizeof(cons));
+    copy->cdr=cons_sexp(xmalloc(sizeof(cons)));
     trail=copy;
     copy=copy->cdr.val.cons;
     ls=XCDR(ls);
@@ -521,6 +512,7 @@ static sexp unsafe_copy_cons(sexp ls){
   trail->cdr=ls;//not nil so the same thing will work for improper lists too
   return retval;
 }
+//copy ls but don't copy the actual values in ls
 sexp c_shallow_copy_cons(sexp ls){
   sexp retval;
   retval=ls;
@@ -561,6 +553,7 @@ sexp cons_equal(sexp ls1,sexp ls2){
     return LISP_FALSE;
   }
 }
+//TODO: Rewrite this using mersenne twister
 sexp rand_list(sexp len,sexp type){
   if(!INTP(len)){
     return format_type_error("rand-list","integer",len.tag);
