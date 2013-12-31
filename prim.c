@@ -190,7 +190,7 @@ make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
 #define lisp_NIL {.tag = -1,.val={.meta = -1}}
 #define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
 #define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}
-#define lisp_ans {.tag=-1,.val={.meta=-1}}
+#define lisp_ans {.tag=-1,.val={.meta=-1},.quoted=0}
 void SciLisp_init(){
     //setup handler for sigsegv, so we can exit gracefully on a segfault
 #ifdef DEBUG

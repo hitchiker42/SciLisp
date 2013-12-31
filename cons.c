@@ -11,7 +11,6 @@ sexp Cons(sexp car_cell,sexp cdr_cell){
   cons *new_cell=xmalloc(sizeof(cons));
   *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
   return list_sexp(new_cell);
-  return retval;
 }
 sexp mklist(sexp head,...){
   va_list ap;

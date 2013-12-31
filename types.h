@@ -335,10 +335,9 @@ struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  | 32
   sexp_meta meta : 8;//random metadata    | 40
   unsigned int quoted :2;//               | 42
-  int setfable :1;//                      | 43
-  int has_comma :1;//                     | 44
-  int is_ptr:1;//                         | 45
-  //3 bits free
+  int has_comma :1;//                     | 43
+  int is_ptr:1;//                         | 44
+  //4 bits free
   uint16_t len;//length of a sequence     | 61
   data val;//                             | 128
 };

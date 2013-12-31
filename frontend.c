@@ -9,7 +9,6 @@
 #include "codegen.h"
 #include "lex.yy.h"
 #include <sys/mman.h>
-#define HAVE_READLINE
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>

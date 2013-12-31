@@ -12,7 +12,7 @@
 #define parse_next_sexp()                       \
   nextTok();                                    \
   parse_sexp()
-sexp ast;//generated ast
+sexp ast={0};//generated ast
 cons* cur_pos;//pointer to current location in ast
 TOKEN yytag;//current token
 int evalError=0;
@@ -58,15 +58,11 @@ sexp yyparse(FILE* input){
     yylval=xmalloc(sizeof(sexp));
     while((nextTok()) != -1){
       cur_pos->car=parse_sexp();
-      cur_pos->cdr.val.cons=xmalloc(sizeof(cons));
-      cur_pos->cdr.tag=_cons;
+      cur_pos->cdr=cons_sexp(xmalloc(sizeof(cons)));
       prev_pos=cur_pos;
       cur_pos=cur_pos->cdr.val.cons;
     }
-    //    xfree(cur_pos);
-    prev_pos->cdr.tag=_nil;
-    prev_pos->cdr.val.meta=_nil;
-    // PRINT_MSG(print(ast));
+    prev_pos->cdr=NIL;
     return ast;
   }
   handle_error();
@@ -134,6 +130,7 @@ sexp parse_cons(){
     format_error_str("invalid construct ()");
     handle_error();
   }
+  //I guess I need to make sure I set things to 0 explicitly
   sexp result={0};
   symref tmpsym=0;
   result.tag=_cons;
@@ -219,8 +216,7 @@ sexp parse_cons(){
       return result;
     }
     case TOK_LAMBDA:{//defun returns a TOK_LAMBDA as well
-      sexp retval;
-      HERE();
+      sexp retval={0};
       retval=cons_sexp(xmalloc(sizeof(cons)));
       //      retval.tag=_cons;
       //      retval.is_ptr=1;
@@ -263,7 +259,7 @@ sexp parse_cons(){
     }
     case TOK_MACRO:{
       //(defmacro name (args) (body))
-      sexp retval,location;
+      sexp retval={0},location={0};
       retval.val.cons=xmalloc(sizeof(cons));
       retval.tag=_cons;
       retval.is_ptr=1;

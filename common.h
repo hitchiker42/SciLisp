@@ -11,6 +11,7 @@
 //#define GC_PRINT_STATS
 #include <sched.h>
 #include <sys/wait.h>
+#include "config.h"
 #define GC_THREADS
 #define THREAD_LOCAL_ALLOC
 //#define USE_MMAP
@@ -48,11 +49,12 @@
 #define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define construct_sexp_generic(sexp_val,sexp_tag,                       \
                                sexp_field,is_ptr_val,sexp_cast)         \
-  sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},.is_ptr=is_ptr_val}
+  sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},                 \
+      .is_ptr=is_ptr_val,.quoted=0,.has_comma=0,.meta=0,.len=0}
 #define construct_sexp_generic_len(sexp_val,sexp_tag,len_val,           \
                                    sexp_field,is_ptr_val,sexp_cast)     \
   sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},                 \
-      .is_ptr=is_ptr_val,.len=len_val}
+      .is_ptr=is_ptr_val,.len=len_val,.quoted=0,.has_comma=0,.meta=0}
 #define construct_sexp_len(sexp_val,sexp_tag,sexp_field,is_ptr_val,len_val) \
   construct_sexp_generic_len(sexp_val,sexp_tag,len_val,                 \
                              sexp_field,is_ptr_val,(sexp))
@@ -130,7 +132,7 @@
   sigaltstack(&sigstk,NULL)
 //lisp constants needed in c
 static const sexp NIL={.tag = -1,.val={.meta = -1},.len=0};
-static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf}};
+static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf},.quoted=0};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
 static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
 static const sexp LISP_EMPTY_STRING=construct_simple_const(0,cord);

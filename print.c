@@ -156,9 +156,12 @@ inline CORD print_num(sexp obj){
 }
 #define get_comma_and_quote()                   \
   if(obj.has_comma){                            \
+  if(obj.quoted){                               \
+  acc="`";                                      \
+  } else {                                      \
     acc=",";                                    \
   }                                             \
-  if(obj.quoted){                               \
+  } else if(obj.quoted){                        \
     acc=CORD_cat(acc,"'");                      \
   }
 CORD print(sexp obj){
@@ -178,7 +181,6 @@ CORD print(sexp obj){
       get_comma_and_quote();
       return CORD_cat(acc,obj.val.var->name);
     case _macro:
-      HERE();
       return obj.val.mac->lname;
     case _keyword:
       return obj.val.keyword->name;
@@ -192,6 +194,7 @@ CORD print(sexp obj){
       obj=obj.val.tree->tree;//fallthrough
     case _list:
     case _cons:
+      get_comma_and_quote();
       acc=CORD_cat(acc,"(");
       int i=0;
       while(CONSP(obj)){

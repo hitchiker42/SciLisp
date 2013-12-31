@@ -7,19 +7,12 @@ COMMON_INCLUDES =common.h debug.h types.h env.h
 #	hash.c hash_fn.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
 #	lisp_types.c parser.c print.c regex.c sequence.c SFMT.a tree.c unicode.c #setf.c
 FRONTEND_SRC = frontend.c
-FRONTEND = SFMT.a array.o bignum.o ccall.o cffi.o cons.o emacs_regex.o env.o \
-	frontend.o hash.o hash_fn.o lex.yy.o lisp_macros.o lisp_math.o lisp_system.o lisp_types.o \
-	parser.o print.o regex.o sequence.o tree.o unicode.o #setf.o
-STD_LIB = SFMT.a array.o bignum.o ccall.o cffi.o cons.o emacs_regex.o \
-	hash.o lex.yy.o lisp_macros.o lisp_math.o lisp_system.o lisp_types.o parser.o regex.o \
-	sequence.o unicode.o 
 STD_LIB_SRC = array.c bignum.c ccall.c cffi.c cons.c env.c emacs_regex.c eval.c \
 	hash.c hash_fn.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
 	lisp_types.c parser.c print.c prim.c regex.c sequence.c tree.c unicode.c #setf.c
-BACKEND_SRC = codegen.c
-BACKEND = eval.o codegen.o prim.o
+BACKEND_SRC = c_codegen.c
 INCLUDE_FLAGS = -I$$PWD/gc/include/gc -I$$PWD/bignum/include
-#Automake variables
+#Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
 AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" \
 	-L$$PWD/gc/lib -L$$PWD/bignum/lib
@@ -28,13 +21,13 @@ ACLOCAL_AMFLAGS=-I m4
 SUBDIRS = SFMT
 #Things to be built
 bin_PROGRAMS = SciLisp
-SciLisp_LDADD = SFMT/libSFMT.a libSciLisp.la
-SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)
+SciLisp_LDADD = SFMT/libSFMT.a
+SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(STD_LIB_SRC) $(SCILISP_INCLUDES)
+SciLisp_CFLAGS= $(AM_CFLAGS)
 lib_LTLIBRARIES = libSciLisp.la
 libSciLisp_la_SOURCES = $(STD_LIB_SRC)
 libSciLisp_la_LIBADD = SFMT/libSFMT.a
 info_TEXINFOS = doc/SciLisp.texi
-
 test: SciLisp_test
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_INCLUDES) llvm_codegen.o
 	$(CXX) $(LLVM_FLAGS) -DUSE_LLVM $(FRONTEND) $(BACKEND) \
