@@ -451,7 +451,7 @@ sexp parse_backtick(){
     retval.quoted=1;
     return retval;
   } else {
-    sexp retval;
+    sexp retval={0};
     //in this instance let comma+quoted == backquoted
     retval.quoted=1;
     retval.has_comma=1;
@@ -481,7 +481,7 @@ sexp parse_backtick(){
         default: {
           cur_loc->car=parse_sexp();
           //          cur_loc->car.quoted+=1;
-          cur_loc->cdr=cons_sexp(xmalloc(sizeof(cons)))
+          cur_loc->cdr=cons_sexp(xmalloc(sizeof(cons)));
           prev_loc=cur_loc;
           cur_loc=cur_loc->cdr.val.cons;
           break;

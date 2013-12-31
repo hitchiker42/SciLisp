@@ -26,7 +26,7 @@ sexp lisp_getcwd(){
   char* temp_cwdname=get_current_dir_name();
   CORD cwdname=CORD_from_char_star(temp_cwdname);
   free(temp_cwdname);
-  return (sexp){.tag=_str,.val={.cord=cwdname}};
+  return cord_sexp(cwdname);
 }
 sexp lisp_system_simple(sexp command){
   if(!STRINGP(command)){
