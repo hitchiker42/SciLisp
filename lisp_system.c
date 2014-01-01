@@ -198,3 +198,13 @@ sexp lisp_time(sexp raw){
     }
   }
 }
+//(defun exit (&optional status))
+sexp lisp_exit(sexp exit_code){
+  if(NILP(exit_code)){
+    exit(EXIT_SUCCESS);
+  } if (!INTP(exit_code)){
+    return format_type_error("exit","integer",exit_code.tag);
+  } else {
+    exit(exit_code.val.int64);
+  }
+}

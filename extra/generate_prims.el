@@ -139,6 +139,7 @@
     ("even?" "lisp_evenp" 1 :sig "(number)")
     ("exp" "lisp_exp" 1 :sig "(number)")
     ("expt" "lisp_pow" 2 :sig "(num1 num2)")
+    ("exit" "lisp_exit" 0 :optargs 1 :sig "(&optional exit-code)")
     ("fclose" "lisp_close" 1 :sig "(stream)")
     ("fopen" "lisp_open" 1 :optargs 1 :sig "(file &optional mode)")
     ("fprint" "lisp_fprint" 2 :sig "(obj stream)")
@@ -154,6 +155,7 @@
     ("hash-table-growth-size" "hashtable_growth_factor" 1)
     ("hash-table-size" "hashtable_size" 1)
     ("iota" "lisp_iota" 1 :optargs 4 :sig "(start &optional stop step seq-type round)")
+    ("identity" "lisp_identity" 1 :sig "(form)")
     ("last" "lisp_last" 1 :sig "(list)")
     ("le" "lisp_cmp_le" 2 :sig "(num1 num2)")
     ("length" "lisp_length" 1 :sig "(sequence)")
@@ -216,6 +218,7 @@
     ("round" "lisp_round" 1 :optargs 1)
     ("set-car!" "set_car" 2 :sig "(cell new-val)")
     ("set-cdr!" "set_cdr" 2 :sig "(cell new-val)")
+    ("signature" "lisp_get_signature" 1 :sig "(function)")
     ("sin" "lisp_sin" 1 :sig "(number)")
     ("sort" "lisp_sort" 2 :sig "(seq sort-fn)")
     ("split" "cons_split" 1 :optargs 1)
@@ -382,9 +385,12 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
   (format "%s: %s" (prim-val :lname) (prim-val :sig)))
 (defun primc-format (prim)
   (format
-   "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d);\n"
+   "DEFUN(\"%s\",%s,%d,%d,%d,%d,%d,\"%s\");\n"
    (prim-val :lname) (prim-val :cname) (prim-val :minargs) (prim-val :optargs)
-   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)))
+   (prim-val :keyargs) (prim-val :restarg) (prim-val :maxargs)
+   (if (prim-val :sig)
+       (prim-val :sig)
+     "")))
 (defun defmacro-format (prim)
   (format
    "DEFMACRO(\"%s\",%s,%d,%d,%d,%d,%d,%d);\n"
@@ -469,5 +475,6 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
 (if load-in-progress
     (let
         ((auto-mode-alist nil)
-         (vc-handled-backends nil))
+         (vc-handled-backends nil)
+         (backup-inhibited t))
       (generate-SciLisp-prims)))

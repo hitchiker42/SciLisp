@@ -452,7 +452,7 @@ CORD token_name(TOKEN token){
   }
 }
 sexp lisp_get_signature(sexp fun_or_macro){
-  if(!FUNCTIONP(fun_or_macro) || !MACROP(fun_or_macro)){
+  if(!FUNCTIONP(fun_or_macro) && !MACROP(fun_or_macro)){
     return format_type_error_opt2
       ("signature","function","macro",fun_or_macro.tag);
   } else {

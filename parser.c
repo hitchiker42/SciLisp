@@ -162,7 +162,7 @@ sexp parse_cons(){
           format_error_str("error, empty flet expression");
           handle_error();
         }
-        sexp fun_bindings=NIL;
+        sexp fun_bindings={0};
         cons *fun_list=fun_bindings.val.cons=xmalloc(sizeof(cons));
         cons *trail=fun_list;
         fun_bindings.tag=_cons;

@@ -1,3 +1,9 @@
+/*****************************************************************
+ * Copyright (C) 2013 Tucker DiNapoli                            *
+ * SciLisp is Licensed under the GNU General Public License V3   *
+ ****************************************************************/
+//this is for type related functions, and it's also a catchall
+//for simple stuff with no obvious location
 #include "common.h"
 #include "prim.h"
 #define MK_PREDICATE(lname,test)                \
@@ -203,3 +209,6 @@ make_lisp_assert_eq(lisp_assert_not_equal,lisp_not_equal,
                     "Assertation error, %r is equal to %r")
 make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
                     "Assertation error, %r is eql to %r")
+sexp lisp_identity(sexp expr){
+  return expr;
+}

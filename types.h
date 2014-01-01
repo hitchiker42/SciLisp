@@ -79,7 +79,7 @@ typedef wchar_t char32_t;
 #define FLOATP(obj) (obj.tag == _double)
 #define AS_DOUBLE(obj) (obj.val.real64)
 //this may change if I actually implement shorter int types
-#define INTP(obj) (obj.tag == _long)
+#define INTP(obj) (obj.tag == _long || obj.tag==_ulong)
 #define CHARP(obj) (obj.tag == _char)
 #define AS_LONG(obj) (obj.val.int64)
 #define SYMBOLP(obj) (obj.tag == _sym)

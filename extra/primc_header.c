@@ -16,13 +16,13 @@
 #include "sequence.h"
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
-#define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs)    \
+#define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs,sig) \
   function_args c_name##_args=                                          \
     { .num_req_args=reqargs,.num_opt_args=optargs,.num_keyword_args=keyargs, \
       .has_rest_arg=restarg,.args=0,.max_args=maxargs };                \
   function c_name##_call=                                               \
     { .args=&c_name##_args,.lname=l_name,.cname=#c_name,                \
-      .comp = {.f##maxargs=c_name},                                     \
+      .comp = {.f##maxargs=c_name}, .signature=sig,                     \
       .type = _compiled_fun };
 #define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs,cargs) \
   function_args c_name##_args=                                          \

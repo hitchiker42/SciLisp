@@ -416,6 +416,23 @@ static struct option long_options[] = {
   {"version"   ,0,0,'v'},
   {0,0,0,0}
 };
+static inline int discard_script_header(FILE* file){
+  //easy way
+  //'#'=0x23,'!'=0x21, read as a unsinged int 
+  //will be 0x2123 (because of endianess)
+  uint16_t shebang=0x2123;
+  uint16_t test;
+  fread(&test,sizeof(uint16_t),1,file);
+  if(test==shebang){
+    char newline_test;
+    //skip rest of line (kinda naive way of doing this) 
+    while ((newline_test=getc(file)) && newline_test !='\n');
+    return 1;
+  } else {
+    fseek(file,0,SEEK_SET);
+    return 0;
+  }
+}
 static void SciLisp_getopt(int argc,char *argv[]){
   int c;
   while(1){
@@ -448,6 +465,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
             perror("failed to open file");
             exit(1);
           }
+          discard_script_header(file);//ignore #! line
         }
         ENSURE_PRIMS_INITIALIZED();
         if(setjmp(error_buf)){
@@ -504,6 +522,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
           CORD_fprintf(stderr,"File %r not found, exiting.\n",filename);
           exit(EXIT_FAILURE);
         }          
+        discard_script_header(file);
         int my_stdout_fd=dup(STDOUT_FILENO);
         int my_stderr_fd=dup(STDERR_FILENO);
         freopen("/dev/null","w",stdout);
@@ -560,6 +579,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
           CORD_fprintf(stderr,"File %r not found, exiting.\n",filename);
           exit(EXIT_FAILURE);
         }
+        discard_script_header(file);
         ENSURE_PRIMS_INITIALIZED();
         if(setjmp(error_buf)){
           fprintf(stderr,"parsing failed exiting\n");
