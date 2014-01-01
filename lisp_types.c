@@ -212,3 +212,26 @@ make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
 sexp lisp_identity(sexp expr){
   return expr;
 }
+CORD make_function_signature(function_args *args){
+  CORD signature="(";
+  int i,j;
+  for(i=0,j=0;j<args->num-req_args;i++,j++){
+    signature=CORD_catn(3,signature,args->args[i].name," ");
+  }
+  if(args->num_opt_args>0){
+    signature=CORD_catn(signature,"&optional ");
+    for(j=0;j<args->num_opt_args;j++,i++){
+      signature=CORD_catn(3,signature,args->args[i].name," ");
+    }
+  }
+  if(args->num_keyword_args){//do nothing untill I implement keyword args
+  }
+  if(args->has_rest_arg){
+    signature=CORD_catn(4,signature,"&rest ",args->args[i].name,")");
+    return CORD_balance(signature);
+  } else {
+    return CORD_balance
+      (CORD_cat(CORD_substr(signature,0,CORD_len(signature)-1),")"));
+  }
+}
+    
