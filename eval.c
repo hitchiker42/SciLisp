@@ -156,10 +156,10 @@ static inline sexp eval_special(sexp expr,env *cur_env){
       return eval_let(expr,cur_env);
     case _flet:
       return eval_flet(expr,cur_env);
-    case _and:
+      /*    case _and:
       return eval_and(expr,cur_env);
     case _or:
-      return eval_or(expr,cur_env);
+    return eval_or(expr,cur_env);*/
     case _defmacro:
       return eval_defmacro(expr,cur_env);
     case _dotimes:

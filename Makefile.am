@@ -11,11 +11,11 @@ STD_LIB_SRC = array.c bignum.c ccall.c cffi.c cons.c env.c emacs_regex.c eval.c 
 	hash.c hash_fn.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
 	lisp_types.c parser.c print.c prim.c regex.c sequence.c tree.c unicode.c #setf.c
 BACKEND_SRC = c_codegen.c
-INCLUDE_FLAGS = -I$$PWD/gc/include/gc -I$$PWD/bignum/include
+INCLUDE_FLAGS = -I$$PWD/gc/include/gc #-I$$PWD/bignum/include
 #Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
 #AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" 
-AM_CFLAGS=-L$$PWD/gc/lib -L$$PWD/bignum/lib -rdynamic
+AM_CFLAGS=-rdynamic -L$$PWD/gc/lib #-L$$PWD/bignum/lib
 if GCC
 AM_CFLAGS+=-flto
 endif
@@ -47,8 +47,6 @@ lex.yy.c: lisp.lex $(COMMON_HEADERS)
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
 	$(CC) $(XCFLAGS_NOWARN) -w -c lex.yy.c -o lex.yy.o
-SFMT.a: SFMT/Makefile
-	cd SFMT && $(MAKE) SciLisp
 fnv_hash: fnv_hash.c
 	$(CC) $(CFLAGS) -O3 fnv_hash.c -o fnv_hash
 prim.h: prim.c
@@ -70,7 +68,5 @@ quiet:
 	CFLAGS=$(QUIET_FLAGS) $(MAKE) -B all
 force:
 	$(MAKE) -B all
-optimized:set_optimized all
 gen_cffi: gen_cffi.c gen_cffi.h
 	gcc -o gen_cffi $(XLDFLAGS) -lclang -O2 -g gen_cffi.c -std=gnu99
-#http://physics.nist.gov/cuu/Constants/Table/allascii.txt

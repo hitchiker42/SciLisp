@@ -1,2 +1,2 @@
 #!/bin/bash
-./bootstrap.sh && ./configure
+./bootstrap.sh && ./configure --prefix=$HOME/usr

@@ -83,8 +83,6 @@ c_string specialForm_name(sexp obj){
     spec_to_string(quasi);
     spec_to_string(quote);
     spec_to_string(comma);
-    spec_to_string(and);
-    spec_to_string(or);
     spec_to_string(main);
     spec_to_string(while);
     spec_to_string(prog1);

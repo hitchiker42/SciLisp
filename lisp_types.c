@@ -215,11 +215,11 @@ sexp lisp_identity(sexp expr){
 CORD make_function_signature(function_args *args){
   CORD signature="(";
   int i,j;
-  for(i=0,j=0;j<args->num-req_args;i++,j++){
+  for(i=0,j=0;j<args->num_req_args;i++,j++){
     signature=CORD_catn(3,signature,args->args[i].name," ");
   }
   if(args->num_opt_args>0){
-    signature=CORD_catn(signature,"&optional ");
+    signature=CORD_cat(signature,"&optional ");
     for(j=0;j<args->num_opt_args;j++,i++){
       signature=CORD_catn(3,signature,args->args[i].name," ");
     }

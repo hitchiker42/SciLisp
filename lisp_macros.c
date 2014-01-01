@@ -25,6 +25,33 @@ sexp lisp_or(sexp exprs,sexp cur_env_sexp){
   }
   return retval;
 }
+//(if cond then &rest else)
+sexp lisp_if(sexp cond,sexp then_br,sexp else_br,sexp cur_env_sexp){
+  env *cur_env=cur_env_sexp.val.cur_env;
+  sexp test_result=eval(cond,cur_env);
+  if(ERRORP(cond)){
+    return cond;
+  }
+  if(isTrue(test_result)){
+    return eval(then_br,cur_env);
+  } else {
+    return eval(else_br,cur_env);
+  }
+}
+sexp lisp_dotimes_expander(sexp var,sexp times,sexp body,sexp cur_env_sexp){
+  env *cur_env=cur_env_sexp.val.cur_env;
+  sexp do_parameters=
+    Cons(var,//(var .
+         Cons(long_sexp(0),//(var . (0 .
+              Cons(long_sexp(1),//(var . (0 . (1
+                   Cons(Cons(function_sexp(&lisp_numlt_call),
+                             Cons(var,//(var . (0 . (1 . ((> var times)))))
+                                  Cons(times,NIL))),NIL))));
+  sexp code=Cons(spec_sexp(_do),
+                 Cons(do_parameters,body));
+  return eval(code,cur_env);
+}
+
 sexp lisp_dec_ref(sexp sym_sexp,sexp cur_env_sexp){
   if(!SYMBOLP(sym_sexp)){
     return format_type_error("decf","symbol",sym_sexp.tag);

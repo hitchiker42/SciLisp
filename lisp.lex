@@ -100,18 +100,18 @@ defmacro {LEX_MSG("lexing defmacro");
   yylval->tag=_special;yylval->val.special=_defmacro;return TOK_MACRO;}
 setq {LEX_MSG("lexing setq");
   yylval->tag=_special;yylval->val.special=_setq;return TOK_SPECIAL;}
-datatype {LEX_MSG("lexing datatype");
+ /* datatype {LEX_MSG("lexing datatype");
   yylval->tag=_special;yylval->val.special=_datatype;return TOK_SPECIAL;}
-union {LEX_MSG("lexing union");
+ union {LEX_MSG("lexing union");
   yylval->tag=_special;yylval->val.special=_union;return TOK_SPECIAL;}
-enum {LEX_MSG("lexing enum");
+ enum {LEX_MSG("lexing enum");
       yylval->tag=_special;yylval->val.special=_enum;return TOK_SPECIAL;}
-struct {LEX_MSG("lexing struct");
+ struct {LEX_MSG("lexing struct");
   yylval->tag=_special;yylval->val.special=_struct;return TOK_SPECIAL;}
-go {LEX_MSG("lexing go");
+ go {LEX_MSG("lexing go");
   yylval->tag=_special;yylval->val.special=_go;return TOK_SPECIAL;}
-tagbody {LEX_MSG("lexing tagbody");
-  yylval->tag=_special;yylval->val.special=_tagbody;return TOK_SPECIAL;}
+ tagbody {LEX_MSG("lexing tagbody");
+ yylval->tag=_special;yylval->val.special=_tagbody;return TOK_SPECIAL;}*/
 lambda {LEX_MSG("lexing lambda");
   yylval->tag=_special;yylval->val.special=_lambda;return TOK_LAMBDA;}
 progn {LEX_MSG("lexing progn");
