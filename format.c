@@ -5,12 +5,15 @@
 //Code below mostly taken from cordprnt.c with additions and modfications
 //for printing lisp objects
 #include "common.h"
+#include "cons.h"
 #include "print.h"
+#include "unicode.h"
+#include "gc/include/gc/ec.h"
 sexp lisp_format(sexp format,sexp args){
   if(!STRINGP(format)){
     return format_type_error("format","string",format.tag);
   }
-  return c_format(format.val.cord,args.val.cons);
+  return c_format(format.val.cord,args);
 }
 /*
  * Copyright (c) 1993-1994 by Xerox Corporation.  All rights reserved.
@@ -57,7 +60,7 @@ static int extract_conv_spec(CORD_pos source, char *buf,
   *width = NONE;
   buf[chars_so_far++] = '%';
   while(CORD_pos_valid(source)) {
-    if (chars_so_far >= CONV_SPEC_LEN) return(-1);
+    if (chars_so_far >= CONV_SPEC_LEN) {return(-1);}
     current = CORD_pos_fetch(source);
     buf[chars_so_far++] = current;
     switch(current) {
@@ -158,7 +161,7 @@ static int extract_conv_spec(CORD_pos source, char *buf,
   }                                                                     \
   }
 //int CORD_vsprintf(CORD * out, CORD format, va_list args) {
-sexp c_format(CORD format,cons *args){
+sexp c_format(CORD format,sexp args){
   CORD_ec result;
   register int count;
   register char current;
@@ -169,7 +172,9 @@ sexp c_format(CORD format,cons *args){
     current = CORD_pos_fetch(pos);
     if (current == '%') {
       CORD_next(pos);
-      if (!CORD_pos_valid(pos)){return(-1)};
+      if (!CORD_pos_valid(pos)){
+        return error_sexp("invalid cord position, something weird happened");
+      }
       current = CORD_pos_fetch(pos);
       if (current == '%') {
         CORD_ec_append(result, current);
@@ -182,7 +187,7 @@ sexp c_format(CORD format,cons *args){
 
         if (extract_conv_spec(pos, conv_spec,&width,
                               &prec,&left_adj, &long_arg) < 0) {
-          return(-1);
+          return(error_sexp("Error parsing format specification"));
         }
         current = CORD_pos_fetch(pos);
         switch(current) {
@@ -205,7 +210,9 @@ sexp c_format(CORD format,cons *args){
             args = XCDR(args);
             len = CORD_len(arg);
             if (prec != NONE && len > (size_t)prec) {
-              if (prec < 0) return(-1);
+              if (prec < 0){
+                return error_sexp("Invalid negitive precision value");
+              }
               arg = CORD_substr(arg, 0, prec);
               len = prec;
             }
@@ -227,7 +234,7 @@ sexp c_format(CORD format,cons *args){
               register char *str;
               register char c;
               va_typecheck(args,CHARP,"character");
-              str = c_wchar_to_string(XCAR(args).val.uchar);
+              str = (char*)c_wchar_to_string(XCAR(args).val.uchar);
               args=XCDR(args);
               while((c = *str++)){
                 CORD_ec_append(result, c);
@@ -262,7 +269,8 @@ sexp c_format(CORD format,cons *args){
             if(!CONSP(args)){
               return error_sexp("Not enough arguments for format string");
             }
-            CORD_ec_append_cord(result, arg);
+            CORD_ec_append_cord(result, print(XCAR(args)));
+            args=XCDR(args);
             goto done;
           default:
             break;
@@ -301,7 +309,9 @@ sexp c_format(CORD format,cons *args){
             case 'x':
             case 'X':
             case 'c':
-              va_typecheck(args,INTP_ANYP,"integer");
+              va_typecheck(args,INT_ANYP,"integer");
+              PRINT_FMT("calling printf with conversion specifier %r",conv_spec);
+              res=sprintf(buf, conv_spec, XCAR(args).val.uint64);
               break;
               //not sure about these so ignore them              
               //            case 's':
@@ -312,11 +322,12 @@ sexp c_format(CORD format,cons *args){
             case 'g':
             case 'G':
               va_typecheck(args,REALP,"real");
+              PRINT_FMT("calling printf with conversion specifier %r",conv_spec);
+              res=sprintf(buf, conv_spec, XCAR(args).val.real64);
               break;
             default:
               return format_error_sexp("Unrecognized format specifier %c",current);
           }
-          res=vsprintf(buf, conv_spec, XCAR(args).val.uint64);
           args=XCDR(args);
           len = (size_t)res;
           if (res < 0) {
@@ -339,5 +350,6 @@ sexp c_format(CORD format,cons *args){
     }
   }
   //  count = ec_len(result);
-  return cord_sexp(CORD_balance(CORD_ec_to_cord(result)));
+  CORD retval=CORD_balance(CORD_ec_to_cord(result));
+  return cord_sexp(retval);
 }

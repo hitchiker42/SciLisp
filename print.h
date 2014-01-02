@@ -39,6 +39,6 @@ CORD function_name(function fun);
 CORD token_name(TOKEN token);
 sexp lisp_fputs(sexp string,sexp stream);
 //code in format.c
-sexp c_format(CORD format,cons *args);
+sexp c_format(CORD format,sexp args);
 sexp lisp_format(sexp format,sexp args);
 #endif

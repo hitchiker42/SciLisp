@@ -142,6 +142,7 @@
     ("exit" "lisp_exit" 0 :optargs 1 :sig "(&optional exit-code)")
     ("fclose" "lisp_close" 1 :sig "(stream)")
     ("fopen" "lisp_open" 1 :optargs 1 :sig "(file &optional mode)")
+    ("format" "lisp_format" 1 :restarg 1 :sig "(format &rest objects)")
     ("fprint" "lisp_fprint" 2 :sig "(obj stream)")
     ("fprintln" "lisp_fprintln" 2 :sig "(obj stream)")
     ("fputs" "lisp_fputs" 2 :sig "(obj stream)")

@@ -133,6 +133,7 @@ DEFUN(lisp_pow,2);
 DEFUN(lisp_exit,1);
 DEFUN(lisp_close,1);
 DEFUN(lisp_open,2);
+DEFUN(lisp_format,2);
 DEFUN(lisp_fprint,2);
 DEFUN(lisp_fprintln,2);
 DEFUN(lisp_fputs,2);
