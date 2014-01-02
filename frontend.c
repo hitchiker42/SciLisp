@@ -267,7 +267,7 @@ int main(int argc,char* argv[]){
     perror("Program error, exiting:\nthread creation failed");
     exit(4);
   }
-  PRINT_FMT("thread number %lu, Main Thread",pthread_self());
+  //  PRINT_FMT("thread number %lu, Main Thread",pthread_self());
 #else
   initPrims();
   SciLisp_getopt(argc,argv);
@@ -379,12 +379,12 @@ static c_string SciLisp_Banner=
 "                           /_/     ";
 #ifdef MULTI_THREADED
 static void* initPrims_pthread(void* x __attribute__((unused))){
-  PRINT_FMT("thread number %lu, initPrims thread",pthread_self());
+  //  PRINT_FMT("thread number %lu, initPrims thread",pthread_self());
   (void)pthread_once(&pthread_prims_initialized,initPrims);
   return 0;
 }
 static void* SciLisp_getopt_pthread(void *getopt_args){
-  PRINT_FMT("thread number %lu, Getopt thread",pthread_self());
+  //  PRINT_FMT("thread number %lu, Getopt thread",pthread_self());
   struct thread_args *args=(struct thread_args *)getopt_args;
   int argc=args->argc;
   char **argv=args->argv;

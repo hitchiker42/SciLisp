@@ -6,7 +6,7 @@
 (defvar current-dir-name
   (if load-in-progress
       (file-name-directory load-file-name)
-    (file-name-directory (pwd))))
+    (file-name-directory default-directory)))
 ;Just to quiet the byte compilier
 (defmacro define (var defn)
   "define and/or set a variable"
@@ -46,10 +46,10 @@
 (defun bignum-ops (op-list typename nargs &optional item-name)
   (mapcar
    (lambda (op)
-     (mk-prim (format "%s-%s" typename op) 
-              (format "lisp_%s_%s" typename op) 
+     (mk-prim (format "%s-%s" typename op)
+              (format "lisp_%s_%s" typename op)
               nargs :sig
-              (make-itemized-docstring 
+              (make-itemized-docstring
                nargs (if (null item-name) typename item-name))))
    op-list))
 (defun mpfr-binops (op-list)
@@ -268,11 +268,11 @@
         (vector "lisp_bigint_0" "bigint-0" 1)
         (vector "lisp_bigint_1" "bigint-1" 1)))
 (define SciLisp-Types
-  '("int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" "uint64" "error"
+  (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" "uint64" "error"
     "real32" "real64" "bigint" "bigfloat" "char" "string" "array" "stream"
     "list" "fun" "symbol" "macro" "type" "keyword" "hashtable" "spec" "regex"
     "nil" "dpair" "lenv" "env" "obarray" "funargs" "true" "false" "uninterned"
-    "cons"))
+    "cons" '("pointer" . "_opaque")))
 (defun mk-type-tests (type)
   (let
       ((type-macro
@@ -348,19 +348,21 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
   (if (consp type)
       type
     (cons type (concat "_" type))))
-(make-type-cons "int8")  
 (defun defType-format (type)
   (let ((type-cons (make-type-cons type)))
   (format "DEFTYPE(%s,%s);\n" (car type-cons) (cdr type-cons))))
 (defun makeType-format (type)
   (let ((type-cons (make-type-cons type)))
-  (format "MAKE_TYPE(%s,%s);\n" (car type-cons) (cdr type-cons))))
+    (format "MAKE_TYPE(%s,%s);\n" (car type-cons) (cdr type-cons))))
+(defun initTypeGlobals-format (type)
+  (let ((type-cons (make-type-cons type)))
+    (format "INIT_GLOBAL(%s);\n" (car type-cons))))
 (defun makeGlobals-format (global)
   (format
    "MAKE_GLOBAL(\"%s\",%s,%d);\n" (aref global 1) (aref global 0)
    (aref global 2)))
 (defun makeGlobals-format-new (global)
-  (cl-macrolet 
+  (cl-macrolet
       ((global-val (keyword) `(cdr (assq ,keyword global))))
     (format
      "MAKE_GLOBAL(\"%s\",%s,%d,%s,%s)"
@@ -372,8 +374,9 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
       (insert "#define mkTypeCase(type,tag) case tag: return type\n"
               "sexp typeOfTag(_tag tag){\n  switch(tag){\n")
       (dolist (type SciLisp-Types)
+        (let ((type-cons (make-type-cons type)))
         (insert (format "    mkTypeCase(%s,%s);\n"
-                        (concat "Q" type)(concat "_" type))))
+                        (concat "Q" (car type-cons))(cdr type-cons)))))
       (insert "  }\n}\n"
               "sexp typeOf(sexp obj){\n  return typeOfTag(obj.tag);\n}\n")
     (prog1 (buffer-string)
@@ -444,7 +447,7 @@ static void initPrimsObarray(obarray *ob,env* ob_env){
     (dolist (type SciLisp-Types)
       (princ (defType-format type) primh)
       (princ (makeType-format type) primSyms)
-      (princ (initGlobals-format type) initPrimsObarray))
+      (princ (initTypeGlobals-format type) initPrimsObarray))
     (dolist (macro SciLisp-prim-macros)
       (princ (defmacro-format macro) primc)
       (princ (primh-format-macro macro) primh)

@@ -178,6 +178,9 @@ typedef wchar_t char32_t;
 //key point to this enum is that arithmetic types are numbered in their type
 //hierarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the hierarchy correctly
+//TODO:
+//This needs to be cleaned up some, so that all non pointer types (excepting bigint and bigfloat)
+//come before all pointer types, also nil should be 0 
 enum _tag {
   _unbound=-0xf,
   _error = -4,//type of errors, value is a string
@@ -219,9 +222,9 @@ enum _tag {
   _fun = 31,//type of builtin functions,value is function pointer,fun
   _sym = 32,_symbol=32,//type of symbols,value is var
   _special = 33,_spec=33,//type of special form,value is meta(a _tag value)
-  _macro = 34,//type of macros, unimplemented
-  _type = 35,//type of types, unimplemented
-  _lam = 36,//type of lambda, value is lam
+  _macro = 34,//type of macros
+  _type = 35,//type of types
+  _lam = 36,//type of lambda, deprecated
   _lenv = 37,//type of local environments,value is lenv
   _env = 38,_environment=38,
   _keyword = 39,
@@ -238,7 +241,7 @@ enum _tag {
   _tree_node=50,
   _typed_array=51,
   _heap=52,
-  _sfmt,//random state,B
+  _sfmt=53,//random state,B
 };
 enum special_form{
   _def=0,

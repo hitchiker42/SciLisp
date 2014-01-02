@@ -11,14 +11,11 @@ STD_LIB_SRC = array.c bignum.c ccall.c cffi.c cons.c env.c emacs_regex.c eval.c 
 	format.c hash.c hash_fn.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
 	lisp_types.c parser.c print.c prim.c regex.c sequence.c tree.c unicode.c #setf.c
 BACKEND_SRC = c_codegen.c
-INCLUDE_FLAGS = -I$$PWD/gc/include/gc #-I$$PWD/bignum/include
+INCLUDE_FLAGS = -I$$PWD/gc/include/gc -I$$PWD/include
 #Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
 #AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" 
 AM_CFLAGS=-rdynamic -L$$PWD/gc/lib #-L$$PWD/bignum/lib
-if GCC
-AM_CFLAGS+=-flto
-endif
 BUILT_SOURCES = prim.c prim.h lex.yy.c lex.yy.h
 ACLOCAL_AMFLAGS=-I m4
 SUBDIRS = SFMT

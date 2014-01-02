@@ -21,12 +21,10 @@ AC_PROG_LN_S
 AC_CHECK_PROG(HAVE_EMACS,emacs,yes,
   [AC_MSG_WARN([Emacs not found in default PATH, \
  you will be unable to modify SciLisp primitives])] no)
-
-AM_CONDITIONAL([GCC],[test x$GCC = xyes])
 # Checks for libraries.
 AC_CHECK_LIB([gc], [GC_malloc])
 AC_CHECK_LIB([cord], [CORD_cat])
-AC_CHECK_LIB([clang], [clang_visitChildren])
+dnl AC_CHECK_LIB([clang], [clang_visitChildren])
 AC_CHECK_LIB([dl], [dlsym])
 AC_CHECK_LIB([gmp], [__gmpz_add],,
                     [AC_MSG_ERROR([Error, required library gmp not found])])
@@ -34,6 +32,7 @@ AC_CHECK_LIB([m], [cos])
 AC_CHECK_LIB([mpfr], [mpfr_init2],,
                     [AC_MSG_ERROR([Error, required library mpfr not found])])
 AC_CHECK_LIB([pthread], [pthread_create])
+AC_CHECK_LIB([ffi], [ffi_call])
 dnl AC_CHECK_LIB([readline], [readline],
 dnl   [AC_DEFINE([HAVE_READLINE],[],
 dnl         [Define if Readline found]) LIBS="$LIBS -lreadline"],
@@ -59,10 +58,10 @@ AC_ARG_WITH([gc-threads],
   [with_gc_threads=yes])
 AS_IF([test "x$with_gc_threads" = xyes],
   [AC_DEFINE([GC_THREADS],[1],[Define if using multithreaded gc])])
-AC_ARG_ENABLE([multithreaded],
+AC_ARG_ENABLE([threads],
   [AS_HELP_STRING([--enable-threads],
     [enable multithreded scilisp (does not effect gc threads)])],
-  [],  
+  [],
   [enable_threads=no])
 AS_IF([test "x$enable_threads" == xyes],
   [AC_DEFINE([MULTI_THREADED], [1], [Define if using threads])])
@@ -74,6 +73,17 @@ AC_ARG_ENABLE([debug],
 AS_IF([test "x$enable_debug" = xyes],
   [AC_DEFINE([DEBUG],[1],[Define if debugging is enabled])],
   [AC_DEFINE([NDEBUG],[1],[Define if debugging is disabled])])
+AC_ARG_ENABLE([link-time-optimization],
+  [AS_HELP_STRING([--enable-link-time-optimization],
+    [Build SciLisp with link time optimization (default, yes if using gcc otherwise no)])]
+  [],
+  [if test "x$GCC" == xyes;then 
+      enable_link_time_optimization=yes
+   else
+      enable_link_time_optimization=no
+   fi])
+AS_IF([test "x$enable_link_time_optimization" = xyes],
+  [CFLAGS=$(CFLAGS) -flto])
 AC_ARG_ENABLE([optimized],
   [AS_HELP_STRING([--enable-optimized],
     [Enable nonportable optimizations (default=no) (default optimization is -O2)])],

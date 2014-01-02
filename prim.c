@@ -382,6 +382,7 @@ sexp typeOfTag(_tag tag){
     mkTypeCase(Qfalse,_false);
     mkTypeCase(Quninterned,_uninterned);
     mkTypeCase(Qcons,_cons);
+    mkTypeCase(Qpointer,_opaque);
   }
 }
 sexp typeOf(sexp obj){
@@ -641,6 +642,7 @@ MAKE_TYPE(true,_true);
 MAKE_TYPE(false,_false);
 MAKE_TYPE(uninterned,_uninterned);
 MAKE_TYPE(cons,_cons);
+MAKE_TYPE(pointer,_opaque);
 MAKE_MACRO_SYMBOL("incf",lisp_inc_ref,0x7b12270298f7b71c );
 MAKE_MACRO_SYMBOL("decf",lisp_dec_ref,0xf67a4c84ff315ccc );
 MAKE_MACRO_SYMBOL("and",lisp_and,0xfe3372257afb1eff );
@@ -938,6 +940,7 @@ INIT_GLOBAL(true);
 INIT_GLOBAL(false);
 INIT_GLOBAL(uninterned);
 INIT_GLOBAL(cons);
+INIT_GLOBAL(pointer);
 INIT_MACRO_SYMBOL(lisp_inc_ref);
 INIT_MACRO_SYMBOL(lisp_dec_ref);
 INIT_MACRO_SYMBOL(lisp_and);

@@ -310,6 +310,7 @@ DEFTYPE(true,_true);
 DEFTYPE(false,_false);
 DEFTYPE(uninterned,_uninterned);
 DEFTYPE(cons,_cons);
+DEFTYPE(pointer,_opaque);
 DEFUN(lisp_inc_ref,2);
 DEFUN(lisp_dec_ref,2);
 DEFUN(lisp_and,2);
