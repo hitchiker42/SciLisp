@@ -22,17 +22,29 @@ sexp lisp_char_to_string(sexp lisp_char){
   if(!CHARP(lisp_char)){
     return format_type_error("char->string","character",lisp_char.tag);
   } else {
-    mbstate_t state;
-    size_t nbytes;
-    memset(&state,'\0',sizeof(state));
-    nbytes=wcrtomb(temp_ustring,lisp_char.val.uchar,&state);
-    if(nbytes==(size_t)-1){
-      return error_sexp("conversion error in char->string");
+    c_string retval=c_wchar_to_string(lisp_char.val.uchar);
+    if(retval[0] == 'c' && retval[1] != '\0'){
+      //I think this should work, because A null character can only be itself
+      //and so {'c',!'\0'} has to be an error string
+      return error_sexp(retval);
     } else {
-      char *retval=xmalloc(nbytes);
-      memcpy(retval,temp_ustring,nbytes);
       return cord_sexp(retval);
     }
+  }
+}
+//pretty much a simplified wrapper to wcrtomb (but returns a vaild c string)
+c_string c_wchar_to_string(wchar_t lisp_char){
+  mbstate_t state;
+  size_t nbytes;
+  memset(&state,'\0',sizeof(state));
+  nbytes=wcrtomb(temp_ustring,lisp_char,&state);
+  if(nbytes==(size_t)-1){
+    return "conversion error in char->string";
+  } else {
+    char *retval=xmalloc(nbytes+sizeof(char));
+    memcpy(retval,temp_ustring,nbytes);
+    retval[nbytes]='\0';
+    return retval;
   }
 }
 sexp lisp_string_to_char(sexp lisp_str){

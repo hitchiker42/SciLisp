@@ -18,7 +18,7 @@ sexp lisp_cat(sexp string,sexp rest){
   return (sexp){.tag = _str,.val={.cord=retval}};
   CAT_ERR:
   return 
-    format_type_error_rest("cat","strings",XCAR(rest).tag,XCAR(rest));
+    format_type_error_rest("cat","strings",XCAR(rest));
 }
 //(defun cwd ())
 sexp lisp_getcwd(){

@@ -79,6 +79,7 @@ typedef wchar_t char32_t;
 #define FLOATP(obj) (obj.tag == _double)
 #define AS_DOUBLE(obj) (obj.val.real64)
 //this may change if I actually implement shorter int types
+#define INT_ANYP(obj)(obj.tag >=1 && obj.tag <= 8)
 #define INTP(obj) (obj.tag == _long || obj.tag==_ulong)
 #define CHARP(obj) (obj.tag == _char)
 #define AS_LONG(obj) (obj.val.int64)
@@ -116,6 +117,7 @@ typedef wchar_t char32_t;
 #define UINT64P(obj) (obj.tag == _ulong)
 #define REAL32P(obj) (obj.tag == _float)
 #define REAL64P(obj) (obj.tag == _double)
+#define REALP(obj) (obj.tag == _double || obj.tag == _float)
 #define KEYWORDP(obj) (obj.tag == _keyword)
 #define HEAPP(obj) (obj.tag == _heap)
 #define TYPEP(obj) (obj.tag == _type)
@@ -165,10 +167,10 @@ typedef wchar_t char32_t;
   CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r or nothing" \
                "for %r, but got %r",fun,expected1,expected2,name,tag_name(got)), \
     error_sexp(type_error_str)
-#define format_type_error_rest(fun,expected,got,failed_arg)                       \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r for the rest argument,"\
+#define format_type_error_rest(fun,expected,failed_arg)                 \
+  CORD_sprintf(&type_error_str,"type error in %r, expected %r for the rest argument," \
                "but received an %r (value was %r)",                     \
-               fun,expected,tag_name(got),print(failed_arg)),           \
+               fun,expected,tag_name(failed_arg.tag),print(failed_arg)), \
     error_sexp(type_error_str)
 #define const_real64_sexp(real64_val) {.tag=_real64,.val={.real64=real64_val}}
 #define const_int64_sexp(int64_val) {.tag=_int64,.val={.int64=int64_val}}
@@ -236,6 +238,7 @@ enum _tag {
   _tree_node=50,
   _typed_array=51,
   _heap=52,
+  _sfmt,//random state,B
 };
 enum special_form{
   _def=0,

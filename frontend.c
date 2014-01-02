@@ -1,5 +1,5 @@
 /*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
+ * Copyright (C) 2013-2014 Tucker DiNapoli                       *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 #include "common.h"
@@ -29,7 +29,7 @@ int quiet_signals=0;
 #endif
 jmp_buf main_loop,error_buf;
 static c_string banner=
-  "SciLisp  Copyright (C) 2013  Tucker DiNapoli\n"
+  "SciLisp  Copyright (C) 2013-2014 Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+";
 static c_string SciLisp_Banner;
 static int no_banner=0;

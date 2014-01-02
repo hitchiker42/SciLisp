@@ -21,6 +21,8 @@
 # Temp Files
 temp.*
 temp
+#explicit ignored directory
+ignore/
 
 # Generated Documentation
 doc/*

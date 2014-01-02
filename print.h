@@ -38,4 +38,7 @@ CORD function_name(function fun);
 //return the name of the enum value of token as a string
 CORD token_name(TOKEN token);
 sexp lisp_fputs(sexp string,sexp stream);
+//code in format.c
+sexp c_format(CORD format,cons *args);
+sexp lisp_format(sexp format,sexp args);
 #endif

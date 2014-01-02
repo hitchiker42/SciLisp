@@ -234,4 +234,3 @@ CORD make_function_signature(function_args *args){
       (CORD_cat(CORD_substr(signature,0,CORD_len(signature)-1),")"));
   }
 }
-    
