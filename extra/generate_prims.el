@@ -120,6 +120,7 @@
     ("c-ptr-val" "lisp_dereference_c_ptr" 1)
     ("cat" "lisp_cat" 0 :restarg 1 :sig "(&rest seqs)")
     ("ccall" "ccall" 5 :optargs 1)
+    ("ffi-ccall" "ffi_ccall" 5 :optargs 1)
     ("char->string" "lisp_char_to_string" 1 :sig "(character)")
     ("cons" "Cons" 2 :sig "(car cdr)")
     ("cos" "lisp_cos" 1 :sig "(number)")

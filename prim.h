@@ -112,6 +112,7 @@ DEFUN(lisp_bigint,1);
 DEFUN(lisp_dereference_c_ptr,1);
 DEFUN(lisp_cat,1);
 DEFUN(ccall,6);
+DEFUN(ffi_ccall,6);
 DEFUN(lisp_char_to_string,1);
 DEFUN(Cons,2);
 DEFUN(lisp_cos,1);

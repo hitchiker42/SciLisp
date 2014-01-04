@@ -1,4 +1,35 @@
 #include "codegen.h"
+//preprocess the ast,scan for macros
+//perform macro expansion,
+//expand some things which are executed as is in the interpreter
+//(loops, let blocks,etc..), resolve lexical environments
+//translate simplified ast to C (should be easy by this pointt)
+static obarray* get_macros(sexp ast){
+  obarray* macros=init_obarray_default(16);
+  env* macro_env=alloca(sizeof(env));
+  macro_env->enclosing(topLevelEnv);
+  macro_env->head.ob=macros;
+  macro_env->tag=_obEnv;
+  while(CONSP(ast)){
+    if(!CONSP(XCAR(ast))){
+      ast=XCDR(ast);
+      continue;
+    } else {
+      if(!SPECP(XCAAR(ast))){
+        ast=XCDR(ast);
+        continue;
+      } else if(XCAAR(ast).val.spec != _defmacro){
+        ast=XCDR(ast);
+        continue;
+      } else {
+        eval(XCAR(ast),macro_env);//this puts the macro into the macros ob array
+        ast=XCDR(ast);
+        continue;
+      }
+    }
+  }
+  return macros;
+}
 int tmp_counter=0;
 static function_args* C_getFunctionArgs(sexp arglist,function_args* args);
 c_string get_cType(sexp obj){

@@ -53,35 +53,40 @@ sexp lisp_bigint(sexp init){
   return bigfloat_sexp(new_bignum)
 sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
   //prec & rnd are optional args, I'll add them later
+  if(!INTP(prec) && !NILP(prec)){
+    return format_type_error_opt_named("bigfloat","prec","integer",prec.tag);
+  }
+  mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
+  if(NILP(prec)){
   switch(init.tag){
     case _double:{
-      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      init_set(_d,real64,);
+      mpfr_init_set_d(*new_bignum,init.val.real64,MPFR_RNDN);
+      return bigfloat_sexp(new_bignum);
     }
     case _long:{
-      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      init_set(_si,int64,);
+      mpfr_init_set_si(*new_bignum,init.val.int64,MPFR_RNDN);
+      return bigfloat_sexp(new_bignum);
     }
     case _ulong:{
-      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      init_set(_ui,uint64,);
+      mpfr_init_set_ui(*new_bignum,init.val.uint64,MPFR_RNDN);
+      return bigfloat_sexp(new_bignum);
     }
     case _bigint:{
-      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-      //yes this is correct, init_set is a weird macro I wrote
-      init_set(_z,bigint,*);
+      mpfr_init_set_z(*new_bignum,*init.val.bigint,MPFR_RNDN);
+      return bigfloat_sexp(new_bignum);
     }
     case _bigfloat:{
       return init;
     }
     case _str:{
-      mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
       mpfr_init_set_str(*new_bignum,CORD_to_const_char_star(init.val.cord),0,MPFR_RNDN);
       return bigfloat_sexp(new_bignum);
     }
     default:
       return format_type_error("bigfloat","bignum",init.tag);
   }
+  } else {
+    mpfr_init2(*new_bignum,prec.val.int64);
 }
 #undef init_set
 sexp asDouble(sexp obj);
