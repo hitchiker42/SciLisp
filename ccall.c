@@ -43,7 +43,7 @@ static inline ffi_cif* get_ffi_function_type_sub(_tag *arg_tags,_tag ret_tag, in
   if(numargs == 0){
     ffi_status status=ffi_prep_cif(CIF,FFI_DEFAULT_ABI,numargs,ret_type,NULL);
   } else {
-    ffi_type** arg_types=alloca(sizeof(ffi_type*)*numargs);
+    ffi_type* arg_types[numargs];
     int i;
     for(i=0;i<numargs;i++){
       arg_types[i]=get_ffi_type_sub(arg_tags[i]);
@@ -130,7 +130,8 @@ sexp ffi_ccall_unsafe(sexp fun_name,sexp libname,sexp rettype,
   c_rettype=ret_argtype.val.meta;
   for(i=0;i<numargs;i++){
     if(!CONSP(args) || !CONSP(argtypes)){
-      return error_sexp("fewer arguments than type parameters passed to ccall");
+      return error_sexp
+        ("fewer arguments than type parameters passed to ccall(or vice versa)");
     }
     cur_argtype=get_c_type(XCAR(argtypes));
     if(ERRORP(cur_argtype)){return cur_argtype;}
