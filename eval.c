@@ -17,7 +17,6 @@ jmp_buf error_buf;
 static long lambda_counter=0;
 sexp call_builtin(sexp expr,env *cur_env);
 sexp call_lambda(sexp expr,env *cur_env);
-env *cur_env_ptr;
 //relies on the fact I consistently name the env argument cur_env
 #define SET_CUR_ENV_PTR_DEFAULT (cur_env_ptr=cur_env)
 #define SET_CUR_ENV_PTR(cur_env) (cur_env_ptr=cur_env)
@@ -587,7 +586,7 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
         j++;
         cur_arg->car=eval_ptr(XCAR(arglist),cur_env);
         arglist=XCDR(arglist);
-        cur_arg->cdr.val.cons=xmalloc(sizeof(cons));
+        cur_arg->cdr=cons_sexp(xmalloc(sizeof(cons)));
         prev_arg=cur_arg;
         cur_arg=cur_arg->cdr.val.cons;
       }
@@ -629,16 +628,17 @@ function_args* getNamedMacroArgs
 /* internal procedure to call a builtin c function*/
 sexp call_builtin(sexp expr,env *cur_env){
   sexp curFun=car(expr).val.var->val;
+  cur_env_ptr=cur_env;//in case I need to get the environment for a ffi_closure
   function_args *args=curFun.val.fun->args;
   long numargs;
   if(curFun.meta==_builtin_macro){
-    args->args=alloca(sizeof(symbol)*args->max_args+1);
+    args->args=xmalloc(sizeof(symbol)*args->max_args+1);
     args=getNamedMacroArgs(cdr(expr),args,cur_env,curFun.val.fun->lname);
     args->args[args->max_args]=(symbol)
       {.name=0,.val=env_sexp(cur_env),.props={0}};
     numargs=args->max_args+1;
   } else {
-    args->args=alloca(sizeof(symbol)*args->max_args);
+    args->args=xmalloc(sizeof(symbol)*args->max_args);
     args=getNamedFunctionArgs(cdr(expr),args,cur_env,curFun.val.fun->lname);
     numargs=args->maxargs;
   }

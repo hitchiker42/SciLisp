@@ -14,6 +14,7 @@
 #include "print.h"
 #include "regex.h"
 #include "sequence.h"
+#include "cffi.h"
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs,sig) \
@@ -75,12 +76,16 @@
     xmalloc(sizeof(obarray_entry));                                     \
   c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter; \
   prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter, \
-                         c_name##_ob_entry##gensym_counter)  
+                         c_name##_ob_entry##gensym_counter)
+#define MAKE_KEYSYM(c_name) keyword_symbol c_name##_key
+ //kinda a lazy way to do this
+#define INIT_KEYSYM(c_name,l_name)              \
+  c_name##_key.val.uint64=getKeySymSexp(l_name)
 void hello_world(){
   printf("hello, world!\n");
   return;
 }
-#define set_global_vars()                               \
+#define set_global_vars()                                               \
   lisp_stderr_sym.val.val.stream=stderr;                                \
   lisp_stdout_sym.val.val.stream=stdout;                                \
   lisp_stdin_sym.val.val.stream=stdin;                                  \
@@ -90,14 +95,20 @@ void hello_world(){
   mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));                         \
   mpfr_t *mpfr_const_e=xmalloc(sizeof(mpfr_t));                         \
   mpfr_t *mpfr_const_pi_var=xmalloc(sizeof(mpfr_t));                    \
+  mpfr_t *mpfr_const_nan=xmalloc(sizeof(mpfr_t));                       \
+  mpfr_t *mpfr_const_inf=xmalloc(sizeof(mpfr_t));                       \
   mpz_init((*mpz_const_0));                                             \
   mpfr_init((*mpfr_const_0));                                           \
+  mpfr_init((*mpfr_const_nan));                                         \
+  mpfr_init((*mpfr_const_inf));                                         \
   mpz_init_set_ui((*mpz_const_1),1);                                    \
   mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);                        \
   mpfr_init((*mpfr_const_e));                                           \
   mpfr_init((*mpfr_const_pi_var));                                      \
   mpfr_exp(*mpfr_const_e,*mpfr_const_1,MPFR_RNDN);                      \
   mpfr_const_pi(*mpfr_const_pi_var,MPFR_RNDN);                          \
+  mpfr_set_nan(*mpfr_const_nan);                                        \
+  mpfr_set_inf(*mpfr_const_inf,1);                                      \
   lisp_bigint_0_sym.val.val.bigint=mpz_const_0;                         \
   lisp_bigint_1_sym.val.val.bigint=mpz_const_1;                         \
   lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;                    \

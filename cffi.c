@@ -1,6 +1,6 @@
 #include "common.h"
 #include "prim.h"
-#include "ffi.h"
+#include "cffi.h"
 sexp make_c_ptr(sexp c_value,sexp deg_of_indir){
   int indir=1;
   if(NILP(deg_of_indir)){
@@ -93,46 +93,97 @@ sexp get_c_type(sexp ctype_keysym){
  void *user_data;
 }
 */
-ffi_type *sexp_type_elements[3]={&ffi_type_pointer,&ffi_type_uint64,NULL};
+ffi_type *sexp_type_elements[3]={&ffi_type_uint64,&ffi_type_uint64,NULL};
 ffi_type sexp_type={.size=0,.alignment=0,.type=FFI_TYPE_STRUCT,
                     .elements=sexp_type_elements};
-ffi_cif sexp_0;
-ffi_cif sexp_1;
+ffi_cif *sexp_0;
+ffi_cif *sexp_1;
 ffi_cif sexp_2;
 ffi_cif sexp_3;
 ffi_cif sexp_4;
 void prep_sexp_cifs(){
   ffi_type *sexp_types[4]={&sexp_type,&sexp_type,&sexp_type,&sexp_type};
-  ffi_prep_cif(&sexp_0,FFI_DEFAULT_ABI,0,&sexp_type,sexp_types);
-  ffi_prep_cif(&sexp_1,FFI_DEFAULT_ABI,1,&sexp_type,sexp_types);
-  ffi_prep_cif(&sexp_2,FFI_DEFAULT_ABI,2,&sexp_type,sexp_types);
-  ffi_prep_cif(&sexp_3,FFI_DEFAULT_ABI,3,&sexp_type,sexp_types);
-  ffi_prep_cif(&sexp_4,FFI_DEFAULT_ABI,4,&sexp_type,sexp_types);
+  ffi_type *sexp1_types[1]={&sexp_type};
+  int status;
+  sexp_0=xmalloc(sizeof(ffi_cif));
+  status=ffi_prep_cif(sexp_0,FFI_DEFAULT_ABI,0,&sexp_type,sexp_types);
+  if(status != FFI_OK){
+    printf("error initializing sexp cif",stderr);
+    exit(1);
+  }
+  sexp_1=xmalloc(sizeof(ffi_cif));
+  status=ffi_prep_cif(sexp_1,FFI_DEFAULT_ABI,1,&sexp_type,sexp1_types);
+  if(status != FFI_OK){
+    printf("error initializing sexp cif",stderr);
+    exit(1);
+  }
+  status=ffi_prep_cif(&sexp_2,FFI_DEFAULT_ABI,2,&sexp_type,sexp_types);
+  if(status != FFI_OK){
+    printf("error initializing sexp cif",stderr);
+    exit(1);
+  }
+  status=ffi_prep_cif(&sexp_3,FFI_DEFAULT_ABI,3,&sexp_type,sexp_types);
+  if(status != FFI_OK){
+    printf("error initializing sexp cif",stderr);
+    exit(1);
+  }
+  status=ffi_prep_cif(&sexp_4,FFI_DEFAULT_ABI,4,&sexp_type,sexp_types);
+  if(status != FFI_OK){
+    printf("error initializing sexp cif",stderr);
+    exit(1);
+  }
   return;
 }
+sexp call_lambda_as_ffi_closure(sexp lambda,sexp arg){
+  ffi_closure *closure;
+  HERE();
+  closure=make_closure(lambda,env_sexp(cur_env_ptr),1);
+  if(!closure){
+    return error_sexp("error constructing ffi_closure");
+  }
+  HERE();
+  sexp(*f)(sexp)=(sexp(*)(sexp))(closure);
+  HERE();
+  return f(arg);
+}
 void sexp_closure_call(ffi_cif *CIF,void *RET,void **ARGS,void *USER_DATA){
+  HERE();
   sexp *retval=(sexp*)RET;
   sexp **args=(sexp**)ARGS;
-  int numargs=CIF->nargs;
+  HERE();
+  PRINT_FMT("location of CIF %p",CIF);
+  PRINT_FMT("location of ARGS %p",ARGS);
+  PRINT_FMT("location of user_data %p",USER_DATA);
+  PRINT_FMT("value at CIF->nargs %d",CIF->nargs);
+  cons *fun_and_env=(cons*)USER_DATA;
+  sexp lambda_fun=fun_and_env->car;
+  PRINT_MSG(print(lambda_fun));
+  PRINT_MSG(print(lambda_fun.val.fun->lam->body));
+  sexp lambda_env=fun_and_env->cdr;
+  PRINT_MSG(print(lambda_env));
+  PRINT_MSG(print(*args[0]));
+  int numargs=1;
   sexp arglist=NIL;
+  HERE();
   if(numargs){
     retval=xmalloc(sizeof(sexp));
     int i;
-    for(i=0;i<numargs;i++){
-      arglist=Cons(*args[numargs-i],arglist);
+    for(i=(numargs-1);i>=0;i--){
+      HERE();
+      arglist=Cons((*args[i]),arglist);
+      HERE();
     }
   }
-  cons *fun_and_env=(cons*)USER_DATA;
-  sexp lambda_fun=fun_and_env->car;
-  sexp lambda_env=fun_and_env->cdr;
+  HERE();
   *retval=call_lambda(Cons(lambda_fun,arglist),lambda_env.val.cur_env);
+  HERE();
   return;
 }
 //returns a pointer to the ffi closure, which containes the
 //desired function pointer, we can't just return a function pointer
 //because the closure structure must be explicitly deallocated because
 //it needs to do some tricks to allocate executable memory
-ffi_closure *make_closure(sexp lambda,sexp fun_env,int numargs){
+void *make_closure(sexp lambda,sexp fun_env,int numargs){
   void *code;
   ffi_closure *closure;
   closure=ffi_closure_alloc(sizeof(ffi_closure),&code);
@@ -140,25 +191,25 @@ ffi_closure *make_closure(sexp lambda,sexp fun_env,int numargs){
   data->car=lambda;
   data->cdr=fun_env;
   ffi_status status;
+  void(*fun)(ffi_cif *,void*,void**,void*)=sexp_closure_call;
   switch(numargs){
     case 0:
       status=ffi_prep_closure_loc(closure,sexp_0,sexp_closure_call,
                                   (void*)data,code);
       break;
     case 1:
-      status=ffi_prep_closure_loc(closure,sexp_1,sexp_closure_call,
-                           (void*)data,code);
+      status=ffi_prep_closure_loc(closure,sexp_1,fun,(void*)data,code);
       break;
     case 2:
-      status=ffi_prep_closure_loc(closure,sexp_2,sexp_closure_call,
+      status=ffi_prep_closure_loc(closure,&sexp_2,sexp_closure_call,
                            (void*)data,code);
       break;
     case 3:
-      status=ffi_prep_closure_loc(closure,sexp_3,sexp_closure_call,
+      status=ffi_prep_closure_loc(closure,&sexp_3,sexp_closure_call,
                                   (void*)data,code);
       break;
     case 4:
-      status=ffi_prep_closure_loc(closure,sexp_4,sexp_closure_call,
+      status=ffi_prep_closure_loc(closure,&sexp_4,sexp_closure_call,
                                   (void*)data,code);
       break;
     default:
@@ -169,7 +220,7 @@ ffi_closure *make_closure(sexp lambda,sexp fun_env,int numargs){
     ffi_closure_free(closure);
     return NULL;
   } else {
-    return closure;
+    return code;// closure;
   }
 }
 #define get_closure_fun(closure) (closure->fun)

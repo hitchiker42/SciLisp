@@ -138,7 +138,7 @@ sexp getKeySymSexp(CORD name){
   keyword_symref keysym;
   if(key_entry){
     keysym=key_entry->ob_symbol;
-    PRINT_FMT("%#0d",keysym);
+    //    PRINT_FMT("%#0d",keysym);
     return keyword_sexp(keysym);
   }
   keysym=xmalloc(sizeof(keyword_symbol));

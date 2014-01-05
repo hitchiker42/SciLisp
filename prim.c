@@ -14,6 +14,7 @@
 #include "print.h"
 #include "regex.h"
 #include "sequence.h"
+#include "cffi.h"
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs,sig) \
@@ -75,12 +76,16 @@
     xmalloc(sizeof(obarray_entry));                                     \
   c_name##_ob_entry##gensym_counter->ob_symbol=c_name##_ptr_syn##gensym_counter; \
   prim_obarray_add_entry(globalObarray,c_name##_ptr_syn ## gensym_counter, \
-                         c_name##_ob_entry##gensym_counter)  
+                         c_name##_ob_entry##gensym_counter)
+#define MAKE_KEYSYM(c_name) keyword_symbol c_name##_key
+ //kinda a lazy way to do this
+#define INIT_KEYSYM(c_name,l_name)              \
+  c_name##_key.val.uint64=getKeySymSexp(l_name)
 void hello_world(){
   printf("hello, world!\n");
   return;
 }
-#define set_global_vars()                               \
+#define set_global_vars()                                               \
   lisp_stderr_sym.val.val.stream=stderr;                                \
   lisp_stdout_sym.val.val.stream=stdout;                                \
   lisp_stdin_sym.val.val.stream=stdin;                                  \
@@ -90,14 +95,20 @@ void hello_world(){
   mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));                         \
   mpfr_t *mpfr_const_e=xmalloc(sizeof(mpfr_t));                         \
   mpfr_t *mpfr_const_pi_var=xmalloc(sizeof(mpfr_t));                    \
+  mpfr_t *mpfr_const_nan=xmalloc(sizeof(mpfr_t));                       \
+  mpfr_t *mpfr_const_inf=xmalloc(sizeof(mpfr_t));                       \
   mpz_init((*mpz_const_0));                                             \
   mpfr_init((*mpfr_const_0));                                           \
+  mpfr_init((*mpfr_const_nan));                                         \
+  mpfr_init((*mpfr_const_inf));                                         \
   mpz_init_set_ui((*mpz_const_1),1);                                    \
   mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);                        \
   mpfr_init((*mpfr_const_e));                                           \
   mpfr_init((*mpfr_const_pi_var));                                      \
   mpfr_exp(*mpfr_const_e,*mpfr_const_1,MPFR_RNDN);                      \
   mpfr_const_pi(*mpfr_const_pi_var,MPFR_RNDN);                          \
+  mpfr_set_nan(*mpfr_const_nan);                                        \
+  mpfr_set_inf(*mpfr_const_inf,1);                                      \
   lisp_bigint_0_sym.val.val.bigint=mpz_const_0;                         \
   lisp_bigint_1_sym.val.val.bigint=mpz_const_1;                         \
   lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;                    \
@@ -176,6 +187,7 @@ DEFUN("bigint",lisp_bigint,1,0,0,0,1,"(number)");
 DEFUN("c-ptr-val",lisp_dereference_c_ptr,1,0,0,0,1,"()");
 DEFUN("cat",lisp_cat,0,0,0,1,1,"(&rest seqs)");
 DEFUN("ccall",ccall,5,1,0,0,6,"()");
+DEFUN("copy-cons",copy_cons,1,0,0,0,1,"(cell)");
 DEFUN("ffi-ccall",ffi_ccall,5,1,0,0,6,"()");
 DEFUN("char->string",lisp_char_to_string,1,0,0,0,1,"(character)");
 DEFUN("cons",Cons,2,0,0,0,2,"(car cdr)");
@@ -265,7 +277,7 @@ DEFUN("re-match",lisp_re_match,2,3,0,0,5,"()");
 DEFUN("re-subexpr",lisp_get_re_backref,2,0,0,0,2,"()");
 DEFUN("read-string",lisp_read_string,1,0,0,0,1,"(string)");
 DEFUN("read",lisp_read,1,0,0,0,1,"(stream)");
-DEFUN("reduce",cons_reduce,2,0,0,0,2,"(seq function)");
+DEFUN("reduce",cons_reduce,2,1,0,0,3,"(seq function)");
 DEFUN("reverse!",cons_nreverse,1,0,0,0,1,"(seq)");
 DEFUN("reverse",cons_reverse,1,0,0,0,1,"(seq)");
 DEFUN("round",lisp_round,1,1,0,0,2,"()");
@@ -286,6 +298,7 @@ DEFUN("time",lisp_time,0,1,0,1,2,"()");
 DEFUN("type-of",typeOf,1,0,0,0,1,"(object)");
 DEFUN("typeName",lisp_typeName,1,0,0,0,1,"(object)");
 DEFUN("zero?",lisp_zerop,1,0,0,0,1,"()");
+DEFUN("ffi-closure-test",call_lambda_as_ffi_closure,2,0,0,0,2,"()");
 DEFUN("bigfloat-add",lisp_bigfloat_add,2,0,0,0,2,"(bigfloat1 bigfloat2)");
 DEFUN("bigfloat-sub",lisp_bigfloat_sub,2,0,0,0,2,"(bigfloat1 bigfloat2)");
 DEFUN("bigfloat-mul",lisp_bigfloat_mul,2,0,0,0,2,"(bigfloat1 bigfloat2)");
@@ -424,6 +437,7 @@ MAKE_SYMBOL("bigint",lisp_bigint,0x6a031ae6deb3b2f9 );
 MAKE_SYMBOL("c-ptr-val",lisp_dereference_c_ptr,0xffd9c9f57a495d99 );
 MAKE_SYMBOL("cat",lisp_cat,0xef5542257341657a );
 MAKE_SYMBOL("ccall",ccall,0x9fdbba28c51a5416 );
+MAKE_SYMBOL("copy-cons",copy_cons,0x6c66deefe57839a4 );
 MAKE_SYMBOL("ffi-ccall",ffi_ccall,0x31149f6fb02f0fc2 );
 MAKE_SYMBOL("char->string",lisp_char_to_string,0x87e23bb22b22652a );
 MAKE_SYMBOL("cons",Cons,0x3658069d1acdf568 );
@@ -534,6 +548,7 @@ MAKE_SYMBOL("time",lisp_time,0x11f528022f8d3a4f );
 MAKE_SYMBOL("type-of",typeOf,0x6971003f4c928aa0 );
 MAKE_SYMBOL("typeName",lisp_typeName,0x3fd978c7b7c570e5 );
 MAKE_SYMBOL("zero?",lisp_zerop,0x37aa5afe019ffb4c );
+MAKE_SYMBOL("ffi-closure-test",call_lambda_as_ffi_closure,0xc60e1400eb0e9cf4 );
 MAKE_SYMBOL("bigfloat-add",lisp_bigfloat_add,0x5ce208f741cde6d2 );
 MAKE_SYMBOL("bigfloat-sub",lisp_bigfloat_sub,0xd42552f784c9600b );
 MAKE_SYMBOL("bigfloat-mul",lisp_bigfloat_mul,0x7d86d2f753b9f1e7 );
@@ -684,6 +699,7 @@ mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
 set_global_vars();
 srand48(time(NULL));
 lisp_init_rand(NIL);
+prep_sexp_cifs();
 INIT_SYNONYM(lisp_consp,"cons?",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){
@@ -723,6 +739,7 @@ INIT_SYMBOL(lisp_bigint);
 INIT_SYMBOL(lisp_dereference_c_ptr);
 INIT_SYMBOL(lisp_cat);
 INIT_SYMBOL(ccall);
+INIT_SYMBOL(copy_cons);
 INIT_SYMBOL(ffi_ccall);
 INIT_SYMBOL(lisp_char_to_string);
 INIT_SYMBOL(Cons);
@@ -833,6 +850,7 @@ INIT_SYMBOL(lisp_time);
 INIT_SYMBOL(typeOf);
 INIT_SYMBOL(lisp_typeName);
 INIT_SYMBOL(lisp_zerop);
+INIT_SYMBOL(call_lambda_as_ffi_closure);
 INIT_SYMBOL(lisp_bigfloat_add);
 INIT_SYMBOL(lisp_bigfloat_sub);
 INIT_SYMBOL(lisp_bigfloat_mul);

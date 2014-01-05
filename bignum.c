@@ -48,45 +48,61 @@ sexp lisp_bigint(sexp init){
       return format_type_error("bigint","bignum",init.tag);
   }
 }
-#define init_set(suffix,value,star)                                     \
-  mpfr_init_set##suffix(*new_bignum,star init.val.value,MPFR_RNDN);     \
-  return bigfloat_sexp(new_bignum)
-sexp lisp_bigfloat(sexp init,sexp prec,sexp rnd){
+sexp lisp_bigfloat(sexp init,sexp prec_sexp,sexp rnd_sexp){
   //prec & rnd are optional args, I'll add them later
-  if(!INTP(prec) && !NILP(prec)){
-    return format_type_error_opt_named("bigfloat","prec","integer",prec.tag);
+  if(!INTP(prec_sexp) && !NILP(prec_sexp)){
+    return format_type_error_opt_named("bigfloat","prec","integer",prec_sexp.tag);
+  }
+  if(!KEYWORDP(rnd_sexp) && !NILP(rnd_sexp)){
+    return format_type_error_opt_named("bigfloat","rnd","keyword",rnd_sexp.tag);
   }
   mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
-  if(NILP(prec)){
+  mpfr_prec_t prec;
+  mpfr_rnd_t rnd;
+  if(NILP(prec_sexp)){
+    prec=256;
+  } else {
+    prec=prec_sexp.val.int64;
+  }
+  mpfr_init2(*new_bignum,prec);
+  if(NILP(rnd_sexp)){
+    rnd=MPFR_RNDN;
+  } else {
+    return error_sexp("selectable rounding modes unimplemented");
+  }
   switch(init.tag){
     case _double:{
-      mpfr_init_set_d(*new_bignum,init.val.real64,MPFR_RNDN);
+      mpfr_set_d(*new_bignum,init.val.real64,rnd);
       return bigfloat_sexp(new_bignum);
     }
     case _long:{
-      mpfr_init_set_si(*new_bignum,init.val.int64,MPFR_RNDN);
+      mpfr_set_si(*new_bignum,init.val.int64,rnd);
       return bigfloat_sexp(new_bignum);
     }
     case _ulong:{
-      mpfr_init_set_ui(*new_bignum,init.val.uint64,MPFR_RNDN);
+      mpfr_set_ui(*new_bignum,init.val.uint64,rnd);
       return bigfloat_sexp(new_bignum);
     }
     case _bigint:{
-      mpfr_init_set_z(*new_bignum,*init.val.bigint,MPFR_RNDN);
+      mpfr_set_z(*new_bignum,*init.val.bigint,rnd);
       return bigfloat_sexp(new_bignum);
     }
     case _bigfloat:{
-      return init;
+      return init;//bigfloats are immutable
     }
     case _str:{
-      mpfr_init_set_str(*new_bignum,CORD_to_const_char_star(init.val.cord),0,MPFR_RNDN);
-      return bigfloat_sexp(new_bignum);
+      int status=mpfr_set_str(*new_bignum,
+                              CORD_to_const_char_star(init.val.cord),
+                              0,rnd);
+      if(status){
+        return error_sexp("invalid bigfloat string passed to bigfloat");
+      } else {
+        return bigfloat_sexp(new_bignum);
+      }
     }
     default:
       return format_type_error("bigfloat","bignum",init.tag);
-  }
-  } else {
-    mpfr_init2(*new_bignum,prec.val.int64);
+  }   
 }
 #undef init_set
 sexp asDouble(sexp obj);

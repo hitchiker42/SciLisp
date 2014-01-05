@@ -41,6 +41,7 @@ static int ec_len(CORD_ec x){
 # define VARIABLE -2
 /* Copy the conversion specification from CORD_pos into the buffer buf  */
 /* Return negative on error.                                            */
+/* ADDITON: return the number of characters read (if no error           */
 /* Source initially points one past the leading %.                      */
 /* It is left pointing at the conversion type.                          */
 /* Assign field width and precision to *width and *prec.                */
@@ -60,7 +61,9 @@ static int extract_conv_spec(CORD_pos source, char *buf,
   *width = NONE;
   buf[chars_so_far++] = '%';
   while(CORD_pos_valid(source)) {
-    if (chars_so_far >= CONV_SPEC_LEN) {return(-1);}
+    //take one off or CONV_SPEC_LEN because of how bignum formatting works
+    //(it takes an extra character after the conv spec)
+    if (chars_so_far >= (CONV_SPEC_LEN-1)) {return(-1);}
     current = CORD_pos_fetch(source);
     buf[chars_so_far++] = current;
     switch(current) {
@@ -128,8 +131,16 @@ static int extract_conv_spec(CORD_pos source, char *buf,
       case 's':
       case 'S':
       case 'p':
-      case 'r':
+        //all specifiers above are default c specifiers
+      //case 'n': removed from lisp
+      case 'r'://cords
       case 'a'://added for lisp
+        //bignum specifiers
+      case 'R':
+      case 'Z':
+        goto done;
+      case 'F'://specifier for mpf_t, acts as an alias for mpfr_t
+        buf[(chars_so_far-1)]='R';
         goto done;
       default:
         return(-1);
@@ -149,7 +160,7 @@ static int extract_conv_spec(CORD_pos source, char *buf,
     *prec = NONE;
   }
   buf[chars_so_far] = '\0';
-  return(result);
+  return(chars_so_far);
 }
 
 #define va_typecheck(args,typecheck,expected) {                         \
@@ -160,6 +171,7 @@ static int extract_conv_spec(CORD_pos source, char *buf,
     return format_type_error_rest("format",expected,XCAR(args));        \
   }                                                                     \
   }
+//defininion of function in cordprnt.c
 //int CORD_vsprintf(CORD * out, CORD format, va_list args) {
 sexp c_format(CORD format,sexp args){
   CORD_ec result;
@@ -179,20 +191,19 @@ sexp c_format(CORD format,sexp args){
       if (current == '%') {
         CORD_ec_append(result, current);
       } else {
-        int width, prec;
+        int width, prec,spec_len;
         int left_adj = 0;
         int long_arg = 0;
         CORD arg;
         size_t len;
 
-        if (extract_conv_spec(pos, conv_spec,&width,
-                              &prec,&left_adj, &long_arg) < 0) {
+        if ((spec_len=extract_conv_spec(pos, conv_spec,&width,
+                                        &prec,&left_adj, &long_arg)) < 0) {
           return(error_sexp("Error parsing format specification"));
         }
         current = CORD_pos_fetch(pos);
-        switch(current) {
+        switch(current) {//cases not handled by default sprintf
           //case 'n': lets not allow this in lisp
-            /* Assign length to next arg */
           case 'r':
             /* Append cord and any padding  */
             if (width == VARIABLE) {
@@ -272,6 +283,37 @@ sexp c_format(CORD format,sexp args){
             CORD_ec_append_cord(result, print(XCAR(args)));
             args=XCDR(args);
             goto done;
+            //bignum specifiers
+            //on SciLisp initialization memory allocation
+            //functions for gmp/mpfr are set to gc functions so we can use asprintf
+          case 'Z':
+            CORD_next(pos);
+            if (!CORD_pos_valid(pos)){
+              return error_sexp("invalid cord position, something weird happened");
+            }
+            current = CORD_pos_fetch(pos);
+            conv_spec[spec_len++]=current;
+            conv_spec[spec_len]='\0';
+            va_typecheck(args,BIGINTP,"bigint");
+            char *gmp_str;
+            mpfr_asprintf(&gmp_str,conv_spec,XCAR(args).val.bigint);
+            CORD_ec_append_cord(result,gmp_str);
+            goto done;
+          case 'R':
+          case 'F':
+            CORD_next(pos);
+            if (!CORD_pos_valid(pos)){
+              return error_sexp("invalid cord position, something weird happened");
+            }
+            current = CORD_pos_fetch(pos);
+            //should be able to add round spec to 'R',but I'll add that later
+            conv_spec[spec_len++]=current;
+            conv_spec[spec_len]='\0';
+            va_typecheck(args,BIGFLOATP,"bigfloat");
+            char *mpfr_str;
+            mpfr_asprintf(&mpfr_str,conv_spec,XCAR(args).val.bigfloat);
+            CORD_ec_append_cord(result,mpfr_str);
+            goto done;
           default:
             break;
         }
@@ -313,7 +355,7 @@ sexp c_format(CORD format,sexp args){
               PRINT_FMT("calling printf with conversion specifier %r",conv_spec);
               res=sprintf(buf, conv_spec, XCAR(args).val.uint64);
               break;
-              //not sure about these so ignore them              
+              //not sure about these so ignore them
               //            case 's':
               //            case 'p':
             case 'f':

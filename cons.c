@@ -153,16 +153,19 @@ sexp nappend(sexp conses){
 }
 
 
-sexp cons_reduce(sexp ls,sexp reduce_fn){
+sexp cons_reduce(sexp ls,sexp reduce_fn,sexp start){
   if(!CONSP(ls) || !FUN2P(reduce_fn)){
     return format_type_error2("reduce","list",ls.tag,"function",reduce_fn.tag);
   }
-  sexp result=XCAR(ls);
+  if(NILP(start)){
+    start=long_sexp(0);
+  }
+  sexp result=start;
   sexp(*f)(sexp,sexp);
   f=reduce_fn.val.fun->comp.f2;
-  while(CONSP(cdr(ls))){
-    ls=XCDR(ls);
+  while(CONSP(ls)){
     result=f(XCAR(ls),result);
+    ls=XCDR(ls);
   }
   return result;
 }
@@ -171,15 +174,23 @@ sexp mapcar(sexp ls,sexp map_fn){
     return format_type_error2("mapcar","list",ls.tag,"function",map_fn.tag);
   }
   sexp result;
+  int have_closure=0;
+  ffi_closure *closure;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
   result.tag=_cons;
   sexp(*f)(sexp);
   if(FUNP(map_fn)){
     f=map_fn.val.fun->comp.f1;
-  }
+  } /*else if(LAMBDAP(map_fn)){
+    closure=make_closure(function_sexp(map_fn.val.fun),env_sexp(cur_env_ptr),1);
+    if(!closure){
+      return error_sexp("error constructing ffi_closure");
+    }
+    f=(sexp(*)(sexp))(closure->fun);
+    }*/
   while(!NILP(XCDR(ls))){
     if(FUNP(map_fn)){
-      cur_cell->car=f(car(ls));
+      cur_cell->car=f(XCAR(ls));
     } else {
       cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),
                          map_fn.val.fun->lam->env);
@@ -190,6 +201,9 @@ sexp mapcar(sexp ls,sexp map_fn){
   }
   cur_cell->car=f(XCAR(ls));
   cur_cell->cdr=NIL;
+  if(have_closure){
+    ffi_closure_free(closure);
+  }
   return result;
 }
 static sexp len_acc(sexp ls,long n) __attribute__((pure));

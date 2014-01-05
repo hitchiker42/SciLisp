@@ -48,27 +48,25 @@ union data {
 %x comment
    /*start condition for matching typenames*/ 
 %x typename
-%%
-   /*Literals*/
-[+\-]?{DIGIT}+ {LEX_MSG("lexing int");yylval->tag=_long;
-  yylval->val.int64 = (long)strtol(yytext,NULL,0);return TOK_INT;}
-[+\-]?"0"[xX][[:xdigit:]]+ {LEX_MSG("lexing hex int");yylval->tag=_long;
-  yylval->val.int64=(long)strtol(yytext,NULL,0);return TOK_INT;}
-[+\-]?{DIGIT}+"."{DIGIT}* {LEX_MSG("lexing real");yylval->tag=_double;
-  yylval->val.real64 = strtod(yytext,NULL);
-  return TOK_REAL;}
+%%   /*Literals*/
+[+\-]?{DIGIT}+ {LEX_MSG("lexing int");
+  *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
+[+\-]?"0"[xX][[:xdigit:]]+ {LEX_MSG("lexing hex int");
+  *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
+[+\-]?{DIGIT}+"."{DIGIT}* {LEX_MSG("lexing real");
+  *yylval=real64_sexp(strtod(yytext,NULL));return TOK_REAL;}
 [+\-]?{DIGIT}+"."?{DIGIT}*[eE][+-]?{DIGIT}+ {LEX_MSG("lexing real");
-  yylval->tag=_double;yylval->val.real64=strtod(yytext,NULL);
-  return TOK_REAL;}
+  *yylval=real64_sexp(strtod(yytext,NULL));return TOK_REAL;}
     /*String Literal a quote, followed by either a literal \"
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
-"\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");yylval->tag=_str;
-  yylval->val.cord=CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2));
+"\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");
+  *yylval=cord_sexp(CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2)));
   return TOK_STRING;}
-{UCHAR} {LEX_MSG("lexing char");yylval->tag=_char;
-  yylval->val.uchar=(wchar_t)lex_char(yytext);return TOK_CHAR;}
+{UCHAR} {LEX_MSG("lexing char");
+  *yylval=uchar_sexp((wchar_t)lex_char(yytext));return TOK_CHAR;}
 {KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
-  sexp temp=(sexp)getKeySymSexp(name);yylval->tag=temp.tag;yylval->val=temp.val;return TOK_KEYSYM;}
+  sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
+  return TOK_KEYSYM;}
  /*Special forms, generating function at end of file*/
  /* replace all the def(...) 's  with this at some point:
     def(ine|fun|macro|var|const)? {LEX_MSG("lexing define");
@@ -91,15 +89,15 @@ union data {
     }
     }*/
 def(ine)? {LEX_MSG("lexing define");
-  yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_def);return TOK_SPECIAL;}
 defun {LEX_MSG("lexing defun");
-  yylval->tag=_special;yylval->val.special=_defun;return TOK_LAMBDA;}
+  *yylval=spec_sexp(_defun);return TOK_LAMBDA;}
 defvar {LEX_MSG("lexing defvar");
-  yylval->tag=_special;yylval->val.special=_def;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_def);return TOK_SPECIAL;}
 defmacro {LEX_MSG("lexing defmacro");
-  yylval->tag=_special;yylval->val.special=_defmacro;return TOK_MACRO;}
+  *yylval=spec_sexp(_defmacro);return TOK_MACRO;}
 setq {LEX_MSG("lexing setq");
-  yylval->tag=_special;yylval->val.special=_setq;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_setq);return TOK_SPECIAL;}
  /* datatype {LEX_MSG("lexing datatype");
   yylval->tag=_special;yylval->val.special=_datatype;return TOK_SPECIAL;}
  union {LEX_MSG("lexing union");
@@ -113,39 +111,39 @@ setq {LEX_MSG("lexing setq");
  tagbody {LEX_MSG("lexing tagbody");
  yylval->tag=_special;yylval->val.special=_tagbody;return TOK_SPECIAL;}*/
 lambda {LEX_MSG("lexing lambda");
-  yylval->tag=_special;yylval->val.special=_lambda;return TOK_LAMBDA;}
+  *yylval=spec_sexp(_lambda);return TOK_LAMBDA;}
 progn {LEX_MSG("lexing progn");
-  yylval->tag=_special;yylval->val.special=_progn;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_progn);return TOK_SPECIAL;}
 prog1 {LEX_MSG("lexing prog1");
-  yylval->tag=_special;yylval->val.special=_prog1;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_prog1);return TOK_SPECIAL;}
 if {LEX_MSG("lexing if");
-  yylval->tag=_special;yylval->val.special=_if;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_if);return TOK_SPECIAL;}
 let {LEX_MSG("lexing let");
-  yylval->tag=_special;yylval->val.special=_let;return TOK_LET;}
+  *yylval=spec_sexp(_let);return TOK_LET;}
 flet {LEX_MSG("lexing flet");
-  yylval->tag=_special;yylval->val.special=_flet;return TOK_LET;}
+  *yylval=spec_sexp(_flet);return TOK_LET;}
 do {LEX_MSG("lexing do");
-  yylval->tag=_special;yylval->val.special=_do;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_do);return TOK_SPECIAL;}
 dolist {LEX_MSG("lexing dolist");
-  yylval->tag=_special;yylval->val.special=_dolist;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_dolist);return TOK_SPECIAL;}
 while {LEX_MSG("lexing while");
-  yylval->tag=_special;yylval->val.special=_while;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_while);return TOK_SPECIAL;}
 main {LEX_MSG("lexing mainl");
-  yylval->tag=_special;yylval->val.special=_main;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_main);return TOK_SPECIAL;}
                    /*or {LEX_MSG("lexing or");
   yylval->tag=_special;yylval->val.special=_or;return TOK_SPECIAL;}
                    and {LEX_MSG("lexing and");
                      yylval->tag=_special;yylval->val.special=_and;return TOK_SPECIAL;}*/
 return {LEX_MSG("lexing return");
-  yylval->tag=_special;yylval->val.special=_return;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_return);return TOK_SPECIAL;}
 dotimes {LEX_MSG("lexing dotimes");
-  yylval->tag=_special;yylval->val.special=_dotimes;return TOK_SPECIAL;}
+  *yylval=spec_sexp(_dotimes);return TOK_SPECIAL;}
 {QUOTE} {LEX_MSG("Lexing quote");
-  yylval->tag=_special;yylval->val.special=_quote;return TOK_QUOTE;}
+  *yylval=spec_sexp(_quote);return TOK_QUOTE;}
 "quasiquote"|"`" {LEX_MSG("lexing quasiquote");
-  yylval->tag=_special;yylval->val.special=_quasi;return TOK_QUASI;}
+  *yylval=spec_sexp(_quasi);return TOK_QUASI;}
 "," {LEX_MSG("Lexing comma");
-  yylval->tag=_special;yylval->val.special=_comma;return TOK_COMMA;}
+  *yylval=spec_sexp(_comma);return TOK_COMMA;}
 {TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
 <comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
@@ -156,8 +154,8 @@ dotimes {LEX_MSG("lexing dotimes");
 <comment>"#"[^|}|"|"[^#]
 "#t" {LEX_MSG("lexing true literal");return TOK_LISP_TRUE;}
 "#f" {LEX_MSG("lexing false literal");return TOK_LISP_FALSE;}
-{ID} {LEX_MSG("lexing ID");yylval->tag=_str;
-  yylval->val.cord=CORD_strdup(yytext);return TOK_ID;}
+{ID} {LEX_MSG("lexing ID");
+  *yylval=cord_sexp(CORD_strdup(yytext));return TOK_ID;}
                    /*",@" {LEX_MSG("lexing ,@");return TOK_LIST_SPLICE;}*/
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}

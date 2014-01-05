@@ -5,9 +5,9 @@
 //(loops, let blocks,etc..), resolve lexical environments
 //translate simplified ast to C (should be easy by this pointt)
 static obarray* get_macros(sexp ast){
-  obarray* macros=init_obarray_default(16);
+  obarray* macros=obarray_init_default(16);
   env* macro_env=alloca(sizeof(env));
-  macro_env->enclosing(topLevelEnv);
+  macro_env->enclosing=topLevelEnv;
   macro_env->head.ob=macros;
   macro_env->tag=_obEnv;
   while(CONSP(ast)){
@@ -18,7 +18,7 @@ static obarray* get_macros(sexp ast){
       if(!SPECP(XCAAR(ast))){
         ast=XCDR(ast);
         continue;
-      } else if(XCAAR(ast).val.spec != _defmacro){
+      } else if(XCAAR(ast).val.special != _defmacro){
         ast=XCDR(ast);
         continue;
       } else {

@@ -360,6 +360,18 @@ CORD print(sexp obj){
                    hashtable_test_fn_name(obj),hash->entries);
       return retval;
     }
+    case _env:{
+      switch(obj.val.cur_env->tag){
+        case _local:
+          return "#<local environment>";
+        case _global:
+          return "#<global environment>";
+        case _funArgs:
+          return "#<function arguments environment>";
+        case _obEnv:
+          return "#<obarray environment>";
+      }
+    }
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
       return error_str;

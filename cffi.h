@@ -1,5 +1,6 @@
 #ifndef CFFI_H
 #define CFFI_H
+#include "ffi.h"
 enum ctype_kind {
   _ctype_int8 = _int8,
   _ctype_int16 = _int16,
@@ -41,10 +42,16 @@ struct c_data {
   enum ctype_kind type;//actual type
   int ptr_depth;//degree of inderection(*=1,**=2,etc)
 };
+struct my_closure{
+  void * fun;
+  ffi_closure *closure;
+};
 sexp dereference_c_ptr(c_data *pointer);
 int pointer_typecheck(sexp pointer,int depth,enum ctype_kind type);
 sexp ccall(sexp function,sexp libname,sexp rettype,sexp argtypes,sexp args,sexp thread);
 sexp get_c_type(sexp ctype_keysym);
+void prep_sexp_cifs();
+void *make_closure(sexp lambda,sexp fun_env,int numargs);
 static inline sexp c_data_to_sexp(c_data* obj){
   return (sexp){.val={.uint64=obj->val.ctype_uint64},.tag=obj->type};
 }

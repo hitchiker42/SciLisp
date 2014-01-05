@@ -1,2 +1,2 @@
 #!/bin/bash
-./bootstrap.sh && ./configure --prefix=$HOME/usr
+./bootstrap.sh && ./configure --prefix=$HOME/usr "$@"

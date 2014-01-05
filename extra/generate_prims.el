@@ -120,6 +120,7 @@
     ("c-ptr-val" "lisp_dereference_c_ptr" 1)
     ("cat" "lisp_cat" 0 :restarg 1 :sig "(&rest seqs)")
     ("ccall" "ccall" 5 :optargs 1)
+    ("copy-cons" "copy_cons" 1 :sig "(cell)")
     ("ffi-ccall" "ffi_ccall" 5 :optargs 1)
     ("char->string" "lisp_char_to_string" 1 :sig "(character)")
     ("cons" "Cons" 2 :sig "(car cdr)")
@@ -214,7 +215,7 @@
     ("read-string" "lisp_read_string" 1 :sig "(string)")
     ("read" "lisp_read" 1 :sig "(stream)")
 ;make into sequence functions asap
-    ("reduce" "cons_reduce" 2 :sig "(seq function)")
+    ("reduce" "cons_reduce" 2 :optargs 1 :sig "(seq function)")
     ("reverse!" "cons_nreverse" 1 :sig "(seq)")
     ("reverse" "cons_reverse" 1 :sig "(seq)")
     ("round" "lisp_round" 1 :optargs 1)
@@ -234,7 +235,8 @@
     ("time" "lisp_time" 0 :optargs 1 :restarg 1)
     ("type-of" "typeOf" 1 :sig "(object)")
     ("typeName" "lisp_typeName" 1 :sig "(object)")
-    ("zero?" "lisp_zerop" 1)))
+    ("zero?" "lisp_zerop" 1)
+    ("ffi-closure-test" "call_lambda_as_ffi_closure" 2)))
 (define predicates '("arrayp" "consp" "numberp" "nilp" "symbolp" "bigintp" "bigfloatp" "stringp"
                      "bignump" "errorp" "functionp" "streamp"))
 (define basic-SciLisp-prims
@@ -274,6 +276,8 @@
     "list" "fun" "symbol" "macro" "type" "keyword" "hashtable" "spec" "regex"
     "nil" "dpair" "lenv" "env" "obarray" "funargs" "true" "false" "uninterned"
     "cons" '("pointer" . "_opaque")))
+(define default-keywords
+  '(("rndn" . "rndn") ("rndz" . "rndz") ("rndu" . "rndu") ("rndd" . "rndd") ("rnda" . "rnda")))
 (defun mk-type-tests (type)
   (let
       ((type-macro
@@ -334,6 +338,7 @@ mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
 set_global_vars();
 srand48(time(NULL));
 lisp_init_rand(NIL);
+prep_sexp_cifs();
 INIT_SYNONYM(lisp_consp,\"cons?\",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){

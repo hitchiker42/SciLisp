@@ -246,8 +246,6 @@
 (format "%f" pi)
 (format "%#0x" 1337)
 (format "%a" (cons 2 3))
-(setq big-pi (bigfloat pi 1000))
-(format "%Fg" big-pi)
 ;; Local Variables:
 ;; mode: SciLisp
 ;; End:

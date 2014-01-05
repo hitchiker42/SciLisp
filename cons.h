@@ -25,11 +25,10 @@ sexp nappend(sexp conses);
 //apply reduce_fn(a functon of the form f(sexp,sexp)-> sexp to
 //the members of ls iteratively to produce a single sexp result
 //ls must be at least 2 elements long
-sexp cons_reduce(sexp ls,sexp reduce_fn);
+sexp cons_reduce(sexp ls,sexp reduce_fn,sexp start);
 //create a new list formed by applying map_fn(f(sexp)->sexp) to
 //each car of ls in turn
 sexp mapcar(sexp ls,sexp map_fn);
-//
 //check len field of sexp for length
 //if len==0 compute length using tail recursion
 sexp cons_length(sexp ls)__attribute__((pure));

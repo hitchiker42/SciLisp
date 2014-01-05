@@ -150,6 +150,7 @@ CORD type_error_str;
 jmp_buf error_buf;
 sexp error_val;
 stack_t sigstk;
+env *cur_env_ptr;
 //functions to print (or not print) debug info
 void (*debug_printf)(const char*,...);
 void (*CORD_debug_printf)(CORD,...);
