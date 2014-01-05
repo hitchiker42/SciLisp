@@ -42,6 +42,7 @@ static sexp *lisp_history;
 static char *line_read;
 static void SciLisp_getopt(int argc,char *argv[]);
 static sexp eval_log(sexp expr,env *cur_env);
+static void inferior_scilisp() __attribute__((noreturn));
 void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
   if(!quiet_signals){
@@ -295,7 +296,7 @@ int main(int argc,char* argv[]){
   }
   if(lisp_hist_size==-1){
     lisp_hist_size=DEFAULT_LISP_HIST_SIZE;
-  }  
+  }
   lisp_history=xmalloc(sizeof(sexp)*lisp_hist_size);
   if(!evalFun){
     evalFun=eval;
@@ -407,6 +408,7 @@ static struct option long_options[] = {
   {"eval"      ,1,0,'e'},
   {"debug-test",0,0,'d'},
   {"help"      ,0,0,'h'},
+  {"inferior"  ,0,0,'i'},
   {"load"      ,1,0,'l'},
   {"no-debug"  ,0,0,'n'},
   {"output"    ,1,0,'o'},
@@ -418,14 +420,14 @@ static struct option long_options[] = {
 };
 static inline int discard_script_header(FILE* file){
   //easy way
-  //'#'=0x23,'!'=0x21, read as a unsinged int 
+  //'#'=0x23,'!'=0x21, read as a unsinged int
   //will be 0x2123 (because of endianess)
   uint16_t shebang=0x2123;
   uint16_t test;
   fread(&test,sizeof(uint16_t),1,file);
   if(test==shebang){
     char newline_test;
-    //skip rest of line (kinda naive way of doing this) 
+    //skip rest of line (kinda naive way of doing this)
     while ((newline_test=getc(file)) && newline_test !='\n');
     return 1;
   } else {
@@ -490,6 +492,9 @@ static void SciLisp_getopt(int argc,char *argv[]){
         }
         exit(0);
       }
+      case 'i':{
+        inferior_scilisp();
+      }
       case 'l':{
         sexp ast;
         FILE* file=fopen(optarg,"r");
@@ -521,7 +526,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
         if(!file){
           CORD_fprintf(stderr,"File %r not found, exiting.\n",filename);
           exit(EXIT_FAILURE);
-        }          
+        }
         discard_script_header(file);
         int my_stdout_fd=dup(STDOUT_FILENO);
         int my_stderr_fd=dup(STDERR_FILENO);
@@ -546,7 +551,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
               failed_exprs=CORD_catn(5,failed_exprs,
                                      print(XCAR(ast)),"\nwith error:",
                                      print(result),"\n");
-            }           
+            }
           }
           ast=XCDR(ast);
         }
@@ -562,7 +567,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
       }
       case 't':{
         CORD_debug_printf=CORD_ndebug_printf;
-        debug_printf=ndebug_printf;        
+        debug_printf=ndebug_printf;
         FILE* file;
         CORD filename;
         if(optarg){
@@ -632,3 +637,4 @@ static sexp eval_log(sexp expr,env *cur_env){
   CORD_fprintf(logfile,print(retval));
   return retval;
 }
+static void inferior_scilisp(){}

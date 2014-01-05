@@ -117,6 +117,7 @@ DEFUN(ffi_ccall,6);
 DEFUN(lisp_char_to_string,1);
 DEFUN(Cons,2);
 DEFUN(lisp_cos,1);
+DEFUN(lisp_get_docstring,1);
 DEFUN(lisp_div_num,2);
 DEFUN(lisp_ne_driver,2);
 DEFUN(lisp_lt_driver,2);

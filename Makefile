@@ -386,6 +386,7 @@ RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
 SHELL = /bin/bash
+SIMD_SET = avx2
 STRIP = strip
 VERSION = 0.01
 abs_builddir = /home/tucker/Repo/SciLisp

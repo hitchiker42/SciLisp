@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t; -*-
+(require 'comint)
 ;This is at the moment just a copy of lisp.el from emacs with some of
 ;the emacs specific stuff trimed out, but I do intend to make this more
 ;specific to scilisp(also it'd be nice to allow interactive evaluation and
@@ -5,33 +7,9 @@
 (define-derived-mode SciLisp-mode lisp-mode "SciLisp"
   (setq lisp-mode-hook (lambda nil nil)))
 (defalias 'scilisp-mode 'SciLisp-mode)
-;;; SciLisp-mode.el --- Lisp mode, and its idiosyncratic commands  -*- coding: utf-8 -*-
-
-;; This file is not part of GNU Emacs.
-
-;; GNU Emacs is free software: you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
-
-;; GNU Emacs is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
-
-;;; Commentary:
-
-;; The base major mode for editing Lisp code (used also for Emacs Lisp).
-;; This mode is documented in the Emacs manual.
-
-;;; Code:
-(defvar lisp-mode-abbrev-table nil)
+(defvar SciLisp-mode-abbrev-table nil)
 (define-abbrev-table 'lisp-mode-abbrev-table ()
   "Abbrev table for Lisp mode.")
-
 (defvar SciLisp-mode-syntax-table
   (let ((table (copy-syntax-table emacs-lisp-mode-syntax-table)))
     (modify-syntax-entry ?\[ "_   " table)
@@ -41,31 +19,20 @@
     table)
   "Syntax table used in `lisp-mode'.")
 
-(defvar lisp-imenu-generic-expression
+(defvar SciLisp-imenu-generic-expression
   (list
    (list nil
 	 (purecopy (concat "^\\s-*("
 			   (eval-when-compile
 			     (regexp-opt
-			      '("defun" "defun*" "defsubst" "defmacro"
-				"defadvice" "define-skeleton"
-				"define-minor-mode" "define-global-minor-mode"
-				"define-globalized-minor-mode"
-				"define-derived-mode" "define-generic-mode"
-				"define-compiler-macro" "define-modify-macro"
-				"defsetf" "define-setf-expander"
-				"define-method-combination"
-				"defgeneric" "defmethod"
-				"cl-defun" "cl-defsubst" "cl-defmacro"
-				"cl-define-compiler-macro") t))
+			      '("defun" "defun*" "defsubst" "defmacro") t))
 			   "\\s-+\\(\\(\\sw\\|\\s_\\)+\\)"))
 	 2)
    (list (purecopy "Variables")
 	 (purecopy (concat "^\\s-*("
 			   (eval-when-compile
 			     (regexp-opt
-			      '("defconst" "defconstant" "defcustom"
-				"defparameter" "define-symbol-macro") t))
+			      '("defconst" "defconstant") t))
 			   "\\s-+\\(\\(\\sw\\|\\s_\\)+\\)"))
 	 2)
    ;; For `defvar', we ignore (defvar FOO) constructs.
@@ -77,10 +44,7 @@
 	 (purecopy (concat "^\\s-*("
 			   (eval-when-compile
 			     (regexp-opt
-			      '("defgroup" "deftheme" "deftype" "defstruct"
-				"defclass" "define-condition" "define-widget"
-				"defface" "defpackage" "cl-deftype"
-				"cl-defstruct") t))
+			      '("deftype" "defstruct" "defpackage") t))
 			   "\\s-+'?\\(\\(\\sw\\|\\s_\\)+\\)"))
 	 2))
 
@@ -95,10 +59,10 @@
 (put 'defvaralias 'doc-string-elt 3)
 (put 'define-category 'doc-string-elt 2)
 
-(defvar lisp-doc-string-elt-property 'doc-string-elt
+(defvar SciLisp-doc-string-elt-property 'doc-string-elt
   "The symbol property that holds the docstring position info.")
 
-(defun lisp-font-lock-syntactic-face-function (state)
+(defun SciLisp-font-lock-syntactic-face-function (state)
   (if (nth 3 state)
       ;; This might be a (doc)string or a |...| symbol.
       (let ((startpos (nth 8 state)))
@@ -135,7 +99,7 @@
               font-lock-string-face))))
     font-lock-comment-face))
 
-(defun lisp-mode-variables (&optional lisp-syntax keywords-case-insensitive)
+(defun SciLisp-mode-variables (&optional lisp-syntax keywords-case-insensitive)
   "Common initialization routine for lisp modes.
 The LISP-SYNTAX argument is used by code in inf-lisp.el and is
 \(uselessly) passed from pp.el, chistory.el, gnus-kill.el and
@@ -181,14 +145,14 @@ font-lock keywords will not be case sensitive."
 	   . lisp-font-lock-syntactic-face-function)))
   (setq-local prettify-symbols-alist lisp--prettify-symbols-alist))
 
-(defun lisp-outline-level ()
+(defun SciLisp-outline-level ()
   "Lisp mode `outline-level' function."
   (let ((len (- (match-end 0) (match-beginning 0))))
     (if (looking-at "(\\|;;;###autoload")
 	1000
       len)))
 
-(defun lisp-current-defun-name ()
+(defun SciLisp-current-defun-name ()
   "Return the name of the defun at point, or nil."
   (save-excursion
     (let ((location (point)))
@@ -214,7 +178,7 @@ font-lock keywords will not be case sensitive."
 					(progn (forward-sexp 1)
 					       (point)))))))
 
-(defvar lisp-mode-shared-map
+(defvar SciLisp-mode-shared-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map prog-mode-map)
     (define-key map "\e\C-q" 'indent-sexp)
@@ -226,23 +190,23 @@ font-lock keywords will not be case sensitive."
     map)
   "Keymap for commands shared by all sorts of Lisp modes.")
 
-(defcustom lisp-mode-hook nil
+(defcustom SciLisp-mode-hook nil
   "Hook run when entering Lisp mode."
   :options '(imenu-add-menubar-index)
   :type 'hook
   :group 'lisp)
 
-(defcustom lisp-interaction-mode-hook nil
+(defcustom SciLisp-interaction-mode-hook nil
   "Hook run when entering Lisp Interaction mode."
   :options '(turn-on-eldoc-mode)
   :type 'hook
   :group 'lisp)
 
-(defconst lisp--prettify-symbols-alist
+(defconst SciLisp--prettify-symbols-alist
   '(("lambda"  . ?λ)))
 ;;; Generic Lisp mode.
 
-(defvar lisp-mode-map
+(defvar SciLisp-mode-map
   (let ((map (make-sparse-keymap))
 	(menu-map (make-sparse-keymap "Lisp")))
     (set-keymap-parent map lisp-mode-shared-map)
@@ -262,50 +226,47 @@ font-lock keywords will not be case sensitive."
   "Keymap for ordinary Lisp mode.
 All commands in `lisp-mode-shared-map' are inherited by this map.")
 
-(define-derived-mode lisp-mode prog-mode "Lisp"
-  "Major mode for editing Lisp code for Lisps other than GNU Emacs Lisp.
+(define-derived-mode SciLisp-mode prog-mode "SciLisp"
+  "Major mode for editing SciLisp code
 Commands:
 Delete converts tabs to spaces as it moves back.
 Blank lines separate paragraphs.  Semicolons start comments.
 
-\\{lisp-mode-map}
-Note that `run-lisp' may be used either to start an inferior Lisp job
+\\{SciLisp-mode-map}
+Note that `run-SciLisp' may be used either to start an inferior Lisp job
 or to switch back to an existing one.
 
-Entry to this mode calls the value of `lisp-mode-hook'
+Entry to this mode calls the value of `SciLisp-mode-hook'
 if that value is non-nil."
-  (lisp-mode-variables nil t)
-  (setq-local find-tag-default-function 'lisp-find-tag-default)
+  (SciLisp-mode-variables nil t)
+  (setq-local find-tag-default-function 'SciLisp-find-tag-default)
   (setq-local comment-start-skip
 	      "\\(\\(^\\|[^\\\\\n]\\)\\(\\\\\\\\\\)*\\)\\(;+\\|#|\\) *")
   (setq imenu-case-fold-search t))
 
-(defun lisp-find-tag-default ()
+(defun SciLisp-find-tag-default ()
   (let ((default (find-tag-default)))
     (when (stringp default)
       (if (string-match ":+" default)
           (substring default (match-end 0))
 	default))))
 
-;; Used in old LispM code.
-(defalias 'common-lisp-mode 'lisp-mode)
-
 ;; This will do unless inf-lisp.el is loaded.
-(defun lisp-eval-defun (&optional and-go)
-  "Send the current defun to the Lisp process made by \\[run-lisp]."
+(defun SciLisp-eval-defun (&optional and-go)
+  "Send the current defun to the SciLisp process made by \\[run-SciLisp]."
   (interactive)
-  (error "Process lisp does not exist"))
+  (error "Process SciLisp does not exist"))
 
-(defvar lisp-interaction-mode-map
+(defvar SciLisp-interaction-mode-map
   (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap "Lisp-Interaction")))
+	(menu-map (make-sparse-keymap "SciLisp-Interaction")))
     (set-keymap-parent map lisp-mode-shared-map)
     (define-key map "\e\C-x" 'eval-defun)
     (define-key map "\e\C-q" 'indent-pp-sexp)
     (define-key map "\e\t" 'completion-at-point)
     (define-key map "\n" 'eval-print-last-sexp)
-    (bindings--define-key map [menu-bar lisp-interaction]
-      (cons "Lisp-Interaction" menu-map))
+    (bindings--define-key map [menu-bar SciLisp-interaction]
+      (cons "SciLisp-Interaction" menu-map))
     (bindings--define-key menu-map [eval-defun]
       '(menu-item "Evaluate Defun" eval-defun
 		  :help "Evaluate the top-level form containing point, or after point"))
@@ -320,11 +281,11 @@ if that value is non-nil."
       '(menu-item "Indent or Pretty-Print" indent-pp-sexp
 		  :help "Indent each line of the list starting just after point, or prettyprint it"))
     (bindings--define-key menu-map [complete-symbol]
-      '(menu-item "Complete Lisp Symbol" completion-at-point
-		  :help "Perform completion on Lisp symbol preceding point"))
+      '(menu-item "Complete SciLisp Symbol" completion-at-point
+		  :help "Perform completion on SciLisp symbol preceding point"))
     map)
-  "Keymap for Lisp Interaction mode.
-All commands in `lisp-mode-shared-map' are inherited by this map.")
+  "Keymap for SciLisp Interaction mode.
+All commands in `SciLisp-mode-shared-map' are inherited by this map.")
 
 (define-derived-mode lisp-interaction-mode emacs-lisp-mode "Lisp Interaction"
   "Major mode for typing and evaluating Lisp forms.
@@ -1152,18 +1113,6 @@ A prefix argument specifies pretty-printing."
               (delete-char -1)))))
   (indent-sexp))
 
-;;;; Lisp paragraph filling commands.
-
-(defcustom emacs-lisp-docstring-fill-column 65
-  "Value of `fill-column' to use when filling a docstring.
-Any non-integer value means do not use a different value of
-`fill-column' when filling docstrings."
-  :type '(choice (integer)
-                 (const :tag "Use the current `fill-column'" t))
-  :group 'lisp)
-(put 'emacs-lisp-docstring-fill-column 'safe-local-variable
-     (lambda (x) (or (eq x t) (integerp x))))
-
 (defun lisp-fill-paragraph (&optional justify)
   "Like \\[fill-paragraph], but handle Emacs Lisp comments and docstrings.
 If any of the current line is a comment, fill the comment or the
@@ -1245,32 +1194,6 @@ means don't indent that line."
 					  (forward-line 1) (point))
 					nil nil state))))))
 
-(provide 'lisp-mode)
-;;mode stolen(not literally) emacs code
-;;; lisp-mode.el ends here
-;;; inf-lisp.el --- an inferior-lisp mode
-
-;; Copyright (C) 1988, 1993-1994, 2001-2013 Free Software Foundation,
-;; Inc.
-
-;; Author: Olin Shivers <shivers@cs.cmu.edu>
-;; Keywords: processes, lisp
-
-;; This file is part of GNU Emacs.
-
-;; GNU Emacs is free software: you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
-
-;; GNU Emacs is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
-
 ;;; Commentary:
 
 ;; Hacked from tea.el by Olin Shivers (shivers@cs.cmu.edu). 8/88
@@ -1311,43 +1234,43 @@ means don't indent that line."
 
 ;;; Code:
 
-(require 'comint)
-(require 'lisp-mode)
-(defcustom inferior-lisp-filter-regexp
+
+(provide 'SciLisp-mode)
+(defcustom inferior-SciLisp-filter-regexp
   "\\`\\s *\\(:\\(\\w\\|\\s_\\)\\)?\\s *\\'"
-  "What not to save on inferior Lisp's input history.
-Input matching this regexp is not saved on the input history in Inferior Lisp
+  "What not to save on inferior SciLisp's input history.
+Input matching this regexp is not saved on the input history in Inferior SciLisp
 mode.  Default is whitespace followed by 0 or 1 single-letter colon-keyword
 \(as in :a, :c, etc.)"
   :type 'regexp
-  :group 'inferior-lisp)
+  :group 'inferior-SciLisp)
 
-(defvar inferior-lisp-mode-map
+(defvar inferior-SciLisp-mode-map
   (let ((map (copy-keymap comint-mode-map)))
-    (set-keymap-parent map lisp-mode-shared-map)
-    (define-key map "\C-x\C-e" 'lisp-eval-last-sexp)
-    (define-key map "\C-c\C-l" 'lisp-load-file)
-    (define-key map "\C-c\C-k" 'lisp-compile-file)
-    (define-key map "\C-c\C-a" 'lisp-show-arglist)
-    (define-key map "\C-c\C-d" 'lisp-describe-sym)
-    (define-key map "\C-c\C-f" 'lisp-show-function-documentation)
-    (define-key map "\C-c\C-v" 'lisp-show-variable-documentation)
+    (set-keymap-parent map SciLisp-mode-shared-map)
+    (define-key map "\C-x\C-e" 'SciLisp-eval-last-sexp)
+    (define-key map "\C-c\C-l" 'SciLisp-load-file)
+    (define-key map "\C-c\C-k" 'SciLisp-compile-file)
+    (define-key map "\C-c\C-a" 'SciLisp-show-arglist)
+    (define-key map "\C-c\C-d" 'SciLisp-describe-sym)
+    (define-key map "\C-c\C-f" 'SciLisp-show-function-documentation)
+    (define-key map "\C-c\C-v" 'SciLisp-show-variable-documentation)
     map))
 
-;;; These commands augment Lisp mode, so you can process Lisp code in
+;;; These commands augment SciLisp mode, so you can process SciLisp code in
 ;;; the source files.
-(define-key lisp-mode-map "\M-\C-x"  'lisp-eval-defun)     ; Gnu convention
-(define-key lisp-mode-map "\C-x\C-e" 'lisp-eval-last-sexp) ; Gnu convention
-(define-key lisp-mode-map "\C-c\C-e" 'lisp-eval-defun)
-(define-key lisp-mode-map "\C-c\C-r" 'lisp-eval-region)
-(define-key lisp-mode-map "\C-c\C-c" 'lisp-compile-defun)
-(define-key lisp-mode-map "\C-c\C-z" 'switch-to-lisp)
-(define-key lisp-mode-map "\C-c\C-l" 'lisp-load-file)
-(define-key lisp-mode-map "\C-c\C-k" 'lisp-compile-file)  ; "kompile" file
-(define-key lisp-mode-map "\C-c\C-a" 'lisp-show-arglist)
-(define-key lisp-mode-map "\C-c\C-d" 'lisp-describe-sym)
-(define-key lisp-mode-map "\C-c\C-f" 'lisp-show-function-documentation)
-(define-key lisp-mode-map "\C-c\C-v" 'lisp-show-variable-documentation)
+(define-key SciLisp-mode-map "\M-\C-x"  'SciLisp-eval-defun)     ; Gnu convention
+(define-key SciLisp-mode-map "\C-x\C-e" 'SciLisp-eval-last-sexp) ; Gnu convention
+(define-key SciLisp-mode-map "\C-c\C-e" 'SciLisp-eval-defun)
+(define-key SciLisp-mode-map "\C-c\C-r" 'SciLisp-eval-region)
+(define-key SciLisp-mode-map "\C-c\C-c" 'SciLisp-compile-defun)
+(define-key SciLisp-mode-map "\C-c\C-z" 'switch-to-SciLisp)
+(define-key SciLisp-mode-map "\C-c\C-l" 'SciLisp-load-file)
+(define-key SciLisp-mode-map "\C-c\C-k" 'SciLisp-compile-file)  ; "kompile" file
+(define-key SciLisp-mode-map "\C-c\C-a" 'SciLisp-show-arglist)
+(define-key SciLisp-mode-map "\C-c\C-d" 'SciLisp-describe-sym)
+(define-key SciLisp-mode-map "\C-c\C-f" 'SciLisp-show-function-documentation)
+(define-key SciLisp-mode-map "\C-c\C-v" 'SciLisp-show-variable-documentation)
 
 
 ;;; This function exists for backwards compatibility.
@@ -1360,43 +1283,43 @@ mode.  Default is whitespace followed by 0 or 1 single-letter colon-keyword
 ;;;have this function called by the inferior-lisp-load-hook:
 ;;;  (add-hook 'inferior-lisp-load-hook 'inferior-lisp-install-letter-bindings)
 ;;;You can modify this function to install just the bindings you want."
-(defun inferior-lisp-install-letter-bindings ()
-  (define-key lisp-mode-map "\C-ce" 'lisp-eval-defun-and-go)
-  (define-key lisp-mode-map "\C-cr" 'lisp-eval-region-and-go)
-  (define-key lisp-mode-map "\C-cc" 'lisp-compile-defun-and-go)
-  (define-key lisp-mode-map "\C-cz" 'switch-to-lisp)
-  (define-key lisp-mode-map "\C-cl" 'lisp-load-file)
-  (define-key lisp-mode-map "\C-ck" 'lisp-compile-file)
-  (define-key lisp-mode-map "\C-ca" 'lisp-show-arglist)
-  (define-key lisp-mode-map "\C-cd" 'lisp-describe-sym)
-  (define-key lisp-mode-map "\C-cf" 'lisp-show-function-documentation)
-  (define-key lisp-mode-map "\C-cv" 'lisp-show-variable-documentation)
+(defun inferior-SciLisp-install-letter-bindings ()
+  (define-key SciLisp-mode-map "\C-ce" 'SciLisp-eval-defun-and-go)
+  (define-key SciLisp-mode-map "\C-cr" 'SciLisp-eval-region-and-go)
+  (define-key SciLisp-mode-map "\C-cc" 'SciLisp-compile-defun-and-go)
+  (define-key SciLisp-mode-map "\C-cz" 'switch-to-SciLisp)
+  (define-key SciLisp-mode-map "\C-cl" 'SciLisp-load-file)
+  (define-key SciLisp-mode-map "\C-ck" 'SciLisp-compile-file)
+  (define-key SciLisp-mode-map "\C-ca" 'SciLisp-show-arglist)
+  (define-key SciLisp-mode-map "\C-cd" 'SciLisp-describe-sym)
+  (define-key SciLisp-mode-map "\C-cf" 'SciLisp-show-function-documentation)
+  (define-key SciLisp-mode-map "\C-cv" 'SciLisp-show-variable-documentation)
 
-  (define-key inferior-lisp-mode-map "\C-cl" 'lisp-load-file)
-  (define-key inferior-lisp-mode-map "\C-ck" 'lisp-compile-file)
-  (define-key inferior-lisp-mode-map "\C-ca" 'lisp-show-arglist)
-  (define-key inferior-lisp-mode-map "\C-cd" 'lisp-describe-sym)
-  (define-key inferior-lisp-mode-map "\C-cf" 'lisp-show-function-documentation)
-  (define-key inferior-lisp-mode-map "\C-cv"
-    'lisp-show-variable-documentation))
+  (define-key inferior-SciLisp-mode-map "\C-cl" 'SciLisp-load-file)
+  (define-key inferior-SciLisp-mode-map "\C-ck" 'SciLisp-compile-file)
+  (define-key inferior-SciLisp-mode-map "\C-ca" 'SciLisp-show-arglist)
+  (define-key inferior-SciLisp-mode-map "\C-cd" 'SciLisp-describe-sym)
+  (define-key inferior-SciLisp-mode-map "\C-cf" 'SciLisp-show-function-documentation)
+  (define-key inferior-SciLisp-mode-map "\C-cv"
+    'SciLisp-show-variable-documentation))
 
-(defcustom inferior-lisp-program "lisp"
-  "Program name for invoking an inferior Lisp in Inferior Lisp mode."
+(defcustom inferior-SciLisp-program "SciLisp"
+  "Program name for invoking an inferior SciLisp in Inferior SciLisp mode."
   :type 'string
-  :group 'inferior-lisp)
+  :group 'inferior-SciLisp)
 
-(defcustom inferior-lisp-load-command "(load \"%s\")\n"
-  "Format-string for building a Lisp expression to load a file.
+(defcustom inferior-SciLisp-load-command "(load \"%s\")\n"
+  "Format-string for building a SciLisp expression to load a file.
 This format string should use `%s' to substitute a file name
-and should result in a Lisp expression that will command the inferior Lisp
-to load that file.  The default works acceptably on most Lisps.
+and should result in a SciLisp expression that will command the inferior SciLisp
+to load that file.  The default works acceptably on most SciLisps.
 The string \"(progn (load \\\"%s\\\" :verbose nil :print t) (values))\\n\"
 produces cosmetically superior output for this application,
-but it works only in Common Lisp."
+but it works only in Common SciLisp."
   :type 'string
-  :group 'inferior-lisp)
+  :group 'inferior-SciLisp)
 
-(defcustom inferior-lisp-prompt "^[^> \n]*>+:? *"
+(defcustom inferior-SciLisp-prompt "^[^> \n]*>+:? *"
   "Regexp to recognize prompts in the Inferior Lisp mode.
 Defaults to \"^[^> \\n]*>+:? *\", which works pretty good for Lucid, kcl,
 and franz.  This variable is used to initialize `comint-prompt-regexp' in the
@@ -1412,75 +1335,75 @@ kcl: \"^>+ *\""
   :type 'regexp
   :group 'inferior-lisp)
 
-(defvar inferior-lisp-buffer nil "*The current inferior-lisp process buffer.
+(defvar inferior-SciLisp-buffer nil "*The current inferior-SciLisp process buffer.
 
 MULTIPLE PROCESS SUPPORT
 ===========================================================================
-To run multiple Lisp processes, you start the first up
-with \\[inferior-lisp].  It will be in a buffer named `*inferior-lisp*'.
+To run multiple SciLisp processes, you start the first up
+with \\[inferior-SciLisp].  It will be in a buffer named `*inferior-SciLisp*'.
 Rename this buffer with \\[rename-buffer].  You may now start up a new
-process with another \\[inferior-lisp].  It will be in a new buffer,
-named `*inferior-lisp*'.  You can switch between the different process
+process with another \\[inferior-SciLisp].  It will be in a new buffer,
+named `*inferior-SciLisp*'.  You can switch between the different process
 buffers with \\[switch-to-buffer].
 
-Commands that send text from source buffers to Lisp processes --
-like `lisp-eval-defun' or `lisp-show-arglist' -- have to choose a process
-to send to, when you have more than one Lisp process around.  This
-is determined by the global variable `inferior-lisp-buffer'.  Suppose you
-have three inferior Lisps running:
+Commands that send text from source buffers to SciLisp processes --
+like `SciLisp-eval-defun' or `SciLisp-show-arglist' -- have to choose a process
+to send to, when you have more than one SciLisp process around.  This
+is determined by the global variable `inferior-SciLisp-buffer'.  Suppose you
+have three inferior SciLisps running:
     Buffer              Process
-    foo                 inferior-lisp
-    bar                 inferior-lisp<2>
-    *inferior-lisp*     inferior-lisp<3>
-If you do a \\[lisp-eval-defun] command on some Lisp source code,
+    foo                 inferior-SciLisp
+    bar                 inferior-SciLisp<2>
+    *inferior-SciLisp*     inferior-SciLisp<3>
+If you do a \\[SciLisp-eval-defun] command on some SciLisp source code,
 what process do you send it to?
 
-- If you're in a process buffer (foo, bar, or *inferior-lisp*),
+- If you're in a process buffer (foo, bar, or *inferior-SciLisp*),
   you send it to that process.
 - If you're in some other buffer (e.g., a source file), you
-  send it to the process attached to buffer `inferior-lisp-buffer'.
-This process selection is performed by function `inferior-lisp-proc'.
+  send it to the process attached to buffer `inferior-SciLisp-buffer'.
+This process selection is performed by function `inferior-SciLisp-proc'.
 
-Whenever \\[inferior-lisp] fires up a new process, it resets
-`inferior-lisp-buffer' to be the new process's buffer.  If you only run
+Whenever \\[inferior-SciLisp] fires up a new process, it resets
+`inferior-SciLisp-buffer' to be the new process's buffer.  If you only run
 one process, this does the right thing.  If you run multiple
-processes, you might need to change `inferior-lisp-buffer' to
+processes, you might need to change `inferior-SciLisp-buffer' to
 whichever process buffer you want to use.")
 
-(defvar inferior-lisp-mode-hook '()
-  "Hook for customizing Inferior Lisp mode.")
+(defvar inferior-SciLisp-mode-hook '()
+  "Hook for customizing Inferior SciLisp mode.")
 
-(put 'inferior-lisp-mode 'mode-class 'special)
+(put 'inferior-SciLisp-mode 'mode-class 'special)
 
-(define-derived-mode inferior-lisp-mode comint-mode "Inferior Lisp"
-  "Major mode for interacting with an inferior Lisp process.
-Runs a Lisp interpreter as a subprocess of Emacs, with Lisp I/O through an
-Emacs buffer.  Variable `inferior-lisp-program' controls which Lisp interpreter
-is run.  Variables `inferior-lisp-prompt', `inferior-lisp-filter-regexp' and
-`inferior-lisp-load-command' can customize this mode for different Lisp
+(define-derived-mode inferior-SciLisp-mode comint-mode "Inferior SciLisp"
+  "Major mode for interacting with an inferior SciLisp process.
+Runs a SciLisp interpreter as a subprocess of Emacs, with SciLisp I/O through an
+Emacs buffer.  Variable `inferior-SciLisp-program' controls which SciLisp interpreter
+is run.  Variables `inferior-SciLisp-prompt', `inferior-SciLisp-filter-regexp' and
+`inferior-SciLisp-load-command' can customize this mode for different SciLisp
 interpreters.
 
 For information on running multiple processes in multiple buffers, see
-documentation for variable `inferior-lisp-buffer'.
+documentation for variable `inferior-SciLisp-buffer'.
 
-\\{inferior-lisp-mode-map}
+\\{inferior-SciLisp-mode-map}
 
 Customization: Entry to this mode runs the hooks on `comint-mode-hook' and
-`inferior-lisp-mode-hook' (in that order).
+`inferior-SciLisp-mode-hook' (in that order).
 
-You can send text to the inferior Lisp process from other buffers containing
-Lisp source.
-    `switch-to-lisp' switches the current buffer to the Lisp process buffer.
-    `lisp-eval-defun' sends the current defun to the Lisp process.
-    `lisp-compile-defun' compiles the current defun.
-    `lisp-eval-region' sends the current region to the Lisp process.
-    `lisp-compile-region' compiles the current region.
+You can send text to the inferior SciLisp process from other buffers containing
+SciLisp source.
+    `switch-to-SciLisp' switches the current buffer to the SciLisp process buffer.
+    `SciLisp-eval-defun' sends the current defun to the SciLisp process.
+    `SciLisp-compile-defun' compiles the current defun.
+    `SciLisp-eval-region' sends the current region to the SciLisp process.
+    `SciLisp-compile-region' compiles the current region.
 
-    Prefixing the lisp-eval/compile-defun/region commands with
-    a \\[universal-argument] causes a switch to the Lisp process buffer after sending
+    Prefixing the SciLisp-eval/compile-defun/region commands with
+    a \\[universal-argument] causes a switch to the SciLisp process buffer after sending
     the text.
 
-Commands:\\<inferior-lisp-mode-map>
+Commands:\\<inferior-SciLisp-mode-map>
 \\[comint-send-input] after the end of the process' output sends the text from the
     end of process to point.
 \\[comint-send-input] before the end of the process' output copies the sexp ending at point
@@ -1493,72 +1416,73 @@ If `comint-use-prompt-regexp' is nil (the default), \\[comint-insert-input] on o
    `comint-use-prompt-regexp' is non-nil, \\[comint-insert-input] behaves according to
    its global binding.
 \\[backward-delete-char-untabify] converts tabs to spaces as it moves back.
-\\[lisp-indent-line] indents for Lisp; with argument, shifts rest
+\\[SciLisp-indent-line] indents for SciLisp; with argument, shifts rest
     of expression rigidly with the current line.
-\\[indent-sexp] does \\[lisp-indent-line] on each line starting within following expression.
+\\[indent-sexp] does \\[SciLisp-indent-line] on each line starting within following expression.
 Paragraphs are separated only by blank lines.  Semicolons start comments.
 If you accidentally suspend your process, use \\[comint-continue-subjob]
 to continue it."
-  (setq comint-prompt-regexp inferior-lisp-prompt)
+  (setq comint-prompt-regexp inferior-SciLisp-prompt)
   (setq mode-line-process '(":%s"))
-  (lisp-mode-variables t)
-  (setq comint-get-old-input (function lisp-get-old-input))
-  (setq comint-input-filter (function lisp-input-filter)))
+  (SciLisp-mode-variables t)
+  (setq comint-get-old-input (function SciLisp-get-old-input))
+  (setq comint-input-filter (function SciLisp-input-filter)))
 
-(defun lisp-get-old-input ()
+(defun SciLisp-get-old-input ()
   "Return a string containing the sexp ending at point."
   (save-excursion
     (let ((end (point)))
       (backward-sexp)
       (buffer-substring (point) end))))
 
-(defun lisp-input-filter (str)
-  "t if STR does not match `inferior-lisp-filter-regexp'."
-  (not (string-match inferior-lisp-filter-regexp str)))
+(defun SciSciLisp-input-filter (str)
+  "t if STR does not match `inferior-SciSciLisp-filter-regexp'."
+  (not (string-match inferior-SciSciLisp-filter-regexp str)))
 
 ;;;###autoload
-(defun inferior-lisp (cmd)
-  "Run an inferior Lisp process, input and output via buffer `*inferior-lisp*'.
-If there is a process already running in `*inferior-lisp*', just switch
+(defun inferior-SciLisp (cmd)
+  "Run an inferior SciLisp process, input and output via buffer `*inferior-SciLisp*'.
+If there is a process already running in `*inferior-SciLisp*', just switch
 to that buffer.
 With argument, allows you to edit the command line (default is value
-of `inferior-lisp-program').  Runs the hooks from
-`inferior-lisp-mode-hook' (after the `comint-mode-hook' is run).
+of `inferior-SciLisp-program').  Runs the hooks from
+`inferior-SciLisp-mode-hook' (after the `comint-mode-hook' is run).
 \(Type \\[describe-mode] in the process buffer for a list of commands.)"
   (interactive (list (if current-prefix-arg
-			 (read-string "Run lisp: " inferior-lisp-program)
-		       inferior-lisp-program)))
-  (if (not (comint-check-proc "*inferior-lisp*"))
+			 (read-string "Run SciLisp: " inferior-SciLisp-program)
+		       inferior-SciLisp-program)))
+  (if (not (comint-check-proc "*inferior-SciLisp*"))
       (let ((cmdlist (split-string cmd)))
 	(set-buffer (apply (function make-comint)
-			   "inferior-lisp" (car cmdlist) nil (cdr cmdlist)))
-	(inferior-lisp-mode)))
-  (setq inferior-lisp-buffer "*inferior-lisp*")
-  (pop-to-buffer-same-window "*inferior-lisp*"))
+			   "inferior-SciLisp" (car cmdlist) nil (cdr cmdlist)))
+	(inferior-SciLisp-mode)))
+  (setq inferior-SciLisp-buffer "*inferior-SciLisp*")
+  (pop-to-buffer-same-window "*inferior-SciLisp*"))
 
 ;;;###autoload
-(defalias 'run-lisp 'inferior-lisp)
+(defalias 'run-SciLisp 'inferior-SciLisp)
 
-(defun lisp-eval-region (start end &optional and-go)
-  "Send the current region to the inferior Lisp process.
-Prefix argument means switch to the Lisp buffer afterwards."
+(defun SciLisp-eval-region (start end &optional and-go)
+  "Send the current region to the inferior SciLisp process.
+Prefix argument means switch to the SciLisp buffer afterwards."
   (interactive "r\nP")
-  (comint-send-region (inferior-lisp-proc) start end)
-  (comint-send-string (inferior-lisp-proc) "\n")
-  (if and-go (switch-to-lisp t)))
+  (comint-send-region (inferior-SciLisp-proc) start end)
+  (comint-send-string (inferior-SciLisp-proc) "\n")
+  (if and-go (switch-to-SciLisp t)))
 
-(defun lisp-compile-string (string)
-  "Send the string to the inferior Lisp process to be compiled and executed."
+(defun SciLisp-compile-string (string)
+  "Send the string to the inferior SciLisp process to be compiled and executed."
   (comint-send-string
-   (inferior-lisp-proc)
-   (format "(funcall (compile nil (lambda () %s)))\n" string)))
+   (inferior-SciLisp-proc)
+   (format "%s\n" string){))
+;   (format "(funcall (compile nil (lambda () %s)))\n" string)))
 
-(defun lisp-eval-string (string)
-  "Send the string to the inferior Lisp process to be executed."
-  (comint-send-string (inferior-lisp-proc) (concat string "\n")))
+(defun SciLisp-eval-string (string)
+  "Send the string to the inferior SciLisp process to be executed."
+  (comint-send-string (inferior-SciLisp-proc) (concat string "\n")))
 
-(defun lisp-do-defun (do-string do-region)
-  "Send the current defun to the inferior Lisp process.
+(defun SciLisp-do-defun (do-string do-region)
+  "Send the current defun to the inferior SciLisp process.
 The actually processing is done by `do-string' and `do-region'
  which determine whether the code is compiled before evaluation.
 DEFVAR forms reset the variables to the init values."
@@ -1575,153 +1499,116 @@ DEFVAR forms reset the variables to the init values."
                            "\n"))
         (funcall do-region (point) end)))))
 
-(defun lisp-eval-defun (&optional and-go)
-  "Send the current defun to the inferior Lisp process.
+(defun SciLisp-eval-defun (&optional and-go)
+  "Send the current defun to the inferior SciLisp process.
 DEFVAR forms reset the variables to the init values.
-Prefix argument means switch to the Lisp buffer afterwards."
+Prefix argument means switch to the SciLisp buffer afterwards."
   (interactive "P")
-  (lisp-do-defun 'lisp-eval-string 'lisp-eval-region)
-  (if and-go (switch-to-lisp t)))
+  (SciLisp-do-defun 'SciLisp-eval-string 'SciLisp-eval-region)
+  (if and-go (switch-to-SciLisp t)))
 
-(defun lisp-eval-last-sexp (&optional and-go)
-  "Send the previous sexp to the inferior Lisp process.
-Prefix argument means switch to the Lisp buffer afterwards."
+(defun SciLisp-eval-last-sexp (&optional and-go)
+  "Send the previous sexp to the inferior SciLisp process.
+Prefix argument means switch to the SciLisp buffer afterwards."
   (interactive "P")
-  (lisp-eval-region (save-excursion (backward-sexp) (point)) (point) and-go))
+  (SciLisp-eval-region (save-excursion (backward-sexp) (point)) (point) and-go))
 
-(defun lisp-compile-region (start end &optional and-go)
-  "Compile the current region in the inferior Lisp process.
-Prefix argument means switch to the Lisp buffer afterwards."
+(defun SciLisp-compile-region (start end &optional and-go)
+  "Compile the current region in the inferior SciLisp process.
+Prefix argument means switch to the SciLisp buffer afterwards."
   (interactive "r\nP")
-  (lisp-compile-string (buffer-substring-no-properties start end))
-  (if and-go (switch-to-lisp t)))
+  (SciLisp-compile-string (buffer-substring-no-properties start end))
+  (if and-go (switch-to-SciLisp t)))
 
-(defun lisp-compile-defun (&optional and-go)
-  "Compile the current defun in the inferior Lisp process.
+(defun SciLisp-compile-defun (&optional and-go)
+  "Compile the current defun in the inferior SciLisp process.
 DEFVAR forms reset the variables to the init values.
-Prefix argument means switch to the Lisp buffer afterwards."
+Prefix argument means switch to the SciLisp buffer afterwards."
   (interactive "P")
-  (lisp-do-defun 'lisp-compile-string 'lisp-compile-region)
-  (if and-go (switch-to-lisp t)))
+  (SciLisp-do-defun 'SciLisp-compile-string 'SciLisp-compile-region)
+  (if and-go (switch-to-SciLisp t)))
 
-(defun switch-to-lisp (eob-p)
-  "Switch to the inferior Lisp process buffer.
+(defun switch-to-SciLisp (eob-p)
+  "Switch to the inferior SciLisp process buffer.
 With argument, positions cursor at end of buffer."
   (interactive "P")
-  (if (get-buffer-process inferior-lisp-buffer)
+  (if (get-buffer-process inferior-SciLisp-buffer)
       (let ((pop-up-frames
 	     ;; Be willing to use another frame
 	     ;; that already has the window in it.
 	     (or pop-up-frames
-		 (get-buffer-window inferior-lisp-buffer t))))
-	(pop-to-buffer inferior-lisp-buffer))
-      (run-lisp inferior-lisp-program))
+		 (get-buffer-window inferior-SciLisp-buffer t))))
+	(pop-to-buffer inferior-SciLisp-buffer))
+      (run-SciLisp inferior-SciLisp-program))
   (when eob-p
 	 (push-mark)
     (goto-char (point-max))))
 
 
-;;; Now that lisp-compile/eval-defun/region takes an optional prefix arg,
+;;; Now that SciLisp-compile/eval-defun/region takes an optional prefix arg,
 ;;; these commands are redundant. But they are kept around for the user
 ;;; to bind if he wishes, for backwards functionality, and because it's
 ;;; easier to type C-c e than C-u C-c C-e.
 
-(defun lisp-eval-region-and-go (start end)
-  "Send the current region to the inferior Lisp, and switch to its buffer."
+(defun SciLisp-eval-region-and-go (start end)
+  "Send the current region to the inferior SciLisp, and switch to its buffer."
   (interactive "r")
-  (lisp-eval-region start end t))
+  (SciLisp-eval-region start end t))
 
-(defun lisp-eval-defun-and-go ()
-  "Send the current defun to the inferior Lisp, and switch to its buffer."
+(defun SciLisp-eval-defun-and-go ()
+  "Send the current defun to the inferior SciLisp, and switch to its buffer."
   (interactive)
-  (lisp-eval-defun t))
+  (SciLisp-eval-defun t))
 
-(defun lisp-compile-region-and-go (start end)
-  "Compile the current region in the inferior Lisp, and switch to its buffer."
+(defun SciLisp-compile-region-and-go (start end)
+  "Compile the current region in the inferior SciLisp, and switch to its buffer."
   (interactive "r")
-  (lisp-compile-region start end t))
+  (SciLisp-compile-region start end t))
 
-(defun lisp-compile-defun-and-go ()
-  "Compile the current defun in the inferior Lisp, and switch to its buffer."
+(defun SciLisp-compile-defun-and-go ()
+  "Compile the current defun in the inferior SciLisp, and switch to its buffer."
   (interactive)
-  (lisp-compile-defun t))
+  (SciLisp-compile-defun t))
 
-;;; A version of the form in H. Shevis' soar-mode.el package. Less robust.
-;;; (defun lisp-compile-sexp (start end)
-;;;   "Compile the s-expression bounded by START and END in the inferior lisp.
-;;; If the sexp isn't a DEFUN form, it is evaluated instead."
-;;;   (cond ((looking-at "(defun\\s +")
-;;; 	 (goto-char (match-end 0))
-;;; 	 (let ((name-start (point)))
-;;; 	   (forward-sexp 1)
-;;; 	   (process-send-string "inferior-lisp"
-;;; 				(format "(compile '%s #'(lambda "
-;;; 					(buffer-substring name-start
-;;; 							  (point)))))
-;;; 	 (let ((body-start (point)))
-;;; 	   (goto-char start) (forward-sexp 1) ; Can't use end-of-defun.
-;;; 	   (process-send-region "inferior-lisp"
-;;; 				(buffer-substring body-start (point))))
-;;; 	 (process-send-string "inferior-lisp" ")\n"))
-;;; 	(t (lisp-eval-region start end)))))
-;;;
-;;; (defun lisp-compile-region (start end)
-;;;   "Each s-expression in the current region is compiled (if a DEFUN)
-;;; or evaluated (if not) in the inferior lisp."
-;;;   (interactive "r")
-;;;   (save-excursion
-;;;     (goto-char start) (end-of-defun) (beginning-of-defun) ; error check
-;;;     (if (< (point) start) (error "region begins in middle of defun"))
-;;;     (goto-char start)
-;;;     (let ((s start))
-;;;       (end-of-defun)
-;;;       (while (<= (point) end) ; Zip through
-;;; 	(lisp-compile-sexp s (point)) ; compiling up defun-sized chunks.
-;;; 	(setq s (point))
-;;; 	(end-of-defun))
-;;;       (if (< s end) (lisp-compile-sexp s end)))))
-;;;
-;;; End of HS-style code
-
-
-(defvar lisp-prev-l/c-dir/file nil
+(defvar SciLisp-prev-l/c-dir/file nil
   "Record last directory and file used in loading or compiling.
 This holds a cons cell of the form `(DIRECTORY . FILE)'
-describing the last `lisp-load-file' or `lisp-compile-file' command.")
+describing the last `SciLisp-load-file' or `SciLisp-compile-file' command.")
 
-(defcustom lisp-source-modes '(lisp-mode)
-  "Used to determine if a buffer contains Lisp source code.
+(defcustom SciLisp-source-modes '(SciLisp-mode)
+  "Used to determine if a buffer contains SciLisp source code.
 If it's loaded into a buffer that is in one of these major modes, it's
-considered a Lisp source file by `lisp-load-file' and `lisp-compile-file'.
+considered a SciLisp source file by `SciLisp-load-file' and `SciLisp-compile-file'.
 Used by these commands to determine defaults."
   :type '(repeat symbol)
-  :group 'inferior-lisp)
+  :group 'inferior-SciLisp)
 
-(defun lisp-load-file (file-name)
-  "Load a Lisp file into the inferior Lisp process."
-  (interactive (comint-get-source "Load Lisp file: " lisp-prev-l/c-dir/file
-				  lisp-source-modes nil)) ; nil because LOAD
+(defun SciLisp-load-file (file-name)
+  "Load a SciLisp file into the inferior SciLisp process."
+  (interactive (comint-get-source "Load SciLisp file: " SciLisp-prev-l/c-dir/file
+				  SciLisp-source-modes nil)) ; nil because LOAD
 					; doesn't need an exact name
   (comint-check-source file-name) ; Check to see if buffer needs saved.
-  (setq lisp-prev-l/c-dir/file (cons (file-name-directory    file-name)
+  (setq SciLisp-prev-l/c-dir/file (cons (file-name-directory    file-name)
 				     (file-name-nondirectory file-name)))
-  (comint-send-string (inferior-lisp-proc)
-		      (format inferior-lisp-load-command file-name))
-  (switch-to-lisp t))
+  (comint-send-string (inferior-SciLisp-proc)
+		      (format inferior-SciLisp-load-command file-name))
+  (switch-to-SciLisp t))
 
 
-(defun lisp-compile-file (file-name)
-  "Compile a Lisp file in the inferior Lisp process."
-  (interactive (comint-get-source "Compile Lisp file: " lisp-prev-l/c-dir/file
-				  lisp-source-modes nil)) ; nil = don't need
-					; suffix .lisp
+(defun SciLisp-compile-file (file-name)
+  "Compile a SciLisp file in the inferior SciLisp process."
+  (interactive (comint-get-source "Compile SciLisp file: " SciLisp-prev-l/c-dir/file
+				  SciLisp-source-modes nil)) ; nil = don't need
+					; suffix .SciLisp
   (comint-check-source file-name) ; Check to see if buffer needs saved.
-  (setq lisp-prev-l/c-dir/file (cons (file-name-directory    file-name)
+  (setq SciLisp-prev-l/c-dir/file (cons (file-name-directory    file-name)
 				     (file-name-nondirectory file-name)))
-  (comint-send-string (inferior-lisp-proc) (concat "(compile-file \""
-						   file-name
-						   "\"\)\n"))
-  (switch-to-lisp t))
+  ;; (comint-send-string (inferior-SciLisp-proc) (concat "(compile-file \""
+  ;;       					   file-name
+  ;;       					   "\"\)\n"))
+  (comint-send-string (inferior-SciLisp-proc) "")
+  (switch-to-SciLisp t))
 
 
 
@@ -1732,36 +1619,36 @@ Used by these commands to determine defaults."
 ;;; Command strings
 ;;; ===============
 
-(defvar lisp-function-doc-command
+(defvar SciLisp-function-doc-command
   "(let ((fn '%s))
      (format t \"Documentation for ~a:~&~a\"
-	     fn (documentation fn 'function))
+	     fn (documentation fn))
      (values))\n"
-  "Command to query inferior Lisp for a function's documentation.")
+  "Command to query inferior SciLisp for a function's documentation.")
 
-(defvar lisp-var-doc-command
+(defvar SciLisp-var-doc-command
   "(let ((v '%s))
      (format t \"Documentation for ~a:~&~a\"
-	     v (documentation v 'variable))
+	     v (documentation v))
      (values))\n"
-  "Command to query inferior Lisp for a variable's documentation.")
+  "Command to query inferior SciLisp for a variable's documentation.")
 
-(defvar lisp-arglist-command
+(defvar SciLisp-arglist-command
   "(let ((fn '%s))
      (format t \"Arglist for ~a: ~a\" fn (arglist fn))
      (values))\n"
-  "Command to query inferior Lisp for a function's arglist.")
+  "Command to query inferior SciLisp for a function's arglist.")
 
-(defvar lisp-describe-sym-command
+(defvar SciLisp-describe-sym-command
   "(describe '%s)\n"
-  "Command to query inferior Lisp for a variable's documentation.")
+  "Command to query inferior SciLisp for a variable's documentation.")
 
 
 ;;; Ancillary functions
 ;;; ===================
 
 ;;; Reads a string from the user.
-(defun lisp-symprompt (prompt default)
+(defun SciLisp-symprompt (prompt default)
   (list (let* ((prompt (if default
 			   (format "%s (default %s): " prompt default)
 			 (concat prompt ": ")))
@@ -1770,7 +1657,7 @@ Used by these commands to determine defaults."
 
 
 ;;; Adapted from function-called-at-point in help.el.
-(defun lisp-fn-called-at-pt ()
+(defun SciLisp-fn-called-at-pt ()
   "Returns the name of the function called in the current call.
 The value is nil if it can't find one."
   (condition-case nil
@@ -1785,7 +1672,7 @@ The value is nil if it can't find one."
 
 
 ;;; Adapted from variable-at-point in help.el.
-(defun lisp-var-at-pt ()
+(defun SciLisp-var-at-pt ()
   (condition-case ()
       (save-excursion
 	(forward-sexp -1)
@@ -1798,73 +1685,73 @@ The value is nil if it can't find one."
 ;;; Documentation functions: fn and var doc, arglist, and symbol describe.
 ;;; ======================================================================
 
-(defun lisp-show-function-documentation (fn)
-  "Send a command to the inferior Lisp to give documentation for function FN.
-See variable `lisp-function-doc-command'."
-  (interactive (lisp-symprompt "Function doc" (lisp-fn-called-at-pt)))
-  (comint-proc-query (inferior-lisp-proc)
-		     (format lisp-function-doc-command fn)))
+(defun SciLisp-show-function-documentation (fn)
+  "Send a command to the inferior SciLisp to give documentation for function FN.
+See variable `SciLisp-function-doc-command'."
+  (interactive (SciLisp-symprompt "Function doc" (SciLisp-fn-called-at-pt)))
+  (comint-proc-query (inferior-SciLisp-proc)
+		     (format SciLisp-function-doc-command fn)))
 
-(defun lisp-show-variable-documentation (var)
-  "Send a command to the inferior Lisp to give documentation for function FN.
-See variable `lisp-var-doc-command'."
-  (interactive (lisp-symprompt "Variable doc" (lisp-var-at-pt)))
-  (comint-proc-query (inferior-lisp-proc) (format lisp-var-doc-command var)))
+(defun SciLisp-show-variable-documentation (var)
+  "Send a command to the inferior SciLisp to give documentation for function FN.
+See variable `SciLisp-var-doc-command'."
+  (interactive (SciLisp-symprompt "Variable doc" (SciLisp-var-at-pt)))
+  (comint-proc-query (inferior-SciLisp-proc) (format SciLisp-var-doc-command var)))
 
-(defun lisp-show-arglist (fn)
-  "Send a query to the inferior Lisp for the arglist for function FN.
-See variable `lisp-arglist-command'."
-  (interactive (lisp-symprompt "Arglist" (lisp-fn-called-at-pt)))
-  (comint-proc-query (inferior-lisp-proc) (format lisp-arglist-command fn)))
+(defun SciLisp-show-arglist (fn)
+  "Send a query to the inferior SciLisp for the arglist for function FN.
+See variable `SciLisp-arglist-command'."
+  (interactive (SciLisp-symprompt "Arglist" (SciLisp-fn-called-at-pt)))
+  (comint-proc-query (inferior-SciLisp-proc) (format SciLisp-arglist-command fn)))
 
-(defun lisp-describe-sym (sym)
-  "Send a command to the inferior Lisp to describe symbol SYM.
-See variable `lisp-describe-sym-command'."
-  (interactive (lisp-symprompt "Describe" (lisp-var-at-pt)))
-  (comint-proc-query (inferior-lisp-proc)
-		     (format lisp-describe-sym-command sym)))
+(defun SciLisp-describe-sym (sym)
+  "Send a command to the inferior SciLisp to describe symbol SYM.
+See variable `SciLisp-describe-sym-command'."
+  (interactive (SciLisp-symprompt "Describe" (SciLisp-var-at-pt)))
+  (comint-proc-query (inferior-SciLisp-proc)
+		     (format SciLisp-describe-sym-command sym)))
 
 
-;;  "Returns the current inferior Lisp process.
-;; See variable `inferior-lisp-buffer'."
-(defun inferior-lisp-proc ()
-  (let ((proc (get-buffer-process (if (derived-mode-p 'inferior-lisp-mode)
+;;  "Returns the current inferior SciLisp process.
+;; See variable `inferior-SciLisp-buffer'."
+(defun inferior-SciLisp-proc ()
+  (let ((proc (get-buffer-process (if (derived-mode-p 'inferior-SciLisp-mode)
 				      (current-buffer)
-				    inferior-lisp-buffer))))
+				    inferior-SciLisp-buffer))))
     (or proc
-	(error "No Lisp subprocess; see variable `inferior-lisp-buffer'"))))
+	(error "No SciLisp subprocess; see variable `inferior-SciLisp-buffer'"))))
 
 
 ;;; Do the user's customization...
 ;;;===============================
-(defvar inferior-lisp-load-hook nil
-  "This hook is run when the library `inf-lisp' is loaded.")
+(defvar inferior-SciLisp-load-hook nil
+  "This hook is run when the library `inf-SciLisp' is loaded.")
 
-(run-hooks 'inferior-lisp-load-hook)
+(run-hooks 'inferior-SciLisp-load-hook)
 
 ;;; CHANGE LOG
 ;;; ===========================================================================
 ;;; 7/21/92 Jim Blandy
-;;; - Changed all uses of the cmulisp name or prefix to inferior-lisp;
-;;;   this is now the official inferior lisp package.  Use the global
+;;; - Changed all uses of the cmuSciLisp name or prefix to inferior-SciLisp;
+;;;   this is now the official inferior SciLisp package.  Use the global
 ;;;   ChangeLog from now on.
 ;;; 5/24/90 Olin
-;;; - Split cmulisp and cmushell modes into separate files.
+;;; - Split cmuSciLisp and cmushell modes into separate files.
 ;;;   Not only is this a good idea, it's apparently the way it'll be rel 19.
 ;;; - Upgraded process sends to use comint-send-string instead of
 ;;;   process-send-string.
-;;; - Explicit references to process "cmulisp" have been replaced with
-;;;   (cmulisp-proc). This allows better handling of multiple process bufs.
+;;; - Explicit references to process "cmuSciLisp" have been replaced with
+;;;   (cmuSciLisp-proc). This allows better handling of multiple process bufs.
 ;;; - Added process query and var/function/symbol documentation
 ;;;   commands. Based on code written by Douglas Roberts.
-;;; - Added lisp-eval-last-sexp, bound to C-x C-e.
+;;; - Added SciLisp-eval-last-sexp, bound to C-x C-e.
 ;;;
 ;;; 9/20/90 Olin
-;;; Added a save-restriction to lisp-fn-called-at-pt. This bug and fix
+;;; Added a save-restriction to SciLisp-fn-called-at-pt. This bug and fix
 ;;; reported by Lennart Staflin.
 ;;;
 ;;; 3/12/90 Olin
-;;; - lisp-load-file and lisp-compile-file no longer switch-to-lisp.
+;;; - SciLisp-load-file and SciLisp-compile-file no longer switch-to-SciLisp.
 ;;;   Tale suggested this.
 ;;; - Reversed this decision 7/15/91. You need the visual feedback.
 ;;;
@@ -1874,18 +1761,18 @@ See variable `lisp-describe-sym-command'."
 ;;; mainly the compile/eval-defun/region[-and-go] commands.
 ;;; This was painful, but necessary to adhere to the gnumacs standard.
 ;;; For some backwards compatibility, see the
-;;;     cmulisp-install-letter-bindings
+;;;     cmuSciLisp-install-letter-bindings
 ;;; function.
 ;;;
 ;;; 8/2/91 Olin
-;;; - The lisp-compile/eval-defun/region commands now take a prefix arg,
-;;;   which means switch-to-lisp after sending the text to the Lisp process.
+;;; - The SciLisp-compile/eval-defun/region commands now take a prefix arg,
+;;;   which means switch-to-SciLisp after sending the text to the SciLisp process.
 ;;;   This obsoletes all the -and-go commands. The -and-go commands are
 ;;;   kept around for historical reasons, and because the user can bind
 ;;;   them to key sequences shorter than C-u C-c C-<letter>.
-;;; - If M-x cmulisp is invoked with a prefix arg, it allows you to
+;;; - If M-x cmuSciLisp is invoked with a prefix arg, it allows you to
 ;;;   edit the command line.
 
-(provide 'inf-lisp)
+(provide 'inf-SciLisp)
 
-;;; inf-lisp.el ends here
+;;; inf-SciLisp.el ends here

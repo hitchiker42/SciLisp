@@ -108,7 +108,6 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 AC_CHECK_TYPES([ptrdiff_t])
-
 # Checks for library functions.
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK
@@ -119,6 +118,16 @@ AC_FUNC_STRTOD
 AC_FUNC_ALLOCA
 AC_CHECK_FUNCS([btowc doprnt floor gettimeofday isascii mbrlen memmove memset nl_langinfo re_comp regcomp strchr strerror strtol strtoumax])
 
+#architecture check (and if cpu == x86_64 check available features)
+AC_MSG_CHECKING([if compiling for x86_64])
+AC_CANONICAL_HOST
+AS_IF([test "x$host_cpu" = xx86_64],
+        [AC_MSG_RESULT([yes])]
+        [AC_MSG_CHECKING([for latest supported simd instruction set])]
+        [simd_features=`extra/cpuid -l`] dnl; CFLAGS="$CFLAGS $simd_features"]
+        [AC_SUBST(SIMD_SET,$simd_features)]
+        [AC_MSG_RESULT([$simd_features])],
+        [AC_MSG_RESULT([no])])
 AC_CONFIG_FILES([Makefile
                  SFMT/Makefile])
 #AC_CONFIG_SUBDIRS([bignum/gmp

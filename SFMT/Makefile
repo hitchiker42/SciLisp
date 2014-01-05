@@ -184,7 +184,8 @@ AUTOMAKE = ${SHELL} /home/tucker/Repo/SciLisp/build-aux/missing automake-1.14
 AWK = gawk
 CC = gcc -std=gnu99
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CFLAGS = -g -O2 $(OPTI) $(WARN) $(STD) -fPIC -rdynamic -m$(SIMD_SET) \
+	-DHAVE_SSE2
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -239,6 +240,7 @@ RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
+SIMD_SET = avx2
 STRIP = strip
 VERSION = 0.01
 abs_builddir = /home/tucker/Repo/SciLisp/SFMT
@@ -299,9 +301,8 @@ OPTI = -O3 -finline-functions -fomit-frame-pointer -DNDEBUG \
 -fkeep-inline-functions
 
 STD = -std=c99 -D_GNU_SOURCE
-CCFLAGS = $(OPTI) $(WARN) $(STD) -fPIC -rdynamic -msse2 -DHAVE_SSE2
 SSE2FLAGS = -msse2 -DHAVE_SSE2
-AM_CFLAGS = $(CFLAGS) $(CCFLAGS)
+#AM_CFLAGS = $(CFLAGS) $(CCFLAGS)
 #STD_TARGET = test-std-M19937
 #CCFLAGS += --param inline-unit-growth=500 \
 #--param large-function-growth=900
