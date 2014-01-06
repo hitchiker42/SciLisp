@@ -7,7 +7,6 @@
 #include "prim.h"
 #include "print.h"
 #include "codegen.h"
-#include "lex.yy.h"
 #include <sys/mman.h>
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
@@ -42,7 +41,7 @@ static sexp *lisp_history;
 static char *line_read;
 static void SciLisp_getopt(int argc,char *argv[]);
 static sexp eval_log(sexp expr,env *cur_env);
-static void inferior_scilisp() __attribute__((noreturn));
+static void inferior_scilisp();// __attribute__((noreturn));
 void handle_sigsegv(int signal) __attribute__((noreturn));
 void handle_sigsegv(int signal){
   if(!quiet_signals){
@@ -71,7 +70,7 @@ const struct sigaction action_object={.sa_handler=&handle_sigsegv};
 const struct sigaction* restrict sigsegv_action=&action_object;
 #define reset_line()       free (line_read);    \
   line_read = (char *)NULL
-extern FILE* yyin;
+//extern FILE* yyin;
 /*Scan a line, subtract 1 from parens for each ")"
  *add 1 to parens for each "(", return -1 if we find a close parenteses
  *without an opening one.
@@ -107,7 +106,10 @@ int compile(FILE* input,const char *output,FILE* c_code){
     fputs("compilation error\n",stderr);
     exit(-1);
   } else {
-    sexp ast=yyparse(input);
+    //    sexp ast=yyparse(input);
+    yyscan_t scanner;
+    yylex_init(&scanner);
+    sexp ast=yyparse(input,scanner);
     if(NILP(ast)){
       CORD_printf("parsing failed exiting compiler\n");
       exit(1);
@@ -253,6 +255,8 @@ int main(int argc,char* argv[]){
   GC_set_all_interior_pointers(1);
   GC_set_handle_fork(1);
   GC_init();
+  //setup global lexer
+  yylex_init(&global_scanner);
 #if defined (MULTI_THREADED)
   pthread_t initPrims_thread;
   pthread_t getopt_thread;
@@ -279,7 +283,10 @@ int main(int argc,char* argv[]){
                   'X','X','X','X','X','X','\0'};
   int fd=mkstemp(tmpFile);
   FILE* my_pipe=fdopen(fd,"w+");
-  yyin=my_pipe;
+  yyscan_t scanner;
+  yylex_init(&scanner);
+  yyset_in(my_pipe,scanner);
+  //  yyin=my_pipe;
   #ifdef HAVE_READLINE
   rl_set_signals();
   rl_variable_bind("blink-matching-paren","on");
@@ -306,14 +313,16 @@ int main(int argc,char* argv[]){
     if(setjmp(error_buf)){
       PRINT_MSG("jumped to error");
       //printf(error_str);
-      yyrestart(yyin);
+      //yyrestart(yyin);
+      yyrestart(my_pipe,scanner);
     }
     if(evalError){
       truncate_and_rewind(my_pipe,tmpFile);
       evalError=0;
-      yyrestart(yyin);
+      //yyrestart(yyin);
+      yyrestart(my_pipe,scanner);
     }
-    //try to parallize this for practice
+    //try to parallize this for practice..maybe, maybe not
     //3 threads, one to read, one to parse and one to eval and print
     //read
     #ifdef HAVE_READLINE
@@ -323,7 +332,8 @@ int main(int argc,char* argv[]){
     #endif
     fseeko(my_pipe,start_pos,SEEK_SET);
     //eval;
-    ast=yyparse(my_pipe);
+    //    ast=yyparse(my_pipe);
+    ast=yyparse(my_pipe,scanner);
     //print
     if(!NILP(ast)){
       lisp_ans_ptr->val=evalFun(XCAR(ast),topLevelEnv);
@@ -473,8 +483,11 @@ static void SciLisp_getopt(int argc,char *argv[]){
         if(setjmp(error_buf)){
           fprintf(stderr,"parsing failed exiting\n");
           exit(1);
-        }
-        ast=yyparse(file);
+        }        
+        yyscan_t scanner;
+        yylex_init(&scanner);
+        //        ast=yyparse(file);
+        ast=yyparse(file,scanner);
         error_buf;
         //PRINT_MSG(print(ast));
         while(CONSP(ast)){
@@ -499,11 +512,16 @@ static void SciLisp_getopt(int argc,char *argv[]){
         sexp ast;
         FILE* file=fopen(optarg,"r");
         ENSURE_PRIMS_INITIALIZED();
-        ast=yyparse(file);
+        CORD_debug_printf=CORD_ndebug_printf;
+        debug_printf=ndebug_printf;
+        ast=yyparse(file,global_scanner);
+        //ast=yyparse(file);
         while (CONSP(ast)){
           sexp result=eval(XCAR(ast),topLevelEnv);
           ast=XCDR(ast);
         };
+        CORD_debug_printf=default_CORD_debug_printf;
+        debug_printf=default_debug_printf;
         break;
       }
       case 'r':{
@@ -538,7 +556,10 @@ static void SciLisp_getopt(int argc,char *argv[]){
           fprintf(my_stderr,"parsing failed exiting\n");
           exit(1);
         }
-        sexp ast=yyparse(file);
+        yyscan_t scanner;
+        yylex_init(&scanner);
+        //sexp ast=yyparse(file);
+        sexp ast=yyparse(file,scanner);
         sexp result;
         while (CONSP(ast)){
           if(setjmp(error_buf)){
@@ -590,7 +611,13 @@ static void SciLisp_getopt(int argc,char *argv[]){
           fprintf(stderr,"parsing failed exiting\n");
           exit(1);
         }
-        sexp ast=yyparse(file);
+        fprintf(stderr,"before parse init");
+        yyscan_t scanner;
+        yylex_init(&scanner);
+        //sexp ast=yyparse(file);
+        fprintf(stderr,"before parse");
+        sexp ast=yyparse(file,scanner);
+        fprintf(stderr,"after parse");
         int exit_value=0;
         puts("Testing:");
         while (CONSP(ast)){

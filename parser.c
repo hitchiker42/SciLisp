@@ -8,24 +8,23 @@
 #include "common.h"
 #include "cons.h"
 #include "lex.yy.h"
-#define nextTok() (yytag=yylex())
+//#define nextTok() (yytag=yylex())
+#define nextTok() (yytag=yylex(yylval,scanner))
 #define parse_next_sexp()                       \
   nextTok();                                    \
-  parse_sexp()
-sexp ast={0};//generated ast
-cons* cur_pos;//pointer to current location in ast
-TOKEN yytag;//current token
+  parse_sexp(yylval,scanner)
 int evalError=0;
 static jmp_buf ERROR;//location of error handling function
 static int inside_backquote=0;//global flag to determine how to handle a comma
-static sexp parse_atom();
-static sexp parse_cons();
-sexp parse_sexp();
-static sexp parse_backtick();
-static sexp parse_list();
-static sexp parse_arg_list();
-static sexp parse_function_args();
-static sexp parse_function(int has_name,int need_rparen);
+static sexp parse_atom(sexp*,yyscan_t,TOKEN);
+static sexp parse_cons(sexp*,yyscan_t,TOKEN);
+sexp parse_sexp(sexp*,yyscan_t,TOKEN);
+static sexp parse_backtick(sexp*,yyscan_t,TOKEN);
+static sexp parse_list(sexp*,yyscan_t,TOKEN);
+static sexp parse_arg_list(sexp*,yyscan_t,TOKEN);
+static sexp parse_function_args(sexp*,yyscan_t,TOKEN);
+static sexp parse_function(int has_name,int need_rparen,
+                           sexp *yylval,yyscan_t scanner,TOKEN);
 sexp error_val=NIL_MACRO();
 static void error_recovery();
 static void handle_error() __attribute__((noreturn));
@@ -33,8 +32,13 @@ static void handle_error(){
   evalError=1;
   longjmp(ERROR,-1);
 }
+sexp yyparse(FILE *input,yyscan_t scanner){
 //entry point
-sexp yyparse(FILE* input){
+//sexp yyparse(FILE *input){
+  sexp ast={0};//generated ast
+  cons* cur_pos;//pointer to current location in ast
+  TOKEN yytag;//current token
+  sexp *yylval=xmalloc(sizeof(sexp));
   //error handling
   if(setjmp(ERROR)){
     fprintf(stderr,"Parse error\n");
@@ -51,13 +55,13 @@ sexp yyparse(FILE* input){
     longjmp(error_buf,-1);
     return NIL;
   } else{//normal parsing
-    yyrestart(input);
+    yyrestart(input,scanner);
+    //yyrestart(input);
     ast.tag=_cons;
     cons* cur_pos=ast.val.cons=xmalloc(sizeof(cons));
     cons* prev_pos=cur_pos;
-    yylval=xmalloc(sizeof(sexp));
     while((nextTok()) != -1){
-      cur_pos->car=parse_sexp();
+      cur_pos->car=parse_sexp(yylval,scanner,yytag);
       cur_pos->cdr=cons_sexp(xmalloc(sizeof(cons)));
       prev_pos=cur_pos;
       cur_pos=cur_pos->cdr.val.cons;
@@ -67,13 +71,13 @@ sexp yyparse(FILE* input){
   }
   handle_error();
 }
-sexp parse_sexp(){
+sexp parse_sexp(sexp *yylval,yyscan_t scanner,TOKEN yytag){
   switch(yytag){
     case TOK_QUOTE:{
       if(nextTok() == TOK_LPAREN){
-        return parse_list();
+        return parse_list(yylval,scanner,yytag);
       } else {
-        sexp retval = parse_sexp();
+        sexp retval = parse_sexp(yylval,scanner,yytag);
         if(SYMBOLP(retval)){
           retval.val.var->val.quoted=1;
         }
@@ -92,7 +96,7 @@ sexp parse_sexp(){
           is_spliced_list=1;
           nextTok();
         }
-        sexp retval=parse_sexp();
+        sexp retval=parse_sexp(yylval,scanner,yytag);
         retval.has_comma=1;
         if(is_spliced_list){
           retval.meta=_splice_list;
@@ -104,15 +108,15 @@ sexp parse_sexp(){
     case TOK_QUASI:{
       inside_backquote=1;
       //kind of a hack
-      //sexp retval=parse_backtick();
-      sexp retval = XCAR(parse_backtick());
+      //sexp retval=parse_backtick(yylval,scanner,yytag);
+      sexp retval = XCAR(parse_backtick(yylval,scanner,yytag));
       retval.has_comma=1;
       retval.quoted=1;
       inside_backquote=0;
       return retval;
     }
     case TOK_LPAREN:{
-      return parse_cons();
+      return parse_cons(yylval,scanner,yytag);
     }
     case TOK_UNKN:{
       format_error_str("unknown token %lc recieved, discarding current input",
@@ -120,11 +124,11 @@ sexp parse_sexp(){
       handle_error();
     }
     default:{
-      return parse_atom();
+      return parse_atom(yylval,scanner,yytag);
     }
   }
 }
-sexp parse_cons(){
+sexp parse_cons(sexp *yylval,yyscan_t scanner,TOKEN yytag){
   //sexp* result=xmalloc(sizeof(sexp));
   if(nextTok()==TOK_RPAREN){
     format_error_str("invalid construct ()");
@@ -172,7 +176,7 @@ sexp parse_cons(){
             format_error_str("error, malformed flet expression");
             handle_error();
           }
-          fun_list->car=parse_function(1,1);
+          fun_list->car=parse_function(1,1,yylval,scanner,yytag);
           fun_list->cdr=cons_sexp(xmalloc(sizeof(cons)));
           trail=fun_list;
           fun_list=fun_list->cdr.val.cons;
@@ -194,7 +198,7 @@ sexp parse_cons(){
             format_error_str("error, malformed flet expression");
             handle_error();
           }
-          var_list->car=parse_sexp();
+          var_list->car=parse_sexp(yylval,scanner,yytag);
           var_list->cdr=cons_sexp(xmalloc(sizeof(cons)));
           trail=var_list;
           var_list=var_list->cdr.val.cons;
@@ -207,7 +211,7 @@ sexp parse_cons(){
         handle_error();
       }
       //for now let expressions need a progn
-      XCADDR(result)=parse_sexp();
+      XCADDR(result)=parse_sexp(yylval,scanner,yytag);
       XCDDDR(result)=NIL;
       if(nextTok() != TOK_RPAREN){
         format_error_str("excess args to let expression");
@@ -223,7 +227,7 @@ sexp parse_cons(){
       XCAR(retval)=*yylval;
       int is_defun=
         ((yylval->val.special == _defun)?1:0);
-      XCDR(retval)=parse_function(is_defun,1);
+      XCDR(retval)=parse_function(is_defun,1,yylval,scanner,yytag);
       return retval;
       sexp fake_retval=retval;
       while(nextTok() != TOK_LPAREN){
@@ -233,7 +237,7 @@ sexp parse_cons(){
           //the var in defun seperately(that's what this is)
           retval.val.cons->cdr=cons_sexp(xmalloc(sizeof(cons)));
           fake_retval=XCDR(retval);
-          XCAR(fake_retval)=parse_sexp();
+          XCAR(fake_retval)=parse_sexp(yylval,scanner,yytag);
         }  else {
           format_error_str("expected argument list following lambda or defun");
           handle_error();
@@ -241,13 +245,13 @@ sexp parse_cons(){
       }
       cons* temp;
       temp=XCDR(fake_retval).val.cons=xmalloc(sizeof(cons));
-      temp->car=parse_function_args();
+      temp->car=parse_function_args(yylval,scanner,yytag);
       temp->cdr=cons_sexp(xmalloc(sizeof(cons)));
       temp=temp->cdr.val.cons;
       temp->cdr=NIL;
       //parse the function body
       TOKEN body_start=nextTok();
-      temp->car=parse_sexp();
+      temp->car=parse_sexp(yylval,scanner,yytag);
       if(body_start == TOK_LPAREN){
         if(nextTok() != TOK_RPAREN){
           error_val=error_sexp
@@ -264,13 +268,13 @@ sexp parse_cons(){
       retval.tag=_cons;
       retval.is_ptr=1;
       XCAR(retval)=*yylval;
-      XCDR(retval)=parse_function(1,0);
+      XCDR(retval)=parse_function(1,0,yylval,scanner,yytag);
       return retval;
     }
     default: {//an unquoted list that's not a function call or special form
       //should probably be a parse error, but I'm not totally confidient
       //in things to do that yet
-      return parse_list();
+      return parse_list(yylval,scanner,yytag);
     }
   }
   //if we get here we have a function call or special form
@@ -278,7 +282,7 @@ sexp parse_cons(){
   sexp temp;
   cons* old_pos=result.val.cons;
   while((nextTok())!=TOK_RPAREN){
-    temp=parse_sexp();
+    temp=parse_sexp(yylval,scanner,yytag);
     cons_pos->car=temp;
     cons_pos->cdr=cons_sexp(xmalloc(sizeof(cons)));
     old_pos=cons_pos;
@@ -287,7 +291,7 @@ sexp parse_cons(){
   old_pos->cdr=NIL;
   return result;
 }
-sexp parse_atom(){
+sexp parse_atom(sexp *yylval,yyscan_t scanner, TOKEN yytag){
   sexp retval={0};
   symref tmpsym=0;
   switch(yytag){
@@ -309,7 +313,7 @@ sexp parse_atom(){
       nextTok();
       //parse a literal list
       if(yytag==TOK_LPAREN){
-        return parse_list();
+        return parse_list(yylval,scanner,yytag);
       } else{
         return *yylval;//return anything else unevaluated
       }
@@ -333,7 +337,7 @@ sexp parse_atom(){
         if(i>=size){
           arr=retval.val.array=xrealloc(arr,(size*=2)*sizeof(sexp));
         }
-        arr[i]=parse_sexp();
+        arr[i]=parse_sexp(yylval,scanner,yytag);
         i++;
       }
       retval.len=i;
@@ -411,7 +415,7 @@ sexp read_string(CORD code) {
     error_buf[0]=pop_jmp_buf();
     return error_sexp("read error,parsing failed");
   }
-  return yyparse(stringStream);
+  return yyparse(stringStream,global_scanner);
 }
 sexp lisp_read(sexp code){
   if(!STREAMP(code)){
@@ -422,7 +426,7 @@ sexp lisp_read(sexp code){
     error_buf[0]=pop_jmp_buf();
     return error_sexp("read error,parsing failed");
   }
-  sexp ast= yyparse(code.val.stream);
+  sexp ast= yyparse(code.val.stream,global_scanner);
   if(!CONSP(ast)){
     return ast;
   } else if (NILP(XCDR(ast))){
@@ -444,10 +448,10 @@ sexp lisp_read_string(sexp code){
     return ast;
   }
 }
-sexp parse_backtick(){
+sexp parse_backtick(sexp *yylval,yyscan_t scanner,TOKEN yytag){
   nextTok();
   if(yytag != TOK_LPAREN){
-    sexp retval=parse_atom();
+    sexp retval=parse_atom(yylval,scanner,yytag);
     retval.quoted=1;
     return retval;
   } else {
@@ -468,7 +472,7 @@ sexp parse_backtick(){
             is_spliced_list=1;
             nextTok();
           }
-          cur_loc->car=parse_sexp();
+          cur_loc->car=parse_sexp(yylval,scanner,yytag);
           if(is_spliced_list){
             cur_loc->car.meta=_splice_list;
           }
@@ -479,7 +483,7 @@ sexp parse_backtick(){
           break;
         }
         default: {
-          cur_loc->car=parse_sexp();
+          cur_loc->car=parse_sexp(yylval,scanner,yytag);
           //          cur_loc->car.quoted+=1;
           cur_loc->cdr=cons_sexp(xmalloc(sizeof(cons)));
           prev_loc=cur_loc;
@@ -495,7 +499,7 @@ sexp parse_backtick(){
         handle_error();
       }
       //some kind of error handling needs to go here
-      prev_loc->cdr=parse_sexp();
+      prev_loc->cdr=parse_sexp(yylval,scanner,yytag);
       //how do I tag this?
       nextTok();
     } else {
@@ -509,7 +513,7 @@ sexp parse_backtick(){
   format_error_str("Shouldn't get here, end of parse macro");
   handle_error();//should never get here
 }
-static inline sexp parse_list(){
+static inline sexp parse_list(sexp *yylval,yyscan_t scanner,TOKEN yytag){
   sexp retval;
   int i=0;
   retval.tag=_list;
@@ -522,9 +526,9 @@ static inline sexp parse_list(){
   }
   do{
     if(yytag == TOK_LPAREN){
-      cur_loc->car=parse_list();
+      cur_loc->car=parse_list(yylval,scanner,yytag);
     } else {
-      cur_loc->car=parse_sexp();
+      cur_loc->car=parse_sexp(yylval,scanner,yytag);
     }
     cur_loc->cdr.val.cons=xmalloc(sizeof(cons));
     prev_loc=cur_loc;
@@ -537,7 +541,7 @@ static inline sexp parse_list(){
       handle_error();
     }
     //some kind of error handling needs to go here
-    prev_loc->cdr=parse_sexp();
+    prev_loc->cdr=parse_sexp(yylval,scanner,yytag);
     //how do I tag this?
     nextTok();
   } else {//yytag // TOK_RPAREN
@@ -546,7 +550,8 @@ static inline sexp parse_list(){
   retval.len=i;
   return retval;
 }
-static inline sexp parse_function_args(){
+static inline sexp parse_function_args(sexp *yylval,yyscan_t scanner,
+                                       TOKEN yytag){
   sexp retval;
   retval.val.funarg=xmalloc(sizeof(struct function_args));
   //just an inital guess, should be more than enough in most cases
@@ -576,7 +581,7 @@ static inline sexp parse_function_args(){
               LAST_ARG(retval.val.funargs).val=UNBOUND;
               if(nextTok() != TOK_RPAREN){
                 //default arg must be an atom
-                LAST_ARG(retval.val.funargs).val=parse_atom();
+                LAST_ARG(retval.val.funargs).val=parse_atom(yylval,scanner,yytag);
                 ADD_OPT_ARG(retval.val.funargs);
                 if(nextTok() != TOK_RPAREN){
                   format_error_str
@@ -673,13 +678,14 @@ static inline sexp parse_function_args(){
   }
   return retval;
 }
-static sexp parse_function(int has_name,int need_rparen){
+static sexp parse_function(int has_name,int need_rparen,
+                           sexp *yylval, yyscan_t scanner,TOKEN yytag){
   cons* temp;
   sexp retval;
   temp=retval.val.cons=xmalloc(sizeof(cons));
   if(has_name){
     nextTok();
-    temp->car=parse_sexp();
+    temp->car=parse_sexp(yylval,scanner,yytag);
     if(!SYMBOLP(temp->car)){
       format_error_str
         ("error, expected variable name in function definition,token recieved was %r",token_name(yytag));
@@ -693,13 +699,13 @@ static sexp parse_function(int has_name,int need_rparen){
       ("expected argument list following lambda or function declaration");
     handle_error();
   }
-  temp->car=parse_function_args();
+  temp->car=parse_function_args(yylval,scanner,yytag);
   temp->cdr.val.cons=xmalloc(sizeof(cons));
   temp=temp->cdr.val.cons;
   temp->cdr=NIL;
   //parse the function body
   TOKEN body_start=nextTok();
-  temp->car=parse_sexp();
+  temp->car=parse_sexp(yylval,scanner,yytag);
   if(need_rparen){
     if(nextTok() != TOK_RPAREN){
       format_error_str

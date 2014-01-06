@@ -132,7 +132,7 @@ sexp lisp_load(sexp pathname){
   if(!file){    
     return error_sexp("invalid filename passed to load");
   }
-  ast=yyparse(file);
+  ast=yyparse(file,global_scanner);
   sexp result=NIL;
   while (CONSP(ast)){
     result=eval(XCAR(ast),topLevelEnv);

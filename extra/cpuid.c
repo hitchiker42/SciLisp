@@ -113,7 +113,7 @@ char* latest_simd(struct flags *flags){
     return "sse3";
   } else {
     //sse2 and below avialible on all 64 bit processors
-    return "";
+    return "sse2";
   }
 }
 int main(int argc,char *argv[]){

@@ -10,6 +10,9 @@ FRONTEND_SRC = frontend.c
 STD_LIB_SRC = array.c bignum.c ccall.c cffi.c cons.c env.c emacs_regex.c eval.c \
 	format.c hash.c hash_fn.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
 	lisp_types.c parser.c print.c prim.c regex.c sequence.c tree.c unicode.c #setf.c
+MOSTLYCLEANFILES=lex.yy.c lex.yy.h
+CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h
+DISTCLEANFILES=$(CLEAN_FILES) fnv_hash
 BACKEND_SRC = c_codegen.c
 INCLUDE_FLAGS = -I$$PWD/gc/include/gc -I$$PWD/include
 #Automake variablesA
@@ -40,7 +43,7 @@ llvm_test: llvm_codegen.o llvm_test.o libSciLisp.so prim.bc
 SciLisp_test: SciLisp
 	./SciLisp -r
 #compiled files
-lex.yy.c: lisp.lex $(COMMON_HEADERS)
+lex.yy.c lex.yy.h: lisp.lex $(COMMON_HEADERS)
 	$(LEX) lisp.lex
 lex.yy.o: lex.yy.c
 	$(CC) $(XCFLAGS_NOWARN) -w -c lex.yy.c -o lex.yy.o

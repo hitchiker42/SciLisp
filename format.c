@@ -8,7 +8,7 @@
 #include "cons.h"
 #include "print.h"
 #include "unicode.h"
-#include "gc/include/gc/ec.h"
+#include "gc/ec.h"
 sexp lisp_format(sexp format,sexp args){
   if(!STRINGP(format)){
     return format_type_error("format","string",format.tag);

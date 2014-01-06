@@ -1,12 +1,19 @@
+/* -*- c-syntactic-indentation: nil; -*- */
 %{
 /*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
+#define IN_LEXER
 #include "common.h"
 #include "prim.h"
 #include "unicode.h"
-#define YY_DECL TOKEN yylex(void)
+#ifdef YY_DECL
+#undef YY_DECL
+#endif
+#define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
+ /*#define YY_DECL TOKEN yylex(void)*/
+#define YYSTYPE sexp
 static int comment_depth=0;
 %}
 DIGIT [0-9]
@@ -41,13 +48,14 @@ union data {
   symref* var;//incldues functions
 };
 */
-/*%option bison-bridge*/
-%option header-file="lex.yy.h"
 %option noyywrap
    /*start condition for scanning nested comments*/
 %x comment
    /*start condition for matching typenames*/ 
 %x typename
+%option noyyalloc noyyrealloc noyyfree
+%option reentrant
+%option header-file="lex.yy.h"  
 %%   /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");
   *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
@@ -182,3 +190,14 @@ dotimes {LEX_MSG("lexing dotimes");
    yylval->tag=_special;yylval->val.string=\"%s\"
    return TOK_%s;}" (downcase name) (downcase name) (downcase name) (upcase name))))
 (dolist (name '("define" "defun" "setq" "datatype" "union" "enum" "struct" "go" "tagbody" "lamdba" "progn" "if" "let" "do" "quasiquote" "eval" "defmacro")) (special name))*/
+%%
+
+void *yyalloc(size_t bytes,void* yyscanner){
+  return xmalloc(bytes);
+}
+void *yyrealloc(void *ptr,size_t bytes,void *yyscanner){
+  return xrealloc(ptr,bytes);
+}
+void yyfree(void *ptr,void *yyscanner){
+  return xfree(ptr);
+}

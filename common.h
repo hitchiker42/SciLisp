@@ -32,6 +32,11 @@
 #include "bignum.h"
 #include "cffi.h"
 #include "llvm_externs.h"
+#ifndef IN_LEXER
+#define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
+#include "lex.yy.h"
+extern TOKEN yylex(sexp *yylval,yyscan_t yyscanner);
+#endif
 //print what is being lexed, very verbose, rarely useful
 //#define VERBOSE_LEXING
 #include "debug.h"
@@ -136,9 +141,11 @@ static const sexp LISP_EMPTY_STRING=construct_simple_const(0,cord);
 static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
                        .cdr={.tag = -1,.val={.meta = -1}}};
 static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
-//global variables
-sexp* yylval;
-FILE* yyin;
+//global variables(not for long)
+//sexp* yylval;
+//FILE* yyin;
+yyscan_t global_scanner;
+
 //flag for errors at repl
 extern int evalError;
 //probably don't need anymore, what with pthread_once
@@ -167,7 +174,7 @@ extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
 //from parser.c
 extern sexp read_string(CORD code);
 extern sexp lisp_read(sexp code);
-extern sexp yyparse(FILE* input);
+extern sexp yyparse(FILE* input,yyscan_t scanner);
 extern _tag parse_tagname(CORD tagname) __attribute__((const));
 //I don't need to pull in all of the hash functions
 extern uint64_t fnv_hash(const void* key,int keylen);
