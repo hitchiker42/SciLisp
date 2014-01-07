@@ -14,7 +14,7 @@ struct symbol_props {
   CORD doc;
   unsigned int is_const :1;
   unsigned int global :1;
-  unsigned int setfable :1;//move this to functions?
+  unsigned int setfable :1;//move this to functions? (yes)
   unsigned int typed :1;
   unsigned int interned : 2;
   _tag type;
@@ -22,8 +22,34 @@ struct symbol_props {
 struct symbol {
   CORD name;
   sexp val;
-  symbol_props props;
+  symbol_props props;//need to change to plist
 };
+//add at some point
+/* It's my language, plists are alists deal with it
+  so:
+  struct symbol {
+    CORD name;
+    sexp val;
+    symbol_props props;
+  }
+  struct symbol_props {
+    cons *plist;
+    ... //w/o the CORD
+  }
+  sexp get_symbol_prop(sexp symbol_sexp,sexp prop){
+    symref symbol_ref=get_symbol(cur_env,symbol_sexp.var.var->name);
+    if(!symref){return error;}
+    cons proplist=*symbol_ref->plist;
+    uint64_t prop_key=prop.val.uint64;//assume prop is a keyword
+    while(proplist.cdr.tag != _nil){
+    if(XCAR(proplist.car).val.uint64 == prop_key){
+    return XCDR(proplist.car);
+    }
+    proplist=*(proplist.cdr.val.cons)
+    }
+    return error
+  }
+ */
 struct local_symbol{
   CORD name;
   sexp val;

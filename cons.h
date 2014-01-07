@@ -36,6 +36,8 @@ sexp cons_length(sexp ls)__attribute__((pure));
 sexp list_iota(sexp start,sexp stop,sexp step);
 //create a cons cell from 2 sexps, result may or may not be a list
 sexp Cons(sexp car_cell,sexp cdr_cell);
+//
+sexp raw_cons(sexp car_cell,sexp cdr_cell);
 //sort ls (mostly in place) using sort_fn to compair elements
 sexp cons_qsort(sexp ls,sexp sort_fn);
 //functions on alists

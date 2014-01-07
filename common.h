@@ -12,8 +12,8 @@
 #include <sched.h>
 #include <sys/wait.h>
 #include "config.h"
-#ifdef GC_THREADS
-#define THREAD_LOCAL_ALLOC
+#if (defined (GC_THREADS) && defined (GC_THREAD_LOCAL))
+#define GC_REDIRECT_TO_LOCAL
 #endif
 //#define USE_MMAP
 #include "gc/include/gc/gc.h"
@@ -32,6 +32,8 @@
 #include "bignum.h"
 #include "cffi.h"
 #include "llvm_externs.h"
+//avoid including lex.yy.h in the lexer itself, because it messes up
+//some macro defines / undefs 
 #ifndef IN_LEXER
 #define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
 #include "lex.yy.h"
@@ -157,6 +159,7 @@ CORD type_error_str;
 jmp_buf error_buf;
 sexp error_val;
 stack_t sigstk;
+//static __thread env *cur_env_ptr;
 env *cur_env_ptr;
 //functions to print (or not print) debug info
 void (*debug_printf)(const char*,...);

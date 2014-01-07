@@ -44,6 +44,8 @@
 #|tests of functions|#
 (assert-eq (sum ls) 192)
 (assert-equal '(1 23 34 56 78) ls)
+(flet ((square (x) (expt x 2)))
+  (mapcar ls2 square))
 (println ls)
 (sum ls2)
 (prod ls3)

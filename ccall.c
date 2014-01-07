@@ -2,11 +2,15 @@
 #include "cons.h"
 #include "prim.h"
 #include <dlfcn.h>
-#include <ffi.h>
+#include "ffi.h"
+static struct sigaction old_abort_action;
+static void __attribute__((noreturn)) handle_abort(int signal){
+  sigaction(SIGABRT,&old_abort_action,NULL);
+  longjmp(error_buf,-1);
+}
+static const struct sigaction abort_action_object={.sa_handler=&handle_abort};
+static const struct sigaction* restrict abort_action=&abort_action_object;
 //using libffi
-#ifdef mk_case
-#undef mk_case
-#endif
 static inline ffi_type* get_ffi_type_sub(_tag type_tag){
   switch(type_tag){
     case _nil: return &ffi_type_void;
@@ -36,14 +40,14 @@ static inline ffi_type* get_ffi_type_sub(_tag type_tag){
       return NULL;
   }
 }
-static inline ffi_cif* get_ffi_function_type_sub(_tag *arg_tags,_tag ret_tag, int numargs){
+static inline ffi_cif* prep_ffi_cif(_tag *arg_tags,_tag ret_tag, int numargs){
   ffi_cif *CIF=xmalloc(sizeof(ffi_cif));
   ffi_status status;
   ffi_type *ret_type=get_ffi_type_sub(ret_tag);
   if(numargs == 0){
     ffi_status status=ffi_prep_cif(CIF,FFI_DEFAULT_ABI,numargs,ret_type,NULL);
   } else {
-    ffi_type* arg_types[numargs];
+    ffi_type** arg_types=xmalloc(sizeof(ffi_type*)*numargs);
     int i;
     for(i=0;i<numargs;i++){
       arg_types[i]=get_ffi_type_sub(arg_tags[i]);
@@ -56,7 +60,7 @@ static inline ffi_cif* get_ffi_function_type_sub(_tag *arg_tags,_tag ret_tag, in
     return CIF;
   }
 }
-static inline void* get_dl_fun(CORD libname,CORD funname_cord){
+static inline void* get_dl_fun(CORD funname_cord,CORD libname){
   const char* funname=CORD_to_const_char_star(funname_cord);
   char *dllibname;
   void* dllib;
@@ -84,7 +88,35 @@ static inline void* get_dl_fun(CORD libname,CORD funname_cord){
   }
   return dlfun;
 }
-static inline void *ffi_get_c_arg(_tag type_tag,sexp val);
+static inline void *ffi_get_c_arg(_tag type_tag,sexp val){
+  void *retval=xmalloc(sizeof(void*));
+  switch(type_tag){
+    case _ctype_int8:
+    case _ctype_int16:
+    case _ctype_int32:
+    case _ctype_int64:
+      *(int64_t*)retval=val.val.int64;
+    case _ctype_uint8:
+    case _ctype_uint16:
+    case _ctype_uint32:
+    case _ctype_uint64:
+      *(uint64_t*)retval=val.val.uint64;
+    case _ctype_float:
+    case _ctype_double:
+      //we really shouldn't get here...why
+      *(real64_t*)retval=val.val.real64;
+  //special cases of structs
+    case _ctype_FILE:
+      *(FILE**)retval=val.val.stream;
+    case _ctype_mpz:
+      *(mpz_t**)retval=val.val.bigint;
+    case _ctype_mpfr:
+      *(mpfr_t**)retval=val.val.bigfloat;
+    case _ctype_struct:
+      *(void**)retval=val.val.opaque;
+  }
+  return retval;
+}
 static inline sexp make_sexp(void *val,_tag type){
   switch(type){
     case _int8: return int_n_sexp(*(int8_t*)val,8);
@@ -114,24 +146,31 @@ sexp ffi_ccall_unsafe(sexp fun_name,sexp libname,sexp rettype,
   if(!fp){
     return error_sexp(CORD_cat("Error in libdl:\n",dlerror()));
   }
+  //test
+  real64_t(*f)(uint32_t)=fp;
+  PRINT_FMT("fact of 4 is %f",f(4));
   //Assume the caller has verified len(argtypes)==len(args)...or not
   int numargs=argtypes.len,i;
   sexp cur_argtype;
-  _tag c_argtypes[numargs];
+  _tag *c_argtypes=xmalloc(sizeof(_tag)*numargs);
   _tag c_rettype;
-  void *c_args[numargs];
+  void **c_args=xmalloc(sizeof(void*)*numargs);
   sexp ret_argtype;
   if(NILP(rettype)){
     ret_argtype=Qnil;
   } else {
     ret_argtype=get_c_type(rettype);
-    if(ERRORP(cur_argtype)){return cur_argtype;}
+    if(ERRORP(ret_argtype)){return ret_argtype;}
   }
   c_rettype=ret_argtype.val.meta;
   for(i=0;i<numargs;i++){
-    if(!CONSP(args) || !CONSP(argtypes)){
+    if(!CONSP(args)){
       return error_sexp
-        ("fewer arguments than type parameters passed to ccall(or vice versa)");
+        ("fewer arguments than type parameters passed to ccall");
+    }
+    if(!CONSP(argtypes)){
+      return error_sexp
+        ("fewer type parameters than arguments passed to ccall");
     }
     cur_argtype=get_c_type(XCAR(argtypes));
     if(ERRORP(cur_argtype)){return cur_argtype;}
@@ -140,10 +179,15 @@ sexp ffi_ccall_unsafe(sexp fun_name,sexp libname,sexp rettype,
     args=XCDR(args);
     argtypes=XCDR(argtypes);
   }
-  ffi_cif *CIF=get_ffi_function_type_sub(c_argtypes,c_rettype,numargs);
+  ffi_cif *CIF=prep_ffi_cif(c_argtypes,c_rettype,numargs);
   //currently we only have return types that are pointers or literal types
   //so the maximum size of the return type is 64 bits
   void *retval=xmalloc(sizeof(void*));
+  //prevent an ffi call from aborting SciLisp
+  //any other fatal error will still crash SciLisp atm
+  sigaction(SIGABRT,abort_action,&old_abort_action);
+  //ffi_call(CIF,fp,retval,&c_args_test);
+  HERE();
   ffi_call(CIF,fp,retval,c_args);
   return make_sexp(retval,c_rettype);
 }
@@ -167,18 +211,28 @@ sexp ffi_ccall(sexp fun_name,sexp libname,sexp rettype,
   }
   return ffi_ccall_unsafe(fun_name,libname,rettype,argtypes,args,thread);
 }
+struct thread_args {
+  sexp fun_name;
+  sexp numargs;
+  sexp rettype;
+  sexp argtypes;
+  sexp args;
+};
+static void* ffi_ccall_from_new_thread(void* ccall_args){
+  struct thread_args args=*(struct thread_args*)ccall_args;
+  sexp *retval=xmalloc(sizeof(sexp));
+  *retval=(sexp)ffi_ccall_unsafe(args.fun_name,args.numargs,args.rettype,
+                                 args.argtypes,args.args,NIL);
+  return (void*)retval;
+}
+/* Preserved for posterity,I suppose, My hacked together horrible
+   version of ccall*/
+#if 0
 static sexp get_c_sexp(ctype_val c_value,enum ctype_kind ctype_tag);
 typedef ctype_val(*dlfun_t)();
 static sexp call_c_fun(dlfun_t c_fun,uint64_t numargs,sexp rettype,
                        ctype_val c_args[3],enum ctype_kind c_argtypes[3]);
 #pragma GCC diagnostic ignored "-Wenum-compare"
-static struct sigaction old_abort_action;
-static void __attribute__((noreturn)) handle_abort(int signal){
-  sigaction(SIGABRT,&old_abort_action,NULL);
-  longjmp(error_buf,-1);
-}
-static const struct sigaction abort_action_object={.sa_handler=&handle_abort};
-static const struct sigaction* restrict abort_action=&abort_action_object;
 struct thread_args {
   dlfun_t c_fun;
   uint64_t numargs;
@@ -351,34 +405,7 @@ static inline sexp call_c_fun(dlfun_t c_fun,uint64_t numargs,sexp rettype,
     TYPE_SWITCH(get_c_uint_sexp);
   }
 }
-static inline void *ffi_get_c_arg(_tag type_tag,sexp val){
-  void *retval=xmalloc(sizeof(void*));
-  switch(type_tag){
-    case _ctype_int8:
-    case _ctype_int16:
-    case _ctype_int32:
-    case _ctype_int64:
-      *(int64_t*)retval=val.val.int64;
-    case _ctype_uint8:
-    case _ctype_uint16:
-    case _ctype_uint32:
-    case _ctype_uint64:
-      *(uint64_t*)retval=val.val.uint64;
-    case _ctype_float:
-    case _ctype_double:
-      //we really shouldn't get here...why
-      *(real64_t*)retval=val.val.real64;
-  //special cases of structs
-    case _ctype_FILE:
-      *(FILE**)retval=val.val.stream;
-    case _ctype_mpz:
-      *(mpz_t**)retval=val.val.bigint;
-    case _ctype_mpfr:
-      *(mpfr_t**)retval=val.val.bigfloat;
-    case _ctype_struct:
-      *(void**)retval=val.val.opaque;
-  }
-}
+
 static sexp get_c_sexp(ctype_val c_value,enum ctype_kind ctype_tag){
   switch(ctype_tag){
     case _ctype_int8:
@@ -406,3 +433,4 @@ static sexp get_c_sexp(ctype_val c_value,enum ctype_kind ctype_tag){
       return opaque_sexp(c_value.ctype_struct);
   }
 }
+#endif

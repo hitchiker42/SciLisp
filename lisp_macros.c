@@ -38,20 +38,34 @@ sexp lisp_if(sexp cond,sexp then_br,sexp else_br,sexp cur_env_sexp){
     return eval(else_br,cur_env);
   }
 }
-sexp lisp_dotimes_expander(sexp var,sexp times,sexp body,sexp cur_env_sexp){
+sexp lisp_dotimes_expander(sexp var,sexp times,sexp body,sexp cur_env_sexp,int expand){
   env *cur_env=cur_env_sexp.val.cur_env;
+  sexp test=Cons(function_sexp(&lisp_numlt_call),Cons(var,Cons(times,NIL)));
   sexp do_parameters=
-    Cons(var,//(var .
-         Cons(long_sexp(0),//(var . (0 .
-              Cons(long_sexp(1),//(var . (0 . (1
-                   Cons(Cons(function_sexp(&lisp_numlt_call),
-                             Cons(var,//(var . (0 . (1 . ((> var times)))))
-                                  Cons(times,NIL))),NIL))));
+    Cons(var,Cons(long_sexp(0),Cons(long_sexp(1),Cons(test,NIL))));
   sexp code=Cons(spec_sexp(_do),
                  Cons(do_parameters,body));
-  return eval(code,cur_env);
+  if(expand){
+    return code;
+  } else {
+    return eval(code,cur_env);
+  }
 }
-
+sexp lisp_dolist_expander(sexp var,sexp list,sexp body,sexp cur_env_sexp,int expand){
+  env *cur_env=cur_env_sexp.val.cur_env;
+  sexp test=Cons(function_sexp(&lisp_consp_call),Cons(list,NIL));
+  sexp var_step=Cons(spec_sexp(_setq),
+                     Cons(var,Cons(function_sexp(&car_call),Cons(list,NIL))));
+  sexp list_step=Cons(spec_sexp(_setq),
+                      Cons(list,Cons(function_sexp(&cdr_call),Cons(list,NIL))));
+  sexp step=Cons(spec_sexp(_progn),Cons(var_step,Cons(list_step,NIL)));
+  sexp loop=Cons(spec_sexp(_while),Cons(test,Cons(step,Cons(body,NIL))));
+  if(expand){
+    return loop;
+  } else {
+    return eval(loop,cur_env);
+  }
+}
 sexp lisp_dec_ref(sexp sym_sexp,sexp cur_env_sexp){
   if(!SYMBOLP(sym_sexp)){
     return format_type_error("decf","symbol",sym_sexp.tag);

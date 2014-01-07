@@ -18,7 +18,7 @@ INCLUDE_FLAGS = -I$$PWD/gc/include/gc -I$$PWD/include
 #Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
 #AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" 
-AM_CFLAGS=-rdynamic -L$$PWD/gc/lib #-L$$PWD/bignum/lib
+AM_CFLAGS=-rdynamic -L$$PWD/gc/lib -L$$PWD/ignore/lib #-L$$PWD/bignum/lib
 BUILT_SOURCES = prim.c prim.h lex.yy.c lex.yy.h
 ACLOCAL_AMFLAGS=-I m4
 SUBDIRS = SFMT

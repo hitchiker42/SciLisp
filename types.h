@@ -337,13 +337,22 @@ union data {//keep max size at 64 bits
 //while the next 8 bits are for inclusive information
 struct sexp{//128 bits/16 bytes
   _tag tag;//could be shorter if need be  | 32
-  sexp_meta meta : 8;//random metadata    | 40
-  unsigned int quoted :2;//               | 42
-  int has_comma :1;//                     | 43
-  int is_ptr:1;//                         | 44
-  //4 bits free
-  uint16_t len;//length of a sequence     | 61
-  data val;//                             | 128
+  union {
+    struct {
+      sexp_meta meta : 8;//random metadata    | 40
+      unsigned int quoted :2;//               | 42
+      int has_comma :1;//                     | 43
+      int is_ptr:1;//                         | 44
+      int padding:4;
+      //4 bits free
+      uint16_t len;//length of a sequence     | 61
+    };
+    uint32_t opaque_1;
+  };
+  union{
+    data val;//                             | 128
+    uint64_t opaque_2;
+  };
 };
 struct cons{//32 bytes
   sexp car;

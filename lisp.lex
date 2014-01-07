@@ -76,26 +76,27 @@ union data {
   sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
   return TOK_KEYSYM;}
  /*Special forms, generating function at end of file*/
- /* replace all the def(...) 's  with this at some point:
-    def(ine|fun|macro|var|const)? {LEX_MSG("lexing define");
-    yylval->tag=special;
-    switch(yytext[4]){
-    case 'i': 
-    case 'v':
-    case '\0':
-      yylval->val.special=_def;
-      return TOK_SPECIAL;
-    case 'c':
-    yylval->val.special=_defconst:/*need to add this somehow/
-    return TOK_SPECIAL;
-    case 'f':
-      yylval->val.special=_defun;
-      return TOK_LAMBDA;
-    case 'm':
-      yylval->val.special=_defmacro:
-      return TOK_MACRO;
-    }
-    }*/
+ /* replace all the def(...) 's  with this at some point:*/
+de(f(ine|macro|var|const)?|fun) {LEX_MSG("lexing define");
+    yylval->tag=_special;
+    switch(yytext[3]){
+      case 'i': 
+      case 'v':
+      case '\0':
+        yylval->val.special=_def;
+        return TOK_SPECIAL;
+      case 'c':
+        yylval->val.special=_defconst;
+        return TOK_SPECIAL;
+      case 'u':
+        yylval->val.special=_defun;
+        return TOK_LAMBDA;
+      case 'm':
+        yylval->val.special=_defmacro;
+        return TOK_MACRO;
+     }
+  }    
+ /*
 def(ine)? {LEX_MSG("lexing define");
   *yylval=spec_sexp(_def);return TOK_SPECIAL;}
 defun {LEX_MSG("lexing defun");
@@ -103,7 +104,7 @@ defun {LEX_MSG("lexing defun");
 defvar {LEX_MSG("lexing defvar");
   *yylval=spec_sexp(_def);return TOK_SPECIAL;}
 defmacro {LEX_MSG("lexing defmacro");
-  *yylval=spec_sexp(_defmacro);return TOK_MACRO;}
+  *yylval=spec_sexp(_defmacro);return TOK_MACRO;}*/
 setq {LEX_MSG("lexing setq");
   *yylval=spec_sexp(_setq);return TOK_SPECIAL;}
  /* datatype {LEX_MSG("lexing datatype");

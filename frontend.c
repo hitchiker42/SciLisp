@@ -255,6 +255,9 @@ int main(int argc,char* argv[]){
   GC_set_all_interior_pointers(1);
   GC_set_handle_fork(1);
   GC_init();
+#ifdef GC_REDIRECT_TO_LOCAL
+  GC_thr_init();
+#endif
   //setup global lexer
   yylex_init(&global_scanner);
 #if defined (MULTI_THREADED)

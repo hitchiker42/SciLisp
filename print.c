@@ -63,29 +63,32 @@ c_string tag_name(_tag obj_tag){
 c_string specialForm_name(sexp obj){
   special_form spec=obj.val.special;
   switch(spec){
+    spec_to_string(comma);
+    spec_to_string(datatype);
     spec_to_string(def);
+    spec_to_string(defconst);
+    spec_to_string(defmacro);
     spec_to_string(defun);
-    spec_to_string(setq);
-    spec_to_string(if);
-    spec_to_string(let);
+    spec_to_string(defvar);
     spec_to_string(do);
     spec_to_string(dolist);
-    spec_to_string(lambda);
-    spec_to_string(progn);
-    spec_to_string(go);
-    spec_to_string(tagbody);
-    spec_to_string(struct);
-    spec_to_string(union);
-    spec_to_string(datatype);
     spec_to_string(enum);
     spec_to_string(eval);
-    spec_to_string(defmacro);
+    spec_to_string(flet);
+    spec_to_string(go);
+    spec_to_string(if);
+    spec_to_string(lambda);
+    spec_to_string(let);
+    spec_to_string(main);
+    spec_to_string(prog1);
+    spec_to_string(progn);
     spec_to_string(quasi);
     spec_to_string(quote);
-    spec_to_string(comma);
-    spec_to_string(main);
+    spec_to_string(setq);
+    spec_to_string(struct);
+    spec_to_string(tagbody);
+    spec_to_string(union);
     spec_to_string(while);
-    spec_to_string(prog1);
     default:
       return "woops forgot to implement that special form";
   }

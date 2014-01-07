@@ -12,6 +12,12 @@ sexp Cons(sexp car_cell,sexp cdr_cell){
   *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
   return list_sexp(new_cell);
 }
+sexp raw_cons(sexp car_cell,sexp cdr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons));
+  *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
+  return cons_sexp(new_cell);
+}
 sexp mklist(sexp head,...){
   va_list ap;
   sexp retval,cur_loc;
@@ -175,26 +181,26 @@ sexp mapcar(sexp ls,sexp map_fn){
   }
   sexp result;
   int have_closure=0;
-  ffi_closure *closure;
+  void **closure;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
   result.tag=_cons;
   sexp(*f)(sexp);
   if(FUNP(map_fn)){
     f=map_fn.val.fun->comp.f1;
-  } /*else if(LAMBDAP(map_fn)){
+  } else if(LAMBDAP(map_fn)){
     closure=make_closure(function_sexp(map_fn.val.fun),env_sexp(cur_env_ptr),1);
     if(!closure){
       return error_sexp("error constructing ffi_closure");
     }
-    f=(sexp(*)(sexp))(closure->fun);
-    }*/
+    f=(sexp(*)(sexp))(closure[0]);
+  }
   while(!NILP(XCDR(ls))){
-    if(FUNP(map_fn)){
+    //    if(FUNP(map_fn)){
       cur_cell->car=f(XCAR(ls));
-    } else {
+      /*    } else {
       cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),
                          map_fn.val.fun->lam->env);
-    }
+                         }*/
     cur_cell->cdr=cons_sexp(xmalloc(sizeof(cons)));
     cur_cell=cur_cell->cdr.val.cons;
     ls=XCDR(ls);
@@ -202,7 +208,7 @@ sexp mapcar(sexp ls,sexp map_fn){
   cur_cell->car=f(XCAR(ls));
   cur_cell->cdr=NIL;
   if(have_closure){
-    ffi_closure_free(closure);
+    ffi_closure_free(closure[1]);
   }
   return result;
 }

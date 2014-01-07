@@ -1,4 +1,10 @@
 #include "codegen.h"
+int tmp_counter=0;
+int label_counter=0;
+CORD global_temp_label;
+CORD current_indent;
+#define new_label() (CORD_sprintf(&global_temp_label,"LABEL%d:",label_counter++), \
+                     global_temp_label)
 //preprocess the ast,scan for macros
 //perform macro expansion,
 //expand some things which are executed as is in the interpreter
@@ -30,7 +36,6 @@ static obarray* get_macros(sexp ast){
   }
   return macros;
 }
-int tmp_counter=0;
 static function_args* C_getFunctionArgs(sexp arglist,function_args* args);
 c_string get_cType(sexp obj){
   switch(obj.tag){
@@ -177,7 +182,7 @@ CORD c_codegen_specials(sexp expr,CORD code){
       //add Var to top level env
       temp=CORD_cat("sexp ",
                     CORD_cat(to_c_symbol(temp),
-                             CORD_cat(" = ",c_codegen_sub(cddr(expr)))));      
+                             CORD_cat(" = ",c_codegen_sub(cddr(expr)))));
       return temp;
     default:
       return "";
@@ -203,7 +208,7 @@ static function_args* C_getFunctionArgs(sexp arglist,function_args* args){
     handle_error();
     }*/
   int i,j=0;
-  for(i=0;i<args->num_req_args;i++){  
+  for(i=0;i<args->num_req_args;i++){
     if(!(CONSP(arglist))){
       format_error_str("not enough args");
       handle_error();
@@ -233,7 +238,7 @@ static function_args* C_getFunctionArgs(sexp arglist,function_args* args){
         arglist=XCDR(arglist);
         cur_arg->cdr.val.cons=xmalloc(sizeof(cons));
         prev_arg=cur_arg;
-        cur_arg=cur_arg->cdr.val.cons;      
+        cur_arg=cur_arg->cdr.val.cons;
       }
       prev_arg->cdr=NIL;
     }
@@ -249,4 +254,14 @@ static function_args* C_getFunctionArgs(sexp arglist,function_args* args){
     }
   }
   return args;
+}
+static CORD c_codegen_whlie(sexp ast,env *cur_env){
+  //(while <cond> <body>...)
+  ast=XCDR(ast);//strip off the while
+  CORD loop_cond=c_codegen(XCAR(ast));
+  CORD loop_body=c_codegen(XCDR(ast));
+  CORD loop=CORD_catn
+    (9,new_label(),"\n","while(",loop_cond,"){","\n\t",
+     loop_body,"\n}");
+  return loop;
 }

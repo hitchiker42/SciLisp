@@ -41,8 +41,8 @@ static sexp eval_dotimes(sexp expr,env *cur_env);
 //which localy overrides dynamic bindings
 static sexp eval_let(sexp expr,env *cur_env);
 static sexp eval_flet(sexp expr,env *cur_env);
-static sexp eval_and(sexp expr,env *cur_env);
-static sexp eval_or(sexp expr,env *cur_env);
+//static sexp eval_and(sexp expr,env *cur_env);
+//static sexp eval_or(sexp expr,env *cur_env);
 static sexp eval_defmacro(sexp expr,env *cur_env);
 static sexp macroexpand_helper(sexp body,env *cur_env);
 //standard error handling function
@@ -132,6 +132,8 @@ static inline sexp eval_special(sexp expr,env *cur_env){
   sexp special_sexp=car(expr);
   switch(special_sexp.val.special){
     case _def:
+    case _defvar:
+    case _defconst:
       return eval_def(expr,cur_env);
     case _setq:
       return eval_setq(expr,cur_env);
@@ -204,7 +206,7 @@ static inline sexp eval_progn(sexp expr, env *cur_env){
 static inline sexp eval_prog1(sexp expr, env *cur_env){
   sexp prog=XCDR(expr);
   sexp retval={0},error_test={0};
-  error_test=retval=eval(XCAR(prog),cur_env);   
+  error_test=retval=eval(XCAR(prog),cur_env);
   while(CONSP(prog)){
     if(ERRORP(error_test)){return error_test;}
     eval(XCAR(prog),cur_env);
@@ -216,26 +218,39 @@ static inline sexp eval_def(sexp expr,env *cur_env){
   //should i go with the lisp standard of define only assigning
   //to a value once or not?, for now, yes.
   symref newSym;
+  int is_const=0;
+  if(XCAR(expr).val.special == _defconst){
+    is_const=1;
+  }
   if(!SYMBOLP(cadr(expr))){
     return format_type_error("define","symbol",XCADR(expr).tag);
   }
   //PRINT_FMT("%s",typeName(cadr(expr)));
   newSym=getSym(cur_env,XCADR(expr).val.var->name);
-  sexp symVal=eval(caddr(expr),cur_env);
-  if(!newSym){
-    newSym=xmalloc(symbolSize(cur_env));
-    newSym->name=(cadr(expr).val.var->name);
-    newSym->val=symVal;
-    addSym(cur_env,newSym);
-  } //else {
-  //    newSym->val=symVal;
-  //  }
+  if(newSym){
+    return symref_sexp(newSym);
+  }
+  sexp symVal=UNBOUND;
+  CORD docstr="";
+  if(CONSP(XCDDR(expr))){
+    if(CONSP(XCDDDR(expr))){
+      if(!STRINGP(XCADDDR(expr))){
+        return error_sexp("argument doc in define is not a string");
+      }
+      docstr=XCADDDR(expr).val.cord;
+    }
+    symVal=eval(XCADDR(expr),cur_env);
+  }
+  newSym=xmalloc(symbolSize(cur_env));
+  newSym->name=(XCADR(expr).val.var->name);
+  newSym->props=(symbol_props){.doc=docstr,.is_const=is_const,.global=1,.interned=2};
+  newSym->val=symVal;
+  addSym(topLevelEnv,newSym);//dynamic variable
   return symref_sexp(newSym);
 }
 /*define a possibly recursive named function
  *syntax: (defun name (arglist) (body))*/
 static inline sexp eval_defun(sexp expr,env *cur_env){
-
   expr=cdr(expr);
   symref fun_sym=getGlobalSym(car(expr).val.var->name);
   if(!fun_sym){
@@ -460,7 +475,7 @@ static sexp eval_dolist(sexp expr,env *cur_env){
 /* evaluate a list of sexp's, if all are true return value of last sexp
  * otherwise return false
  * syntax: (and sexp*) */
-static sexp eval_and(sexp expr,env *cur_env){
+/*static sexp eval_and(sexp expr,env *cur_env){
 
   expr=cdr(expr);//discard and
   sexp retval=LISP_TRUE;
@@ -473,11 +488,11 @@ static sexp eval_and(sexp expr,env *cur_env){
     }
   }
   return retval;
-}
+  }*/
 /* evaluate a list of sexp's, return the first value that evaluates to true
  * if all values are false return false
  * syntax: (or sexp*) */
-static sexp eval_or(sexp expr,env *cur_env){
+/*static sexp eval_or(sexp expr,env *cur_env){
   expr=cdr(expr);
   sexp retval=NIL;
   while(CONSP(expr)){
@@ -489,7 +504,7 @@ static sexp eval_or(sexp expr,env *cur_env){
     }
   }
   return LISP_FALSE;
-}
+  }*/
 /*internal procedure to bind function arguments to parameter names*/
 #define setArg()                                            \
   args->args[j++].val=eval_ptr(XCAR(arglist),cur_env);      \
@@ -499,8 +514,9 @@ static sexp dont_eval(sexp obj,env *cur_env){
   obj.quoted++;
   return eval(obj,cur_env);
 }
-static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,env* cur_env,CORD name,int eval_args){
-  sexp(*eval_ptr)(sexp,env*);  
+static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,
+                                             env* cur_env,CORD name,int eval_args){
+  sexp(*eval_ptr)(sexp,env*);
   if(eval_args){
     eval_ptr=eval;
   } else {
@@ -596,8 +612,10 @@ static function_args* getFunctionOrMacroArgs(sexp arglist,function_args* args,en
   }
   if(CONSP(arglist)){
     if(name){
+      HERE();
       format_error_str("excess arguments passed to %r",name);
     } else {
+      PRINT_MSG(print(arglist));
       format_error_str("excess arguments passed");
     }
     handle_error();
@@ -690,6 +708,7 @@ sexp call_lambda(sexp expr,env *cur_env){
   //  PRINT_FMT("calling %r",car(expr).val.var->name);
   sexp curFun=car(expr).val.var->val;
   lambda* curLambda=curFun.val.fun->lam;
+  CORD fun_name=curFun.val.fun->lname;
   function_args *args=curFun.val.fun->args;
   symbol *save_defaults=args->args;
   args->args=xmalloc(sizeof(symbol)*args->max_args);
@@ -706,9 +725,9 @@ sexp call_lambda(sexp expr,env *cur_env){
     env temp_env[1];
     *temp_env=(env){.enclosing=cur_env->enclosing,
                     .head={.function=args_copy},.tag=_funArgs};
-    args=getFunctionArgs(cdr(expr),args,temp_env);
+    args=getNamedFunctionArgs(cdr(expr),args,temp_env,fun_name);
     } else {
-    args=getFunctionArgs(cdr(expr),args,cur_env);
+    args=getNamedFunctionArgs(cdr(expr),args,cur_env,fun_name);
   }
   if(!args){
     handle_error();
@@ -844,13 +863,13 @@ sexp lisp_macroexpand(sexp cur_macro,env *cur_env){
     return macro_body;
   }
 }
-/* TODO: change what is now lisp_apply 
+/* TODO: change what is now lisp_apply
    (defun apply fun args &optional envrionment)
    to a new functon lisp_apply_in_env (call it apply-in-env)
    and define a new lisp apply so apply is
    (defun apply fun &rest args) where args are n arguments
    followed by a list of arguments which is spliced into
-   the argument list thus 
+   the argument list thus
    (apply '+ 1 2 '(3 4)) -> (+ 1 2 3 4)-> 10
 */
 sexp lisp_apply(sexp fun,sexp args,sexp environment){
