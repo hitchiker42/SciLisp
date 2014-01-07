@@ -706,7 +706,7 @@ sexp call_builtin(sexp expr,env *cur_env){
 /* internal procedure to call a lisp function*/
 sexp call_lambda(sexp expr,env *cur_env){
   //  PRINT_FMT("calling %r",car(expr).val.var->name);
-  sexp curFun=car(expr).val.var->val;
+  sexp curFun=XCAR(expr).val.var->val;
   lambda* curLambda=curFun.val.fun->lam;
   CORD fun_name=curFun.val.fun->lname;
   function_args *args=curFun.val.fun->args;

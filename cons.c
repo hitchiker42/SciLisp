@@ -188,19 +188,14 @@ sexp mapcar(sexp ls,sexp map_fn){
   if(FUNP(map_fn)){
     f=map_fn.val.fun->comp.f1;
   } else if(LAMBDAP(map_fn)){
-    closure=make_closure(function_sexp(map_fn.val.fun),env_sexp(cur_env_ptr),1);
+    closure=make_closure(map_fn,env_sexp(cur_env_ptr),1);
     if(!closure){
       return error_sexp("error constructing ffi_closure");
     }
     f=(sexp(*)(sexp))(closure[0]);
   }
   while(!NILP(XCDR(ls))){
-    //    if(FUNP(map_fn)){
-      cur_cell->car=f(XCAR(ls));
-      /*    } else {
-      cur_cell->cdr=eval(Cons(map_fn,Cons(car(ls),NIL)),
-                         map_fn.val.fun->lam->env);
-                         }*/
+    cur_cell->car=f(XCAR(ls));
     cur_cell->cdr=cons_sexp(xmalloc(sizeof(cons)));
     cur_cell=cur_cell->cdr.val.cons;
     ls=XCDR(ls);
@@ -254,7 +249,7 @@ sexp cons_drop(sexp ls,sexp num){
 }
 static inline sexp int_iota_helper(int64_t j,int64_t jstep,int64_t imax){
   int64_t i;
-  cons *newlist=xmalloc(sizeof(cons)*imax+1);  
+  cons *newlist=xmalloc(sizeof(cons)*imax+1);
   for(i=0;i<=imax;i++){
     newlist[i].car=int64_sexp(j);
     newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
@@ -376,29 +371,52 @@ static sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp));
 //as is this will only work for proper lists
 static inline sexp _merge_sort(sexp ls,sexp sort_fn){
   sexp(*f)(sexp,sexp);
-  f=sort_fn.val.fun->comp.f2;
-  //test code
+  int have_closure=0;
+  void **closure;
+  make_function_pointer(f,sort_fn,2);
+  /*  if(FUNP(sort_fn)){
+    f=sort_fn.val.fun->comp.f2;
+  } else if (LAMBDAP(sort_fn)){
+    closure=make_closure(sort_fn,env_sexp(cur_env_ptr),2);
+    if(!closure){return error_sexp("error constructing ffi_closure");}
+    f=(sexp(*)(sexp,sexp))closure[0];
+    }*/
   sexp retval=merge_sort_acc(ls,f,cons_length(ls).val.int64);
+  if(have_closure){
+    ffi_closure_free(closure[1]);
+  }
   return retval;
-  return merge_sort_acc(ls,f,cons_length(ls).val.int64);
 }
 sexp c_merge_sort(sexp ls,sexp sort_fn){
   return _merge_sort(ls,sort_fn);
 }
 sexp cons_merge_sort(sexp ls,sexp sort_fn){
-  if(!CONSP(ls) || !FUNP(sort_fn)){
+  if(!CONSP(ls) || !FUNCTIONP(sort_fn)){
     return format_type_error2("merge sort","list",ls.tag,"funciton",sort_fn.tag);
   }
   return _merge_sort(ls,sort_fn);
 }
 sexp cons_qsort(sexp ls,sexp sort_fn){
-  if(!CONSP(ls) || !FUNP(sort_fn)){
+  if(!CONSP(ls) || !FUNCTIONP(sort_fn)){
     return error_sexp("qsort sort_fn type error");
   }
   sexp(*f)(sexp,sexp);
-  env lambda_env;
-  f=sort_fn.val.fun->comp.f2;
-  return qsort_acc(ls,f);
+  int have_closure=0;
+  void **closure;
+  make_function_pointer(f,sort_fn,2);
+  /*  if(FUNP(sort_fn)){
+      f=sort_fn.val.fun->comp.f2;
+  } else if(LAMBDAP(sort_fn)){
+    closure=make_closure(sort_fn,env_sexp(cur_env_ptr),2);
+    if(!closure){return error_sexp("error constructing ffi_closure");}
+    f=(sexp(*)(sexp,sexp))closure[0];
+    have_closure=1;
+    }*/
+  sexp retval=qsort_acc(ls,f);
+  if(have_closure){
+    ffi_closure_free(closure[1]);
+  }
+  return retval;
 }
 sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
   if(!CONSP(ls)){

@@ -55,4 +55,22 @@ void **make_closure(sexp lambda,sexp fun_env,int numargs);
 static inline sexp c_data_to_sexp(c_data* obj){
   return (sexp){.val={.uint64=obj->val.ctype_uint64},.tag=obj->type};
 }
+#define make_function_pointer(f,fun_obj,arity)  \
+  make_function_pointer_##arity(f,fun_obj)
+#define make_function_pointer_1(f,fun_obj)                              \
+  if(FUNP(fun_obj)){                                                    \
+    f=sort_fn.val.fun->comp.f1;                                         \
+  } else if (LAMBDAP(fun_obj)){                                         \
+    closure=make_closure(fun_obj,env_sexp(cur_env_ptr),1);              \
+  if(!closure){return error_sexp("error constructing ffi_closure");}    \
+  f=(sexp(*)(sexp))closure[0];                                          \
+  }
+#define make_function_pointer_2(f,fun_obj)                              \
+  if(FUNP(fun_obj)){                                                    \
+    f=sort_fn.val.fun->comp.f2;                                         \
+  } else if (LAMBDAP(fun_obj)){                                         \
+    closure=make_closure(fun_obj,env_sexp(cur_env_ptr),2);              \
+  if(!closure){return error_sexp("error constructing ffi_closure");}    \
+  f=(sexp(*)(sexp,sexp))closure[0];                                     \
+  }
 #endif

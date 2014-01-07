@@ -72,64 +72,63 @@ typedef char char8_t;
 typedef wchar_t char32_t;
 //typedef fxn_proto* fxn_ptr;//pointer to primitive function
 //c macros to test for a specific type
-#define NILP(obj) (obj.tag == _nil)
-#define CONSP(obj) (obj.tag == _cons || obj.tag == _list || obj.tag == _dpair)
-#define LISTP(obj) (obj.tag == _list)
-#define NUMBERP(obj) (obj.tag>=1 && obj.tag<=10)
-#define FLOATP(obj) (obj.tag == _double)
-#define AS_DOUBLE(obj) (obj.val.real64)
-//this may change if I actually implement shorter int types
-#define INT_ANYP(obj)(obj.tag >=1 && obj.tag <= 8)
-#define INTP(obj) (obj.tag == _long || obj.tag==_ulong)
-#define CHARP(obj) (obj.tag == _char)
-#define AS_LONG(obj) (obj.val.int64)
-#define SYMBOLP(obj) (obj.tag == _sym)
-#define AS_SYMBOL(obj) (obj.val.var)
-#define SPECP(obj) (obj.tag== _special)
-#define STRINGP(obj) (obj.tag == _str || obj.tag == _ustr)
-#define AS_STRING(obj) (obj.val.cord)
-#define CHARP(obj) (obj.tag == _char)
+#define ARRAYP(obj) (obj.tag == _array)
+#define AS_ARRAY(obj) (obj.val.array)
 #define AS_CHAR(obj) (obj.val.utf8_char)
-#define FUNP(obj) (obj.tag == _fun && obj.val.fun->type == _compiled_fun)
-#define FUN_N_P(obj,n) (FUNP(obj) && obj.val.fun->args->max_args==n)
+#define AS_DOUBLE(obj) (obj.val.real64)
+#define AS_LONG(obj) (obj.val.int64)
+#define AS_STRING(obj) (obj.val.cord)
+#define AS_SYMBOL(obj) (obj.val.var)
+#define BIGFLOATP(obj) (obj.tag == _bigfloat)
+#define BIGINTP(obj)(obj.tag == _bigint)
+#define BIGNUMP(obj) (obj.tag >= 1 && obj.tag <= 12)
+#define CDATAP(obj) (obj.tag == _cdata)
+#define CHARP(obj) (obj.tag == _char)
+#define CHARP(obj) (obj.tag == _char)
+#define CONSP(obj) (obj.tag == _cons || obj.tag == _list || obj.tag == _dpair)
+#define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
+#define ENVP(obj)(obj.tag == _env)
+#define ERRORP(obj)(obj.tag == _error)
+#define FLOATP(obj) (obj.tag == _double)
 #define FUN0P(obj) FUN_N_P(obj,0)
 #define FUN1P(obj) FUN_N_P(obj,1)
 #define FUN2P(obj) FUN_N_P(obj,2)
 #define FUN3P(obj) FUN_N_P(obj,3)
-#define ARRAYP(obj) (obj.tag == _array)
-#define AS_ARRAY(obj) (obj.val.array)
-#define LAMBDAP(obj) (obj.tag == _fun && obj.val.fun->type == _lambda_fun)
 #define FUNCTIONP(obj)(obj.tag == _fun)
-#define STREAMP(obj)(obj.tag ==_stream)
-#define REGEXP(obj)(obj.tag == _regex)
-#define ERRORP(obj)(obj.tag == _error)
-#define OPAQUEP(obj) (obj.tag == _opaque)
-#define SEQUENCEP(obj) (CONSP(obj) || ARRAYP(obj))
-#define BIGINTP(obj)(obj.tag == _bigint)
-#define BIGFLOATP(obj) (obj.tag == _bigfloat)
-#define BIGNUMP(obj) (obj.tag >= 1 && obj.tag <= 12)
-#define ENVP(obj)(obj.tag == _env)
-#define MACROP(obj) (obj.tag == _macro)
-#define INT8P(obj) (obj.tag == _byte)
+#define FUNP(obj) (obj.tag == _fun && obj.val.fun->type == _compiled_fun)
+#define FUN_N_P(obj,n) (FUNP(obj) && obj.val.fun->args->max_args==n)
+#define HASHTABLEP(obj) (obj.tag == _hashtable)
+#define HEAPP(obj) (obj.tag == _heap)
 #define INT16P(obj) (obj.tag == _short)
 #define INT32P(obj) (obj.tag == _int)
 #define INT64P(obj) (obj.tag == _long)
-#define UINT64P(obj) (obj.tag == _ulong)
+#define INT8P(obj) (obj.tag == _byte)
+#define INTP(obj) (obj.tag == _long || obj.tag==_ulong)
+#define INT_ANYP(obj)(obj.tag >=1 && obj.tag <= 8)
+#define IS_POINTER(obj) (obj.is_ptr == 1)
+#define KEYWORDP(obj) (obj.tag == _keyword)
+#define LAMBDAP(obj) (obj.tag == _fun && obj.val.fun->type == _lambda_fun)
+#define LISP_TREEP(obj) (obj.tag == _tree)
+#define LISTP(obj) (obj.tag == _list)
+#define LITERALP(obj) (obj.is_ptr == 0)
+#define MACROP(obj) (obj.tag == _macro)
+#define NILP(obj) (obj.tag == _nil)
+#define NUMBERP(obj) (obj.tag>=1 && obj.tag<=10)
+#define OPAQUEP(obj) (obj.tag == _opaque)
 #define REAL32P(obj) (obj.tag == _float)
 #define REAL64P(obj) (obj.tag == _double)
 #define REALP(obj) (obj.tag == _double || obj.tag == _float)
-#define KEYWORDP(obj) (obj.tag == _keyword)
-#define HEAPP(obj) (obj.tag == _heap)
-#define TYPEP(obj) (obj.tag == _type)
+#define REGEXP(obj)(obj.tag == _regex)
 #define RE_MATCHP(obj) (obj.tag == _re_data)
+#define SEQUENCEP(obj) (CONSP(obj) || ARRAYP(obj))
+#define SPECP(obj) (obj.tag== _special)
+#define STREAMP(obj)(obj.tag ==_stream)
+#define STRINGP(obj) (obj.tag == _str || obj.tag == _ustr)
+#define SYMBOLP(obj) (obj.tag == _sym)
 #define TYPED_ARRAYP(obj) (obj.tag==_typed_array)
+#define TYPEP(obj) (obj.tag == _type)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
-#define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
-#define LITERALP(obj) (obj.is_ptr == 0)
-#define IS_POINTER(obj) (obj.is_ptr == 1)
-#define LISP_TREEP(obj) (obj.tag == _tree)
-#define HASHTABLEP(obj) (obj.tag == _hashtable)
-#define CDATAP(obj) (obj.tag == _cdata)
+#define UINT64P(obj) (obj.tag == _ulong)
 #define format_type_error(fun,expected,got)                             \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                fun,expected,tag_name(got)),                             \
@@ -434,6 +433,13 @@ struct function_args{
 };
 //The layout of the function and macro structures is important, the first three
 #define CALL_PRIM(fxn) (fxn.val.fun->comp)
+#define TAKES_N_ARGS(fxn,n) (fxn.val.fun->max_args>=n && \
+                             fxn.val.fun->num_req_args<=n)
+typedef enum {
+  _no_rec,
+  _simple_rec,
+  _tail_rec,
+} recursion_type;
 struct function {
   function_args* args;//8 | 8 
   CORD lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
@@ -449,6 +455,7 @@ struct function {
     _compiled_macro=_builtin_macro,
   } type;
   uint32_t maxargs;//extra 32 bits, so we can save a bit of  (4 | 48)
+  recursion_type rec;
   //indirection, though I probably won't use this 
 };
 struct macro {

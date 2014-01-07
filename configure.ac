@@ -129,10 +129,14 @@ AC_CANONICAL_HOST
 AS_IF([test "x$host_cpu" = xx86_64],
         [AC_MSG_RESULT([yes])]
         [AC_MSG_CHECKING([for latest supported simd instruction set])]
-        [simd_features=`extra/cpuid -l`] dnl; CFLAGS="$CFLAGS $simd_features"]
+        [AS_IF([test -x extra/cpuid],
+               [simd_features=`extra/cpuid -l`],
+               [simd_features=sse2])]
         [AC_SUBST(SIMD_SET,$simd_features)]
-        [AC_MSG_RESULT([$simd_features])],
+        [AC_MSG_RESULT([${simd_features}])],
         [AC_MSG_RESULT([no])])
+dnl[AS_IF([test -x extra/cpuid],
+dnl[AC_SUBST(SIMD_SET,[-msse2])])
 AC_CONFIG_FILES([Makefile
                  SFMT/Makefile])
 #AC_CONFIG_SUBDIRS([bignum/gmp
