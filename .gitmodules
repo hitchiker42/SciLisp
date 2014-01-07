@@ -1,9 +1,12 @@
 [submodule "gc/libatomic_ops"]
-	path = gc/libatomic_ops
+	path = src/gc/libatomic_ops
 	url = git://github.com/ivmai/libatomic_ops.git
 [submodule "gc/bdwgc"]
-	path = gc/bdwgc
+	path = src/gc/bdwgc
 	url = git://github.com/ivmai/bdwgc.git
 [submodule "llvm"]
 	path = llvm
 	url = http://llvm.org/git/llvm.git
+[submodule "src/libffi"]
+	path = src/libffi
+	url = https://github.com/atgreen/libffi.git
