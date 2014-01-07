@@ -440,6 +440,7 @@ typedef enum {
   _simple_rec,
   _tail_rec,
 } recursion_type;
+//get rid of lambda, lambda's should be self evaluating 
 struct function {
   function_args* args;//8 | 8 
   CORD lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
@@ -451,6 +452,7 @@ struct function {
   CORD cname;//name in c, and llvm I suppose 8 | 40
   enum {// 4 | 44
     _lambda_fun,
+    _closure_fun,
     _compiled_fun,
     _compiled_macro=_builtin_macro,
   } type;
@@ -470,6 +472,8 @@ struct macro {
 static inline CORD get_signature(function *fun_or_macro){
   return fun_or_macro->signature;
 }
+//(lambda (arglist) body)
+//or (closure env (arglist) body)
 struct lambda{
   env *env;//for closures
   sexp body;
