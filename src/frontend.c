@@ -3,7 +3,7 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 #include "common.h"
-#include "gc/include/gc/gc.h"
+#include "gc/gc.h"
 #include "prim.h"
 #include "print.h"
 #include "codegen.h"

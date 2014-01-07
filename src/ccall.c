@@ -146,9 +146,6 @@ sexp ffi_ccall_unsafe(sexp fun_name,sexp libname,sexp rettype,
   if(!fp){
     return error_sexp(CORD_cat("Error in libdl:\n",dlerror()));
   }
-  //test
-  real64_t(*f)(uint32_t)=fp;
-  PRINT_FMT("fact of 4 is %f",f(4));
   //Assume the caller has verified len(argtypes)==len(args)...or not
   int numargs=argtypes.len,i;
   sexp cur_argtype;

@@ -16,7 +16,7 @@
 #define GC_REDIRECT_TO_LOCAL
 #endif
 //#define USE_MMAP
-#include "gc/include/gc/gc.h"
+#include "gc/gc.h"
 #include <pthread.h>
 #include <ctype.h>
 #include <unistd.h>

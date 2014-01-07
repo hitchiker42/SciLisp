@@ -125,8 +125,8 @@
 # undef REL_ALLOC
 
 #include <unistd.h>
-#include "gc/include/gc/gc.h"
-#include "gc/include/gc/cord.h"
+#include "gc/gc.h"
+#include "gc/cord.h"
 //hack in gc support
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC

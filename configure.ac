@@ -3,10 +3,11 @@
 AC_PREREQ([2.69])
 LT_PREREQ([2.4.2])
 AC_INIT([SciLisp], [0.01], [BUG-REPORT-ADDRESS])
-AC_CONFIG_SRCDIR([scilisp.h])
-AC_CONFIG_HEADERS([config.h])
+#AC_CONFIG_SRCDIR([scilisp.h])
+AC_CONFIG_HEADERS([src/include/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_SUBDIRS([src/gc/bdwgc] [src/libffi])
 AM_INIT_AUTOMAKE([foreign -Wall -Wno-gnu])
 AM_PROG_AR
 LT_INIT
@@ -21,8 +22,6 @@ AC_CHECK_PROG(HAVE_EMACS,emacs,yes,
   [AC_MSG_WARN([Emacs not found in default PATH, \
  you will be unable to modify SciLisp primitives])] no)
 # Checks for libraries.
-AC_CHECK_LIB([gc], [GC_malloc])
-AC_CHECK_LIB([cord], [CORD_cat])
 dnl AC_CHECK_LIB([clang], [clang_visitChildren])
 AC_CHECK_LIB([dl], [dlsym])
 AC_CHECK_LIB([gmp], [__gmpz_add],,
@@ -31,7 +30,6 @@ AC_CHECK_LIB([m], [cos])
 AC_CHECK_LIB([mpfr], [mpfr_init2],,
                     [AC_MSG_ERROR([Error, required library mpfr not found])])
 AC_CHECK_LIB([pthread], [pthread_create])
-AC_CHECK_LIB([ffi], [ffi_call])
 AC_ARG_WITH([readline],
   [AS_HELP_STRING([--with-readline],
     [Use readline for command line editing (default=check)])],
@@ -51,13 +49,17 @@ AC_ARG_WITH([gc-threads],
     [enable multithreaded gc (default=yes)])],
   [],
   [with_gc_threads=yes])
-AS_IF([test "x$with_gc_threads" = xyes],
-  [AC_DEFINE([GC_THREADS],[1],[Define if using multithreaded gc])])
 AC_ARG_ENABLE([threads],
   [AS_HELP_STRING([--enable-threads],
     [enable multithreded scilisp (does not effect gc threads)])],
   [],
   [enable_threads=no])
+AS_IF([test "x$with_gc_threads" = xyes -o "x$enable_threads" = xyes],
+  [AC_DEFINE([GC_THREADS],[1],[Define if using multithreaded gc])]
+  [AC_SUBST([GC_OPTIONS],[--enable-threads=pthreads --enable-parallel-mark])]
+  [THREADS=pthreads]
+  [enable_parallel_mark = yes]
+  [enable_gcj_support=no])
 dnl Shold insure that using threads forces gc threads
 AS_IF([test "x$enable_threads" = xyes],
   [AC_DEFINE([GC_THREADS],[1],[Define if using multithreaded gc])]
@@ -138,7 +140,8 @@ AS_IF([test "x$host_cpu" = xx86_64],
 dnl[AS_IF([test -x extra/cpuid],
 dnl[AC_SUBST(SIMD_SET,[-msse2])])
 AC_CONFIG_FILES([Makefile
-                 SFMT/Makefile])
+                 src/Makefile
+                 src/SFMT/Makefile])
 #AC_CONFIG_SUBDIRS([bignum/gmp
 #                   bignum/mpfr
 #                   gc/bdwgc

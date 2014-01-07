@@ -7,7 +7,7 @@
 //including cord.h is weird, it includes "cord_pos.h" which isn't
 //automatically installed for some reason so we specify the actual
 //file we're including explicitly, as thats the easiest way to fix things
-#include "gc/include/gc/cord.h"
+#include "gc/cord.h"
 #include <string.h>
 #include <setjmp.h>
 #include <wchar.h>

@@ -6,10 +6,10 @@
 #include "env.h"
 //#include "hash_fn.h"//has a bunch of stuff that currently we don't need
 #define offset_basis_32 2166136261
-#define offset_basis_64 14695981039346656037
+#define offset_basis_64 14695981039346656037UL
 #define fnv_prime_32 16777619
 #define fnv_prime_64 1099511628211UL
-static uint64_t fnv_hash(const void *key,int keylen){
+uint64_t fnv_hash(const void *key,int keylen){
   const uint8_t *raw_data=(const uint8_t *)key;
   int i;
   uint64_t hash=offset_basis_64;
