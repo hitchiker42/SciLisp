@@ -234,3 +234,10 @@ CORD make_function_signature(function_args *args){
       (CORD_cat(CORD_substr(signature,0,CORD_len(signature)-1),")"));
   }
 }
+sexp boundp(sexp sym){
+  if(!SYMBOLP(sym)){
+    return format_type_error("bound?","symbol",sym.tag);
+  }
+  symref ref=getSymFromSexp(sym,NULL);
+  return (ref?LISP_TRUE:LISP_FALSE);
+}

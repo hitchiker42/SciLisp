@@ -23,6 +23,23 @@ symref getSym(env *cur_env,CORD name){
       exit(1);
   }
 }
+symref getSymFromSexp(sexp sym,env *cur_env){
+  if(!cur_env){
+    return getGlobalSym(sym.val.var->name);
+  } else {
+    return getSym(cur_env,sym.val.var->name);
+  }
+}
+symref addSymFromSexp(sexp sym,sexp val,env *cur_env){
+  symref new_sym=xmalloc(sizeof(symbol));
+  new_sym->name=sym.val.var->name;
+  new_sym->val=val;
+  if(cur_env){
+    return addSym(cur_env,new_sym);
+  } else {
+    return addGlobalSym(new_sym);
+  }
+} 
 symref getSymNotGlobal(env *cur_env,CORD name){
   symref retval=NULL;
   while(cur_env->enclosing != topLevelEnv){

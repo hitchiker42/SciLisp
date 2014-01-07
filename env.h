@@ -89,6 +89,8 @@ obarray *globalObarray;
 obarray_env *globalObarrayEnv;
 obarray *keywordObarray;
 obarray_env *keywordObarrayEnv;
+symref getSymFromSexp(sexp var,env *cur_env);
+symref addSymFromSexp(sexp var,sexp val,env *cur_env);
 local_symref getLocalSym(local_env *cur_env,CORD name);
 symref getFunctionSym(function_env* cur_env,CORD name);
 symref getGlobalSym(CORD name);
