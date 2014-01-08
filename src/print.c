@@ -186,6 +186,7 @@ CORD print(sexp obj){
     case _keyword:
       return obj.val.keyword->name;
     case _char:{
+      PRINT_FMT("numerical val of char %d",obj.val.uchar);
       CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
       return retval;
     }

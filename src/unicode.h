@@ -5,7 +5,7 @@
 #ifndef UNICODE_H
 #define UNICODE_H
 #include "common.h"
-wchar_t lex_char(char* cur_yytext);
+int lex_char(char* cur_yytext,wint_t *new_char);
 sexp lisp_char_to_string(sexp lisp_char);
 sexp lisp_string_to_char(sexp lisp_str);
 //pretty much a simplified wrapper to wcrtomb (but returns a vaild c string)

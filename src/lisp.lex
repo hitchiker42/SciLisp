@@ -12,7 +12,7 @@
 #undef YY_DECL
 #endif
 #define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
- /*#define YY_DECL TOKEN yylex(void)*/
+ /*#define YY_DECL TOKEN yylex(sexp *yylval,env *cur_env,yyscan_t yyscanner)*/
 #define YYSTYPE sexp
 static int comment_depth=0;
 %}
@@ -28,6 +28,7 @@ QUOTE "'"|quote
   character class, this means any raw bytes (128-255) will be matched, letting
   us scan unicode characters*/
 ASC     [\x00-\x7f]{-}[?\\]
+ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
 ASCN    [\x00-\t\v-\x7f]
 U       [\x80-\xbf]
 U2      [\xc2-\xdf]
@@ -36,7 +37,8 @@ U4      [\xf0-\xf4]
 UANY    {ASC}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U} 
 UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
-UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{2})|"\\u"([[:xdigit:]]{4})|{UANY})
+UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{1,2})|"\\u"([[:xdigit:]]{1,4})|"\\U"([[:xdigit:]]{1,8})|{UANY})
+USTR    {ASCSTR}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 KEYSYM ":"{ID}
 /*
 union data {
@@ -67,11 +69,21 @@ union data {
   *yylval=real64_sexp(strtod(yytext,NULL));return TOK_REAL;}
     /*String Literal a quote, followed by either a literal \"
    or anything that isnt a " repeated 1 or more times, followed by another quote.*/
-"\""([^\"]|\/"\"")+"\"" {LEX_MSG("Lexing string");
+"\""([\x00-0x7f]|"\\""\"")+"\"" {LEX_MSG("Lexing string");
   *yylval=cord_sexp(CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2)));
   return TOK_STRING;}
+"\""([\x00-\x21\x23-\x7f]|{UONLY}|"\\""\"")+"\"" {LEX_MSG("Lexing multibyte string");
+  *yylval=cord_sexp(CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2)));
+  return TOK_STRING;}
+"\"\"" {*yylval=cord_sexp(0);return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");
-  *yylval=uchar_sexp((wchar_t)lex_char(yytext));return TOK_CHAR;}
+  wint_t new_char; 
+  if(lex_char(yytext+1,&new_char)<0){
+    return TOK_UNKN;
+  } else {
+    *yylval=uchar_sexp(new_char); return TOK_CHAR;
+  }
+}
 {KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
   sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
   return TOK_KEYSYM;}

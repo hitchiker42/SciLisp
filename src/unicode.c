@@ -9,6 +9,11 @@
    strings, This may change at some point, but that's how it is for now*/
 #include "unicode.h"
 #include <endian.h>
+#include <ctype.h>
+#define HEXVALUE(c) \
+  (((c) >= 'a' && (c) <= 'f') \
+        ? (c)-'a'+10 \
+        : (c) >= 'A' && (c) <= 'F' ? (c)-'A'+10 : (c)-'0')
 static char temp_ustring[MB_LEN_MAX];
 struct lisp_ustring {
   wchar_t *restrict str;
@@ -66,33 +71,73 @@ sexp lisp_string_to_char(sexp lisp_str){
     return_errno("string->char");
   } else if (nbytes==(size_t)-2){
     //shouldn't happen,this only happens if n is too small
-    //and 4 should be the max, so 
+    //and 4 should be the max, so
     return error_sexp("Shouldn't get here");
   } else {
     return uchar_sexp(retval);
   }
 }
+//large ammounts of this taken from the bash printf builtin
 union utf8_hack utf8_escape;
-wchar_t lex_char(char* cur_yytext){
+int lex_char(char* cur_yytext,wint_t *new_char){
   utf8_escape.wchar=L'\0';
-  if(cur_yytext[1]=='\\'){
-    switch(cur_yytext[2]){
+  int temp=0;
+  char *p=cur_yytext;
+  wint_t uvalue;
+  if(*p=='\\'){
+    p++;
+    switch(*p++){
       case '?':{
-        return '?';
+        *new_char = '?';
+        return 2;
       }
       case 'x':{
-      //without this if you gave \x0000 you'd segfault
-      char byte[3]={cur_yytext[3],cur_yytext[4],'\0'};
-      return strtol(byte,NULL,16);
+        //note to self: --  (prefix or postfix) has higer precidence than &&
+        for(temp=2,uvalue=0;isxdigit(*p) && temp--;p++){
+          uvalue = (uvalue*16) + HEXVALUE(*p);
+        }
+        if(p==cur_yytext+2){
+          fprintf(stderr,"error lexing char, expected hex digit after \\x\n");
+          return -1;
+        }
+        *new_char=uvalue;
+        return p-cur_yytext;
       }
-      case 'u':{
+      case 'U':
+        temp=8;
+      case 'u':
+        temp = (temp) ? 4 : 8;      /* \uNNNN \UNNNNNNNN */
+        wint_t uvalue;
+          for (uvalue = 0; isxdigit ((unsigned char)*p) && temp--; p++)
+            uvalue = (uvalue * 16) + HEXVALUE (*p);
+          if (p == cur_yytext + 2){
+            fprintf(stderr,"error lexing char, expected hex digit after \\u\n");
+            return -1;
+          }
+              /*              builtin_error (_("missing unicode digit for \\%c"), c);
+              *cp = '\\';
+              return 0;*/
+          *new_char=uvalue;
+          return p-cur_yytext;
+          /*          if (uvalue <= UCHAR_MAX){
+            *cp = uvalue;
+          }
+          else{
+            temp = u32cconv (uvalue, cp);
+              cp[temp] = '\0';
+              if (lenp)
+                *lenp = temp;
+                }*/
+          /*
       HERE();
       char byte1[3]={cur_yytext[3],cur_yytext[4],'\0'};
       char byte2[3]={cur_yytext[5],cur_yytext[6],'\0'};
 #if __BYTE_ORDER ==  __LITTLE_ENDIAN
       HERE();
-      utf8_escape.bytes[1]=(unsigned char)strtol(byte1,NULL,16);
-      utf8_escape.bytes[0]=(unsigned char)strtol(byte2,NULL,16);
+      PRINT_FMT("byte 1 %s",byte1);
+      PRINT_FMT("byte 2 %s",byte2);
+      utf8_escape.bytes[1]=(unsigned char)strtoul(byte1,NULL,16);
+      utf8_escape.bytes[0]=(unsigned char)strtoul(byte2,NULL,16);
 #elif __BYTE_ORDER == __BIG_ENDIAN
       HERE();
       utf8_escape.bytes[2]=(unsigned char)strtol(byte1,NULL,16);
@@ -102,39 +147,42 @@ wchar_t lex_char(char* cur_yytext){
       fprintf(stderr,"unknown byte order, exiting");
       exit(1);
 #endif
-      return utf8_escape.wchar;
-      }
+return utf8_escape.wchar;*/
       case 'n':
-        return (wchar_t) '\n';
+        *new_char=(wchar_t) '\n';
+        return 2;
       case 't':
-        return (wchar_t) '\t';
+        *new_char=(wchar_t) '\t';
+        return 2;
       case '\\':
-        return (wchar_t) '\\';
+        *new_char=(wchar_t) '\\';
+        return 2;
         //I'll add the rest later
       default:
-      cur_yytext=cur_yytext+1;
+        p--;
+        break;
     }
   }
   wchar_t result[1];
   mbstate_t state;
   size_t len;
   int64_t nbytes;
-  char* cvt_str=cur_yytext+1;;
   memset(&state,'\0',sizeof(state));
   int i;
   HERE();
-  PRINT_FMT("%lc",*cur_yytext+1);
+  PRINT_FMT("%lc",*p);
   //  nbytes=strlen(cur_yytext+1);//mbrlen(cur_yytext+1,4,&state);
   for(i=0;i<4;i++){
-    fprintf(stderr,"%#0hhx",(cur_yytext+1+i)[0]);
+    fprintf(stderr,"%#0hhx",(p+i)[0]);
   }
-  if(0<=(nbytes=mbrtowc(result,cvt_str,strlen(cvt_str),&state))){
+  if(0<=(nbytes=mbrtowc(result,p,strlen(p),&state))){
     puts("");
     PRINT_FMT("%lc",*result);
-    return (wchar_t)result[0];
+    *new_char = (wchar_t)result[0];
+    return strlen(p);
   } else {
-    fprintf(stderr,"error lexing char, returning null\n");
-    return (wchar_t)L'\0';
+    fprintf(stderr,"error lexing char\n");
+    return -1;
   }
 }
  #if 0
