@@ -6,9 +6,9 @@
 #define __ENV_H__
 #include "common.h"
 enum symbol_interned{
-    _symbol_interned = 0,
-    _symbol_uninterned = 1,
-    _symbol_interned_in_initial_obarray = 2
+  _symbol_interned = 0,
+  _symbol_uninterned = 1,
+  _symbol_interned_in_initial_obarray = 2,
 };
 struct symbol_props {
   CORD doc;
@@ -19,6 +19,13 @@ struct symbol_props {
   unsigned int interned : 2;
   _tag type;
 };
+//this is going to cause some difficultly with obarrays but oh well
+struct symbol_name {
+  const char *name;
+  uint64_t hashv;
+  uint32_t name_len;
+};
+  
 struct symbol {
   CORD name;
   sexp val;
@@ -60,6 +67,13 @@ struct local_env{
   env* enclosing;
   local_symref head;
 };
+/*
+  new local env
+  struct local_env{
+  env* enclosing;
+  sexp env_alist;
+  }
+ */
 struct function_env{
   env* enclosing;
   function_args* head;//for consistancy in naming

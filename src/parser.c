@@ -464,7 +464,6 @@ sexp parse_backtick(sexp *yylval,yyscan_t scanner,TOKEN yytag){
     cons* cur_loc=retval.val.cons=xmalloc(sizeof(cons));
     cons* prev_loc=cur_loc;
     while (yytag != TOK_RPAREN && yytag != TOK_DOT){
-      HERE();
       switch(yytag){
         case TOK_COMMA:{
           int is_spliced_list=0;

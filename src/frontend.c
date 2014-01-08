@@ -614,13 +614,13 @@ static void SciLisp_getopt(int argc,char *argv[]){
           fprintf(stderr,"parsing failed exiting\n");
           exit(1);
         }
-        fprintf(stderr,"before parse init");
+        fprintf(stderr,"before parse init\n");
         yyscan_t scanner;
         yylex_init(&scanner);
         //sexp ast=yyparse(file);
-        fprintf(stderr,"before parse");
+        fprintf(stderr,"before parse\n");
         sexp ast=yyparse(file,scanner);
-        fprintf(stderr,"after parse");
+        fprintf(stderr,"after parse\n");
         int exit_value=0;
         puts("Testing:");
         while (CONSP(ast)){

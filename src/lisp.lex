@@ -16,6 +16,8 @@
 #define YYSTYPE sexp
 static int comment_depth=0;
 %}
+ /*\x5c == \ & \x22 == " & \x27 == '
+  mostly so unmatched quotes don't fuck up syntax highlighing*/
 DIGIT [0-9]
 /*identifiers explicitly aren't # | : ; . , ' ` ( ) { } [ ]*/
 ID [A-Za-z%+*!\-_^$/<>=/&][A-Za-z%+*!?\-_^$&<>0-9=/]*
@@ -24,18 +26,31 @@ QUALIFIED_ID {ID}":"{ID}
 QUALIFIED_ID_ALL {ID}":."{ID}
 INVALID_ID_TOKENS [\][#|:;.2''`(){}]
 QUOTE "'"|quote
-/*this is kinda special, note that the catchall case of this is a negated 
-  character class, this means any raw bytes (128-255) will be matched, letting
-  us scan unicode characters*/
+ /*Unicode support, basic idea borrowed from the lexer for
+  *the txr by kaz kylheku language*/
 ASC     [\x00-\x7f]{-}[?\\]
 ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
+ /*explaination of special characters:
+  * : reserved for keywords, pacakge access and type annotations
+  * ; reserved for comments
+  * (){}[] reserved delimiers, () should be obvious, [] for arrays and {} for future use
+  * ' " ' quotes, obviously
+  * # for quoting and delimiting special symbols(#t,#f) and deliberately unreaable symbols
+  * . reserved for pairs and package access
+  * | nothing now but reserved for later
+  * @ for ,@ in macros
+  * , for macros
+  * Starting special characters ? for characters, +-[0-9] for numbers
+  */
+ASCSYM_REST  [\x00-\x7f]{-}[\][#|,.;:\x27\x22\x5c`(){}@]
+ASCSYM ({ASCSYM_REST}{-}[0-9?+-]){ASCSYM_REST}*
 ASCN    [\x00-\t\v-\x7f]
 U       [\x80-\xbf]
 U2      [\xc2-\xdf]
 U3      [\xe0-\xef]
 U4      [\xf0-\xf4]
 UANY    {ASC}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
-UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U} 
+UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{1,2})|"\\u"([[:xdigit:]]{1,4})|"\\U"([[:xdigit:]]{1,8})|{UANY})
 USTR    {ASCSTR}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
@@ -53,11 +68,11 @@ union data {
 %option noyywrap
    /*start condition for scanning nested comments*/
 %x comment
-   /*start condition for matching typenames*/ 
+   /*start condition for matching typenames*/
 %x typename
 %option noyyalloc noyyrealloc noyyfree
 %option reentrant
-%option header-file="lex.yy.h"  
+%option header-file="lex.yy.h"
 %%   /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");
   *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
@@ -77,7 +92,7 @@ union data {
   return TOK_STRING;}
 "\"\"" {*yylval=cord_sexp(0);return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");
-  wint_t new_char; 
+  wint_t new_char;
   if(lex_char(yytext+1,&new_char)<0){
     return TOK_UNKN;
   } else {
@@ -92,7 +107,7 @@ union data {
 de(f(ine|macro|var|const)?|fun) {LEX_MSG("lexing define");
     yylval->tag=_special;
     switch(yytext[3]){
-      case 'i': 
+      case 'i':
       case 'v':
       case '\0':
         yylval->val.special=_def;
@@ -107,7 +122,8 @@ de(f(ine|macro|var|const)?|fun) {LEX_MSG("lexing define");
         yylval->val.special=_defmacro;
         return TOK_MACRO;
      }
-  }    
+  }
+
  /*
 def(ine)? {LEX_MSG("lexing define");
   *yylval=spec_sexp(_def);return TOK_SPECIAL;}

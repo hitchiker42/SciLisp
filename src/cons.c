@@ -1,5 +1,5 @@
 /*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
+ * Copyright (C) 2013-2014 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 #include "common.h"
