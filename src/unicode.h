@@ -8,6 +8,9 @@
 int lex_char(char* cur_yytext,wint_t *new_char);
 sexp lisp_char_to_string(sexp lisp_char);
 sexp lisp_string_to_char(sexp lisp_str);
-//pretty much a simplified wrapper to wcrtomb (but returns a vaild c string)
+//pretty much a wrapper to wcrtomb which returns a vaild c string
 c_string c_wchar_to_string(wchar_t lisp_char);
+//pretty much a simplified wrapper to mbsrtowcs, which deals
+//with memory allocation internally (using gc_malloc_atomic)
+wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
 #endif

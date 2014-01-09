@@ -18,6 +18,31 @@ uint64_t fnv_hash(const void *key,int keylen){
   }
   return hash;
 }
+struct symbol_name* make_symbol_name(char *restrict name,uint32_t len,uint64_t hashv){
+  if(!len){
+    len=strlen(name);
+  }
+  if(!hashv){
+    hashv=fnv_hash(name,len);
+  }
+  //while struct symbol_name technically has a pointer in it
+  //gc obviously won't free it since it's allocated in the same chunk of memory
+  struct symbol_name *retval=xmalloc_atomic(sizeof(struct symbol_name)+len);
+  retval->name=((uint8_t*)retval)+offsetof(struct symbol_name,name);
+  memcpy(retval->name,name,len);
+  //done with name
+  retval->hashv=hashv;
+  retval->len=len;
+  return retval;
+}
+struct symbol_new *make_new_symbol(char *restrict name,uint32_t len){
+  struct symbol_name *sym_name=make_symbol_name(name,len);
+  struct symbol_new *retval=xmalloc(sizeof(struct symbol_new));
+  retval->name=sym_name;
+  retval->next=NULL;
+  retval->plist=NIL;
+  return retval;
+}
 symref getSym(env *cur_env,CORD name){
   if(!cur_env){return NULL;}
   switch(cur_env->tag){
@@ -52,7 +77,7 @@ symref addSymFromSexp(sexp sym,sexp val,env *cur_env){
   } else {
     return addGlobalSym(new_sym);
   }
-} 
+}
 symref getSymNotGlobal(env *cur_env,CORD name){
   symref retval=NULL;
   while(cur_env->enclosing != topLevelEnv){
@@ -282,7 +307,7 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
     return NULL;
   }
   /*check that the hashes match, but since we can't be 100% sure
-    of unique hashes do a string comparison as well, its still 
+    of unique hashes do a string comparison as well, its still
     better that doing all string compairsons*/
   while(bucket_head && bucket_head != bucket_head->next){
     //    if(hashv == bucket_head->hashv){
@@ -294,6 +319,58 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
   }
 return 0;
 }
+struct obarray_new* obarray_new_rehash(struct obarray_new *ob){}
+//call after adding an element to the obarray
+static inline int maybe_rehash_obarray(struct obarray_new *ob){
+  ob->elements++;
+  ob->capacity+=ob->capacity_inc;
+  if(ob->capacity>=ob->gthreshold){
+    obarray_new_rehash(ob);
+    return 1;
+  }
+  return 0;
+}
+struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob){
+  if(!ob){
+    ob=current_obarray;
+  }
+  if(!len){
+    len=strlen(name);
+  }
+  uint64_t hashv=fnv_hash(name,len);
+  multithreaded_only(pthread_rwlock_rdlock(ob->lock);)
+  int bucket=hashv % ob->size;
+  struct global_symbol *cur_symbol;
+  if(!(cur_symbol=ob->buckets[bucket])){
+    ob->used++;
+    goto make_symbol;
+  } else {
+    do {
+      if(cur_symbol->name->hashv == hashv){
+        if(!strcmp(cur_symbol->name,name)){
+          multithreaded_only(pthread_rwlock_unlock(ob->lock);)
+          return cur_symbol;
+        }
+      }
+    }  while((cur_symbol=cur_symbol->next));
+  }
+ make_symbol:
+  multithreaded_only(pthread_rwlock_unlock(ob->lock);)
+  //allocate the name seperately so we can do it atomically(gc atomically)
+  struct symbol_name *new_symbol_name=make_symbol_name(name,len,hashv);
+  struct global_symbol *retval=xmalloc(sizeof(struct global_symbol));
+  retval->name=new_symbol_name;
+  retval->val=UNBOUND;
+  retval->plist=NIL;
+  multithreaded_only(pthread_rwlock_wrlock(ob->lock;)) 
+  //set the new symbol to be the new head of the bucket and point to the current head
+  retval->next=ob->buckets[bucket];
+  //this needs to be done under a lock
+  ob->buckets[bucket]=retval;
+  maybe_rehash_obarray(ob);
+  multithreaded_only(pthread_rwlock_unlock(ob->lock);)
+  return (struct symbol_new *)retval;
+}
 symref getObarraySym(obarray_env* ob_env,CORD name){
   obarray_entry* entry;
   entry=obarray_get_entry(ob_env->head,name,0);
@@ -304,6 +381,24 @@ symref getObarraySym(obarray_env* ob_env,CORD name){
     return getSym(ob_env->enclosing,name);
   }
 }
+sexp lisp_intern(sexp sym_or_name,sexp ob){
+  char *name;
+  if(STRINGP(sym_or_name)){
+    name=CORD_to_const_char_star(sym_or_name);
+  } else if (SYMBOLP(sym_or_name)){
+    name=sym_or_name.val.sym->name->name;
+  } else {
+    return format_type_error("intern","string or symbol",sym_or_name.tag);
+  }
+#ifndef OBARRAYP(obj)
+#define OBARRAYP(obj) 0
+#endif
+  if(!OBARRAYP(obarray)){
+    return format_type_error("intern","obarray",ob.tag);
+  }
+  return c_intern(ob.val.ob,name);
+}
+    
 symref getSymObarrayOnly(obarray_env* ob_env,CORD name){
   obarray_entry* entry;
   entry=obarray_get_entry(ob_env->head,name,0);
@@ -341,7 +436,7 @@ obarray_entry* obarray_add_entry_generic
     }
     existing_entry=NULL;
   }
-    
+
   if(!(existing_entry)||
      conflict_opt == _ignore){
     //int retval=(conflict_op==_ignore)?_ignore:1;

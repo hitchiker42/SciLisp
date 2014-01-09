@@ -384,6 +384,33 @@ reached in @var{body}. If @var{inc} is omitted it defaults to
 @section System Interface
 @node Internals
 @chapter Internals
+@subsection Coding Style
+As is (or should be) the case with any software project SciLisp is
+written using a specific coding style. The actual SciLisp lisp code is
+just written in normal lisp style, lisp doesn't have much to argue
+about syntax wise. For the c code there is a fairly strict, but
+hopefully reasonable set of rules.
+@itemize @minus
+@item 
+indentation is two spaces
+@item
+brace style is the same for any block and is of the form
+@example
+void foo(){
+  ...code
+  if(bar){
+    ...
+  } else if (baz) {
+    ...
+  } else {
+    ...
+  }
+@end example
+@item
+case labels in switch statements receive and additional level of
+indentation
+@item
+single line if staements or loops @emph{must} be enclosed in braces
 @node Differences from other lisps
 @chapter Differences from other lisps
 @node Development

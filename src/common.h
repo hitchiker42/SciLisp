@@ -39,12 +39,18 @@
 #include "lex.yy.h"
 extern TOKEN yylex(sexp *yylval,yyscan_t yyscanner);
 #endif
+#ifdef MULTI_THREADED
+#define thread_local __thread
+#define multithreaded_only(code) code
+#else
+#define thread_local
+#define multithreaded_only(code)
+#endif
 //print what is being lexed, very verbose, rarely useful
 //#define VERBOSE_LEXING
 #include "debug.h"
 //common macros, & memory allocation macros
 #define my_abort(str,fmt...) fprintf(stderr,str,##fmt);abort()
-#define my_err(str,fmt...) fprintf(stderr,str,##fmt);return(NIL)
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE

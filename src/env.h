@@ -19,17 +19,44 @@ struct symbol_props {
   unsigned int interned : 2;
   _tag type;
 };
-//this is going to cause some difficultly with obarrays but oh well
 struct symbol_name {
-  const char *name;
   uint64_t hashv;
   uint32_t name_len;
+  int multibyte :1;//we need to print things differently 
+                   //if we have unicode characters in a symbol name
+  int padding : 31;//just making padding explicit
+  const char *name;//needs to be last(its basically a variable sized array)
 };
   
 struct symbol {
-  CORD name;
+  CORD name;//change to symbol name
   sexp val;
   symbol_props props;//need to change to plist
+};
+struct symbol_new {
+  sexp *val;//a stack of values, when we enter a new lexical environment 
+  //we push on a new defination and pop it off when we leave
+  struct symbol_name *name;
+  sexp plist;
+  //pointer to next symbol, in obarray bucket for global symbols, or in local
+  //environment for local symbols
+  struct symbol_new *next;
+};
+//this is going to cause some difficultly with obarrays but oh well
+//global to a package I suppose
+struct global_symbol {
+  sexp val;
+  struct symbol_name *name;
+  sexp plist;
+  struct global_symbol *next
+};
+struct environment_new {
+  struct environment_new *enclosing;
+  void *env;
+  enum {
+    _global_env,
+    _local_env,
+  } type;
 };
 //add at some point
 /* It's my language, plists are alists deal with it
@@ -61,7 +88,7 @@ struct local_symbol{
   CORD name;
   sexp val;
   symbol_props props;
-  local_symref next;
+  local_symref next;//eliminate
 };
 struct local_env{
   env* enclosing;
@@ -86,7 +113,7 @@ union symbol_ref{
 union symbol_val{
   local_symbol local;
 };
-struct env{
+struct env {
   env* enclosing;
   symbol_ref head;
   enum {
@@ -100,9 +127,13 @@ struct env{
   (env){.enclosing=cur_env->enclosing,.head=cur_env->head,.tag=type}
 env *topLevelEnv;
 obarray *globalObarray;
+struct obarray_new *global_obarray;
+struct environment_new *global_environment;
 obarray_env *globalObarrayEnv;
 obarray *keywordObarray;
 obarray_env *keywordObarrayEnv;
+static thread_local struct obarray_new *current_obarray=global_obarray;
+static thread_local struct environment_new *current_environment=global_environment;
 symref getSymFromSexp(sexp var,env *cur_env);
 symref addSymFromSexp(sexp var,sexp val,env *cur_env);
 local_symref getLocalSym(local_env *cur_env,CORD name);
@@ -148,7 +179,7 @@ obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
 #define OBARRAY_BKT_CAPACITY 10
 struct obarray {
   obarray_entry **buckets;//points to first bucket
-  int size;//memory allocated for the obarray
+  int size;//memory allocated for the obarray (aka number of buckets)
   int used;//buckets used
   int entries;//number of obarray_entries
   float capacity;//sum of entries per buckets for all buckets/num_buckets
@@ -157,6 +188,20 @@ struct obarray {
   float gfactor;//growth factor
   int is_weak_hash;//only actually needs a single bit
   uint64_t (*hash_fn)(const void*,int);
+};
+struct obarray_new {
+  struct symbol_new **buckets;
+  uint32_t size;//number of buckets
+  uint32_t used;//buckets used
+  uint32_t entries;//number of symbols in the table
+  float capacity;//entries/size(for convience)
+  float capacity_inc;//capacity/(size*10) (10 is soft cap on entries/bucket)
+  float gthreshold;//value of capacity at which to enlarge the table
+  float gfactor;//ammount to multiply size by when growing the table
+#ifdef MULTI_THREADED
+  pthread_rwlock_t *restrict lock;
+#endif
+  //32 bits of padding
 };
 struct obarray_env {
   env* enclosing;
@@ -190,4 +235,6 @@ static inline size_t symbolSize(env *cur_env){
 static inline CORD get_docstring(symref lisp_var){
   return lisp_var->props.doc;
 }
+struct symbol_new* lookup_symbol(struct obarray_new *ob,const char* name);
+struct symbol_new *lookup_symbol_global(char *restrict name);
 #endif

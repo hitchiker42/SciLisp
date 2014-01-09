@@ -238,7 +238,7 @@ enum _tag {
   _hash_table=48,_hashtable=48,
   _tree=49,
   _tree_node=50,
-  _typed_array=51,
+  _typed_array=51,n
   _heap=52,
   _sfmt=53,//random state,B
 };
@@ -323,6 +323,7 @@ union data {//keep max size at 64 bits
   sexp *array;
   special_form special;
   symref var;
+  struct symbol_new *sym;
   uint8_t uint8;
   uint16_t uint16;
   uint32_t uint32;
@@ -341,6 +342,8 @@ struct sexp{//128 bits/16 bytes
       sexp_meta meta : 8;//random metadata    | 40
       unsigned int quoted :2;//               | 42
       int has_comma :1;//                     | 43
+      //change to unsigned int comma :2;
+      //0 = nothing, 1=, 2=,@ 3=?
       int is_ptr:1;//                         | 44
       int padding:4;
       //4 bits free
