@@ -4,3 +4,9 @@
                                    .name_len=sym_len,.name=lname};      \
   struct symbol_new cname##_val={.val=val,.name=&cname##_name,          \
                                  .plist=proplist,.next=NULL};           
+#define MAKE_SELF_QUOTING_SYMBOL(cname,lname,sym_len,sym_hashv,proplist) \
+  struct symbol_name cname##_name={.hashv=sym_hashv,.is_const=1,        \
+                                   .name_len=sym_len,.name=lname};      \
+  struct symbol_new cname##_val={.name=&cname##_name,                   \
+                                 .plist=proplist,.next=NULL};           \
+  cname##_val.val=symref_sexp(&cname##_val)

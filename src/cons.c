@@ -12,6 +12,13 @@ sexp Cons(sexp car_cell,sexp cdr_cell){
   *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
   return list_sexp(new_cell);
 }
+sexp Cons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons)*2);
+  *new_cell=(cons){.car=car_cell,.cdr=
+                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
+  return list_sexp(new_cell);
+}
 sexp raw_cons(sexp car_cell,sexp cdr_cell){
   sexp retval;
   cons *new_cell=xmalloc(sizeof(cons));

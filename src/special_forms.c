@@ -16,6 +16,5 @@ sexp lisp_setq(sexp expr,env *cur_env){
         search_env=cur_env->enclosing;
       }
     }
-    
       
     

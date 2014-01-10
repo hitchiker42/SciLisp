@@ -1,4 +1,4 @@
-/* -*- c-syntactic-indentation: nil; -*- */
+/* -*- c-syntactic-indentation: nil; electric-indent-inhibit: t -*- */
 %{
 /*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
@@ -14,6 +14,7 @@
 #define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
 #define YYSTYPE sexp
 static int comment_depth=0;
+static thread_local backtick_flag=0;
 %}
  /*\x5c == \ & \x22 == " & \x27 == '
   mostly so unmatched quotes don't fuck up syntax highlighing*/
@@ -154,8 +155,8 @@ void *yyrealloc(void *ptr,size_t bytes,void *yyscanner){
 void yyfree(void *ptr,void *yyscanner){
   return xfree(ptr);
 }
-
-lisp_read(sexp lisp_stream){
+sexp read_full(FILE *stream);
+sexp lisp_read(sexp lisp_stream){
   //really need to write a cord stream/test the one I already wrote
   FILE *stream;
   if(STRINGP(stream)){
@@ -165,18 +166,34 @@ lisp_read(sexp lisp_stream){
   } else {
     return format_type_error("read","stream",lisp_stream.tag);
   }
-  return read_init(stream);
+  return read_full(stream);
 }
-read_init(FILE *stream){
+sexp read_full(FILE *stream){
   yyscan_t scanner;
   yylex_init(&scanner);
   yyset_in(scanner);
   sexp *yylval=xmalloc(sizeof(sexp));
-  return read(&scanner,yylval);
+  return c_read(&scanner,yylval);
+}
+sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
+//reads one sexp, an error if c_read returns a non-zero value in last_tok
+sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
+  int last_tok;
+  sexp retval=c_read(scanner,yylval,&last_tok);
+  if(last_tok){
+    return error_sexp("invalid read syntax");
   }
-sexp read_sub(yyscan_t *scanner,register sexp *yylval,int *last_tok);
-
-sexp read_sub(yyscan_t *scanner,register sexp *yylval,int *last_tok){
+  return retval
+}
+//reads one sexp or token(i.e ',',''',')',']','}','.')
+//so read list/vector/etc can be called as
+/* int last_tok=0;
+  while(!last_tok){
+  c_read(scanner,yylval,&last_tok);
+  do something...
+  }
+*/
+sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
 #define get_tok() (yytag = yylex(scanner,yylval,cur_env))
   register TOKEN yytag=0;
   register cons *ast=xmalloc(sizeof(cons));
@@ -200,26 +217,59 @@ sexp read_sub(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       case TOK_KEYSYM:
         ast->car=*yylval;
         break;
-      case TOK_QUOTE:
-        ast->car=Qquote;
+      case TOK_QUOTE:{
+        sexp value=c_read(scanner,yylval,last_tok)
+        return c_list2(Qquote,value);        
         break;
-        case TOK_HASH:
+      }
+      case TOK_HASH:
         //...
       case TOK_RPAREN:
       case TOK_RBRACE:
       case TOK_DBL_RBRACE
         *last_tok=yytag;
         return NIL;
+      case TOK_BACKQUOTE:
+        backtick_flag=1;
+        sexp value=c_read(scanner,yylval,last_tok)
+        if(ERRORP(value)){return value;}
+        return c_list2(Qbackquote,value);
+      case TOK_COMMA:{
+        sexp value=c_read(scanner,yylval,last_tok);
+        
     }
+    /*
     get_tok();
     if(yytag>0){
       ast->cdr=cons_sexp(xmalloc(sizeof(cons)));
       ast=ast->cdr;
       continue;
-    } else {
+    } else {*/
       return cons_sexp(ast);
-    }
+//    }
   }
 }
-sexp read_list(yyscan_t *scanner,register sexp *yylval,int *last_tok){
-  
+sexp read_list(yyscan_t *scanner,register sexp *yylval){
+  sexp retval;
+  sexp new_list=retval=cons_sexp(xmalloc(sizeof(cons)));
+  int last_tok=0;
+  while(!last_tok){
+    XCAR(new_list)=read(scanner,yylval,&last_tok);
+    XCDR(new_list)=cons_sexp(xmalloc(sizeof(cons));
+    newlist=XCDR(new_list);
+  }
+  switch(last_tok){
+    case ')':
+      new_list=NIL;
+      return retval;
+    case '.':
+      new_list=read(scanner,yylval,&last_tok);
+      read(scanner,yylval,&last_tok);
+      if(last_tok != TOK_RPAREN){
+        break;
+      }
+      return retval;
+  }
+  return error_sexp("read error, expected ')' or '.' at end of list");
+  }
+}
