@@ -302,6 +302,17 @@
       1))
    predicates))
 ;  '(("lisp_consp" "\"cons?\"" 1)))
+(define make-SciLisp-proplist (name ls)
+  (let ((result (format "cons %s_props[%d];\n" name (length ls)))
+        (i 0))    
+    (dolist (prop ls)
+      (setq result
+            (concat result
+                    (format
+                     "%s_props[%d].car = %s;\n%s_props[%d].cdr=%s_props[%d]\n"
+                     name i prop name i (1+ i))))
+      (setq i (1+ i)))
+    (concat result (format "%s_props[%d].cdr=NIL" name i))))
 (defvar initPrimsObarray-header)
 (setq initPrimsObarray-header
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;

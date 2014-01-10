@@ -5,6 +5,8 @@
 #ifndef __ENV_H__
 #define __ENV_H__
 #include "common.h"
+typedef struct symbol_new symbol_new;
+typedef struct obarray_new obarray_new;
 enum symbol_interned{
   _symbol_interned = 0,
   _symbol_uninterned = 1,
@@ -19,22 +21,27 @@ struct symbol_props {
   unsigned int interned : 2;
   _tag type;
 };
+//should be allocated using gc_malloc_atomic(sizeof(symbol_name)*name_len)
+//I suppose we can but common properties here
 struct symbol_name {
   uint64_t hashv;
   uint32_t name_len;
-  int multibyte :1;//we need to print things differently 
+  int multibyte :1;//we need to print things differently
                    //if we have unicode characters in a symbol name
-  int padding : 31;//just making padding explicit
+  unsigned int interned : 2;
+  int is_const : 1;
+  int typed : 1;//type is in plist
+  int padding : 27;//just making padding explicit
   const char *name;//needs to be last(its basically a variable sized array)
 };
-  
+
 struct symbol {
   CORD name;//change to symbol name
   sexp val;
   symbol_props props;//need to change to plist
 };
 struct symbol_new {
-  sexp *val;//a stack of values, when we enter a new lexical environment 
+  sexp val;//a stack of values, when we enter a new lexical environment
   //we push on a new defination and pop it off when we leave
   struct symbol_name *name;
   sexp plist;
@@ -48,7 +55,7 @@ struct global_symbol {
   sexp val;
   struct symbol_name *name;
   sexp plist;
-  struct global_symbol *next
+  struct global_symbol *next;
 };
 struct environment_new {
   struct environment_new *enclosing;
@@ -132,8 +139,9 @@ struct environment_new *global_environment;
 obarray_env *globalObarrayEnv;
 obarray *keywordObarray;
 obarray_env *keywordObarrayEnv;
-static thread_local struct obarray_new *current_obarray=global_obarray;
-static thread_local struct environment_new *current_environment=global_environment;
+//current dynamic environment
+static thread_local struct obarray_new *current_obarray;
+static thread_local struct environment_new *current_environment;
 symref getSymFromSexp(sexp var,env *cur_env);
 symref addSymFromSexp(sexp var,sexp val,env *cur_env);
 local_symref getLocalSym(local_env *cur_env,CORD name);
@@ -195,7 +203,7 @@ struct obarray_new {
   uint32_t used;//buckets used
   uint32_t entries;//number of symbols in the table
   float capacity;//entries/size(for convience)
-  float capacity_inc;//capacity/(size*10) (10 is soft cap on entries/bucket)
+  float capacity_inc;//1/(size*10) (10 is soft cap on entries/bucket)
   float gthreshold;//value of capacity at which to enlarge the table
   float gfactor;//ammount to multiply size by when growing the table
 #ifdef MULTI_THREADED
@@ -237,4 +245,7 @@ static inline CORD get_docstring(symref lisp_var){
 }
 struct symbol_new* lookup_symbol(struct obarray_new *ob,const char* name);
 struct symbol_new *lookup_symbol_global(char *restrict name);
+struct obarray_new *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
+struct symbol_new *c_intern(const char* name,uint32_t len,struct obarray_new *ob);
+sexp lisp_intern(sexp sym_or_name,sexp ob);
 #endif

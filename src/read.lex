@@ -173,8 +173,10 @@ read_init(FILE *stream){
   yyset_in(scanner);
   sexp *yylval=xmalloc(sizeof(sexp));
   return read(&scanner,yylval);
-}
-read_sub(yyscan_t *scanner,register sexp *yylval){
+  }
+sexp read_sub(yyscan_t *scanner,register sexp *yylval,int *last_tok);
+
+sexp read_sub(yyscan_t *scanner,register sexp *yylval,int *last_tok){
 #define get_tok() (yytag = yylex(scanner,yylval,cur_env))
   register TOKEN yytag=0;
   register cons *ast=xmalloc(sizeof(cons));
@@ -201,8 +203,13 @@ read_sub(yyscan_t *scanner,register sexp *yylval){
       case TOK_QUOTE:
         ast->car=Qquote;
         break;
-      case TOK_HASH:
-        
+        case TOK_HASH:
+        //...
+      case TOK_RPAREN:
+      case TOK_RBRACE:
+      case TOK_DBL_RBRACE
+        *last_tok=yytag;
+        return NIL;
     }
     get_tok();
     if(yytag>0){
@@ -213,3 +220,6 @@ read_sub(yyscan_t *scanner,register sexp *yylval){
       return cons_sexp(ast);
     }
   }
+}
+sexp read_list(yyscan_t *scanner,register sexp *yylval,int *last_tok){
+  

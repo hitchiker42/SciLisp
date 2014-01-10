@@ -12,26 +12,11 @@
 #include <sched.h>
 #include <sys/wait.h>
 #include "config.h"
+//several other headers are included in types.h
+#include "types.h"
 #if (defined (GC_THREADS) && defined (GC_THREAD_LOCAL))
 #define GC_REDIRECT_TO_LOCAL
 #endif
-//#define USE_MMAP
-#include "gc/gc.h"
-#include <pthread.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <math.h>
-#include <signal.h>
-#include <errno.h>
-#include <time.h>
-//several other headers are included in types.h
-#include "types.h"
-#include "env.h"
-#include "print.h"
-#include "bignum.h"
-#include "cffi.h"
-#include "llvm_externs.h"
 //avoid including lex.yy.h in the lexer itself, because it messes up
 //some macro defines / undefs 
 #ifndef IN_LEXER
@@ -43,9 +28,24 @@ extern TOKEN yylex(sexp *yylval,yyscan_t yyscanner);
 #define thread_local __thread
 #define multithreaded_only(code) code
 #else
-#define thread_local
+#define thread_local  
 #define multithreaded_only(code)
 #endif
+//#define USE_MMAP
+#include "gc/gc.h"
+#include <pthread.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <math.h>
+#include <signal.h>
+#include <errno.h>
+#include <time.h>
+#include "print.h"
+#include "bignum.h"
+#include "cffi.h"
+#include "llvm_externs.h"
+#include "env.h"
 //print what is being lexed, very verbose, rarely useful
 //#define VERBOSE_LEXING
 #include "debug.h"

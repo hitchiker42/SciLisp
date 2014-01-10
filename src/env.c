@@ -319,7 +319,64 @@ obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hash
   }
 return 0;
 }
-struct obarray_new* obarray_new_rehash(struct obarray_new *ob){}
+static struct obarray_new* obarray_new_rehash(struct obarray_new *ob){
+  PRINT_MSG("Rehashing Obarray");
+  uint32_t old_len=ob->size;
+#ifdef OB_POW_OF_2
+  ob->size<<=1;
+#else
+  ob->size=(uint32_t)(ceil(ob->size*ob->gthreshold));
+#endif
+  ob->capacity/=ob->gthreshold;
+  ob->capacity_inc/=ob->gthreshold;
+  ob->buckets=xrealloc(ob->buckets,(sizeof(obarray_entry*)*ob->size));
+  //suprisingly important, new memory needs to be zeroed
+  memset((void*)(ob->buckets+old_len),'\0',old_len);
+  int i,j,new_index;
+  struct symbol_new *sym,*old_sym;
+  for(i=0;i<old_len;i++){
+    sym=ob->buckets[i];
+    while(sym && sym != sym->next){
+      //if hashv%ob->size = hashv%ob->oldsize we don't need to do anything
+      //since hashv%ob->oldsize == i we just test i
+      if((new_index=sym->name->hashv%ob->size)==i){
+        sym=sym->next;
+      } else {
+        old_sym=sym;
+        if(sym->next){
+          sym=sym->next;
+        } else {
+          ob->used--;
+        }
+        if(!ob->buckets[new_index]){
+          ob->buckets[new_index]=old_sym;
+          ob->used++;
+        } else {
+          old_sym->next=ob->buckets[new_index];
+          ob->buckets[new_index]=old_sym;
+        }
+      }
+    }
+  }
+  return 1;
+}
+struct obarray_new *make_obarray_new(uint32_t size,float gthreshold,float gfactor){
+#ifdef MULTI_THREADED
+  struct obarray_new *ob retval=xmalloc(sizeof(struct obarray_new)+
+                                        sizeof(pthread_rwlock_t));
+  ob->lock=(pthread_rwlock_t *restrict)((uint8_t*)ob+
+                                        offsetof(struct obarray_new,lock));
+  pthread_rwlock_init(ob->lock,NULL);
+#else
+  struct obarray_new *ob retval=xmalloc(sizeof(struct obarray_new));
+#endif
+  ob->buckets=xmalloc(sizeof(symbol_new*)*size);
+  ob->size=size;
+  ob->capacity_inc=1/(size*10);
+  ob->gthreshold=gthreshold;
+  ob->gfactor=gfactor;
+  return ob;
+}
 //call after adding an element to the obarray
 static inline int maybe_rehash_obarray(struct obarray_new *ob){
   ob->elements++;
@@ -330,6 +387,44 @@ static inline int maybe_rehash_obarray(struct obarray_new *ob){
   }
   return 0;
 }
+//use only to initialize primitives at startup, run within pthread_once
+void c_intern_unsafe(struct obarray_new *ob,struct symbol_new* new){
+  uint32_t index=sym->name->hashv % ob->size;
+  struct symbol_new *sym;
+  if(!(new=ob->buckets[index])){
+    ob->buckets[index]=sym;
+    sym->next=0;
+  } else {
+    sym->next=ob->buckets[index];
+    ob->buckets[index]=sym;
+  }
+  maybe_rehash_obarray(ob);
+  return;
+}
+int c_is_interned(symbol_new *sym,obarray_new *ob){
+  uint32_t bucket=sym->name->hashv%ob->size;
+  //if we assume symbols are truely singular values
+  symbol_new *cur_sym=ob->buckets[bucket];
+  while(cur_sym){
+    if(cur_sym != sym){
+      cur_sym=cur_sym->next;
+    } else {
+      return 1;
+    }
+  }
+  return 0;
+  //if not
+  while(cur_sym){
+    if(cur_sym->name->hashv == sym->name->hashv){
+      if(!strcmp(cur_sym->name->name,sym->name->name)){
+        return 1;
+      }
+    }
+    cur_sym=cur_sym->next;
+  }
+  return 0;
+}
+  
 struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob){
   if(!ob){
     ob=current_obarray;
@@ -339,7 +434,7 @@ struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob
   }
   uint64_t hashv=fnv_hash(name,len);
   multithreaded_only(pthread_rwlock_rdlock(ob->lock);)
-  int bucket=hashv % ob->size;
+  uint32_t bucket=hashv % ob->size;
   struct global_symbol *cur_symbol;
   if(!(cur_symbol=ob->buckets[bucket])){
     ob->used++;
@@ -348,21 +443,22 @@ struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob
     do {
       if(cur_symbol->name->hashv == hashv){
         if(!strcmp(cur_symbol->name,name)){
-          multithreaded_only(pthread_rwlock_unlock(ob->lock);)
+          multithreaded_only(pthread_rwlock_unlock(ob->lock));
           return cur_symbol;
         }
       }
     }  while((cur_symbol=cur_symbol->next));
   }
  make_symbol:
-  multithreaded_only(pthread_rwlock_unlock(ob->lock);)
+  multithreaded_only(pthread_rwlock_unlock(ob->lock));
   //allocate the name seperately so we can do it atomically(gc atomically)
   struct symbol_name *new_symbol_name=make_symbol_name(name,len,hashv);
+  new_symbol_name->interned=1;
   struct global_symbol *retval=xmalloc(sizeof(struct global_symbol));
   retval->name=new_symbol_name;
   retval->val=UNBOUND;
   retval->plist=NIL;
-  multithreaded_only(pthread_rwlock_wrlock(ob->lock;)) 
+  multithreaded_only(pthread_rwlock_wrlock(ob->lock;))
   //set the new symbol to be the new head of the bucket and point to the current head
   retval->next=ob->buckets[bucket];
   //this needs to be done under a lock
@@ -371,6 +467,7 @@ struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob
   multithreaded_only(pthread_rwlock_unlock(ob->lock);)
   return (struct symbol_new *)retval;
 }
+//add unintern later
 symref getObarraySym(obarray_env* ob_env,CORD name){
   obarray_entry* entry;
   entry=obarray_get_entry(ob_env->head,name,0);
@@ -398,7 +495,7 @@ sexp lisp_intern(sexp sym_or_name,sexp ob){
   }
   return c_intern(ob.val.ob,name);
 }
-    
+
 symref getSymObarrayOnly(obarray_env* ob_env,CORD name){
   obarray_entry* entry;
   entry=obarray_get_entry(ob_env->head,name,0);
