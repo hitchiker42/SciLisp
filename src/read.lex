@@ -221,5 +221,34 @@ sexp read_sub(yyscan_t *scanner,register sexp *yylval,int *last_tok){
     }
   }
 }
-sexp read_list(yyscan_t *scanner,register sexp *yylval,int *last_tok){
-  
+sexp read_list(yyscan_t *scanner,register sexp *yylval,int *last_tok){}
+struct matrix {
+  uint8_t ndims;//imposes a cap on dimensions of 256
+  uint8_t element_size;
+  uint16_t padding;
+  enum {
+    dbl_matrix,
+    flt_matrix,
+    dbl_complex_matrix,
+    flt_complex_matrix,
+    int8_matrix,
+    int16_matrix,
+    int32_matrix,
+    int64_matrix,
+    uint8_matrix,
+    uint16_matrix,
+    uint32_matrix,
+    uint64_matrix,
+  } element_type;
+  //no indirecton for vectors or matrices, but allow higher dimensions
+  union {
+    struct {
+      uint32_t rows;
+      uint32_t cols;
+    };
+    uint32_t *dims;
+    uint64_t length;//for vectors
+  };
+  void *data;//put at end, because it's eaiser that way
+}
+sexp read_matrix(yyscan_t *scanner,register sexp *yylval,int *last_tok)
