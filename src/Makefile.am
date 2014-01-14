@@ -16,12 +16,13 @@ MOSTLYCLEANFILES=lex.yy.c lex.yy.h
 CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h
 DISTCLEANFILES=$(CLEAN_FILES) fnv_hash
 #BACKEND_SRC = c_codegen.c
-INCLUDE_FLAGS = -I$$PWD/include
+INCLUDE_FLAGS = -I$$PWD/include -include $$PWD/../config.h
 #Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
 #AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" 
 AM_CFLAGS=-rdynamic -L$$PWD/lib
 BUILT_SOURCES =  fnv_hash prim.c prim.h lex.yy.c lex.yy.h
+#BUILT_SOURCES =  fnv_hash prim.c prim.h read.c read.h
 #libffi and gc are subpackages
 SUBDIRS = SFMT gc/bdwgc libffi
 #Things to be built

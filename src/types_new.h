@@ -3,10 +3,8 @@
  * SciLisp is Licensed under the GNU General Public License V3   *
  ****************************************************************/
 //Don't include this file directly, it's included by common.h
-
-//including cord.h is weird, it includes "cord_pos.h" which isn't
-//automatically installed for some reason so we specify the actual
-//file we're including explicitly, as thats the easiest way to fix things
+/* included before this are stdio,stdlib,sched,sys/wait and config.h*/
+#include "gc/gc.h"
 #include "gc/cord.h"
 #include <string.h>
 #include <setjmp.h>
@@ -17,6 +15,13 @@
 #include <gmp.h>
 #include <mpfr.h>
 #include <mpf2mpfr.h>
+#ifdef USE_COMPLEX_H
+#include <complex.h>
+#undef I
+
+typedef float complex imag32_t;
+typedef double complex imag64_t;
+#endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef enum sexp_meta sexp_meta;
@@ -51,6 +56,7 @@ typedef struct hash_table hash_table;
 typedef struct hash_entry hash_entry;
 typedef struct lisp_heap lisp_heap;
 typedef struct lisp_condition lisp_condition;//error handling
+typedef struct lisp_string lisp_string;
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol references
 typedef local_symbol *local_symref;//"" local ""
@@ -256,7 +262,9 @@ union data {//keep max size at 64 bits
   int32_t int32;
   int64_t int64;
   jmp_buf *label;
+  lisp_array *arrray;
   lisp_tree *tree;
+  lisp_string *string;
   macro *mac;
   mpfr_t *bigfloat;
   mpz_t *bigint;
@@ -301,6 +309,7 @@ struct cons{//32 bytes
   sexp cdr;
 };
 enum TOKEN{
+  TOK_ERR=-3,
   TOK_UNKN=-2,
   TOK_EOF=-1,
   //literals|ID 0-20
@@ -408,6 +417,40 @@ struct lambda{
   env *env;//for closures
   sexp body;
 };
+/* structure for arrays, typed arrays, matrices and vectors */
+struct lisp_array{
+  union {
+    uint64_t len;//1-D
+    struct {//2-D
+      uint32_t rows;
+      uint32_t cols;
+    };
+    struct {//3-D,4-D
+      uint16_t a;
+      uint16_t b;
+      uint16_t c;
+      uint16_t d;
+    };
+    //anything bigger and you're on your own
+  };
+  uint8_t dims;//max of 256 dimensions, could be enlarged if needed
+  sexp_tag type;//not sure what this should be in a multityped array
+  unsigned int padding :24;
+  union {
+    sexp *vector;//1-D array of sexps
+    sexp *array;//2-D array of sexps
+    data *typed_vector;//1-D array of a specific type
+    data *array_vector;//2-D array of a specific type
+    //mathmatical arrays, for use with blas,lapack,etc
+    double *double_matrix;
+    float *float_matrix;
+#ifdef HAVE_COMPLEX_H
+    float complex *float_complex_matrix;
+    double complex *double_complex_matrix;
+#endif
+    void *data;//anything else (specificly 3+ dimensional arrays)
+  };
+}  
 //defines what values are considered false
 //currently, these are false,nil,numerical 0 or a null pointer
 #define isTrue(x)                                                       \

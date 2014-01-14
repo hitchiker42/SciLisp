@@ -26,7 +26,7 @@ sexp lisp_substr(sexp lisp_cord,sexp start,sexp end){
       (CORD_substr(lisp_cord.val.cord,start.val.int64,
                    end.val.int64-start.val.int64));
   }
-}                                  
+}
 #if 0
 //is this too confusing?
 typedef struct CORD_stream *CORD_stream
@@ -38,7 +38,7 @@ struct CORD_stream{
   int index;//easy to increment, always points to current position
   int len;
   short at_end;
-  short at_start;  
+  short at_start;
   //idea taken from ec.h
   /*  char *bufptr;
       char buf[BUFSIZE]; */
@@ -81,7 +81,7 @@ cookie_read_function CORD_stream_read;
 cookie_write_function CORD_stream_write;
 cookie_seek_function CORD_stream_seek;
 cookie_close_function CORD_stream_close;
-struct cookie_io_functions_t CORD_stream_functions = 
+struct cookie_io_functions_t CORD_stream_functions =
   {.read=CORD_stream_read,.write=CORD_stream_write,
    .seek=CORD_stream_seek,.close=CORD_stream_close};
 ssize_t CORD_stream_read(void *cookie,char *buffer, size_t size){

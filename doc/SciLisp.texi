@@ -411,6 +411,27 @@ case labels in switch statements receive and additional level of
 indentation
 @item
 single line if staements or loops @emph{must} be enclosed in braces
+@c @subsection Compiling SciLisp
+@c @c maybe put somewhere else
+@c Being as SciLisp is very much in its alpha stage compiling may not
+@c always be simple. Hopefully the master branch will always compile
+@c cleanly, but even if the code is clean there are other issues with
+@c compiling.
+@c @subsection portability
+@c Portability is not a major concern to SciLisp but an attempt has been
+@c made to write portable code as much as is possible. There are a few
+@c specific features assumed by SciLisp, firstly that it is running on a
+@c 64 bit computer, all structures and several functions are designed
+@c with a 64 bit wordsize in mind, while this doesn't necessarily mean
+@c that SciLisp won't work on a 32 bit computer, it will likely use
+@c unnecessary am mounts of memory and be rather slow. Secondly SciLisp
+@c assumes it is running under a fairly posix compatible system,
+@c development is done using linux, but there shouldn't be any major
+@c features used that are outside of posix. SciLisp is written using 
+@c C99 with a few extensions. The extensions used are fairly common, and 
+@c code is tested using gcc, clang and icc, any other compiler may or
+@c may not work. Function and variable attributes are used, so the
+@c __attribute__ syntax is expected to be supported. 
 @node Differences from other lisps
 @chapter Differences from other lisps
 @node Development

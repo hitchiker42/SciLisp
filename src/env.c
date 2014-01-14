@@ -424,7 +424,29 @@ int c_is_interned(symbol_new *sym,obarray_new *ob){
   }
   return 0;
 }
-  
+symbol_new *obarray_lookup_sym(symbol_name *sym_name,obarray_new *ob){
+  if(!ob){
+    ob=current_obarary;
+  }
+  multithreaded_only(pthread_rwlock_rdlock(ob->lock));
+  uint32_t bucket=sym_name->hashv % ob->size;
+  struct symbol_new *cur_symbol;
+  if(!(cur_symbol=ob->buckets[bucket])){
+    return NULL;
+  } else {
+    do {
+      if(cur_symbol->name->hashv == sym_name->hashv){
+        if(!strcmp(cur_symbol->name,sym_name->name)){
+          multithreaded_only(pthread_rwlock_unlock(ob->lock));
+          return cur_symbol;
+        }
+      }
+    }  while((cur_symbol=cur_symbol->next));
+  }
+  multithreaded_only(pthread_rwlock_unlock(ob->lock));
+  return NULL;
+}
+    
 struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob){
   if(!ob){
     ob=current_obarray;
@@ -435,7 +457,7 @@ struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob
   uint64_t hashv=fnv_hash(name,len);
   multithreaded_only(pthread_rwlock_rdlock(ob->lock);)
   uint32_t bucket=hashv % ob->size;
-  struct global_symbol *cur_symbol;
+  struct symbol_new *cur_symbol;
   if(!(cur_symbol=ob->buckets[bucket])){
     ob->used++;
     goto make_symbol;
@@ -454,7 +476,7 @@ struct symbol_new* c_intern(const char* name,uint32_t len,struct obarray_new *ob
   //allocate the name seperately so we can do it atomically(gc atomically)
   struct symbol_name *new_symbol_name=make_symbol_name(name,len,hashv);
   new_symbol_name->interned=1;
-  struct global_symbol *retval=xmalloc(sizeof(struct global_symbol));
+  struct symbol_new *retval=xmalloc(sizeof(struct symbol_new));
   retval->name=new_symbol_name;
   retval->val=UNBOUND;
   retval->plist=NIL;

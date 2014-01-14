@@ -19,10 +19,6 @@ struct lisp_ustring {
   wchar_t *restrict str;
   uint32_t len;
 };
-union utf8_hack{
-  char bytes[4];
-  wchar_t wchar;
-};
 sexp lisp_char_to_string(sexp lisp_char){
   if(!CHARP(lisp_char)){
     return format_type_error("char->string","character",lisp_char.tag);
@@ -195,3 +191,17 @@ int lex_char(char* cur_yytext,wint_t *new_char){
     return -1;
   }
 }
+sexp *c_lisp_strcat(sexp *args,int numargs){
+  if(numargs <=1){
+    return *args;
+  }
+  CORD retval=0;
+  uint32_t len=0;
+  int i;
+  for(i=0;i<numargs;i++){
+    len+=args[i].val.string->len;
+    retval=CORD_cat_char_star(retval,args[i].val.string->string,
+                              args[i].val.string->len);
+  };
+  return
+  

@@ -14,9 +14,18 @@
 #define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
 #define YYSTYPE sexp
 static int comment_depth=0;
-static thread_local backtick_flag=0;
+static thread_local int backtick_flag=0;
+static thread_local jmp_buf read_err;
+static thread_local CORD read_err_string;
+#define FORMAT_READ_ERR(format,args...) (CORD_sprintf(&read_err_string,\
+                                         format,##args),read_err_string)
+ /*seems redundant but allows me to change how I handle errors */
+static inline void __attribute__((noreturn)) handle_read_error(){
+  longjmp(read_err,-1);
+}
 %}
- /*\x5c == \ & \x22 == " & \x27 == '
+ /*backslashes and quotes are refered to using ascii escapes
+  \x5c == \ & \x22 == " & \x27 == '
   mostly so unmatched quotes don't fuck up syntax highlighing*/
  /*Unicode support, basic idea borrowed from the lexer for
   *the txr by kaz kylheku language*/
@@ -29,11 +38,12 @@ ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
   * ' " ' quotes, obviously
   * # for quoting and delimiting special symbols(#t,#f) and deliberately unreaable symbols
   * . reserved for pairs and package access
-  * | nothing now but reserved for later
+  * | nothing now but reserved for later (quoting ids?)
   * @ for ,@ in macros
   * , for macros
   * Starting special characters ? for characters, +-[0-9] for numbers
   */
+QUOTED_ID ('|'([^\x5c|]|\x5c\x5c|\x5c'|')+'|')
 DIGIT [0-9]
 XDIGIT [0-9a-fA-F]
 ASCSYM_REST  [\x00-\x7f]{-}[\][#|,.;:\x27\x22\x5c`(){}@]
@@ -47,7 +57,7 @@ UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{1,2})|"\\u"([[:xdigit:]]{1,4})|"\\U"([[:xdigit:]]{1,8})|{UANY})
 USTR    {ASCSTR}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
-ID ({ASCSYM_REST}*) /*just make sure numbers and characters get lexed first*/
+ID (({ASCSYM_REST}|(\x5c.))*) /*just make sure numbers and characters get lexed first*/
 KEYSYM ":"{ID}
 TYPENAME "::"{ID}
 QUALIFIED_ID {ID}":"{ID}
@@ -56,8 +66,8 @@ QUALIFIED_ID_ALL {ID}":."{ID}
    /*start condition for scanning nested comments*/
 %x comment
 %option noyyalloc noyyrealloc noyyfree
-%option reentrant
-%option header-file="lex.yy.h"
+%option 8bit reentrant
+%option header-file="read.h" outfile="read.c"
 %%   /*Literals*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");
   *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
@@ -92,15 +102,55 @@ QUALIFIED_ID_ALL {ID}":."{ID}
     *yylval=symref_sexp(sym);
     return TOK_SYMBOL;
   }
+{QUAILIFIED_ID} {LEX_MSG("lexing qualified id");
+  /*know we've got a colon, so we can use rawmemchr*/
+  char *colon=rawmemchr(yytext,':');
+  symbol_new *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+  if(!ENVP(package->val)){
+    *yylval=format_error_sexp("unknown package %s",package->name.name);
+    return TOK_ERR;
+  }
+  symbol_name sym_name(colon+1,(uint32_t)((yytext+yyleng)-(colon+1)),NULL);
+  symbol_new *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  if(!sym){
+    FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
+                                                  package->name->name);
+    return handle_read_error();
+  }
+  if(sym->name->externally_visable == 2){
+    FORMAT_READ_ERR
+    ("value %s not externally visable in package %s (use :. to override visibility)",
+    sym_name->name,package->name->name);
+    return handle_read_error();
+   }
+   *yylval=symref_sexp(sym);
+   return TOK_ID;
+   }
+{QUAILIFIED_ID_ALL} {LEX_MSG("lexing qualified id");
+  /*know we've got a colon, so we can use rawmemchr*/
+  char *colon=rawmemchr(yytext,':');
+  assert(*(colon+1) == '.');
+  symbol_new *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+  if(!ENVP(package->val)){
+    FORMAT_READ_ERR("unknown package %s",package->name.name);
+    return handle_read_error()
+  }
+  symbol_name sym_name(colon+2,(uint32_t)((yytext+yyleng)-(colon+2)),NULL);
+  symbol_new *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  if(!sym){
+    FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
+                                                  package->name->name);
+    return handle_read_error();
+  }
+  *yylval=symref_sexp(sym);
+  return TOK_ID;
+  }
  /* new way to do symbols
   {SYM} {
 
    else //not sure what to do here{XCDR(cur_env)=cur_env;XCAR(cur_env)=lookup_
 
-  everything below this except ` ' , and comments gets deleted;
- /*Special forms, generating function at end of file*/
- /* replace all the def(...) 's  with this at some point:*/
- /*not sure what to do about this*/
+  everything below this except ` ' , and comments gets deleted;*/
 {TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
 <comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
@@ -125,10 +175,13 @@ QUALIFIED_ID_ALL {ID}":."{ID}
          }
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}
+  /*Maybe use the syntax #('['|'[['|'[|') for something*/
 "[" {LEX_MSG("lexing [");return TOK_LBRACE;}
 "[[" {LEX_MSG("lexing [[");return TOK_DBL_LBRACE;}
+"[|" {LEX_MSG("lexing [|");return TOK_MAT_OPEN;}
 "]" {LEX_MSG("lexing ]");return TOK_RBRACE;}
 "]]" {LEX_MSG("lexing ]]");return TOK_DBL_RBRACE;}
+"|]" {LEX_MSG("lexing |]");return TOK_MAT_CLOSE;}
 "{" {LEX_MSG("lexing {");return TOK_LCBRACE;}
 "}" {LEX_MSG("lexing }");return TOK_RCBRACE;}
 "." {LEX_MSG("lexing .");return TOK_DOT;}
@@ -173,7 +226,12 @@ sexp read_full(FILE *stream){
   yylex_init(&scanner);
   yyset_in(scanner);
   sexp *yylval=xmalloc(sizeof(sexp));
-  return c_read(&scanner,yylval);
+  if(setjmp(read_err)){
+    PRINT_MSG("read error");
+    return error_sexp(read_err_string);
+  } else {
+    return c_read(&scanner,yylval);
+  }
 }
 sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
 //reads one sexp, an error if c_read returns a non-zero value in last_tok
@@ -181,7 +239,8 @@ sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
   int last_tok;
   sexp retval=c_read(scanner,yylval,&last_tok);
   if(last_tok){
-    return error_sexp("invalid read syntax");
+    FORMAT_READ_ERR("invalid read syntax %c",last_tok);
+    return handle_read_error();
   }
   return retval
 }
@@ -201,13 +260,13 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
   while(1){
     switch(yytag){
       case TOK_RPAREN:
-        ast->car=read_cons(scanner,cur_env,yylval);
+        ast->car=read_cons(scanner,yylval);
         break;
       case TOK_RBRACE:
-        ast->car=read_array(scanner,cur_env,yylval);
+        ast->car=read_array(scanner,yylval);
         break;
       case TOK_DBL_RBRACE:
-        ast->car=read_matrix(scanner,cur_env,yylval);
+        ast->car=read_matrix(scanner,yylval);
         break;
       case TOK_INT:
       case TOK_STRING:
@@ -219,14 +278,15 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         break;
       case TOK_QUOTE:{
         sexp value=c_read(scanner,yylval,last_tok)
-        return c_list2(Qquote,value);        
+        return c_list2(Qquote,value);
         break;
       }
       case TOK_HASH:
-        //...
+        /*...*/
       case TOK_RPAREN:
       case TOK_RBRACE:
-      case TOK_DBL_RBRACE
+      case TOK_DBL_RBRACE:
+      case TOK_MAT_CLOSE:
         *last_tok=yytag;
         return NIL;
       case TOK_BACKQUOTE:
@@ -236,7 +296,7 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         return c_list2(Qbackquote,value);
       case TOK_COMMA:{
         sexp value=c_read(scanner,yylval,last_tok);
-        
+
     }
     /*
     get_tok();
@@ -246,7 +306,7 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       continue;
     } else {*/
       return cons_sexp(ast);
-//    }
+/*  }*/
   }
 }
 sexp read_list(yyscan_t *scanner,register sexp *yylval){
@@ -270,37 +330,98 @@ sexp read_list(yyscan_t *scanner,register sexp *yylval){
       }
       return retval;
   }
-  return error_sexp("read error, expected ')' or '.' at end of list");
+  FORMAT_READ_ERR("read error, expected ')' or '.' at end of list");
+  return handle_read_error();
   }
 }
-sexp read_list(yyscan_t *scanner,register sexp *yylval,int *last_tok){}
-struct matrix {
-  uint8_t ndims;//imposes a cap on dimensions of 256
-  uint8_t element_size;
-  uint16_t padding;
-  enum {
-    dbl_matrix,
-    flt_matrix,
-    dbl_complex_matrix,
-    flt_complex_matrix,
-    int8_matrix,
-    int16_matrix,
-    int32_matrix,
-    int64_matrix,
-    uint8_matrix,
-    uint16_matrix,
-    uint32_matrix,
-    uint64_matrix,
-  } element_type;
-  //no indirecton for vectors or matrices, but allow higher dimensions
-  union {
-    struct {
-      uint32_t rows;
-      uint32_t cols;
-    };
-    uint32_t *dims;
-    uint64_t length;//for vectors
-  };
-  void *data;//put at end, because it's eaiser that way
+/*read an array, an array in delimited by single braces and can
+contain any sexp as an element, it's self quoting as a literal
+no multi dimensional array literals*/
+sexp read_array(yyscan_t *scanner,sexp *yylval){
+  /*we obviously don't know the size, but being an array we want a linear
+    block of memory, so allocate 16 cells at first and scale by 2*/
+  uint64_t size=16;
+  uint64_t i=1;//we need the first 128 bits for header info
+  int last_tok=0;
+  sexp *arr=xmalloc(sizeof(sexp)*size);
+  register sexp val;
+  while(!last_tok){
+    if(i>=size){
+      size*=2;/*size <<=1*/
+      arr=xrealloc(sizeof(sexp)*size);
+    }
+    val=read(scanner,yylval,&last_tok);
+    arr[i++]=val;
+  }
+  if(last_tok != ']'){
+    FORMAT_READ_ERR("Read error expected ']' at end of array");
+    return handle_read_error();
+  }
+  lisp_array *retval=(lisp_array*)arr;
+  retval->len=i;
+  retval->dims=1;
+  retval=type=_nil;
+  return array_sexp(retval);
+}
+/* typed array, delimited by double braces, type is implicit based on first element*/
+sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
+  uint64_t size=16;
+  uint64_t i=2;/*we need the first 128 bits for header info*/
+  int last_tok=0;
+  data *arr=xmalloc_atomic(sizeof(data)*size);
+  /*generally best not to call this directally, but this is special
+    since we know anything involving a recursive call to read
+    is an error*/
+  TOKEN yytag=yylex(yylval,scanner);
+  /* another low level hack, the TOKEN enum is layed out in such a way
+     that literal tags are between 0 and 10*/
+  if(!(yytag >=0 && yytag <= 10)){
+    FORMAT_READ_ERR("Read error invalid token inside of typed array");
+    handle_error();
+  }
+  TOKEN array_type=yytag;
+  arr[i++]=yylval->val;
+  while(!last_tok){
+    if(i>size){
+      size*=2;
+      if(size>=2048){
+      /*assuming a page size of 4096 then an array of 2k will be off page
+        50% of the time, which is high enough to be worth allocating specially*/
+        void *large_arr=GC_malloc_atomic_ignore_off_page(size*sizeof(data));
+        memcpy(large_arr,arr,size>>1);
+        arr=large_arr;
+      } else {
+        arr=xrealloc(size*sizeof(data))
+      }
+    }
+    yytag=yylex(yylval,scanner);
+    if(yytag != array_type){
+      FORMAT_READ_ERR("Read error, multiple types in a typed array");
+      handle_error();
+    }
+    arr[i++]=yylval->val;
+  }
+  if(last_tok != TOK_DBL_RBRACE){
+    FORMAT_READ_ERR("Read error, expected ']]' at the end of a typed array");
+    handle_error();
+  }
+  lisp_array *retval=(lisp_array*)arr;
+  retval->len=i;
+  retval->dims=1;
+  switch(array_type){
+    case TOK_INT:
+      arr->type=_int64;//for now
+      break;
+    case TOK_READ:
+      arr->type=_real64;//for now
+      break;
+    case TOK_CHAR:
+      arr->type=_uchar;
+      break;
+    case TOK_STRING:
+      arr->type=_string;
+      break;
+  }
+  return array_sexp(retval);
 }
 sexp read_matrix(yyscan_t *scanner,register sexp *yylval,int *last_tok)

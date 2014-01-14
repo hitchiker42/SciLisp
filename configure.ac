@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
 LT_PREREQ([2.4.2])
-AC_INIT([SciLisp], [0.01], [BUG-REPORT-ADDRESS])
+AC_INIT([SciLisp], [0.02-alpha], [SciLisp@gmail.com])
 #AC_CONFIG_SRCDIR([scilisp.h])
 AC_CONFIG_HEADERS([src/include/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -115,6 +115,7 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 AC_CHECK_TYPES([ptrdiff_t])
+AC_CHECK_SIZEOF([wchar_t])
 # Checks for library functions.
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK

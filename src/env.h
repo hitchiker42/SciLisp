@@ -7,10 +7,16 @@
 #include "common.h"
 typedef struct symbol_new symbol_new;
 typedef struct obarray_new obarray_new;
-enum symbol_interned{
+enum symbol_interned {
   _symbol_interned = 0,
   _symbol_uninterned = 1,
   _symbol_interned_in_initial_obarray = 2,
+};
+enum externally_visable {
+  _symbol_in_current_or_global_obarray = 0,
+  _symbol_externally_visable = 1,
+  _symbol_not_externally_visable = 2,
+  _symbol_locally_visable = 3,
 };
 struct symbol_props {
   CORD doc;
@@ -22,7 +28,8 @@ struct symbol_props {
   _tag type;
 };
 //should be allocated using gc_malloc_atomic(sizeof(symbol_name)*name_len)
-//I suppose we can but common properties here
+/*structure for symbol name and simple/common properties, to avoid having 
+  to access the plist to determine things like constness or typing*/
 struct symbol_name {
   uint64_t hashv;
   uint32_t name_len;
@@ -31,6 +38,7 @@ struct symbol_name {
   unsigned int interned : 2;
   int is_const : 1;
   int typed : 1;//type is in plist
+  unsigned int externally_visable : 2;
   int padding : 27;//just making padding explicit
   const char *name;//needs to be last(its basically a variable sized array)
 };
@@ -247,5 +255,6 @@ struct symbol_new* lookup_symbol(struct obarray_new *ob,const char* name);
 struct symbol_new *lookup_symbol_global(char *restrict name);
 struct obarray_new *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
 struct symbol_new *c_intern(const char* name,uint32_t len,struct obarray_new *ob);
+symbol_new *obarray_lookup_sym(symbol_name *sym_name,obarray_new *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 #endif
