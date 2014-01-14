@@ -324,33 +324,40 @@ initPrimsFlag=0;
 } else {
 return;
 }
-globalObarray=xmalloc(sizeof(obarray));
-obarray_entry** global_buckets=xmalloc(128*sizeof(obarray_entry*));
-*globalObarray=(obarray)
-{.buckets=global_buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
-                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
-                .is_weak_hash=0,.hash_fn=fnv_hash};
-keywordObarray=xmalloc(sizeof(obarray));
-obarray_entry** keyword_buckets=xmalloc(128*sizeof(obarray_entry*));
-*keywordObarray=(obarray)
-{.buckets=keyword_buckets,.size=128,.used=0,.entries=0,.capacity=0.0,
-                .capacity_inc=(1.0/(128*10)),.gthresh=0.75,.gfactor=2,
-                .is_weak_hash=0,.hash_fn=fnv_hash};
-globalObarrayEnv=xmalloc(sizeof(obarray_env));
-keywordObarrayEnv=xmalloc(sizeof(obarray_env));
-topLevelEnv=xmalloc(sizeof(env));
-globalObarrayEnv->enclosing=keywordObarrayEnv->enclosing=0;
-globalObarrayEnv->head=globalObarray;
-keywordObarrayEnv->head=keywordObarray;
-initPrimsObarray(globalObarray,(env*)globalObarrayEnv);
-*topLevelEnv=(env){.enclosing=globalObarrayEnv->enclosing,
-.head={.ob=globalObarrayEnv->head},.tag=_obEnv};
+global_obarray=xmalloc(sizeof(obarray_new));
+global_ooarray=(obarray_new)
+{.size=128,.used=0,.entries=0,.capacity=0.0,
+ .capacity_inc=(1.0/(128*10)),.gthreshold=0.75,.gfactor=2}
+global_obarray->buckets=xmalloc(128*sizeof(symbol_new*));
+#ifdef MULTI_THREADED
+global_obarary->lock=xmalloc(sizeof(pthread_rwlock_t));
+pthread_rwlock_init(global_obarray->lock,NULL);
+#endif
+global_environment=xmalloc(sizeof(environment_new));
+initPrimsObarray(global_obarray,(env*)global_environment);
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
 set_global_vars();
 srand48(time(NULL));
 lisp_init_rand(NIL);
 prep_sexp_cifs();
+//test if the user's locale is utf-8 compatable
+setlocale(LC_ALL,"");//set locale based on environment variables
+char *locale_codeset=nl_langinfo(CODESET);
+if(!strcmp(\"UTF-8\",locale-codeset)){
+  ;//hopefully the most common case, we're in a utf-8 locale, good
+} else {
+  //not utf-8, in a desperate attempt to get things working
+  //we try to set the locale to en_US.UTF-8, after printing a warning
+  fprintf(stderr,\"Warning default locale does not use UTF-8 encoding,\n\"
+  \"Attempting to set locale to en_US.UTF-8\n\");
+  if(setlocale(LC_ALL,\"en_US.UTF-8\")){
+    ;//somehow that worked
+  } else {
+    fprintf(stderr,\"Error, SciLisp requires a locale with a utf-8 codeset\n\");
+    exit(EXIT_FAILURE);
+  }
+}
 INIT_SYNONYM(lisp_consp,\"cons?\",1);
 }
 static void initPrimsObarray(obarray *ob,env* ob_env){

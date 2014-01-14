@@ -6,10 +6,23 @@
 sexp lisp_re_compile(sexp regex,sexp opts){
   if(!STRINGP(regex)){
     return format_type_error("re-compile","string",regex.tag);
-  }
+  }  
   char* error_string;
   const char* pattern=CORD_to_const_char_star(regex.val.cord);
   size_t length=CORD_len(regex.val.cord);
+
+#ifdef HAVE_PCRE
+  pcre *re_buffer=xmalloc(sizeof(pcre));
+  int err_offset;
+  pcre_compile(pattern,0,&error_string,&err_offset,NULL);
+  if(!error_string){
+    void **pcre_pattern=xmalloc(2*sizeof(void*));
+    pcre_pattern[0]=re_buffer;
+    return regex_sexp(pcre_pattern);
+  } else {
+    return error_sexp(error_string);
+  }
+#else
   regex_t* re_buffer=xmalloc(sizeof(regex_t));
   //re_compile_pattern returns an error string on failure
   if((error_string = (char*)re_compile_pattern(pattern,length,re_buffer))){
@@ -17,10 +30,31 @@ sexp lisp_re_compile(sexp regex,sexp opts){
   } else {
     return regex_sexp(re_buffer);
   }
+#endif
+}
+sexp lisp_re_optimize(sexp regex){
+  if(!REGEXP(regex)){
+    return format_type_error("re-optimize","regex",regex.tag);
+  }
+#if HAVE_PCRE
+  void** pcre_pattern=(void**)regex.val.regex;
+  pcre* pcre_regex=(pcre*)pcre_pattern[0];
+  char *pcre_error;
+  pcre_pattern[1]=pcre_study(pcre_regex,0,pcre_error);
+  if(!pcre_error){
+    return regex_sexp(pcre_pattern);
+  } else {
+    return error_sexp(pcre_error);
+  }
+#else
+  if(re_compile_fastmap(regex.val.regex)){
+    return error_sexp("error optimizing regexp");
+  } else {
+    return regex;
+  }
 }
 //(defun re-match (re string &optional start no-subexprs t-or-f-only))
-sexp lisp_re_match(sexp re,sexp string,sexp start,
-                   sexp dont_return_matches,sexp only_true_or_false){
+sexp lisp_re_match(sexp re,sexp string,sexp start,sexp opts){
   if((!REGEXP(re) && !STRINGP(re))){
     return format_type_error_opt2("re-match","string","regex",re.tag);
   } if(!STRINGP(string)){
@@ -41,7 +75,7 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,
   int len=CORD_len(string.val.cord);
   int64_t match_len;
   //test if we want registers, not yet implemented;
-  if(isTrue(dont_return_matches) || isTrue(only_true_or_false)){
+  if(0){//isTrue(dont_return_matches) || isTrue(only_true_or_false)){
     match_len=re_match(re.val.regex,str_to_match,len,0,0);
     if(isTrue(only_true_or_false)){
       return ((match_len<=0) ? LISP_TRUE : LISP_FALSE);
@@ -50,7 +84,17 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,
     }
   } else {
     struct re_registers *match_data=xmalloc(sizeof(struct re_registers));
+#if HAVE_PCRE
+    pcre* pcre_regexp=(pcre*)re.val.opaque[0];
+    pcre_extra *pcre_studied=(pcre_extra*)re.val.opaque[1];
+    int *pcre_regs=xmalloc(3*prce_num_refs(pcre_regexp)*sizeof(int));
+    pcre_
+    match_len=pcre_exec(pcre_regexp,pcre_studied,str_to_match,
+                        len,start.val.uint64,pcre_regs,pcre_num_refs(pcre_regexp));
+    
+#else
     match_len=re_match(re.val.regex,str_to_match,len,0,match_data);
+#endif
     if(match_len<=-1){
       return LISP_FALSE;
     } else {

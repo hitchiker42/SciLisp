@@ -14,11 +14,6 @@
   (((c) >= 'a' && (c) <= 'f') \
         ? (c)-'a'+10 \
         : (c) >= 'A' && (c) <= 'F' ? (c)-'A'+10 : (c)-'0')
-static char temp_ustring[MB_LEN_MAX];
-struct lisp_ustring {
-  wchar_t *restrict str;
-  uint32_t len;
-};
 sexp lisp_char_to_string(sexp lisp_char){
   if(!CHARP(lisp_char)){
     return format_type_error("char->string","character",lisp_char.tag);
@@ -52,17 +47,32 @@ sexp lisp_string_to_char(sexp lisp_str){
   if(!STRINGP(lisp_str)){
     return format_type_error("string->char","string",lisp_str.tag);
   }
+  //most common cases:
+  lisp_string *str=lisp_str.val.string;
+  if(str->string_type==str_wstring){
+    return uchar_sexp(str->wstring[0]);
+  } else if (str->string[0]>0 && str->string<=127){
+    //test if first char is a valid ascii char
+    return uchar_sexp((wchar_t)str->string[0]);
+  }    
   wchar_t retval;
   mbstate_t state;
   size_t nbytes;
   memset(&state,'\0',sizeof(state));
-  //we need at most 4 bytes, if the cord in lisp_str is say 100 bytes
-  //CORD_to_const_char_star would need to process 96 excess bytes
-  //presumably running CORD_substr doesn't take too long, so this
-  //should be much more efficient
-  const char *mb_str=CORD_to_const_char_star
-    (CORD_substr(lisp_str.val.cord,0,4));
-  nbytes=mbrtowc(&retval,mb_str,4,&state);
+  if(str->string[0]==0){
+    char[4] mb_str;
+    CORD_pos pos;
+    CORD_set_pos(pos,str->cord,0);
+    int i=0;
+    while(i<4 && CORD_pos_valid(pos)){
+      mb_str[i]=CORD_pos_fetch(pos);
+      CORD_next(pos);
+    }
+    if(i != 4){return error_sexp("CORD error");}
+    nbytes=mbrtowc(&retval,mb_str,4,&state);
+  } else {
+    nbytes=mbrtowc(&retval,str->str,4,&state);
+  }
   if(nbytes==(size_t)-1){
     return_errno("string->char");
   } else if (nbytes==(size_t)-2){
@@ -89,7 +99,6 @@ wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
   return wstr;
 }
 //large ammounts of this taken from the bash printf builtin
-union utf8_hack utf8_escape;
 static inline wchar_t parse_simple_escape(char escape_char){
   //shamelessly stolen from emacs out of shear lazyness
   switch(escape_char){
@@ -176,8 +185,6 @@ int lex_char(char* cur_yytext,wint_t *new_char){
   int64_t nbytes;
   memset(&state,'\0',sizeof(state));
   int i;
-  HERE();
-  PRINT_FMT("%lc",*p);
   nbytes=strlen(p);//mbrlen(cur_yytext+1,4,&state);
   /*  for(i=0;i<4;i++){
     fprintf(stderr,"%#0hhx",(p+i)[0]);

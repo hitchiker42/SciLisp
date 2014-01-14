@@ -15,14 +15,11 @@ struct lisp_string {
   uint32_t len;//length in chars or wchars depending
   enum {
     str_string,
-    str_wstring,
-    str_mut_string,
+    str_mbstring,
     str_cord,
   } string_type;
   union {
     const char *string;
-    const wchar_t *wstring;
-    char *mut_string;
     CORD cord;
   };
 }

@@ -15,6 +15,8 @@
 #include "regex.h"
 #include "sequence.h"
 #include "cffi.h"
+#include <locale.h>
+#include <langinfo.h>
 //NOTE: Most of these macros are non hygenic and rely on the presense
 //of an obarray named ob, used outside of this file at your own risk
 #define DEFUN(l_name,c_name,reqargs,optargs,keyargs,restarg,maxargs,sig) \
@@ -149,6 +151,5 @@ void SciLisp_init(){
   GC_set_all_interior_pointers(1);
   GC_set_handle_fork(1);
   GC_init();
-  pthread_once_t pthread_prims_initialized = PTHREAD_ONCE_INIT;
   pthread_once(&pthread_prims_initialized,initPrims);
 }

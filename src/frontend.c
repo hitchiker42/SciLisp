@@ -14,7 +14,6 @@
 #endif
 #define DEFAULT_LISP_HIST_SIZE 100
 #if defined(MULTI_THREADED)
-static pthread_once_t pthread_prims_initialized = PTHREAD_ONCE_INIT;
 static void* initPrims_pthread(void*);
 static void* SciLisp_getopt_pthread(void *getopt_args);
 #define ENSURE_PRIMS_INITIALIZED() (void)pthread_once(&pthread_prims_initialized,initPrims)

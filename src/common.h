@@ -25,6 +25,7 @@
 extern TOKEN yylex(sexp *yylval,yyscan_t yyscanner);
 #endif
 #ifdef MULTI_THREADED
+static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define thread_local __thread
 #define multithreaded_only(code) code
 #else
