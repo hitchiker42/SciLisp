@@ -43,6 +43,14 @@ struct symbol_new *make_new_symbol(char *restrict name,uint32_t len){
   retval->plist=NIL;
   return retval;
 }
+symbol_new *copy_symbol(symbol_new *sym,int copy_props){
+  symbol_new *retval=xmalloc(sizeof(symbol_new));
+  retval->name=sym->name;
+  retval->next=NULL;
+  retval->plist=(copy_props?sym->plist:NIL);
+  retval->val=UNBOUND;
+  return retval;
+}
 symref getSym(env *cur_env,CORD name){
   if(!cur_env){return NULL;}
   switch(cur_env->tag){

@@ -2,8 +2,7 @@
 #include "prim.h"
 /* minargs=0,maxarg=1,restarg=1*/
 #define eval_sub eval
-sexp lisp_and(sexp exprs,sexp cur_env_sexp){
-  env *cur_env=cur_env_sexp.val.cur_env;
+sexp lisp_and(sexp exprs){
   sexp retval=LISP_TRUE;
   while(CONSP(exprs)){
     if(!(isTrue(eval(XCAR(exprs),cur_env)))){
@@ -14,31 +13,55 @@ sexp lisp_and(sexp exprs,sexp cur_env_sexp){
   }
   return retval;
 }
-sexp lisp_defvar(sexp var,sexp val,sexp docstr,env *cur_env){
-  if(!getSymFromSexp(var,NULL)){//if var isn't already bound
-    symref new_sym=xmalloc(sizeof(symbol));
-    new_sym->name=var.val.var->name;
-    new_sym->val=eval_sub(val,cur_env);//set var to val
-    //set docstring to docstr iff docstr is a string, but just ignore it if not
-    if(STRINGP(docstr)){
-      new_sym->props.doc=docstr.val.cord;
+sexp lisp_defvar(sexp args){
+  sexp var,val,docstr=NIL;
+  var=XCAR(args);
+  args=XCDR(args);
+  val=(CONSP(args)?XCAR(args):NIL);
+  if(CONSP(XCDR(args))){
+    docstr=XCADR(args);
+  }
+  if(var.val.sym->val == UNBOUND){
+    var.val.sym->val=eval(val,current_environment);
+    if(!NILP(docstr)){
+      var.val.sym->plist=Cons(Qdocstring,Cons(docstr,var.val.sym->plist));
     }
   }
-  return var;//always return var
+  return var;
 }
-sexp lisp_defun(sexp var,sexp arglist,sexp body,env *cur_env){
-  sexp val=Cons(spec_sexp(_lambda),Cons(arglist,body));//(lambda <arglist> <body>...)
-  addSymFromSexp(var,val,cur_env);
+sexp lisp_defun(sexp args){
+  sexp var=XCAR(args);
+  args=XCDR(args);
+  if(!CONSP(args) || !CONSP(XCDR(args))){
+    return error_sexp("Malformed defun");
+  }
+  if(!CONS_OR_NIL(XCAR(args))){
+    return error_sexp("Malformed argument list");
+  }
+  sexp arglist=XCAR(args);
+  sexp body=XCADR(args);
+  //defun overwrites any existing defination
+  var.val.sym->Val=Cons(Qlambda,Cons(arglist,Cons(body,NIL)));
   return var;
 }
 sexp lisp_define(sexp var,sexp val,env *cur_env){
   addSymFromSexp(var,eval_sub(val,cur_env),cur_env);
 }
-sexp lisp_or(sexp exprs,sexp cur_env_sexp){
-  env *cur_env=cur_env_sexp.val.cur_env;
+sexp lisp_setq(sexp args){
+  if(!CONSP(args)|!CONSP(XCDR(args))){
+    return error_sexp("too few arguments to setq");
+  }
+  sexp var=XCAR(args);
+  sexp val=XCADR(args);
+  val.var.sym->val=eval(val,current_environment);
+  return var;
+}
+sexp lisp_defmacro(sexp args){}
+
+sexp lisp_or(sexp exprs){
   sexp retval=LISP_FALSE;
   while(CONSP(exprs)){
-    if(isTrue(eval(XCAR(exprs),cur_env))){
+    if(isTrue(eval(XCAR(exprs),currrent_environment))){
       return LISP_TRUE;
     } else {
       exprs=XCDR(exprs);
@@ -63,19 +86,60 @@ sexp lisp_setq(sexp args,env *cur_env){
     }
   }
 }
-      
 //(if cond then &rest else)
-sexp lisp_if(sexp cond,sexp then_br,sexp else_br,sexp cur_env_sexp){
-  env *cur_env=cur_env_sexp.val.cur_env;
-  sexp test_result=eval(cond,cur_env);
+sexp lisp_when(sexp args){
+  sexp cond=XCAR(args);
+  args=XCDR(args);
+  return lisp_progn(args);
+}
+sexp lisp_if(sexp args){
+  if(!CONSP(args) || !(CONSP(XCDR(args)))){
+    return error_sexp("too few arguments passed to if");
+  }
+  sexp cond=XCAR(args);
+  args=XCDR(args);
+  sexp then_br=XCAR(args);
+  args=XCDR(args);
+  sexp else_br=args;
+  sexp test_result=eval(cond,current_environment);
   if(ERRORP(cond)){
     return cond;
   }
   if(isTrue(test_result)){
-    return eval(then_br,cur_env);
+    return eval(then_br,current_environment);
   } else {
-    return eval(else_br,cur_env);
+    return lisp_progn(else_br);
   }
+}
+sexp lisp_while(sexp cond,sexp body){
+  sexp result;
+  while(isTrue(eval(cond,current_environment))){
+    result=eval(body,current_envrionment);
+  }
+  return result;
+}
+sexp lisp_progn(sexp args){
+  sexp result=NIL;
+  while(CONSP(args)){
+    result=eval(XCAR(args),current_environment);
+    args=XCDR(args);
+  }
+  return result;
+}
+sexp lisp_prog1(sexp expr,sexp args){
+  sexp result=eval(expr,current_environment);
+  while(CONSP(args)){
+    eval(XCAR(args),current_envrionment);
+  }
+  return result;
+}
+sexp lisp_prog2(sexp expr1,sexp expr2,sexp args){
+  eval(expr1,current_environment);
+  sexp result=eval(expr2,current_environment);
+  while(CONSP(args)){
+    eval(XCAR(args),current_envrionment);
+  }
+  return result;
 }
 sexp lisp_dotimes_expander(sexp var,sexp times,sexp body,sexp cur_env_sexp,int expand){
   env *cur_env=cur_env_sexp.val.cur_env;
@@ -154,25 +218,4 @@ sexp lisp_incf_expander(sexp sym_sexp,env *cur_env){
   sexp body=Cons(symref_sexp(inc_symbol),
                  Cons(eval_sub(sym_sexp,cur_env),NIL));
   sexp code=Cons(spec_sexp(_setq),Cons(sym_sexp,Cons(body,NIL)));
-  /*  cons *code=xmalloc(5*sizeof(cons));
-  cons *code_ptr=code;
-  code_ptr->car=spec_sexp(_setq);// (setq .
-  code_ptr->cdr=cons_sexp(code+1);// (setq . (
-  code_ptr=code_ptr->cdr.val.cons;
-  code_ptr->car=sym_sexp;//(setq . (var
-  code_ptr->car.has_comma=1;//(setq . (,var
-  code_ptr->cdr=cons_sexp(code+2);
-  code_ptr=code_ptr->cdr.val.cons;
-  code_ptr->cdr=NIL;//(setq . (,var . (_ . nil)))
-  code_ptr->car=cons_sexp(code+3);
-  code_ptr=code_ptr->car.val.cons;
-
-  code_ptr->car=symref_sexp(inc_symbol);
-  code_ptr->cdr=cons_sexp(code+4);
-  code_ptr->car=sym_sexp;
-  code_ptr->cdr=NIL;
-  sexp retval=cons_sexp(code);
-  retval.quoted=1;
-  retval.has_comma=1;
-  return retval;*/
 }

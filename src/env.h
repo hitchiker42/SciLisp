@@ -18,28 +18,24 @@ enum externally_visable {
   _symbol_not_externally_visable = 2,
   _symbol_locally_visable = 3,
 };
-struct symbol_props {
-  CORD doc;
-  unsigned int is_const :1;
-  unsigned int global :1;
-  unsigned int setfable :1;//move this to functions? (yes)
-  unsigned int typed :1;
-  unsigned int interned : 2;
-  _tag type;
-};
 //should be allocated using gc_malloc_atomic(sizeof(symbol_name)*name_len)
 /*structure for symbol name and simple/common properties, to avoid having 
   to access the plist to determine things like constness or typing*/
 struct symbol_name {
   uint64_t hashv;
   uint32_t name_len;
-  int multibyte :1;//we need to print things differently
-                   //if we have unicode characters in a symbol name
-  unsigned int interned : 2;
-  int is_const : 1;
-  int typed : 1;//type is in plist
-  unsigned int externally_visable : 2;
-  int padding : 27;//just making padding explicit
+  union{
+    struct{
+      int multibyte :1;//we need to print things differently
+      //if we have unicode characters in a symbol name
+      unsigned int interned : 2;
+      int is_const : 1;
+      int typed : 1;//type is in plist
+      unsigned int externally_visable : 2;
+      int padding : 27;//just making padding explicit
+    };
+    uint32_t props;
+  };
   const char *name;//needs to be last(its basically a variable sized array)
 };
 
@@ -49,8 +45,7 @@ struct symbol {
   symbol_props props;//need to change to plist
 };
 struct symbol_new {
-  sexp val;//a stack of values, when we enter a new lexical environment
-  //we push on a new defination and pop it off when we leave
+  sexp val;
   struct symbol_name *name;
   sexp plist;
   //pointer to next symbol, in obarray bucket for global symbols, or in local
@@ -150,6 +145,7 @@ obarray_env *keywordObarrayEnv;
 //current dynamic environment
 static thread_local struct obarray_new *current_obarray;
 static thread_local struct environment_new *current_environment;
+symbol_new *copy_symbol(symbol_new *sym,int copy_props)
 symref getSymFromSexp(sexp var,env *cur_env);
 symref addSymFromSexp(sexp var,sexp val,env *cur_env);
 local_symref getLocalSym(local_env *cur_env,CORD name);

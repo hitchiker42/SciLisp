@@ -400,6 +400,7 @@ enum TOKEN{
   TOK_DBL_LBRACE=56,
   TOK_DBL_RBRACE=57,
 };
+//this is almost exactly the way emacs does builtin functions
 union funcall{
   sexp(*f0)(void);
   sexp(*f1)(sexp);
@@ -409,7 +410,8 @@ union funcall{
   sexp(*f5)(sexp,sexp,sexp,sexp,sexp);
   sexp(*f6)(sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
-  sexp(*fmany)(sexp,...);//really there's no need for this
+  sexp(*fmany)(uint64_t,sexp*);
+  sexp(*funevaled)(sexp);//sexp is presumably a list
 };
 #define FCNAME(fxn) fxn.val.fun->cname
 #define FLNAME(fxn) fxn.val.fun->lname

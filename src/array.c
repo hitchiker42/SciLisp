@@ -11,14 +11,8 @@ static sexp stemp;
 #define swap(i,j,arr)  stemp=arr[i];arr[i]=arr[j];arr[j]=stemp
 static data dtemp;
 #define typed_swap(i,j,arr)  dtemp=arr[i];arr[i]=arr[j];arr[j]=dtemp
-//maybe use this, the 16 bit length parameter needs to be fixed
-struct lisp_array{
-  sexp *arr;
-  uint64_t len;
-  uint8_t atomic;
-  uint8_t mono_typed;
-  _tag type;
-};
+//(defun make-array (dimensions &key element-type initial-element initial-contents)
+sexp make_array(sexp dims,sexp elem_type,sexp initial_elem){}
 #define aref_generic(name,test,type,macro)                              \
   sexp name(sexp obj,sexp ind){                                         \
     if(!test(obj) || !INTP(ind)){                                       \
