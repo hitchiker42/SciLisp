@@ -28,9 +28,15 @@ extern TOKEN yylex(sexp *yylval,yyscan_t yyscanner);
 static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define thread_local __thread
 #define multithreaded_only(code) code
+#define LISP_RWLOCK_RDLOCK(env) (pthread_rwlock_rdlock(env->lock))
+#define LISP_RWLOCK_WRLOCK(env) (pthread_rwlock_wrlock(env->lock))
+#define LISP_RWLOCK_UNLOCK(env) (pthread_rwlock_unlock(env->lock))
 #else
 #define thread_local  
 #define multithreaded_only(code)
+#define LISP_RWLOCK_RDLOCK(env)
+#define LISP_RWLOCK_WRLOCK(env)
+#define LISP_RWLOCK_UNLOCK(env)
 #endif
 //#define USE_MMAP
 #include "gc/gc.h"
@@ -141,10 +147,10 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   sigstk.ss_size=SIGSTKSZ;                                              \
   sigaltstack(&sigstk,NULL)
 //lisp constants needed in c
-static const sexp NIL={.tag = -1,.val={.meta = -1},.len=0};
+static const sexp NIL={.tag = 0,.val={0},.len=0};
 static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf},.quoted=0};
 static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
-static const sexp LISP_FALSE={.tag = -3,.val={.meta = -3}};
+static const sexp LISP_FALSE={.tag = -3,.val={0}};
 static const sexp LISP_EMPTY_STRING=construct_simple_const(0,cord);
 //(defconst empty-list (cons nil nil))
 static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
@@ -168,6 +174,9 @@ sexp error_val;
 stack_t sigstk;
 //static __thread env *cur_env_ptr;
 env *cur_env_ptr;
+/*from env.h
+static thread_local struct obarray *current_obarray;
+static thread_local struct environment *current_environment;*/
 //functions to print (or not print) debug info
 void (*debug_printf)(const char*,...);
 void (*CORD_debug_printf)(CORD,...);

@@ -5,8 +5,6 @@
 #ifndef __ENV_H__
 #define __ENV_H__
 #include "common.h"
-typedef struct symbol_new symbol_new;
-typedef struct obarray_new obarray_new;
 enum symbol_interned {
   _symbol_interned = 0,
   _symbol_uninterned = 1,
@@ -22,187 +20,67 @@ enum externally_visable {
 /*structure for symbol name and simple/common properties, to avoid having 
   to access the plist to determine things like constness or typing*/
 struct symbol_name {
-  uint64_t hashv;
   uint32_t name_len;
-  union{
-    struct{
-      int multibyte :1;//we need to print things differently
-      //if we have unicode characters in a symbol name
-      unsigned int interned : 2;
-      int is_const : 1;
-      int typed : 1;//type is in plist
-      unsigned int externally_visable : 2;
-      int padding : 27;//just making padding explicit
-    };
-    uint32_t props;
-  };
+  uint64_t hashv;
   const char *name;//needs to be last(its basically a variable sized array)
 };
 
 struct symbol {
-  CORD name;//change to symbol name
   sexp val;
-  symbol_props props;//need to change to plist
-};
-struct symbol_new {
-  sexp val;
-  struct symbol_name *name;
   sexp plist;
+  uint8_t type;
+  unsigned interned :2;
+  unsigned constant :2;
+  unsigned visibility :2;
+  unsigned special :1;//non special variables don't need to have their values saved
+  struct symbol_name *name;
   //pointer to next symbol, in obarray bucket for global symbols, or in local
   //environment for local symbols
-  struct symbol_new *next;
+  symbol *next;
 };
-//this is going to cause some difficultly with obarrays but oh well
-//global to a package I suppose
-struct global_symbol {
-  sexp val;
-  struct symbol_name *name;
-  sexp plist;
-  struct global_symbol *next;
+struct binding {
+  symbol *sym;//pointer to symbol
+  sexp prev_val;
 };
-struct environment_new {
-  struct environment_new *enclosing;
-  void *env;
-  enum {
-    _global_env,
-    _local_env,
-  } type;
+struct lexical_bindings {
+  struct environment *enclosing;
+  binding *bindings;//stack of bindings
+  uint32_t num_bindings;
 };
-//add at some point
-/* It's my language, plists are alists deal with it
-  so:
-  struct symbol {
-    CORD name;
-    sexp val;
-    symbol_props props;
-  }
-  struct symbol_props {
-    cons *plist;
-    ... //w/o the CORD
-  }
-  sexp get_symbol_prop(sexp symbol_sexp,sexp prop){
-    symref symbol_ref=get_symbol(cur_env,symbol_sexp.var.var->name);
-    if(!symref){return error;}
-    cons proplist=*symbol_ref->plist;
-    uint64_t prop_key=prop.val.uint64;//assume prop is a keyword
-    while(proplist.cdr.tag != _nil){
-    if(XCAR(proplist.car).val.uint64 == prop_key){
-    return XCDR(proplist.car);
-    }
-    proplist=*(proplist.cdr.val.cons)
-    }
-    return error
-  }
- */
-struct local_symbol{
-  CORD name;
-  sexp val;
-  symbol_props props;
-  local_symref next;//eliminate
-};
-struct local_env{
-  env* enclosing;
-  local_symref head;
-};
-/*
-  new local env
-  struct local_env{
-  env* enclosing;
+struct lexical_env {
   sexp env_alist;
-  }
- */
-struct function_env{
-  env* enclosing;
-  function_args* head;//for consistancy in naming
+  uint32_t size;
 };
-union symbol_ref{
-  local_symref local;
-  function_args *function;
-  obarray *ob;
+/* per thread values (no need for a lock)*/
+struct environment {
+  //stacks
+  package *current_package;//contains current obarray and 
+  bindings **lexical_bindings;//stack for lexical bindings
+  bindings *current_lexical_env;//stack pointer
+  handler **frame_stack;//stack of jump points (returns, catches, handlers)
+  handler *innermost_frame;//stack pointer
+  sexp **call_stack;//call stack
+  sexp *current_function;//stack pointer
+  sexp **stack;//data/function argument stack
+  sexp *stack_ptr;//stack ptr
+  uint32_t eval_depth;//current eval depth
+  //c thread local data
+  stack_t *sigstack;//alternative stack for signals
 };
-union symbol_val{
-  local_symbol local;
+struct package {
+  lisp_string name;
+  obarray *symbol_table;
 };
-struct env {
-  env* enclosing;
-  symbol_ref head;
-  enum {
-    _local=0,
-    _global=1,
-    _funArgs=2,
-    _obEnv=3,
-  } tag;
-};
-#define to_env (cur_env,type)\
-  (env){.enclosing=cur_env->enclosing,.head=cur_env->head,.tag=type}
-env *topLevelEnv;
-obarray *globalObarray;
-struct obarray_new *global_obarray;
-struct environment_new *global_environment;
-obarray_env *globalObarrayEnv;
-obarray *keywordObarray;
-obarray_env *keywordObarrayEnv;
+obarray *global_obarray;
 //current dynamic environment
-static thread_local struct obarray_new *current_obarray;
-static thread_local struct environment_new *current_environment;
-symbol_new *copy_symbol(symbol_new *sym,int copy_props)
-symref getSymFromSexp(sexp var,env *cur_env);
-symref addSymFromSexp(sexp var,sexp val,env *cur_env);
-local_symref getLocalSym(local_env *cur_env,CORD name);
-symref getFunctionSym(function_env* cur_env,CORD name);
-symref getGlobalSym(CORD name);
-sexp getKeySymSexp(CORD name);
-symref getSym(env *cur_env,CORD name);
-symref addSym(env *cur_env,symref Var);
-symref addGlobalSym(symref Var);
-symref addLocalSym(env *cur_env,symref Var);
-//functions to look for a  symbol in a specific environment only
-symref getSymLocalOnly(local_env *cur_env,CORD name);
-symref getSymFunctionOnly(function_env* cur_env,CORD name);
-symref getSymObarrayOnly(obarray_env* ob_env,CORD name);
-symref getSymNotGlobal(env *cur_env,CORD name);
+static thread_local struct obarray *current_obarray;
+static thread_local struct environment *current_environment;
+extern uint64_t bindings_stack_size;
+extern uint64_t handler_stack_size;
+symbol *copy_symbol(symbol_new *sym,int copy_props);
 sexp getKeywordType(sexp obj);
-//check if name refers to a function argument, return NULL if not
-long isFunctionArg(function_env *cur_env,CORD name);
-obarray* obarray_init_custom(float gthresh,uint64_t(*hash_fn)(const void*,int),
-                      uint64_t size,int32_t is_weak_hash);
-obarray* obarray_init_default(uint64_t size);
-obarray* obarray_init(uint64_t size,float gthresh);
-obarray* init_prim_obarray();
-obarray_entry*  obarray_add_entry_generic
-(obarray *ob,symref new_entry,add_option conflict_opt,int append);
-obarray_entry*  obarray_add_entry(obarray *ob,symref new_entry);
-int obarray_rehash(obarray *ob);
-obarray_entry* obarray_get_entry(obarray *cur_obarray,CORD symname,uint64_t hashv);
-obarray_entry* obarray_remove_entry(obarray *cur_obarray,CORD symname);
-symref getObarraySym(obarray_env *ob_env,CORD name);
-symref addObarraySym(obarray_env *ob_env,symref Var);
-int bucketLength(obarray_entry* bucket);
-uint64_t obarray_delete_entry(obarray *ob,symref entry);
-obarray_entry* prim_obarray_add_entry(obarray *ob,symref new_entry,
-                                      obarray_entry *entry);
-//type punning macros
-#define toSymbol(sym) (*(symbol*)&sym)
-#define toSymref(ref) (*(symref*)&(ref))
-#define KEYWORD_COMPARE(name,var)               \
-  (var.val.int64 == (getKeySymSexp(name)).val.int64)
-
-//not sure if this should be a parameter
-#define OBARRAY_BKT_CAPACITY 10
 struct obarray {
-  obarray_entry **buckets;//points to first bucket
-  int size;//memory allocated for the obarray (aka number of buckets)
-  int used;//buckets used
-  int entries;//number of obarray_entries
-  float capacity;//sum of entries per buckets for all buckets/num_buckets
-  float capacity_inc;//1/(size*10)
-  float gthresh;//growth threshold
-  float gfactor;//growth factor
-  int is_weak_hash;//only actually needs a single bit
-  uint64_t (*hash_fn)(const void*,int);
-};
-struct obarray_new {
-  struct symbol_new **buckets;
+  symbol **buckets;
   uint32_t size;//number of buckets
   uint32_t used;//buckets used
   uint32_t entries;//number of symbols in the table
@@ -215,42 +93,10 @@ struct obarray_new {
 #endif
   //32 bits of padding
 };
-struct obarray_env {
-  env* enclosing;
-  obarray* head;
-};
-struct obarray_entry {
-  obarray_entry *prev;
-  obarray_entry *next;
-  symref ob_symbol;
-  uint64_t hashv;
-};
-enum add_option{//conflict resolution for an existing symbol
-  _update=2,//change value of existing symbol
-  _ignore=3,//keep current symbol and add new symbol
-  //this is likely to cause some errors, but it exists, because why not
-  _overwrite=4,//explictly overwrite current entry
-  _use_current=5,//keep current entry and ignore update
-};
-static inline size_t symbolSize(env *cur_env){
-  switch(cur_env->tag){
-    case _local:
-      return sizeof(local_symbol);
-    case _obEnv:
-      return sizeof(obarray);
-    case _funArgs:
-      return sizeof(function_args);
-    default:
-      return 0;
-  }
-}
-static inline CORD get_docstring(symref lisp_var){
-  return lisp_var->props.doc;
-}
-struct symbol_new* lookup_symbol(struct obarray_new *ob,const char* name);
-struct symbol_new *lookup_symbol_global(char *restrict name);
-struct obarray_new *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
-struct symbol_new *c_intern(const char* name,uint32_t len,struct obarray_new *ob);
-symbol_new *obarray_lookup_sym(symbol_name *sym_name,obarray_new *ob);
+symbol* lookup_symbol(struct obarray_new *ob,const char* name);
+symbol *lookup_symbol_global(char *restrict name);
+obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
+symbol *c_intern(const char* name,uint32_t len,struct obarray_new *ob);
+symbol *obarray_lookup_sym(symbol_name *sym_name,obarray_new *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 #endif

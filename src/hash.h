@@ -6,7 +6,6 @@
 #define HASH_H_
 #include "common.h"
 #include "prim.h"
-#include "hash_fn.h"
 //ht=hash_table
 //type alias, should change to one type sooner or later
 typedef struct hash_table hashtable;
@@ -71,4 +70,18 @@ sexp hashtable_reinit(sexp ht,sexp comp_fun,sexp size,sexp hash_fn,
 uint64_t hash_sexp(sexp key,sexp hash_fn);
 sexp lisp_hash_sexp(sexp obj);
 sexp hashtable_delete_key(sexp ht_sexp,sexp key);
+//#include "hash_fn.h"//has a bunch of stuff that currently we don't need
+#define offset_basis_32 2166136261
+#define offset_basis_64 14695981039346656037UL
+#define fnv_prime_32 16777619
+#define fnv_prime_64 1099511628211UL
+static uint64_t fnv_hash(const void *key,int keylen){
+  const uint8_t *raw_data=(const uint8_t *)key;
+  int i;
+  uint64_t hash=offset_basis_64;
+  for(i=0; i < keylen; i++){
+    hash = (hash ^ raw_data[i])*fnv_prime_64;
+  }
+  return hash;
+}
 #endif

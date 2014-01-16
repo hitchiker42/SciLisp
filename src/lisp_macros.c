@@ -44,9 +44,6 @@ sexp lisp_defun(sexp args){
   var.val.sym->Val=Cons(Qlambda,Cons(arglist,Cons(body,NIL)));
   return var;
 }
-sexp lisp_define(sexp var,sexp val,env *cur_env){
-  addSymFromSexp(var,eval_sub(val,cur_env),cur_env);
-}
 sexp lisp_setq(sexp args){
   if(!CONSP(args)|!CONSP(XCDR(args))){
     return error_sexp("too few arguments to setq");
@@ -69,29 +66,13 @@ sexp lisp_or(sexp exprs){
   }
   return retval;
 }
-sexp lisp_setq(sexp args,env *cur_env){
-  sexp var,val;
-  if(CONSP(args)){
-    var=XCAR(args);
-    if(!CONSP(XCDR(args))){
-      return error_sexp("uneven number of args passed to setq");
-    }
-    val=eval_sub(XCADR(args),cur_env);
-    args=XCDDR(args);
-    symref sym=getSymFromSexp(var,cur_env);
-    if(!sym){
-      addSymFromSexp(var,val,cur_env);
-    } else {
-      sym->val=val;
-    }
-  }
-}
-//(if cond then &rest else)
+//(when cond &rest then)
 sexp lisp_when(sexp args){
   sexp cond=XCAR(args);
   args=XCDR(args);
   return lisp_progn(args);
 }
+//(if cond then &rest else)
 sexp lisp_if(sexp args){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){
     return error_sexp("too few arguments passed to if");
@@ -111,6 +92,8 @@ sexp lisp_if(sexp args){
     return lisp_progn(else_br);
   }
 }
+//simple looping construct
+//(while cond &rest body)
 sexp lisp_while(sexp cond,sexp body){
   sexp result;
   while(isTrue(eval(cond,current_environment))){
@@ -140,6 +123,16 @@ sexp lisp_prog2(sexp expr1,sexp expr2,sexp args){
     eval(XCAR(args),current_envrionment);
   }
   return result;
+}
+//(do (var init [step])(end-test) body..)
+sexp lisp_do_expander(sexp args){
+  if(!CONSP(args) || !CONSP(XCDR(args))){
+    return error_sexp("too few args passed to do");
+  }
+  sexp binding=XCAR(args);
+  if(!CONSP(binding)){
+    return error_sexp("malformed bindings list in do expression");
+  }
 }
 sexp lisp_dotimes_expander(sexp var,sexp times,sexp body,sexp cur_env_sexp,int expand){
   env *cur_env=cur_env_sexp.val.cur_env;
@@ -219,3 +212,14 @@ sexp lisp_incf_expander(sexp sym_sexp,env *cur_env){
                  Cons(eval_sub(sym_sexp,cur_env),NIL));
   sexp code=Cons(spec_sexp(_setq),Cons(sym_sexp,Cons(body,NIL)));
 }
+void unwind_bindings(binding *bindings,int len){
+  int i;
+  binding cur_binding;
+  for (i=0;i<len;i++){
+    cur_binding=bindings[i];
+    binding->sym.val=binding.prev_val;
+  }
+}
+//internal means of lexically binding a set of variables
+sexp internal_let(struct lexical_env *env,sexp form){
+  

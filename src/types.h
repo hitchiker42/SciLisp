@@ -14,28 +14,20 @@
 #include <stdint.h>
 #include <getopt.h>
 #include <limits.h>
+#include <float.h>
 #include <gmp.h>
 #include <mpfr.h>
 #include <mpf2mpfr.h>
-typedef enum _tag _tag;//different types of a lisp object
+typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
-typedef enum special_form special_form;//different types of special forms
-typedef enum sexp_meta sexp_meta;
-typedef enum add_option add_option;
-typedef union data data;//core representation of a lisp object
-typedef union env_type env_type;//generic environment
-typedef union symbol_type symbol_type;//generic symbol
+typedef union lisp_data lisp_data;//core representation of a lisp object
 typedef union funcall funcall;//type of primitive functions
-typedef union symbol_ref symbol_ref;//generic symbol pointer
-typedef union symbol_val symbol_val;//generic symbol
 typedef union ctype_val ctype_val;
 typedef struct sexp sexp;//type of all lisp objects
 typedef struct cons cons;//cons cell, for lists,pairs and everything else
 //typedef struct fxn_proto fxn_proto;//primitive function prototype
 typedef struct symbol symbol;//generic symbol type
-typedef struct local_symbol local_symbol;//type of symbol used in local envs
-typedef struct global_symbol global_symbol;//type of symbol used in global envs
-typedef struct env env;//generic symbol namespace
+typedef struct environment environment;//generic symbol namespace
 typedef struct local_env local_env;//linked list representing a local namespace
 typedef struct function_env function_env;//Actually used for function arguments
 typedef struct lambda lambda;//type of lambda expressions
@@ -62,9 +54,6 @@ typedef struct lisp_condition lisp_condition;//error handling
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
 typedef symbol *symref;//type of generic symbol references
-typedef local_symbol *local_symref;//"" local ""
-typedef symbol *keyword_symref;
-typedef symbol keyword_symbol;
 //typedefs akin to the ones in stdint.h and sml
 typedef float real32_t;
 typedef double real64_t;
@@ -180,128 +169,63 @@ typedef wchar_t char32_t;
 //TODO:
 //This needs to be cleaned up some, so that all non pointer types (excepting bigint and bigfloat)
 //come before all pointer types, also nil should be 0 
-enum _tag {
-  _unbound=-0xf,
-  _error = -4,//type of errors, value is a string
-  _false = -3,//type of #f, actual value is undefined
-  _uninterned = -2,//type of uninterned symbols, value is symbol(var)
-  _nil = -1,//type of nil, singular object,vaule is undefined
-  //so this is kinda really not good.
-  /* so I just realized that a whole bunch of my code kinda
-   * implicitly depends on _cons being 0, because I tend not
-   * to set tag values to each cell when building lists the tag is
-   * 0, so when I test if it's a cons cell it is, which, to be fair does 
-   * seem to work out. But it's worth knowing this, because if i ever change
-   * this to a non 0 value everything will probably break*/
-  _cons = 0,//type of cons cells(aka lisp programs), value is cons
-  //arithmetic types, room for 7 more types currently
-  //unlike some other enum aliases these are both meant to be useable
-  //they exist for convenience
-  _byte = 1,_int8 = 1,
-  _ubyte = 2,_uint8 = 2,
-  _short = 3,_int16 = 3,
-  _ushort = 4,_uint16 = 4,
-  _int = 5,_int32 = 5,
-  _uint = 6,_uint32 = 6,
-  _long = 7,_int64 = 7,//type of integers, value is int64
-  _ulong = 8,_uint64 = 8,
-  _float = 9,_real32 = 9,
-  _double = 10,_real64 = 10,//type of floating point numbers, value is real64
-  _bigint = 11,_mpz=11,
-  _bigfloat = 12,_mpfr=12,
-  _char = 19,_uchar=19,//type of chars(c type wchar_t),value is utf8_char
-  _str = 20,_cord=20,_string=20,//type of strings, value is cord
-  _array = 21,//type of arrays, element type in meta, vaule is array
-  _ustr = 22,//utf8 string
-  _regex = 23,//compiled regular expression
-  _stream = 24,_file=24,//type of input/output streams, corresponds to c FILE*
-  _matrix =25,//array for mathematical calculations
-  _list = 26,//type of lists,value is cons
-  _dpair = 27,_dotted_pair=27,
-  _fun = 31,//type of builtin functions,value is function pointer,fun
-  _sym = 32,_symbol=32,//type of symbols,value is var
-  _special = 33,_spec=33,//type of special form,value is meta(a _tag value)
-  _macro = 34,//type of macros
-  _type = 35,//type of types
-  _lam = 36,//type of lambda, deprecated
-  _lenv = 37,//type of local environments,value is lenv
-  _env = 38,_environment=38,
-  _keyword = 39,
-  _funarg = 40,_funargs=40,
-  _true = 41,//type of #t, singular value
-  _obarray = 42,
-  _label = 43,//a c jmp_buf, in lisp a target for return or go
-  _ctype=44,//c ffi type
-  _cdata=45,//c value and typeinfo(includes c pointer types)
-  _opaque=46,//generic opaque c struct/union
-  _re_data=47,//re match data
-  _hash_table=48,_hashtable=48,
-  _tree=49,
-  _tree_node=50,
-  _typed_array=51,
-  _heap=52,
-  _sfmt=53,//random state,B
-};
-enum special_form{
-  _def=0,
-  _defun=1,
-  _setq=2,
-  _if=3,
-  _let=4,
-  _do=5,
-  _lambda=6,
-  _progn=7,
-  _go=8,
-  _tagbody=9,
-  _struct=10,
-  _union=11,
-  _datatype=12,
-  _enum=13,
-  _eval=14,//shouldn't be a special form
-  _defmacro=15,
-  _quasi=16,
-  _quote=17,
-  _comma=18,
-  _main=21,
-  _while=22,
-  _prog1=23,//shouldn't be a special form
-  _dolist=24,//while should be the only special looping construct
-  _dotimes=25,//""""
-  _return=26,
-  //  _unwind_protect=27,
-  //  _block=28,
-  _defvar=29,
-  _defconst=30,
-  _flet=31,
-  _let_star=32,
-  _progv=33,
-};
-//mutually exclusive metadata, a single int value might have multiple names
-enum sexp_meta{
-  _basic_tree=1,_avl_tree=2,_rb_tree=3,_splay_tree=4,
-  _red_node=1,_black_node=0,_leaf=2,
-  _double_array=_double,_float_array=_float,
-  _real64_array=_real64,_real32_array=_real32,
-  _long_array=_long,
-  _utf8_string=_char,
-  _splice_list=_list,
-  _builtin_macro=_macro,
-  //  _smft=_opaque,//if I add another opaque type to the core library
-  //I'll need to change this
+enum sexp_tag {
+  sexp_nil = 0,
+  sexp_char = 1, sexp_uchar = 1,
+  //start of numbers
+  sexp_byte = 2,sexp_int8 = 2,
+  sexp_ubyte = 3,sexp_uint8 = 3,
+  sexp_short = 4,sexp_int16 = 4,
+  sexp_ushort = 5,sexp_uint16 = 5,
+  sexp_int = 6,sexp_int32 = 6,
+  sexp_uint = 7,sexp_uint32 = 7,
+  sexp_long = 8,sexp_int64 = 8,//type of integers1, value is int64
+  sexp_ulong = 9,sexp_uint64 = 9,
+  sexp_float = 10,sexp_real32 = 10,
+  sexp_double = 11,sexp_real64 = 11,//type of floating point numbers1, value is real64
+  //end of literals
+  sexp_bigint = 12,sexp_mpz=12,
+  sexp_bigfloat = 13,sexp_mpfr=13,
+  //end of numbers
+  sexp_str = 20,sexp_string=20,//type of strings, value is cord
+  sexp_array = 21,//type of arrays, element type in meta, vaule is array
+  sexp_str = 22,//string
+  sexp_regex = 23,//compiled regular expression
+  sexp_stream = 24,sexp_file=24,//type of input/output streams, corresponds to c FILE*
+  sexp_matrix =25,//array for mathematical calculations
+  sexp_cons = 26,//type of lists,value is cons
+  sexp_fun = 31,//type of builtin functions,value is function pointer,fun
+  sexp_sym = 32,sexp_symbol=32,//type of symbols,value is var
+  sexp_macro = 34,//type of macros
+  sexp_type = 35,//type of types
+  sexp_lenv = 37,//type of local environments,value is lenv
+  sexp_env = 38,sexp_environment=38,
+  sexp_funarg = 39,sexp_funargs=39,
+  sexp_false = 40,
+  sexp_true = 41,//type of #t, singular value
+  sexp_obarray = 42,
+  sexp_label = 43,//a c jmpsexp_buf, in lisp a target for return or go
+  sexp_ctype=44,//c ffi type
+  sexp_cdata=45,//c value and typeinfo(includes c pointer types)
+  sexp_opaque=46,//generic opaque c struct/union
+  sexp_resexp_data=47,//re match data
+  sexp_hashsexp_table=48,sexp_hashtable=48,
+  sexp_tree=49,
+  sexp_treesexp_node=50,
+  sexp_typedsexp_array=51,
+  sexp_heap=52,
+  sexp_sfmt=53,//random state,B
+  sexp_uninterned=0xfd,
+  sexp_unbound=0xfe,
+  sexp_error=0xff,
 };
 union data {//keep max size at 64 bits
-  CORD cord;
   FILE *stream;
-  _tag meta;
   c_data *c_val;
-  c_string string;//unused I think
   cons *cons;
   ctype *ctype;
-  data *typed_array;
-  env *cur_env;
+  env *env;
   function *fun;
-  function_args* funarg;//depreciated
-  function_args* funargs;
   hash_table *hashtable;
   lisp_heap *heap;
   int8_t int8;
@@ -309,9 +233,8 @@ union data {//keep max size at 64 bits
   int32_t int32;
   int64_t int64;
   jmp_buf *label;
-  keyword_symref keyword;
   lisp_tree *tree;
-  local_symref lenv;
+  lisp_string *string;
   macro *mac;
   mpfr_t *bigfloat;
   mpz_t *bigint;
@@ -320,41 +243,21 @@ union data {//keep max size at 64 bits
   real64_t real64;
   regex_t *regex;
   re_match_data *re_data;
-  sexp *array;
-  special_form special;
-  symref var;
-  struct symbol_new *sym;
+  lisp_array *array;
+  symbo *sym;
   uint8_t uint8;
   uint16_t uint16;
   uint32_t uint32;
   uint64_t uint64;
   void *opaque;
-  wchar_t *ustr;
-  wchar_t uchar;//try to change all utf8_chars to this
-  wchar_t utf8_char;//depreciated
+  wchar_t uchar;
 };
-//meta is for mutually exclusive information
-//while the next 8 bits are for inclusive information
-struct sexp{//128 bits/16 bytes
-  _tag tag;//could be shorter if need be  | 32
-  union {
-    struct {
-      sexp_meta meta : 8;//random metadata    | 40
-      unsigned int quoted :2;//               | 42
-      int has_comma :1;//                     | 43
-      //change to unsigned int comma :2;
-      //0 = nothing, 1=, 2=,@ 3=?
-      int is_ptr:1;//                         | 44
-      int padding:4;
-      //4 bits free
-      uint16_t len;//length of a sequence     | 61
-    };
-    uint32_t opaque_1;
-  };
+struct sexp{//72 bits 9 bytes
   union{
     data val;//                             | 128
     uint64_t opaque_2;
   };
+  unsigned int tag :8;
 };
 struct cons{//32 bytes
   sexp car;
@@ -380,13 +283,9 @@ enum TOKEN{
   TOK_COMMENT_END=22,//|#
   TOK_DOT=23,
   TOK_COLON=24,
-  TOK_LAMBDA=25,//lambda or defun
-  TOK_AROBASE=26,//@
+  TOK_STRUDEL=26,//@
   TOK_COMMA=27,
   TOK_LIST_SPLICE=28,//,@
-  TOK_MACRO=29,
-  TOK_RETURN=30,
-  TOK_LET=31,
   //Types 40-50
   TOK_TYPEDEF=40,
   TOK_TYPEINFO=41,
@@ -430,7 +329,7 @@ struct function_args{
   uint16_t num_opt_args;//num_req_args-num_req_args+num_opt_args
   uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
   uint16_t has_rest_arg;//0 or 1(only one restarg allowed
-  symbol* args;
+  symbol* args;//might change
   union{
     int max_args;//number of args in c/llvm must be max_args
     int maxargs;//because I tend to use this by mistake
@@ -441,25 +340,25 @@ struct function_args{
 #define TAKES_N_ARGS(fxn,n) (fxn.val.fun->max_args>=n && \
                              fxn.val.fun->num_req_args<=n)
 typedef enum {
-  _no_rec,
-  _simple_rec,
-  _tail_rec,
+  rec_none,
+  rec_simple,
+  rec_tail,
 } recursion_type;
 //get rid of lambda, lambda's should be self evaluating 
 struct function {
   function_args* args;//8 | 8 
-  CORD lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
+  lisp_string lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
   union {
     lambda* lam;
     funcall comp;
   };//8 | 24
-  CORD signature;//function signature 8 | 32
-  CORD cname;//name in c, and llvm I suppose 8 | 40
+  lisp_string signature;//function signature 8 | 32
+  lisp_string cname;//name in c, and llvm I suppose 8 | 40
   enum {// 4 | 44
-    _lambda_fun,
-    _closure_fun,
-    _compiled_fun,
-    _compiled_macro=_builtin_macro,
+    fun_lambda,
+    fun_closure,
+    fun_compiled,
+    fun_compiler_macro,
   } type;
   uint32_t maxargs;//extra 32 bits, so we can save a bit of  (4 | 48)
   recursion_type rec;
@@ -467,12 +366,12 @@ struct function {
 };
 struct macro {
   function_args* args;
-  CORD lname;
+  lisp_string lname;
   union {
     sexp body;
     funcall comp;
   };
-  CORD signature;
+  lisp_string signature;
 };
 static inline CORD get_signature(function *fun_or_macro){
   return fun_or_macro->signature;
@@ -485,11 +384,8 @@ struct lambda{
 };
 //defines what values are considered false
 //currently, these are false,nil,numerical 0 or a null pointer
-#define isTrue(x)                                                       \
-  (x.tag == _false ? 0 :                                                \
-   (x.tag == _nil ? 0 :                                                 \
-    (x.tag == _double ? (x.val.real64 == 0.0 ? 0 : 1) :                 \
-     ((x.tag == _long || x.is_ptr) ? (x.val.int64 == 0 ? 0 : 1) : 1))))
+#define is_true(x)                               \
+  (x.val == 0 || x.tag == sexp_real64 && x.val == 0.0)
 //possible compiler backends
 enum backend{
   c=0,
@@ -518,40 +414,10 @@ enum operator{
 static const sexp LISP_INT64_MAX=const_int64_sexp(INT64_MAX);
 static const sexp LISP_INT64_MIN=const_int64_sexp(INT64_MIN);
 static const sexp LISP_UINT64_MAX=const_uint64_sexp(UINT64_MAX);
+static const sexp LISP_REAL32_MAX=const_real32_sexp(FLT_MAX);
+static const sexp LISP_REAL64_MAX=const_real64_sexp(DBL_MAX);
+static const sexp LISP_REAL32_MIN=const_real32_sexp(FLT_MIN);
+static const sexp LISP_REAL64_MIN=const_real64_sexp(DBL_MIN);
+static const sexp LISP_REAL32_EPSILON=const_real32_epsilon(FLT_EPSILON);
+static const sexp LISP_REAL64_EPSILON=const_real64_epsilon(DBL_EPSILON);
 extern sexp get_type_from_string(CORD typestring);
-/*static sexp make_sexp_from_type_and_data(data val,_tag type){
-  switch(type){
-  case _double:return double_sexp(val);
-  case _long:return long_sexp(val);
-  }
-  }*/
-/*static sexp lisp_copy(sexp obj);
-  static sexp copy_array(sexp arr){
-  sexp *retval=xmalloc(sizeof(sexp)*arr.len);
-  memcpy(retval,arr.val.array,arr.len*sizeof(sexp));
-  return array_sexp(retval,arr.len);
-  }
-  static sexp copy_symref(sexp sym){
-  sexp retval=sym;
-  retval.val.var=xmalloc(sizeof(symbol));
-  *retval.val.var=*sym.val.var;//shallow copy, copy name and props
-  retval.val.var->val=lisp_copy(sym.val.var->val);
-  return retval;
-  }
-
-  static sexp lisp_copy(sexp obj){
-  if(!IS_POINTER(obj)){
-  return obj;
-  }
-  sexp retval;
-  retval=obj;//shallow copy, to copy tag and metadata
-  switch(obj.tag){
-  case _list:
-  case _cons:
-  return copy_cons(obj);
-  case _array:
-  return copy_array(obj);
-  case _sym:
-  return copy_symref(obj);
-  }
-  }*/
