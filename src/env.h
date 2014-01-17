@@ -34,38 +34,60 @@ struct symbol {
   unsigned visibility :2;
   unsigned special :1;//non special variables don't need to have their values saved
   struct symbol_name *name;
-  //pointer to next symbol, in obarray bucket for global symbols, or in local
-  //environment for local symbols
+  //pointer to next symbol, in obarray bucket
   symbol *next;
 };
 struct binding {
   symbol *sym;//pointer to symbol
-  sexp prev_val;
+  sexp val;
 };
-struct lexical_bindings {
-  struct environment *enclosing;
-  binding *bindings;//stack of bindings
-  uint32_t num_bindings;
-};
-struct lexical_env {
-  sexp env_alist;
-  uint32_t size;
-};
+/* Lexical environments don't need to be special, they're just alists
+*/
+#define push_generic_safe(stack,env,data)            \
+  (env->stack##_ptr>=env->stack##_stack?raise(SIGUSR1):*env->stack##_ptr++=data)
+#define push_generic_unsafe(stack,env,data)     \
+  (*env->stack##ptr++=data)
+#define pop_generic_safe(stack,env)             \
+  (env->stack##_ptr<=env->stack##_top?raise(SIGUSR1):*env->stack##_ptr--)
+#define pop_generic_unsafe(stack,env)           \
+  (env->stack##_ptr--)
+#define push_binding(env,data) push_generic_safe(binding,env,data)
+#define pop_binding(env) pop_generic_safe(binding,env)
+#define push_frame(env,data) push_generic_safe(frame,env,data)
+#define pop_frame(env) pop_generic_safe(frame,env)
+#define push_call(env,data) push_generic_safe(call,env,data)
+#define pop_call(env) pop_generic_safe(call,env)
+#define push_data(env,data) push_generic_safe(data,env,data)
+#define pop_data(env) pop_generic_safe(data,env)
+
 /* per thread values (no need for a lock)*/
 struct environment {
   //stacks
   package *current_package;//contains current obarray and 
-  bindings **lexical_bindings;//stack for lexical bindings
-  bindings *current_lexical_env;//stack pointer
-  handler **frame_stack;//stack of jump points (returns, catches, handlers)
-  handler *innermost_frame;//stack pointer
-  sexp **call_stack;//call stack
-  sexp *current_function;//stack pointer
-  sexp **stack;//data/function argument stack
-  sexp *stack_ptr;//stack ptr
+  bindings *binding_stack;//lexical bindings stack
+  bindings *binding_ptr;//stack pointer
+  bindings *binding_top;//top of lexical bindings stack
+  //holds lables(frames,jump points, whatever) for functions/errors,etc
+  handler *frame_stack;//stack of jump points (returns, catches, handlers)
+  handler *frame_ptr;//stack pointer
+  handler *frame_top;
+  //records function calls
+  sexp *call_stack;//call stack
+  sexp *call_ptr;//stack pointer
+  sexp *call_top;
+  //holds function arguments mostly
+  sexp *data_stack;//data/function argument stack
+  sexp *data_ptr;//stack ptr
+  sexp *data_top;
   uint32_t eval_depth;//current eval depth
+  uint32_t error_num;
+  uint32_t frame_size;
+  uint32_t data_size;
+  uint32_t binding_size;
+  uint32_t call_size;
   //c thread local data
   stack_t *sigstack;//alternative stack for signals
+  
 };
 struct package {
   lisp_string name;

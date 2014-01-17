@@ -10,7 +10,7 @@ COMMON_INCLUDES =common.h debug.h types.h env.h
 #	lisp_types.c parser.c print.c regex.c sequence.c SFMT.a tree.c unicode.c #setf.c
 FRONTEND_SRC = frontend.c
 STD_LIB_SRC = array.c bignum.c c_codegen.c ccall.c cffi.c cons.c env.c emacs_regex.c eval.c \
-	format.c hash.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
+	format.c hash.c lex.yy.c interpreter.c lisp_math.c lisp_system.c \
 	lisp_types.c parser.c print.c prim.c regex.c sequence.c tree.c unicode.c #setf.c
 MOSTLYCLEANFILES=lex.yy.c lex.yy.h
 CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h

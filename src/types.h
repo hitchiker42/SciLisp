@@ -53,6 +53,7 @@ typedef struct lisp_heap lisp_heap;
 typedef struct lisp_condition lisp_condition;//error handling
 typedef const sexp(*sexp_binop)(sexp,sexp);//not used
 typedef const char* restrict c_string;//type of \0 terminated c strings
+typedef envrionment *env_ptr;
 typedef symbol *symref;//type of generic symbol references
 //typedefs akin to the ones in stdint.h and sml
 typedef float real32_t;
@@ -325,10 +326,7 @@ union funcall{
 //two loop variables, one for the index in args and one for
 //the index in num_req/opt/keyword_args
 struct function_args{
-  uint16_t num_req_args;//0-num_req_args are required
-  uint16_t num_opt_args;//num_req_args-num_req_args+num_opt_args
-  uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
-  uint16_t has_rest_arg;//0 or 1(only one restarg allowed
+
   symbol* args;//might change
   union{
     int max_args;//number of args in c/llvm must be max_args
@@ -346,10 +344,9 @@ typedef enum {
 } recursion_type;
 //get rid of lambda, lambda's should be self evaluating 
 struct function {
-  function_args* args;//8 | 8 
   lisp_string lname;//lambdas should be #<lambda{number via global counter}> 8 | 16
   union {
-    lambda* lam;
+    cons *lambda;
     funcall comp;
   };//8 | 24
   lisp_string signature;//function signature 8 | 32
@@ -360,9 +357,12 @@ struct function {
     fun_compiled,
     fun_compiler_macro,
   } type;
+  uint16_t num_req_args;//0-num_req_args are required
+  uint16_t num_opt_args;//num_req_args-num_req_args+num_opt_args
+  uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
+  uint16_t has_rest_arg;//0 or 1(only one restarg allowed
   uint32_t maxargs;//extra 32 bits, so we can save a bit of  (4 | 48)
   recursion_type rec;
-  //indirection, though I probably won't use this 
 };
 struct macro {
   function_args* args;

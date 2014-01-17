@@ -17,6 +17,7 @@ static llvm_type llvm_uint32_t;
 static llvm_type llvm_uint64_t;
 static llvm_type llvm_real32_t;
 static llvm_type llvm_real64_t;
+static llvm_value llvm_nil;
 //thread local data
 typedef struct llvm_environment *llvm_env_ptr
 struct llvm_environment {

@@ -212,6 +212,18 @@ sexp lisp_incf_expander(sexp sym_sexp,env *cur_env){
                  Cons(eval_sub(sym_sexp,cur_env),NIL));
   sexp code=Cons(spec_sexp(_setq),Cons(sym_sexp,Cons(body,NIL)));
 }
+sexp apply(sexp args,envrionment *env){  
+  sexp fun_sym=XCAR(args).val.sym;
+  if(!FUNCTIONP(sym->val)){
+    return error_sexp
+      (CORD_cat_const_char_star("No function ",sym->name->name,sym->name->len));
+  }
+  function fun=fun_sym->val;
+  
+}
+sexp c_apply(function *fun,environment *env){
+  
+  
 void unwind_bindings(binding *bindings,int len){
   int i;
   binding cur_binding;

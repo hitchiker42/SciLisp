@@ -4,7 +4,9 @@
   llvm_build_int_cmp(env->builder,llvm_int_eq,          \
     llvm_build_extract_value(env->builder,val,0,""),    \
                      llvm_const_null(llvm_uint64_t))
-  
+
+//I could write this as function in llvm then write a call to it in the
+//other forms
 llvm_value llvm_build(sexp expr,llvm_env_ptr env);//equivlant to eval(ie, main entry point)
 llvm_value llvm_build_atomic(sexp expr,llvm_env_ptr env);
 //(if cond then &rest else)
@@ -77,9 +79,11 @@ llvm_value llvm_build_and(sexp exprs,llvm_env_ptr env){
     return retval;
   }     
 }
+//(while cond body...)
 llvm_val llvm_build_while(sexp args,llvm_env_ptr env){
   if(!CONSP(args)){
     return error_sexp("to few arguments passed to while");
+  }
   sexp cond=XCAR(args);
   sexp body=XCDR(args);
   llvm_bb cond_bb=llvm_append_bb(env->current_fun,env->context,"Cond");
@@ -87,3 +91,11 @@ llvm_val llvm_build_while(sexp args,llvm_env_ptr env){
   llvm_bb end_bb=llvm_append_bb(env->current_fun,env->context,"End");
   llvm_position_at_end_of_bb(env,cond_bb);
   llvm_value cond =llvm_build(cond,env);
+  llvm_build_cond_br(env->builder,cond,body_bb,env_bb);
+  llvm_position_at_end_of_bb(env,body_bb);
+  llvm_value body=llvm_build(body,env);
+  llvm_build_br(env->builder,cond_bb);
+  llvm_position_at_end_of_bb(end_bb);
+  return llvm_nil;
+  }
+}
