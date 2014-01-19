@@ -22,6 +22,10 @@ static thread_local CORD read_err_string;
  /*seems redundant but allows me to change how I handle errors */
 static inline void __attribute__((noreturn)) handle_read_error(){
   longjmp(read_err,-1);
+wchar_t parse_char(char *input);
+int lex_char(char *input,wint_t *new_char);
+wchar_t parse_escape(char *input);
+int parse_escape_internal(char *input,wchar_t *output);
 }
 %}
  /*backslashes and quotes are refered to using ascii escapes
@@ -29,7 +33,8 @@ static inline void __attribute__((noreturn)) handle_read_error(){
   mostly so unmatched quotes don't fuck up syntax highlighing*/
  /*Unicode support, basic idea borrowed from the lexer for
   *the txr by kaz kylheku language*/
-ASC     [\x00-\x7f]{-}[?\\]
+ASC     [\x00-\x7f]{-}[?\\] 
+ASC_FULL [\x00-\x7f]
 ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
  /*explaination of special characters:
   * : reserved for keywords, pacakge access and type annotations
@@ -46,7 +51,7 @@ ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
 QUOTED_ID ('|'([^\x5c|]|\x5c\x5c|\x5c'|')+'|')
 DIGIT [0-9]
 XDIGIT [0-9a-fA-F]
-ASCSYM_REST  [\x00-\x7f]{-}[\][#|,.;:\x27\x22\x5c`(){}@]
+ASCSYM_REST  [\x00-\x7f]{-}[\][#|,.;:\x27\x22\x5c`(){}@\x20\t\n]
 ASCN    [\x00-\t\v-\x7f]
 U       [\x80-\xbf]
 U2      [\xc2-\xdf]
@@ -58,6 +63,7 @@ UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{1,2})|"\\u"([[:xdigit:]]{1,4})|"\\U"([[:xdigit:]]{1,8})|{UANY})
 USTR    {ASCSTR}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 ID (({ASCSYM_REST}|(\x5c.))*) /*just make sure numbers and characters get lexed first*/
+QUOTED_ID ("|"({UANY}|'\\\\'|'\\|')+"|")
 KEYSYM ":"{ID}
 TYPENAME "::"{ID}
 QUALIFIED_ID {ID}":"{ID}
@@ -69,6 +75,8 @@ QUALIFIED_ID_ALL {ID}":."{ID}
 %option 8bit reentrant
 %option header-file="read.h" outfile="read.c"
 %%   /*Literals*/
+ /*numbers need to come first so something like +1 gets read as an integer
+  but something like 1+ gets read as a symbol*/
 [+\-]?{DIGIT}+ {LEX_MSG("lexing int");
   *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
 [+\-]?"0"[xX][[:xdigit:]]+ {LEX_MSG("lexing hex int");
@@ -145,12 +153,6 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   *yylval=symref_sexp(sym);
   return TOK_ID;
   }
- /* new way to do symbols
-  {SYM} {
-
-   else //not sure what to do here{XCDR(cur_env)=cur_env;XCAR(cur_env)=lookup_
-
-  everything below this except ` ' , and comments gets deleted;*/
 {TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
 <comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
@@ -173,6 +175,7 @@ QUALIFIED_ID_ALL {ID}":."{ID}
           *yylval=symref_sexp(sym);
           return TOK_SYMBOL;
          }
+ /*"#"{ID} {LEX_MSG("HASH-ID");return TOK_HASH;}*/
 "(" {LEX_MSG("lexing (");return TOK_LPAREN;}
 ")" {LEX_MSG("lexing )");return TOK_RPAREN;}
   /*Maybe use the syntax #('['|'[['|'[|') for something*/
@@ -234,6 +237,9 @@ sexp read_full(FILE *stream){
   }
 }
 sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
+sexp read_list(yyscan_t *scanner,register sexp *yylval);
+sexp read_untyped_array(yyscan_t *scanner,sexp *yylval);
+sexp read_typed_array(yyscan_t *scanner,register sexp *yylval);
 //reads one sexp, an error if c_read returns a non-zero value in last_tok
 sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
   int last_tok;
@@ -244,6 +250,7 @@ sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
   }
   return retval
 }
+sexp read_matrix(yyscan_t *scanner,register sexp *yylval,int *last_tok);
 //reads one sexp or token(i.e ',',''',')',']','}','.')
 //so read list/vector/etc can be called as
 /* int last_tok=0;
@@ -263,9 +270,12 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         ast->car=read_cons(scanner,yylval);
         break;
       case TOK_RBRACE:
-        ast->car=read_array(scanner,yylval);
+        ast->car=read_typed_array(scanner,yylval);
         break;
       case TOK_DBL_RBRACE:
+        ast->car=read_untyped_array(scanner,yylval);
+        break;
+      case TOK_MAT_OPEN:
         ast->car=read_matrix(scanner,yylval);
         break;
       case TOK_INT:
@@ -282,7 +292,7 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         break;
       }
       case TOK_HASH:
-        /*...*/
+        /*used for special read syntax*/
       case TOK_RPAREN:
       case TOK_RBRACE:
       case TOK_DBL_RBRACE:
@@ -292,11 +302,19 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       case TOK_BACKQUOTE:
         backtick_flag=1;
         sexp value=c_read(scanner,yylval,last_tok)
+        backtick_flag=0;
         if(ERRORP(value)){return value;}
         return c_list2(Qbackquote,value);
       case TOK_COMMA:{
+        if(!backtick_flag){
+          return error_sexp("error comma not inside a backquote");
+        }
+        backtick_flag=0;
         sexp value=c_read(scanner,yylval,last_tok);
-
+        if(ERRORP(value)){return value;}
+        backtick_flag=1;
+        return c_list2(Qcomma,value);
+      }
     }
     /*
     get_tok();
@@ -334,10 +352,10 @@ sexp read_list(yyscan_t *scanner,register sexp *yylval){
   return handle_read_error();
   }
 }
-/*read an array, an array in delimited by single braces and can
-contain any sexp as an element, it's self quoting as a literal
+/*read an untyped array  delimited by double braces and
+containing any sexp as an element, it's self quoting as a literal
 no multi dimensional array literals*/
-sexp read_array(yyscan_t *scanner,sexp *yylval){
+sexp read_untyped_array(yyscan_t *scanner,sexp *yylval){
   /*we obviously don't know the size, but being an array we want a linear
     block of memory, so allocate 16 cells at first and scale by 2*/
   uint64_t size=16;
@@ -363,7 +381,10 @@ sexp read_array(yyscan_t *scanner,sexp *yylval){
   retval=type=_nil;
   return array_sexp(retval);
 }
-/* typed array, delimited by double braces, type is implicit based on first element*/
+/* typed array, delimited by braces, type is implicit based on first element
+  if we get a type we can't implicicly convert to the type of the first element
+  we raise an error
+*/
 sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
   uint64_t size=16;
   uint64_t i=2;/*we need the first 128 bits for header info*/
@@ -424,4 +445,4 @@ sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
   }
   return array_sexp(retval);
 }
-sexp read_matrix(yyscan_t *scanner,register sexp *yylval,int *last_tok)
+

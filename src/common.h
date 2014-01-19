@@ -57,6 +57,14 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 //#define VERBOSE_LEXING
 #include "debug.h"
 //common macros, & memory allocation macros
+#define MAX(a,b)                                \
+  ({ __typeof__ (a) _a = (a);                   \
+    __typeof__ (b) _b = (b);                    \
+    _a > _b ? _a : _b;})
+#define MIN(a,b)                                \
+  ({ __typeof__ (a) _a = (a);                   \
+    __typeof__ (b) _b = (b);                    \
+    _a > _b ? _a : _b;})
 #define my_abort(str,fmt...) fprintf(stderr,str,##fmt);abort()
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC

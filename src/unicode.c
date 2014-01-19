@@ -10,10 +10,7 @@
 #include "unicode.h"
 #include <endian.h>
 #include <ctype.h>
-#define HEXVALUE(c) \
-  (((c) >= 'a' && (c) <= 'f') \
-        ? (c)-'a'+10 \
-        : (c) >= 'A' && (c) <= 'F' ? (c)-'A'+10 : (c)-'0')
+
 sexp lisp_char_to_string(sexp lisp_char){
   if(!CHARP(lisp_char)){
     return format_type_error("char->string","character",lisp_char.tag);
@@ -97,106 +94,6 @@ wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
     wstr=xrealloc(wstr,(len*=2));
   }
   return wstr;
-}
-//large ammounts of this taken from the bash printf builtin
-static inline wchar_t parse_simple_escape(char escape_char){
-  //shamelessly stolen from emacs out of shear lazyness
-  switch(escape_char){
-    case 'a':
-      return (wchar_t)'\007';
-    case 'b':
-      return (wchar_t)'\b';
-    case 'd':
-      return (wchar_t)0177;
-    case 'e':
-      return (wchar_t)033;
-    case 'f':
-      return (wchar_t)'\f';
-    case 'n':
-      return (wchar_t)'\n';
-    case 'r':
-      return (wchar_t)'\r';
-    case 't':
-      return (wchar_t)'\t';
-    case 'v':
-      return (wchar_t)'\v';
-    case '\\'
-      return (wchar_t)'\\';
-    default:
-      return L'\0';
-  }
-}
-
-int lex_char(char* cur_yytext,wint_t *new_char){
-  utf8_escape.wchar=L'\0';
-  int temp=0;
-  char *p=cur_yytext;
-  wint_t uvalue;
-  if(*p=='\\'){
-    p++;
-    switch(*p++){
-      case '?':{
-        *new_char = '?';
-        return 2;
-      }
-      case 'x':{
-        //note to self: --  (prefix or postfix) has higer precidence than &&
-        for(temp=2,uvalue=0;isxdigit(*p) && temp--;p++){
-          uvalue <<= 4;
-          uvalue += HEXVALUE(*p);
-        }
-        if(p==cur_yytext+2){
-          fprintf(stderr,"error lexing char, expected hex digit after \\x\n");
-          return -1;
-        }
-        *new_char=uvalue;
-        return p-cur_yytext;
-      }
-      case 'U':
-        temp=8;
-      case 'u':
-        temp = (temp) ? 4 : 8;      /* \uNNNN \UNNNNNNNN */
-        wint_t uvalue;
-        for (uvalue = 0; isxdigit ((unsigned char)*p) && temp--; p++){
-            uvalue <<= 4;
-            uvalue += HEXVALUE(*p);
-        }
-        if (p == cur_yytext + 2){
-          fprintf(stderr,"error lexing char, expected hex digit after \\u\n");
-          return -1;
-        }
-        *new_char=uvalue;
-        return p-cur_yytext;
-      default:
-        //we need to decrement p to get the character we're switching on
-        //if new char isn't 0 we can just return 2, and if it is 0 we'd
-        //need to decrement p anyway
-        *new_char=parse_simple_escape(*--p);
-        if(*new_char){
-          return 2;
-        } else {
-          break;
-        }
-    }
-  }
-  wchar_t result[1];
-  mbstate_t state;
-  size_t len;
-  int64_t nbytes;
-  memset(&state,'\0',sizeof(state));
-  int i;
-  nbytes=strlen(p);//mbrlen(cur_yytext+1,4,&state);
-  /*  for(i=0;i<4;i++){
-    fprintf(stderr,"%#0hhx",(p+i)[0]);
-    }*/
-  if(0<=(nbytes=mbrtowc(result,p,strlen(p),&state))){
-    PRINT_FMT("%lc",*result);
-    *new_char = (wchar_t)result[0];
-    return strlen(p);
-  } else {
-    fprintf(stderr,"error lexing char\n");
-    return -1;
-  }
 }
 sexp *c_lisp_strcat(sexp *args,int numargs){
   if(numargs <=1){

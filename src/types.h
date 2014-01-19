@@ -310,6 +310,7 @@ union funcall{
   sexp(*f5)(sexp,sexp,sexp,sexp,sexp);
   sexp(*f6)(sexp,sexp,sexp,sexp,sexp,sexp);
   sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
+  //more can be added if/when needed
   sexp(*fmany)(uint64_t,sexp*);
   sexp(*funevaled)(sexp);//sexp is presumably a list
 };
@@ -357,10 +358,13 @@ struct function {
     fun_compiled,
     fun_compiler_macro,
   } type;
-  uint16_t num_req_args;//0-num_req_args are required
+  union{
+    uint16_t num_req_args;//0-num_req_args are required
+    uint16_t req_args;
+  };
   uint16_t num_opt_args;//num_req_args-num_req_args+num_opt_args
   uint16_t num_keyword_args;//num_opt_args-num_opt_args+num_keyword_args
-  uint16_t has_rest_arg;//0 or 1(only one restarg allowed
+  uint16_t has_rest_arg;//0 or 1(only one restarg allowed)
   uint32_t maxargs;//extra 32 bits, so we can save a bit of  (4 | 48)
   recursion_type rec;
 };

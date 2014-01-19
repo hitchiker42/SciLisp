@@ -25,5 +25,14 @@
 #define llvm_build_int_cmp LLVMBuildICmp
 #define llvm_int_eq LLVMIntEQ
 #define llvm_int_ne LLVMIntNE
-#define llvm_const_null LLVMConstNull
 #define llvm_move_basic_block_after LLVMMoveBasicBlockAfter
+#define llvm_const_null LLVMConstNull
+#define llvm_const_all_ones LLVMConstAllOnes
+#define llvm_const_int LLVMConstInt
+#define llvm_const_int64(int) LLVMConstInt(llvm_uint64_t,int,0)
+#define llvm_const_real LLVMConstReal
+#define llvm_const_real64(double) LLVMConstReal(llvm_real64_t,double)
+#define llvm_const_string LLVMConstString
+#define llvm_const_struct LLVMConstStruct
+#define llvm_const_array LLVMConstArray
+#define llvm_function_type LLVMFunctionType

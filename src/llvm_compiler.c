@@ -8,7 +8,14 @@
 //I could write this as function in llvm then write a call to it in the
 //other forms
 llvm_value llvm_build(sexp expr,llvm_env_ptr env);//equivlant to eval(ie, main entry point)
-llvm_value llvm_build_atomic(sexp expr,llvm_env_ptr env);
+llvm_value llvm_build_atom(sexp expr,llvm_env_ptr env){
+  switch(expr.tag){
+    case sexp_real64:
+      return llvm_const_real64(expr.val.real64);
+    case sexp_int64:
+    case sexp_uint64:
+      return llvm_const_int64(expr.val.uint64);
+      
 //(if cond then &rest else)
 llvm_value llvm_build_if(sexp args,llvm_env_ptr env){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){

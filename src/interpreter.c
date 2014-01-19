@@ -2,6 +2,44 @@
 #include "prim.h"
 /* minargs=0,maxarg=1,restarg=1*/
 #define eval_sub eval
+sexp lisp_c_funcall(sexp c_fun){
+  int num_args=data_size(current_environment);
+  if(num_args < c_fun->req_args){
+    return format_error_sexp("too few args passed to %s",c_fun->lname->string);
+  }
+  if(num_args>c_fun->maxargs && !(c_fun->has_rest_arg)){
+    return format_error_sexp("excess args passed to %s",c_fun->lname->string);
+  }
+  if(c_fun->has_rest_arg){
+    sexp *args=xmalloc(sizeof(sexp)*num_args);
+    mempcy(args,current_environment->data_stack,sizeof(sexp)*num_args);
+    return c_fun->comp.fmany(num_args,args);
+  }
+  sexp *args=xmalloc(sizeof(sexp)*c_fun->maxargs);
+  memcpy(args,current_environment->data_stack,sizeof(sexp)*num_args);
+  //gc_malloc zeros storage, NIL is defined such that it is a sexp with
+  //all fields zero, so we don't need to actually set any optional arguments
+  
+  //this is just kinda annoying
+  switch(c_fun->maxargs){
+    case 0:
+      return c_fun->comp.f0();
+    case 1:
+      return c_fun->comp.f1(args[0]);
+    case 2:
+      return c_fun->comp.f1(args[0],args[1]);
+    case 3:
+      return c_fun->comp.f1(args[0],args[1],args[2]);
+    case 4:
+      return c_fun->comp.f1(args[0],args[1],args[2],args[3]);
+    case 5:
+      return c_fun->comp.f1(args[0],args[1],args[2],args[3],args[4]);
+    case 6:
+      return c_fun->comp.f1(args[0],args[1],args[2],args[3],args[4],args[5]);
+    case 7:
+      return c_fun->comp.f1(args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
+  }
+}
 sexp lisp_and(sexp exprs){
   sexp retval=LISP_TRUE;
   while(CONSP(exprs)){
@@ -212,18 +250,18 @@ sexp lisp_incf_expander(sexp sym_sexp,env *cur_env){
                  Cons(eval_sub(sym_sexp,cur_env),NIL));
   sexp code=Cons(spec_sexp(_setq),Cons(sym_sexp,Cons(body,NIL)));
 }
-sexp apply(sexp args,envrionment *env){  
+sexp apply(sexp args,envrionment *env){
   sexp fun_sym=XCAR(args).val.sym;
   if(!FUNCTIONP(sym->val)){
     return error_sexp
       (CORD_cat_const_char_star("No function ",sym->name->name,sym->name->len));
   }
   function fun=fun_sym->val;
-  
+
 }
 sexp c_apply(function *fun,environment *env){
-  
-  
+
+
 void unwind_bindings(binding *bindings,int len){
   int i;
   binding cur_binding;
@@ -234,4 +272,3 @@ void unwind_bindings(binding *bindings,int len){
 }
 //internal means of lexically binding a set of variables
 sexp internal_let(struct lexical_env *env,sexp form){
-  

@@ -43,23 +43,45 @@ struct binding {
 };
 /* Lexical environments don't need to be special, they're just alists
 */
-#define push_generic_safe(stack,env,data)            \
+#define push_generic_signal(stack,env,data)                             \
   (env->stack##_ptr>=env->stack##_stack?raise(SIGUSR1):*env->stack##_ptr++=data)
+#define push_generic_no_signal(stack,env,data)                          \
+  (env->stack##_ptr>=env->stack##_stack?NULL:*env->stack##_ptr++=data,1)
 #define push_generic_unsafe(stack,env,data)     \
   (*env->stack##ptr++=data)
-#define pop_generic_safe(stack,env)             \
+#define pop_generic_signal(stack,env)                                   \
   (env->stack##_ptr<=env->stack##_top?raise(SIGUSR1):*env->stack##_ptr--)
+#define pop_generic_no_signal(stack,env,data)                       \
+  (env->stack##_ptr<=env->stack##_top?NULL:data=*env->stack##_ptr--,1)
 #define pop_generic_unsafe(stack,env)           \
   (env->stack##_ptr--)
-#define push_binding(env,data) push_generic_safe(binding,env,data)
-#define pop_binding(env) pop_generic_safe(binding,env)
-#define push_frame(env,data) push_generic_safe(frame,env,data)
-#define pop_frame(env) pop_generic_safe(frame,env)
-#define push_call(env,data) push_generic_safe(call,env,data)
-#define pop_call(env) pop_generic_safe(call,env)
-#define push_data(env,data) push_generic_safe(data,env,data)
-#define pop_data(env) pop_generic_safe(data,env)
+#define stack_size(stack,env) (env->stack##_ptr-env->stack##_stack)
 
+#define data_size(env) (stack_size(data,env)) 
+#define binding_size(env) (stack_size(binding,env)) 
+#define frame_size(env) (stack_size(frame,env)) 
+#define call_size(env) (stack_size(call,env)) 
+
+#define push_binding(env,data) push_generic_signal(binding,env,data)
+#define pop_binding(env) pop_generic_signal(binding,env)
+#define push_frame(env,data) push_generic_signal(frame,env,data)
+#define pop_frame(env) pop_generic_signal(frame,env)
+#define push_call(env,data) push_generic_signal(call,env,data)
+#define pop_call(env) pop_generic_signal(call,env)
+#define push_data(env,data) push_generic_signal(data,env,data)
+#define pop_data(env) pop_generic_signal(data,env)
+
+#define try_push_binding(env,data) push_generic_no_signal(binding,env,data)
+#define try_pop_binding(env,data) pop_generic_no_signal(binding,env)
+#define try_push_frame(env,data) push_generic_no_signal(frame,env,data)
+#define try_pop_frame(env,data) pop_generic_no_signal(frame,env)
+#define try_push_call(env,data) push_generic_no_signal(call,env,data)
+#define try_pop_call(env,data) pop_generic_no_signal(call,env)
+#define try_push_data(env,data) push_generic_no_signal(data,env,data)
+#define try_pop_data(env,data) pop_generic_no_signal(data,env)
+
+#define LEX_BIND(env,val,sym) (env->lex_env=Cons(Cons(sym,val),env->lex_env),env->lex_bindings++) 
+#define LEX_BIND_CURRENT(val,sym) LEX_BIND(current_environment,val,sym)
 /* per thread values (no need for a lock)*/
 struct environment {
   //stacks
@@ -79,6 +101,9 @@ struct environment {
   sexp *data_stack;//data/function argument stack
   sexp *data_ptr;//stack ptr
   sexp *data_top;
+  //return values? for now I'll just use the stack
+  sexp lex_env;//lexical environment, alist or NIL
+  uint32_t lex_bindings;
   uint32_t eval_depth;//current eval depth
   uint32_t error_num;
   uint32_t frame_size;
@@ -86,9 +111,21 @@ struct environment {
   uint32_t binding_size;
   uint32_t call_size;
   //c thread local data
-  stack_t *sigstack;//alternative stack for signals
-  
+  stack_t *sigstack;//alternative stack for signals  
 };
+//should it be an error if num_bindings > env->lex_bindings?
+static void unwind_lex_env(environment *env,uint32_t num_bindings){
+  if(num_bindings==env->lex_bindings){
+    env->lex_env=NIL;
+    return;
+  } else {
+    int i;
+    for(i=0;i<num_bindings;i++){
+      env->lex_env=XCDR(env->lex_env);
+      env->lex_bindings--;
+    }
+  }
+}
 struct package {
   lisp_string name;
   obarray *symbol_table;
