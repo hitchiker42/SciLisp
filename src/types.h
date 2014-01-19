@@ -245,7 +245,8 @@ union data {//keep max size at 64 bits
   regex_t *regex;
   re_match_data *re_data;
   lisp_array *array;
-  symbo *sym;
+  symbol *sym;
+  sexp_tag type;
   uint8_t uint8;
   uint16_t uint16;
   uint32_t uint32;
@@ -357,6 +358,7 @@ struct function {
     fun_closure,
     fun_compiled,
     fun_compiler_macro,
+    fun_special_form,
   } type;
   union{
     uint16_t num_req_args;//0-num_req_args are required

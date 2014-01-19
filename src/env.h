@@ -39,18 +39,22 @@ struct symbol {
 };
 struct binding {
   symbol *sym;//pointer to symbol
-  sexp val;
+  sexp prev_val;
 };
 /* Lexical environments don't need to be special, they're just alists
 */
+//some of these might need to be rewritten if they voilate the
+//semantics of the ?:
 #define push_generic_signal(stack,env,data)                             \
-  (env->stack##_ptr>=env->stack##_stack?raise(SIGUSR1):*env->stack##_ptr++=data)
+  (env->stack##_ptr>=env->stack##_stack?env->error_num=2,raise(SIGUSR1):\
+   *env->stack##_ptr++=data)
 #define push_generic_no_signal(stack,env,data)                          \
   (env->stack##_ptr>=env->stack##_stack?NULL:*env->stack##_ptr++=data,1)
 #define push_generic_unsafe(stack,env,data)     \
   (*env->stack##ptr++=data)
 #define pop_generic_signal(stack,env)                                   \
-  (env->stack##_ptr<=env->stack##_top?raise(SIGUSR1):*env->stack##_ptr--)
+  (env->stack##_ptr<=env->stack##_top?env->error_num=2,raise(SIGUSR1):  \
+   *env->stack##_ptr--)
 #define pop_generic_no_signal(stack,env,data)                       \
   (env->stack##_ptr<=env->stack##_top?NULL:data=*env->stack##_ptr--,1)
 #define pop_generic_unsafe(stack,env)           \
@@ -84,15 +88,18 @@ struct binding {
 #define LEX_BIND_CURRENT(val,sym) LEX_BIND(current_environment,val,sym)
 /* per thread values (no need for a lock)*/
 struct environment {
-  //stacks
+  //data which shouldn't be set to 0
   package *current_package;//contains current obarray and 
+  //c thread local data
+  stack_t *sigstack;//alternative stack for signals  
+  //stacks
   bindings *binding_stack;//lexical bindings stack
   bindings *binding_ptr;//stack pointer
   bindings *binding_top;//top of lexical bindings stack
   //holds lables(frames,jump points, whatever) for functions/errors,etc
-  handler *frame_stack;//stack of jump points (returns, catches, handlers)
-  handler *frame_ptr;//stack pointer
-  handler *frame_top;
+  frame *frame_stack;//stack of jump points (returns, catches, handlers)
+  frame *frame_ptr;//stack pointer
+  frame *frame_top;
   //records function calls
   sexp *call_stack;//call stack
   sexp *call_ptr;//stack pointer
@@ -102,17 +109,107 @@ struct environment {
   sexp *data_ptr;//stack ptr
   sexp *data_top;
   //return values? for now I'll just use the stack
+  //everything below here can be set to zero on error
   sexp lex_env;//lexical environment, alist or NIL
-  uint32_t lex_bindings;
+  uint32_t lex_bindings;//number of currently active lexical bindings
   uint32_t eval_depth;//current eval depth
-  uint32_t error_num;
+  //used for dealng with c signals, if error_num is set to a non-zero
+  //value that means the current signal was sent due to a lisp error
+  uint32_t error_num;//maybe define to sig_atomic_t?
   uint32_t frame_size;
   uint32_t data_size;
   uint32_t binding_size;
   uint32_t call_size;
-  //c thread local data
-  stack_t *sigstack;//alternative stack for signals  
 };
+struct frame {
+  union{
+    jmp_buf dest;//a jmp_buf is pretty big, 200 bytes
+    ucontext_t *context;//...but ucontext_t is 936 bytes
+  }
+  uint64_t tag;//a pointer to a symbol or an integer
+  //need a value that specifically catches anything to allow for cleanup
+  //something like 0xffffffff
+  //nevermind, I can use the type to decide that
+  sexp value;//for throw or return
+  enum {
+    function_frame,
+    block_frame,
+    catch_frame,
+    tagbody_frame,
+    condition_frame,//uses ucontext
+    unwind_protect_frame,//catches anythings
+  } frame_type;
+};
+/*
+  typedef struct frame frame[1]
+  #define make_frame(tag,type){.tag=tag,.frame_type=type}
+  various non local exits:
+  blocks:
+  (block name &rest body)
+    functions are implicitly enclosed in blocks named nil, to
+    allow returning, (actually probably not, because
+    I should be able to do that via a local jump and untill I
+    figure out how to best do that it's not worth the overhead
+    of longjmp for every function)
+  defun block(name,body){
+    frame new_frame;
+    *new_frame=make_frame(name,block);
+    if(setjmp(new_frame->dest)){
+      return new_frame->value;
+    }
+    push_frame(current_environment,new_frame);//signals on everflow
+    return eval(body);
+  }
+  tagbody:
+    tagbody (tag|form)*
+    evaluate forms, tags are symbols or unsigned integers and are targets for go
+    should be able to optimize to local jumps for some cases
+    defun tagbody(args){
+    frame *tag;
+    sexp start=args;
+    while(CONSP(args)){
+    if(SYMBOLP(XCAR(args)) || INTP(XCAR(args)){
+    *tag=xmalloc(sizeof(struct frame));
+    *tag->tag=XCAR(args).val.uint64_t;
+    //not sure if this will work or not
+    if(setjmp(*tag->dest)){
+      eval(*tag->value);
+    } else {
+    *tag->value=XCDR(args);
+      //strip out the tag so we don't set it twice
+      XCAR(args)=XCADR(args);
+      XCDR(args)=XCDDR(args);
+      push_frame(current_environment,*tag);
+    }
+    } else {
+      args=XCDR(args);
+     }
+     return eval(start);
+}
+  go:
+    (go tag)
+    goto the first tagbody frame on the frame stack who's value is eq to tag
+  catch:
+    (catch tag forms*)
+    evaluate and return value of forms unless interrupted by throw,
+  throw:
+    (throw tag form)
+    return the value of form from the nearest enclosing catch with a
+    tag eq to tag
+  return;
+    (return form)
+    return the value of form from the nearest enclosing block with a tag of nil
+  return-from:
+    (return-from tag form)
+    return the value of form from the nearest enclosing block with
+    a tag eq to tag
+  unwind-protect:
+    (unwind-protect protected cleanup*)
+    establish a handler to catch any nonlocal exit from protected
+    then evaluate protected followed by cleanup, regardless of how
+    protected is exited, return value of protected
+    
+ */
 //should it be an error if num_bindings > env->lex_bindings?
 static void unwind_lex_env(environment *env,uint32_t num_bindings){
   if(num_bindings==env->lex_bindings){
@@ -158,4 +255,5 @@ obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
 symbol *c_intern(const char* name,uint32_t len,struct obarray_new *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray_new *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
+void c_intern_unsafe(obarray *ob,symbol* new);
 #endif

@@ -12,4 +12,5 @@
 #include "print.h"
 #include "regex.h"
 #include "sequence.h"
+#include "unicode.h"
 #endif

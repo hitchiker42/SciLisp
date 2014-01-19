@@ -311,7 +311,14 @@ int main(int argc,char* argv[]){
     evalFun=eval;
   }
   sexp ast;
+  //toplevel handler which catches any invalid nonlocal exit
+  //also used to return to after any fatal lisp error (i.e
+  //the lisp stack overflows or something
+  //frame top_level_frame;
+  //*top_level_frame=make_frame(0xffffeeee,protect_frame);
+  //push_frame(top_level_frame);
  REPL:while(1){
+    //if(setjmp(top_level_frame->dest)){}
     if(setjmp(error_buf)){
       PRINT_MSG("jumped to error");
       //printf(error_str);

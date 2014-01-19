@@ -227,20 +227,63 @@ sexp lisp_intern(sexp sym_or_name,sexp ob){
   }
   return c_intern(ob.val.ob,name);
 }
-//call stack, needs a lot of work, but it's something I probably should add
-#define STACK_SIZE 128
-function call_stack[STACK_SIZE];
-function *stack_ptr=call_stack;
-#define push_fun(fun) *stack_ptr=fun;stack_ptr++
-#define get_fun(fun) fun=*stack_ptr
-#define pop_fun(fun) stack_ptr--
-#define peek_fun() (*stack_ptr)
-#define check_underflow() (if (stack_ptr<call_stack){handle_error();}
-#define check_overflow() (if (stack_ptr>(call_stack+STACK_SIZE)){handle_error()};
 //I suppose this fits here
 sexp lisp_gensym(){
   symref retval=xmalloc(sizeof(symbol));
   CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
   retval->val=UNBOUND;
   return symref_sexp(retval);
+}
+void reset_current_environment(){
+  //unwind dynamic bindings
+  if(current_environment->binding_size){
+    int i;
+    for(i=current_environment->binding_size-1;i>=0;i--){
+      current_environment->binding_stack[i].sym.val=
+        current_environment->binding_stack[i].prev_val;
+    }
+  }
+  //reset everything else
+  current_environment->binding_ptr=current_environment->binding_stack;
+  current_environment->frame_ptr=current_environment->frame_stack;
+  current_environment->call_ptr=current_environment->call_stack;
+  current_environment->data_ptr=current_environment->data_stack;
+  memset(current_environment+offsetof(environment,lex_env),
+         '\0',sizeof(environment)-offsetof(environment,lex_env));
+}
+void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
+  uint32_t lisp_errno=current_environment->error_num;
+  if(!lisp_errno){
+    //this was a signal sent from c
+    switch(signo){
+      case SIGSEGV:
+        if(!quiet_signals){
+        #if defined(MULTI_THREADED)
+          fprintf(stderr,
+                  "recieved segfault in thread number %ul, printing bactrace\n",
+                  pthread_self());
+        #else
+          fprintf(stderr,"recieved segfault, printing bactrace\n");
+        #endif
+          print_trace();
+        }
+        exit(1);
+      default://re raise the signal with the default handler,
+        //maybe not the best, but it'll do for now
+        signal(signo,SIG_DFL);
+        raise(signo);
+    }
+  } else {
+    switch(lisp_errno){
+      case 1:{
+        ucontext_t *context=(ucontext_t*)context_ptr;
+        setcontext(context);
+      }
+      default:
+        //reset everything and return to the top level
+        fprintf(stderr,"Error: Fatal lisp error, returning to top level\n");
+        reset_current_environment();
+        longjmp(top_level_frame->dest);
+    }
+  }
 }
