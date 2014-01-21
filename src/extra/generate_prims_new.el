@@ -93,13 +93,27 @@
    ("pow" "lisp_pow_driver" 1 :restarg 1)
    ("sin" "lisp_sin" 1 :sig "(number)")
    ("tan" "lisp_tan" 1 :sig "(number)")))
-
-(define SciLisp-subrs
-  '(("addhash" "hashtable_add_entry" 3 :optargs 1 
-     :sig "(hash-table key value &optional option)")
-    ("apply" "lisp_apply" 2 :optargs 1 :sig "(fun arglist &optional env)")
-    ("aref" "aref" 2 :sig "(array index)")
-    ("array->list" "array_to_list" 1 :sig "(array)")
+(define SciLisp-cons-funs
+  (list
+    ("assoc" "lisp_assoc" 2 :sig ("key list"))    
+    ("assq" "lisp_assq" 2 :sig ("key list"))
+    ("cons" "Cons" 2 :sig "(car cdr)")
+    ("copy-tree" "copy_tree" 1 :sig "(cell)")
+    ("drop" "cons_drop" 2 :sig "(list n)")
+    ("last" "lisp_last" 1 :sig "(list)")
+    ("rand-list" "rand_list" 1 :optargs 1)
+    ("rassoc" "lisp_rassoc" 2 :sig ("key list"))
+    ("rassq" "lisp_rassq" 2 :sig ("key list"))
+    ("reduce" "cons_reduce" 2 :optargs 1 :sig "(seq function)")
+    ("reverse!" "cons_nreverse" 1 :sig "(seq)")
+    ("reverse" "cons_reverse" 1 :sig "(seq)")
+    ("set-car!" "set_car" 2 :sig "(cell new-val)")
+    ("set-cdr!" "set_cdr" 2 :sig "(cell new-val)")
+    ("split" "cons_split" 1 :optargs 1)
+    ("take" "cons_take" 2 :sig "(list n)")))
+(define SciLisp-array-funs
+  (list 
+   ("aref" "aref" 2 :sig "(array index)")
     ("array-map!" "array_nmap" 2 :sig "(array map-fn)")
     ("array-map" "array_map" 2 :sig "(array map-fn)")
     ("array-qsort" "array_qsort" 2 :optargs 1 
@@ -107,26 +121,56 @@
     ("array-reduce" "array_reduce" 2 :optargs 1 
      :sig "(array function &optional init)")
     ("array-reverse!" "array_nreverse" 1 :sig "(array)")
-    ("array-reverse" "array_reverse" 1 :sig "(array)")
+    ("array-reverse" "array_reverse" 1 :sig "(array)")))
+(define SciLisp-io-funs)
+(define SciLisp-sequence-funs
+  (list
+   ("map")
+   ("reduce")
+   ("sort")
+   ("stable-sort")
+   ("copy-seq")
+   ("length")
+   ("reverse")
+   ("reverse!")
+   ("elt")
+   ;search a sequence for the first element
+   ;which matches some condition
+   ;(<search> test-or-value sequence &key reverse start end test)
+   ;if test-or-value is a value search sequence for the first
+   ;value eq/eql/equal to that element (test detemines equality, defaults
+   ;to eq if test-or-value is a function find the first element
+   ;which causes test to return true
+   ("find");returns the element (or nil)
+   ("position");returns the position relative to begining
+   ("exists?");just return #t or #f
+   ;same semantics for the search functions (ie function or value as test)
+   ("filter")("remove");non destructive need to pick a name
+   ("filter!")("delete!");destructive
+   ("make-sequence");(make-sequence type size &optional (element nil))
+   ("delete-duplicates")
+   ("subseq")
+   ("rand-seq");(rand-seq type size &optional (element-type 'int))
+   )
+(define SciLisp-hash-funs)
+(define SciLisp-subrs
+  '(("addhash" "hashtable_add_entry" 3 :optargs 1 
+     :sig "(hash-table key value &optional option)")
+    ("apply" "lisp_apply" 2 :optargs 1 :sig "(fun arglist &optional env)")
+    ("array->list" "array_to_list" 1 :sig "(array)")
     ("ash" "ash" 2 :sig "(value count)")
     ("assert" "lisp_assert" 1 :sig "(expr)")
-    ("assq" "lisp_assq" 2 :sig ("key list"))
-    ("assoc" "lisp_assoc" 2 :sig ("key list"))
-    ("rassq" "lisp_rassq" 2 :sig ("key list"))
-    ("rassoc" "lisp_rassoc" 2 :sig ("key list"))
     ("bigfloat" "lisp_bigfloat" 1 :optargs 2 
      :sig "(number-or-string &optional prec rnd)")
     ("bigint" "lisp_bigint" 1 :sig "(number)")
 ;    ("c-ptr-val" "lisp_dereference_c_ptr" 1 :sig "(pointer)")
-    ("conat" "lisp_concat" 0 :restarg 1 :sig "(&rest seqs)")
+    ("concat" "lisp_concat" 0 :restarg 1 :sig "(&rest seqs)")
     ("ccall" "ffi_ccall" 5 :optargs 1 
      :sig "(function-name libname return-type argtypes args &optional thread)")
-    ("copy-tree" "copy_tree" 1 :sig "(cell)")
+
     ("copy" "Fcopy" "lisp_copy" 1 :sig "(obj)");maybe call this duplicate
     ("char->string" "lisp_char_to_string" 1 :sig "(character)")
-    ("cons" "Cons" 2 :sig "(car cdr)")
     ("documentation" "lisp_get_docstring" 1 :sig "(obj)")
-    ("drop" "cons_drop" 2 :sig "(list n)")
     ("eval" "lisp_eval" 1 :optargs 1 :sig "(expr &optional env)")
     ("exit" "lisp_exit" 0 :optargs 1 :sig "(&optional exit-code)")
     ("fclose" "lisp_close" 1 :sig "(stream)")
@@ -149,7 +193,6 @@
     ("iota" "lisp_iota" 1 :optargs 4 
      :sig "(start &optional stop step seq-type round)")
     ("identity" "lisp_identity" 1 :sig "(form)")
-    ("last" "lisp_last" 1 :sig "(list)")
     ("length" "lisp_length" 1 :sig "(sequence)")
     ("list" "lisp_list" 0 :restarg 1 :sig "(&rest objects)")
     ("list->array" "array_from_list" 1 :sig "(list)")
@@ -182,7 +225,6 @@
     ;raises a simple error
     ("raise" "lisp_error" 1 :optargs 1 :sig "(tag &optional value)")
     ("rand-array" "rand_array" 1 :optargs 1)
-    ("rand-list" "rand_list" 1 :optargs 1)
     ("seed-rand" "lisp_init_rand" 0 :optargs 1 :sig "(seed-val)")
     ("seed-rand-r" "lisp_init_rand_r" 0 :optargs 1 :sig "(seed-val)")
     ("rand-float" "lisp_randfloat" 0 :optargs 2 :sig "(&optional state scale)")
@@ -193,21 +235,15 @@
     ("read-string" "lisp_read_string" 1 :sig "(string)")
     ("read" "lisp_read" 1 :sig "(stream)")
 ;need to make generic
-    ("reduce" "cons_reduce" 2 :optargs 1 :sig "(seq function)")
-    ("reverse!" "cons_nreverse" 1 :sig "(seq)")
-    ("reverse" "cons_reverse" 1 :sig "(seq)")
+
     ("round" "lisp_round" 1 :optargs 1)
-    ("set-car!" "set_car" 2 :sig "(cell new-val)")
-    ("set-cdr!" "set_cdr" 2 :sig "(cell new-val)")
     ("set-aref!" "set_aref" 3 :sig "(array index new-val)")
     ("arglist" "lisp_get_signature" 1 :sig "(function)")
     ("sort" "lisp_sort" 2 :sig "(seq sort-fn)")
-    ("split" "cons_split" 1 :optargs 1)
     ("sqrt" "lisp_sqrt" 1 :sig "(number)")
     ("string->char" "lisp_string_to_char" 1 :sig "(string)")
     ("sxhash" "lisp_hash_sexp" 1 :sig "(object)")
     ("system" "lisp_system" 1 :restarg 1)
-    ("take" "cons_take" 2 :sig "(list n)")
     ("time" "lisp_time" 0 :optargs 1 :restarg 1)
     ("type-of" "type_of" 1 :sig "(object)")
     ("typeName" "lisp_typeName" 1 :sig "(object)")))

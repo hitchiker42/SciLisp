@@ -118,15 +118,23 @@ symbol *Etype;
 #define EQ(obj1,obj2)                                                   \
   ((NUMBERP(obj1) && NUMBERP(obj2))?NUM_EQ(obj1,obj2):                  \
    ((obj1.tag==obj2.tag) && (obj1.val.uint64 == obj.val.uint64)))
+#define format_type_error_va(fun,format,args...)                        \
+  ({CORD type_error_str;                                                \
+    CORD_sprintf(&type_error_str,"type error in %r, ",fun);             \
+    type_error_str=CORD_cat(type_error_str,format);                     \
+    CORD_sprintf(&type_error_str,type_error_str,args);                  \
+    raise_simple_error((uint64_t)Etype,make_string(type_error_str);})
 #define format_type_error(fun,expected,got)                             \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
-               fun,expected,tag_name(got)),                             \
-    raise_simple_error((uint64_t)Etype,make_string(type_error_str))
+               fun,expected,tag_name(got));                             \
+  raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
 #define format_type_error_named(fun,name,expected,got)                  \
-  CORD_sprintf(&type_error_str,                                         \
-               "type error in %r, expected a(n) %r for %r but got a(n) %r", \
-               fun,expected,name,tag_name(got)),                        \
-    error_sexp(type_error_str)
+  ({CORD type_error_str;                                                \
+    CORD_sprintf(&type_error_str,                                       \
+                 "type error in %r, expected a(n) %r for %r but got a(n) %r", \
+                 fun,expected,name,tag_name(got)),                      \
+      raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
 #define format_type_error2(fun,expected1,got1,expected2,got2)           \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
                ", but got %r and %r",fun,expected1,expected2,           \

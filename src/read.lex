@@ -15,13 +15,17 @@
 #define YYSTYPE sexp
 static int comment_depth=0;
 static thread_local int backtick_flag=0;
-static thread_local jmp_buf read_err;
-static thread_local CORD read_err_string;
-#define FORMAT_READ_ERR(format,args...) (CORD_sprintf(&read_err_string,\
-                                         format,##args),read_err_string)
+#define FORMAT_READ_ERR(format,args...)       \
+  ({CORD read_err_string;                     \
+    CORD_sprintf(&read_err_string,            \
+    format,##args);                           \
+    read_err_string;})
  /*seems redundant but allows me to change how I handle errors */
 static inline void __attribute__((noreturn)) handle_read_error(){
   longjmp(read_err,-1);
+#define raise_read_error(value) raise_simple_error(Eread,value)
+#define raise_read_error_fmt(format,args...)                          \
+  raise_simple_error(Eread,string_sexp(FORMAT_READ_ERR(format,args)))
 wchar_t parse_char(char *input);
 int lex_char(char *input,wint_t *new_char);
 wchar_t parse_escape(char *input);
@@ -106,20 +110,20 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
   return TOK_KEYSYM;}
 {ID} {LEX_MSG("lexing symbol";
-    struct symbol_new sym=c_intern(yytext,yyleng);
+    symbol *sym=c_intern(yytext,yyleng,NULL);
     *yylval=symref_sexp(sym);
     return TOK_SYMBOL;
   }
 {QUAILIFIED_ID} {LEX_MSG("lexing qualified id");
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
-  symbol_new *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+  symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
   if(!ENVP(package->val)){
     *yylval=format_error_sexp("unknown package %s",package->name.name);
     return TOK_ERR;
   }
   symbol_name sym_name(colon+1,(uint32_t)((yytext+yyleng)-(colon+1)),NULL);
-  symbol_new *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  symbol *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
   if(!sym){
     FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
                                                   package->name->name);
@@ -138,13 +142,13 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   assert(*(colon+1) == '.');
-  symbol_new *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+  symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
   if(!ENVP(package->val)){
     FORMAT_READ_ERR("unknown package %s",package->name.name);
     return handle_read_error()
   }
   symbol_name sym_name(colon+2,(uint32_t)((yytext+yyleng)-(colon+2)),NULL);
-  symbol_new *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  symbol *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
   if(!sym){
     FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
                                                   package->name->name);
@@ -155,6 +159,10 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   }
 {TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
+{ID}{TYPENAME} {LEX_MSG("lexing typed id");
+    char *colon=rawmemchr(yytext,':');
+    assert(*(colon+1) == ':');
+    symbol sym=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
 <comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
   if(YY_START != comment){BEGIN(comment);}comment_depth+=1;}
 <comment,INITIAL>"|#" {LEX_MSG("lexing close comment"); comment_depth-=1;

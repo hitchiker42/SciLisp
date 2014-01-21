@@ -13,6 +13,14 @@ uint64_t fnv_hash(const void *key,int keylen){
   }
   return hash;
 }
+#if defined(__x86_64__) && defined(CITY_HASH)
+#include "city_hash.h"
+#include "city_hash.c"
+#define hash_fn CityHash64
+#else
+#define hash_fn fnv_hash
+#endif
+
 int main(int argc,char* argv[]){
   int interactive=0;
   if(!argv[1]){
@@ -30,7 +38,7 @@ int main(int argc,char* argv[]){
   uint64_t hashv;
   while(data){
     len=strlen(data);
-    hashv=fnv_hash(data,len);
+    hashv=hash_fn(data,len);
     printf("%#0lx ",hashv);
     if(interactive){
       puts(data);
