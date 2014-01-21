@@ -2,21 +2,24 @@
 #define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
   symbol_name cname##_name={.hashv=sym_hashv,.is_const=const_sym,       \
                             .name_len=sym_len,.name=lname};             \
-  symbol cname##_val={.val=val,.name=&cname##_name,                 \
-                          .plist=proplist,.next=NULL};           
+  symbol cname##_val={.val=val,.name=&cname##_name,                     \
+                      .plist=proplist,.next=NULL};                      \
+  symbol *cname=&cname##_val;
 #define MAKE_SELF_QUOTING_SYMBOL(cname,lname,sym_len,sym_hashv,proplist) \
   symbol_name cname##_name={.hashv=sym_hashv,.is_const=1,               \
                                    .name_len=sym_len,.name=lname};      \
   symbol cname##_val={.name=&cname##_name,                              \
                       .plist=proplist,.next=NULL};                      \
-  cname##_val.val=symref_sexp(&cname##_val)
+  cname##_val.val=symref_sexp(&cname##_val);                            \
+  symbol *cname=&cname_val
 #define DEFTYPE(_name_,mval)                                            \
   static const sexp Q##_name_ = {.tag=_type,.val={.meta = mval}};
 #define MAKE_TYPE(cname,lname,sym_len,sym_hashv,proplist,type_tag)      \
   symbol_name cname##_name={.hashv=sym_hashv,.is_const=1,               \
                             .name_len=sym_len,.name=lname};             \
   symbol cname##_val={.name=&cname##_name,.plist=proplist,.next=NULL};  \
-  cname##_val.val={.tag=sexp_type,.val={.type=type_tag}}
+  cname##_val.val={.tag=sexp_type,.val={.type=type_tag}};               \
+  symbol *cname = &cname##_val
 #define DEFUN(cname,numargs)                     \
   sexp cname DEFUN_ARGS_##numargs ;              \
   extern function cname ## _fun
