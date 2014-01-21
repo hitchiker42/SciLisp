@@ -1,9 +1,26 @@
 #include "common.h"
 #include "prim.h"
+#include "cons.h"
 /* minargs=0,maxarg=1,restarg=1*/
+sexp eval_top(sexp expr,env_ptr env){
+  switch(expr.tag){
+    case sexp_sym:
+      if(!NILP(env->lex_env)){//if there is a lexical environment search it first
+        sexp lex_binding=c_assq(env->lex_env,expr.val.sym);
+        if(!NILP(lex_binding)){
+          return XCDR(lex_binding);
+        }
+      }
+      return expr.val.sym->val;
+    case cons_sym:
+    default:
+      return expr;
+  }
+}
+
 #define eval_sub eval
-sexp lisp_c_funcall(sexp c_fun){
-  int num_args=data_size(current_environment);
+         sexp lisp_c_funcall(sexp c_fun,env_ptr env){
+  int num_args=data_size(env);
   if(num_args < c_fun->req_args){
     return format_error_sexp("too few args passed to %s",c_fun->lname->string);
   }
@@ -12,11 +29,11 @@ sexp lisp_c_funcall(sexp c_fun){
   }
   if(c_fun->has_rest_arg){
     sexp *args=xmalloc(sizeof(sexp)*num_args);
-    mempcy(args,current_environment->data_stack,sizeof(sexp)*num_args);
+    mempcy(args,env->data_stack,sizeof(sexp)*num_args);
     return c_fun->comp.fmany(num_args,args);
   }
   sexp *args=xmalloc(sizeof(sexp)*c_fun->maxargs);
-  memcpy(args,current_environment->data_stack,sizeof(sexp)*num_args);
+  memcpy(args,env->data_stack,sizeof(sexp)*num_args);
   //gc_malloc zeros storage, NIL is defined such that it is a sexp with
   //all fields zero, so we don't need to actually set any optional arguments
   
@@ -130,6 +147,22 @@ sexp lisp_if(sexp args){
     return lisp_progn(else_br);
   }
 }
+sexp lisp_lambda(sexp args,env_ptr env){
+  if(!CONSP(XCADR(args))){
+    return error_sexp("lambda missing argument list");
+  }
+  if(!NILP(env->lex_env)){
+    sexp closure=Cons(Qclosure,env->lex_env);
+    return Cons(closure,XCDR(args));
+  } else {
+    return args;
+  }
+}
+sexp lisp_let(sexp args,env_ptr env){
+}
+sexp lisp_let_star(sexp args,env_ptr env){}
+sexp lisp_flet(sexp args,env_ptr env){}
+sexp lisp_macrolet(sexp args,env_ptr env){}
 //simple looping construct
 //(while cond &rest body)
 sexp lisp_while(sexp cond,sexp body){
@@ -259,7 +292,7 @@ sexp apply(sexp args,envrionment *env){
   function fun=fun_sym->val;
 
 }
-sexp c_apply(function *fun,environment *env){
+//sexp c_apply(function *fun,environment *env){
 
 
 void unwind_bindings(binding *bindings,int len){

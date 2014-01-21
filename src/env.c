@@ -4,13 +4,14 @@
  ****************************************************************/
 #include "common.h"
 #include "env.h"
+#include "frames.h"
 #include "hash.h"
 symbol_name* make_symbol_name(char *restrict name,uint32_t len,uint64_t hashv){
   if(!len){
     len=strlen(name);
   }
   if(!hashv){
-    hashv=fnv_hash(name,len);
+    hashv=hash_function(name,len);
   }
   //while struct symbol_name technically has a pointer in it
   //gc obviously won't free it since it's allocated in the same chunk of memory
@@ -174,7 +175,7 @@ symbol* c_intern(const char* name,uint32_t len,obarray *ob){
   if(!len){
     len=strlen(name);
   }
-  uint64_t hashv=fnv_hash(name,len);
+  uint64_t hashv=hash_function(name,len);
   multithreaded_only(pthread_rwlock_rdlock(ob->lock);)
   uint32_t bucket=hashv % ob->size;
   struct symbol *cur_symbol;
@@ -219,45 +220,47 @@ sexp lisp_intern(sexp sym_or_name,sexp ob){
   } else {
     return format_type_error("intern","string or symbol",sym_or_name.tag);
   }
-#ifndef OBARRAYP(obj)
+#ifndef OBARRAYP
 #define OBARRAYP(obj) 0
 #endif
-  if(!OBARRAYP(obarray)){
+  if(!OBARRAYP(ob)){
     return format_type_error("intern","obarray",ob.tag);
   }
-  return c_intern(ob.val.ob,name);
+  return c_intern(name,strlen(name),ob.val.ob);
 }
 //I suppose this fits here
+/*
 sexp lisp_gensym(){
   symref retval=xmalloc(sizeof(symbol));
   CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
   retval->val=UNBOUND;
   return symref_sexp(retval);
-}
+  }*/
+/*
 void reset_current_environment(){
   //unwind dynamic bindings
-  if(current_environment->binding_size){
+  if(current_environment->bindings_index){
     int i;
-    for(i=current_environment->binding_size-1;i>=0;i--){
-      current_environment->binding_stack[i].sym.val=
-        current_environment->binding_stack[i].prev_val;
+    for(i=current_environment->bindings_index-1;i>=0;i--){
+      current_environment->bindings_stack[i].sym.val=
+        current_environment->bindings_stack[i].prev_val;
     }
   }
   //reset everything else
-  current_environment->binding_ptr=current_environment->binding_stack;
+  current_environment->bindings_ptr=current_environment->bindings_stack;
   current_environment->frame_ptr=current_environment->frame_stack;
   current_environment->call_ptr=current_environment->call_stack;
   current_environment->data_ptr=current_environment->data_stack;
   memset(current_environment+offsetof(environment,lex_env),
          '\0',sizeof(environment)-offsetof(environment,lex_env));
-}
+         }*/
 void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
   uint32_t lisp_errno=current_environment->error_num;
   if(!lisp_errno){
     //this was a signal sent from c
     switch(signo){
       case SIGSEGV:
-        if(!quiet_signals){
+        //        if(!quiet_signals){
         #if defined(MULTI_THREADED)
           fprintf(stderr,
                   "recieved segfault in thread number %ul, printing bactrace\n",
@@ -266,7 +269,7 @@ void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
           fprintf(stderr,"recieved segfault, printing bactrace\n");
         #endif
           print_trace();
-        }
+          //}
         exit(1);
       default://re raise the signal with the default handler,
         //maybe not the best, but it'll do for now
@@ -282,8 +285,7 @@ void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
       default:
         //reset everything and return to the top level
         fprintf(stderr,"Error: Fatal lisp error, returning to top level\n");
-        reset_current_environment();
-        longjmp(top_level_frame->dest);
+        unwind_to_frame(current_environment,top_level_frame);
     }
   }
 }

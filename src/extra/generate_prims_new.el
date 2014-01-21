@@ -7,9 +7,9 @@
   (if load-in-progress
       (file-name-directory load-file-name)
     (file-name-directory default-directory)))
-(defvar SciLisp-prims)
-(defvar SciLisp-types)
-(defvar SciLisp-keywords)
+(defvar SciLisp-prims nil "a list containing builtin functions, compilier macros and special forms")
+(defvar SciLisp-types nil "a list of builtin scilisp types")
+(defvar SciLisp-keywords nil "a list of builtin self quoting symbols")
 (defun indent-buffer ()
   "Indent entire buffer using indent-region"
   (interactive)
@@ -32,3 +32,14 @@
       (dolist (prim prims)
         (princ (format "  cintern_unsafe(global_obarray,%s_val);\n" prim)))
       (princ "}\n"))))
+(setq SciLisp-keywords
+(setq SciLisp-Types
+  (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" "uint64" "error"
+    "real32" "real64" "bigint" "bigfloat" "char" "string" "array" "stream"
+    "fun" "symbol" "macro" "type" "keyword" "hashtable" "regex"
+    "nil" "dpair" "lenv" "env" "obarray" "funargs" "true" "false" "uninterned"))
+
+
+
+
+

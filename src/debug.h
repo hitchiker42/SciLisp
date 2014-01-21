@@ -28,7 +28,13 @@
 #undef static_assert
 #endif
 #define static_assert(val,error)                \
-  static const char error[(val)?1:-1]
+  ({static const char error[(val)?1:-1];;})
+//this will at least warn of type errors, probably
+#define type_assert(type,variable)              \
+  ({type error_test=variable;;})
+#define size_assert(size,value)                 \
+  ({static const char error[(sizeof(value)==size)?1:-1];;})
+#define type
 static void print_trace(void){
   void *array[50];
   size_t size,i;

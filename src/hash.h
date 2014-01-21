@@ -84,4 +84,10 @@ static uint64_t fnv_hash(const void *key,int keylen){
   }
   return hash;
 }
+#ifdef __X86_64__
+#include "city_hash.h"
+#define hash_function(key,len) CityHash64(key,len)
+#else
+#define hash_function(key,len) fnv_hash(key,len)
+#endif
 #endif

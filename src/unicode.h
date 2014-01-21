@@ -22,18 +22,30 @@
   strings immutable, we use cords for actions that would normally use mutable strings
   ie sprintf, concatenation, modifying substrings etc
   strings are kept internally in utf-8 encoding (ie multibyte)*/
-struct lisp_string {
-  uint32_t len;//length in chars or wchars depending
-  enum {
+enum string_type {
     str_string,
     str_mbstring,
     str_cord,
-  } string_type;
-  //kinda a silly union since a CORD is technically a typedef for const char*
+};
+struct lisp_string {
   union {
     const char *string;
     CORD cord;
   };
+  uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
+  uint8_t type;
+  //kinda a silly union since a CORD is technically a typedef for const char*
+  //but it makes code clearer in places
+
+};
+static inline lisp_string *make_string(const char *str){
+  lisp_string retval=xmalloc(sizeof(lisp_string));
+  if(str[0] == '\0'){
+    *retval=(lisp_string){.cord=str,.len=CORD_len(str),.type=str_cord};
+  } else {
+    *retval=(lisp_string){.string=str,.len=strlen(str),.type=str_string};
+  }
+  return retval;
 }
 int lex_char(char* cur_yytext,wint_t *new_char);
 sexp lisp_char_to_string(sexp lisp_char);
