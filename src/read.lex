@@ -6,13 +6,9 @@
  ****************************************************************/
 #define IN_LEXER
 #include "common.h"
-#include "prim.h"
+/*#include "prim.h"*/
 #include "unicode.h"
-#ifdef YY_DECL
-#undef YY_DECL
-#endif
-#define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
-#define YYSTYPE sexp
+#include "read.h"
 static int comment_depth=0;
 static thread_local int backtick_flag=0;
 #define FORMAT_READ_ERR(format,args...)       \
@@ -26,12 +22,12 @@ static inline void __attribute__((noreturn)) handle_read_error(){
 #define raise_read_error(value) raise_simple_error(Eread,value)
 #define raise_read_error_fmt(format,args...)                          \
   raise_simple_error(Eread,string_sexp(FORMAT_READ_ERR(format,args)))
-wchar_t parse_char(char *input);
-int lex_char(char *input,wint_t *new_char);
-wchar_t parse_escape(char *input);
-int parse_escape_internal(char *input,wchar_t *output);
 }
 %}
+ /*FLEX COMMENT RULES:
+   Comment needs to start after a space on a line;
+   Comments can't be on the same line as a defination
+   Need to use / * * / comments  */
  /*backslashes and quotes are refered to using ascii escapes
   \x5c == \ & \x22 == " & \x27 == '
   mostly so unmatched quotes don't fuck up syntax highlighing*/
@@ -39,7 +35,7 @@ int parse_escape_internal(char *input,wchar_t *output);
   *the txr by kaz kylheku language*/
 ASC     [\x00-\x7f]{-}[?\\] 
 ASC_FULL [\x00-\x7f]
-ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
+ASCSTR  [\x00-\x21\x23-\x7f]
  /*explaination of special characters:
   * : reserved for keywords, pacakge access and type annotations
   * ; reserved for comments
@@ -52,10 +48,10 @@ ASCSTR  [\x00-\x21\x23-\x7f] /*anything not a "*/
   * , for macros
   * Starting special characters ? for characters, +-[0-9] for numbers
   */
-QUOTED_ID ('|'([^\x5c|]|\x5c\x5c|\x5c'|')+'|')
 DIGIT [0-9]
 XDIGIT [0-9a-fA-F]
-ASCSYM_REST  [\x00-\x7f]{-}[\][#|,.;:\x27\x22\x5c`(){}@\x20\t\n]
+ /*                                  '   "    [  \   ]        space*/
+ASC_ID  [\x00-\x7f]{-}[#|,.;:`(){}@\x27\x22\x5b\x5c\x5d\x20\t\n]
 ASCN    [\x00-\t\v-\x7f]
 U       [\x80-\xbf]
 U2      [\xc2-\xdf]
@@ -66,7 +62,8 @@ UANYN   {ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UONLY   {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 UCHAR "?"("\\"[?nt]|"\\\\"|"\\x"([[:xdigit:]]{1,2})|"\\u"([[:xdigit:]]{1,4})|"\\U"([[:xdigit:]]{1,8})|{UANY})
 USTR    {ASCSTR}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
-ID (({ASCSYM_REST}|(\x5c.))*) /*just make sure numbers and characters get lexed first*/
+UID {ASC_ID}|{UONLY}
+ID ({UID}|("\\".))+
 QUOTED_ID ("|"({UANY}|'\\\\'|'\\|')+"|")
 KEYSYM ":"{ID}
 TYPENAME "::"{ID}
@@ -77,7 +74,7 @@ QUALIFIED_ID_ALL {ID}":."{ID}
 %x comment
 %option noyyalloc noyyrealloc noyyfree
 %option 8bit reentrant
-%option header-file="read.h" outfile="read.c"
+%option header-file="read_lex.h" outfile="read.c"
 %%   /*Literals*/
  /*numbers need to come first so something like +1 gets read as an integer
   but something like 1+ gets read as a symbol*/
@@ -99,22 +96,22 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   return TOK_STRING;}
 "\"\"" {*yylval=cord_sexp(0);return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");
-  wint_t new_char;
-  if(lex_char(yytext+1,&new_char)<0){
-    return TOK_UNKN;
-  } else {
-    *yylval=uchar_sexp(new_char); return TOK_CHAR;
+    wint_t new_char;
+    if(lex_char(yytext+1,&new_char)<0){
+      return TOK_UNKN;
+    } else {
+      *yylval=uchar_sexp(new_char); return TOK_CHAR;
+    }
   }
-}
-{KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
-  sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
-  return TOK_KEYSYM;}
-{ID} {LEX_MSG("lexing symbol";
+{ID} {LEX_MSG("lexing symbol");
     symbol *sym=c_intern(yytext,yyleng,NULL);
     *yylval=symref_sexp(sym);
     return TOK_SYMBOL;
-  }
-{QUAILIFIED_ID} {LEX_MSG("lexing qualified id");
+   }
+{KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
+  sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
+  return TOK_KEYSYM;}
+{QUALIFIED_ID} {LEX_MSG("lexing qualified id");
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
@@ -138,7 +135,7 @@ QUALIFIED_ID_ALL {ID}":."{ID}
    *yylval=symref_sexp(sym);
    return TOK_ID;
    }
-{QUAILIFIED_ID_ALL} {LEX_MSG("lexing qualified id");
+{QUALIFIED_ID_ALL} {LEX_MSG("lexing qualified id");
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   assert(*(colon+1) == '.');
@@ -159,10 +156,13 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   }
 {TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
+  /*
 {ID}{TYPENAME} {LEX_MSG("lexing typed id");
     char *colon=rawmemchr(yytext,':');
     assert(*(colon+1) == ':');
     symbol sym=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+    }
+    */
 <comment,INITIAL>"#|" {LEX_MSG("lexing open comment");
   if(YY_START != comment){BEGIN(comment);}comment_depth+=1;}
 <comment,INITIAL>"|#" {LEX_MSG("lexing close comment"); comment_depth-=1;
@@ -179,7 +179,7 @@ QUALIFIED_ID_ALL {ID}":."{ID}
           sym->name=name;
           sym->val=UNDEFINED; /*define this at some point*/
           sym->next=NULL;
-          sym->plist=Cons(Quninterned,NIL);
+          sym->plist=Fcons(Quninterned,NIL);
           *yylval=symref_sexp(sym);
           return TOK_SYMBOL;
          }
@@ -198,7 +198,7 @@ QUALIFIED_ID_ALL {ID}":."{ID}
 "." {LEX_MSG("lexing .");return TOK_DOT;}
 ":" {LEX_MSG("lexing :");return TOK_COLON;}
 "@" {LEX_MSG("lexing @");return TOK_STRUDEL;}
-'\''{LEX_MSG("Lexing quote");return TOK_QUOTE;}
+"'" {LEX_MSG("Lexing quote");return TOK_QUOTE;}
 "," {LEX_MSG("Lexing comma");return TOK_COMMA;}
 [ \t\n]+ /*whitespace*/
 ";"[^\n]* /*one line comments*/
@@ -208,8 +208,9 @@ QUALIFIED_ID_ALL {ID}":."{ID}
             yytext[0],yytext[0]);
   *yylval=uchar_sexp(btowc(yytext[0]));
   return TOK_UNKN;}
-%%
 
+%%
+//From this point on flex doesn't touch anything, so it's just normal C99
 void *yyalloc(size_t bytes,void* yyscanner){
   return xmalloc(bytes);
 }
@@ -267,6 +268,9 @@ sexp read_matrix(yyscan_t *scanner,register sexp *yylval,int *last_tok);
   do something...
   }
 */
+//make sure I handle every possible token
+//Wswitch-enum requires every enumerated value to be used explicity 
+#pragma GCC diagnostic warning "-Wswitch-enum"
 sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
 #define get_tok() (yytag = yylex(scanner,yylval,cur_env))
   register TOKEN yytag=0;
@@ -332,15 +336,16 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       continue;
     } else {*/
       return cons_sexp(ast);
-/*  }*/
   }
 }
+#pragma GCC diagnostic ignored "-Wswitch-enum"
+
 sexp read_list(yyscan_t *scanner,register sexp *yylval){
   sexp retval;
   sexp new_list=retval=cons_sexp(xmalloc(sizeof(cons)));
   int last_tok=0;
   while(!last_tok){
-    XCAR(new_list)=read(scanner,yylval,&last_tok);
+    XCAR(new_list)=c_read(scanner,yylval,&last_tok);
     XCDR(new_list)=cons_sexp(xmalloc(sizeof(cons));
     newlist=XCDR(new_list);
   }
@@ -349,8 +354,8 @@ sexp read_list(yyscan_t *scanner,register sexp *yylval){
       new_list=NIL;
       return retval;
     case '.':
-      new_list=read(scanner,yylval,&last_tok);
-      read(scanner,yylval,&last_tok);
+      new_list=c_read(scanner,yylval,&last_tok);
+      c_read(scanner,yylval,&last_tok);
       if(last_tok != TOK_RPAREN){
         break;
       }
@@ -376,7 +381,7 @@ sexp read_untyped_array(yyscan_t *scanner,sexp *yylval){
       size*=2;/*size <<=1*/
       arr=xrealloc(sizeof(sexp)*size);
     }
-    val=read(scanner,yylval,&last_tok);
+    val=c_read(scanner,yylval,&last_tok);
     arr[i++]=val;
   }
   if(last_tok != ']'){

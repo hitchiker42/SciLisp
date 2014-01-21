@@ -13,8 +13,8 @@
       return                                                            \
         long_sexp(x.val.int64 op y.val.int64);                          \
     } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
-      register double xx=getDoubleVal(x);                               \
-      register double yy=getDoubleVal(y);                               \
+      register double xx=get_double_val(x);                               \
+      register double yy=get_double_val(y);                               \
       return double_sexp(xx op yy);                                     \
     } else {                                                            \
       return format_type_error2(#fun_name,"number",x.tag,"number",y.tag); \
@@ -34,15 +34,15 @@
 #define mkMathFun1(cname,lispname)                                      \
   sexp lispname (sexp obj){                                             \
     if(!NUMBERP(obj)){return format_type_error(#lispname,"number",obj.tag);} \
-    return double_sexp(cname(getDoubleValUnsafe(obj)));                 \
+    return double_sexp(cname(get_double_val_unsafe(obj)));                 \
   }
 #define mkMathFun2(cname,lispname)                              \
   sexp lispname(sexp x,sexp y){                                 \
     if(!NUMBERP(x)||!NUMBERP(y))                                \
       {return format_type_error2(#lispname,"number",            \
                                  x.tag,"number",y.tag);}        \
-    register double xx=getDoubleValUnsafe(x);                   \
-    register double yy=getDoubleValUnsafe(y);                   \
+    register double xx=get_double_val_unsafe(x);                   \
+    register double yy=get_double_val_unsafe(y);                   \
     return double_sexp(cname(xx,yy));                           \
   }
 #define mkLisp_cmp(op,cname)                                    \
@@ -50,8 +50,8 @@
     if((x.tag == y.tag)==_long){                                \
       return (x.val.int64 op y.val.int64 ? LISP_TRUE : LISP_FALSE);    \
     } else if(NUMBERP(x)&&NUMBERP(y)){                          \
-      register double xx=getDoubleVal(x);                       \
-      register double yy=getDoubleVal(y);                       \
+      register double xx=get_double_val(x);                       \
+      register double yy=get_double_val(y);                       \
       return (xx op yy ? LISP_TRUE : LISP_FALSE);                      \
     } else {                                                    \
       return format_type_error2(#cname,"number",x.tag,"number",y.tag); \
@@ -70,8 +70,8 @@ sexp lisp_div_num(sexp x,sexp y){
     return
       long_sexp(x.val.int64 / y.val.int64);
   } else if(NUMBERP(x)&&NUMBERP(y)){
-    register double yy=getDoubleVal(y);
-    register double xx=getDoubleVal(x);
+    register double yy=get_double_val(y);
+    register double xx=get_double_val(x);
     return double_sexp(xx / yy);
   } else {
     return format_type_error2("lisp_div_num","number",x.tag,"number",y.tag);
@@ -185,7 +185,7 @@ sexp lisp_randint(sexp sfmt,sexp un_signed){
   } else{
     sfmt_val=(sfmt_and_buf*)sfmt.val.opaque;
   }
-  if(isTrue(un_signed)){
+  if(is_true(un_signed)){
     return long_sexp(sfmt_and_buf_nrand64(sfmt_val));
   } else {
     return long_sexp(sfmt_and_buf_jrand64(sfmt_val));
@@ -277,7 +277,7 @@ sexp rand_array_r(sexp len,sexp sfmt,sexp type){
 sexp lisp_randfloat(sexp scale){
   double retval;
   if(scale.tag != _nil){
-    retval=drand48()*getDoubleVal(scale);
+    retval=drand48()*get_double_val(scale);
   } else {
     retval = drand48();
   }
@@ -302,7 +302,7 @@ sexp lisp_bigint_unsafe_div(sexp obj1, sexp obj2){
   return error_sexp("bigint unsafe div won't be implemented");
 }
 sexp lisp_round(sexp float_num,sexp mode){
-  double double_val=getDoubleVal(float_num);
+  double double_val=get_double_val(float_num);
   if(double_val == NAN){
     return error_sexp("round argument is not a number");
   } else if(NILP(mode)){
@@ -346,7 +346,7 @@ sexp lisp_min(sexp a,sexp b){
   } if (a.tag == b.tag && a.tag==_long){
     return (a.val.int64 > b.val.int64?a:b);
   } else {
-    return (getDoubleVal(a) > getDoubleVal(b)?a:b);
+    return (get_double_val(a) > get_double_val(b)?a:b);
   }
 }
 //(defun max (num1 num2))
@@ -356,7 +356,7 @@ sexp lisp_max(sexp a,sexp b){
   } if (a.tag == b.tag && a.tag==_long){
     return (a.val.int64 < b.val.int64?a:b);
   } else {
-    return (getDoubleVal(a) < getDoubleVal(b)?a:b);
+    return (get_double_val(a) < get_double_val(b)?a:b);
   }
 }
 //(defun zero? (number))
@@ -424,11 +424,11 @@ sexp lisp_recip(sexp num){
 //but it's a lot eaiser to use sexps
 #define op_to_fun(name,op)                                      \
   static sexp lisp_double_##name(sexp a,sexp b)                 \
-  {return double_sexp(a.val.real64 op getDoubleValUnsafe(b));}
+  {return double_sexp(a.val.real64 op get_double_val_unsafe(b));}
 #define cmp_driver_fun(name,op)                                 \
   static sexp lisp_double_##name(sexp a,sexp b)                 \
-  {return (a.val.real64 op getDoubleValUnsafe(b)?               \
-           double_sexp(getDoubleValUnsafe(b)):LISP_FALSE);}
+  {return (a.val.real64 op get_double_val_unsafe(b)?               \
+           double_sexp(get_double_val_unsafe(b)):LISP_FALSE);}
 op_to_fun(add,+);
 op_to_fun(sub,-);
 op_to_fun(mul,*);
@@ -654,7 +654,7 @@ mk_cmp_driv_funs(ge);
         retval=lisp_bigint_##name(obj1,obj2);                           \
         break;                                                          \
       case _double:                                                     \
-        retval=(obj1.val.real64 op (getDoubleValUnsafe(obj2))           \
+        retval=(obj1.val.real64 op (get_double_val_unsafe(obj2))           \
                 ? LISP_TRUE : LISP_FALSE);                              \
         break;                                                          \
       case _long:                                                       \
@@ -674,8 +674,8 @@ sexp lisp_mod(sexp x,sexp y){
   if((x.tag==y.tag)==_long){
     return long_sexp(x.val.int64 % y.val.int64);
   } else if(NUMBERP(x) && NUMBERP(y)){
-    register double xx=getDoubleValUnsafe(x);
-    register double yy=getDoubleValUnsafe(y);
+    register double xx=get_double_val_unsafe(x);
+    register double yy=get_double_val_unsafe(y);
     return double_sexp(fmod(xx,yy));
   } else {
     return error_sexp("Arguments to mod must be numbers");

@@ -1,3 +1,4 @@
+#define IN_LEXER
 #include "read.h"
 #define HEXVALUE(c) \
   (((c) >= 'a' && (c) <= 'f') \

@@ -1,7 +1,21 @@
-/*****************************************************************
- * Copyright (C) 2013-2014 Tucker DiNapoli                       *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Global header file for standard includes and macros
+
+Copyright (C) 2014 Tucker DiNapoli
+
+This file is part of SciLisp.
+
+SciLisp is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+SciLisp is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with SciLisp.  If not, see <http://www.gnu.org*/
 //global includes
 #ifndef __COMMON_H__
 #define __COMMON_H__
@@ -18,12 +32,8 @@
 #define GC_REDIRECT_TO_LOCAL
 #endif
 //avoid including lex.yy.h in the lexer itself, because it messes up
-//some macro defines / undefs 
-#ifndef IN_LEXER
-#define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
-#include "lex.yy.h"
-extern TOKEN yylex(sexp *yylval,yyscan_t yyscanner);
-#endif
+//some macro defines / undefs
+#include "read.h"
 #ifdef MULTI_THREADED
 static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define thread_local __thread
@@ -38,7 +48,6 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define LISP_RWLOCK_WRLOCK(env)
 #define LISP_RWLOCK_UNLOCK(env)
 #endif
-//#define USE_MMAP
 #include "gc/gc.h"
 #include <pthread.h>
 #include <ctype.h>
@@ -65,12 +74,10 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   ({ __typeof__ (a) _a = (a);                   \
     __typeof__ (b) _b = (b);                    \
     _a > _b ? _a : _b;})
-#define my_abort(str,fmt...) fprintf(stderr,str,##fmt);abort()
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
-#define symVal(symref_sexp) symref_sexp.val.var->val.val
 #define construct_sexp_generic(sexp_val,sexp_tag,                       \
                                sexp_field,is_ptr_val,sexp_cast)         \
   sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},                 \
@@ -155,15 +162,18 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   sigstk.ss_size=SIGSTKSZ;                                              \
   sigaltstack(&sigstk,NULL)
 //lisp constants needed in c
-static const sexp NIL={.tag = 0,.val={0},.len=0};
-static const sexp UNBOUND={.tag = -2,.val={.meta = -0xf},.quoted=0};
-static const sexp LISP_TRUE={.tag = -2,.val={.meta = 11}};
-static const sexp LISP_FALSE={.tag = -3,.val={0}};
-static const sexp LISP_EMPTY_STRING=construct_simple_const(0,cord);
+static const sexp NIL={.val={0}};//NIL is all 0s
+static const sexp UNBOUND={.tag = sexp_unbound,.val={0}};
+static const sexp LISP_TRUE={.tag = sexp_true,.val={1}};
+static const sexp LISP_FALSE={.tag = sexp_false,.val={0}};
+static const lisp_string LISP_EMPTY_STRING={.string=NULL,.len=0};
+static const sexp LISP_EMPTY_STRING_SEXP={.tag=sexp_string,.
+                                          val={.string=(lisp_string*)&LISP_EMPTY_STRING},
+                                          .is_ptr=1};
 //(defconst empty-list (cons nil nil))
-static cons EmptyList={.car={.tag = -1,.val={.meta = -1}},
-                       .cdr={.tag = -1,.val={.meta = -1}}};
-static const sexp LispEmptyList={.tag=_cons,.val={.cons=&EmptyList}};
+static const cons EmptyList={.car={.val={0}},
+                             .cdr={.val={0}}};
+static const sexp LispEmptyList={.tag=sexp_cons,.val={.cons=(cons*)&EmptyList},.is_ptr=1};
 //global variables(not for long)
 //sexp* yylval;
 //FILE* yyin;
@@ -179,9 +189,7 @@ CORD error_str;
 CORD type_error_str;
 jmp_buf error_buf;
 sexp error_val;
-stack_t sigstk;
 //static __thread env *cur_env_ptr;
-env *cur_env_ptr;
 /*from env.h
 static thread_local struct obarray *current_obarray;
 static thread_local struct environment *current_environment;*/
@@ -191,75 +199,40 @@ void (*CORD_debug_printf)(CORD,...);
 //allow for error handler to be changed at runtime
 sexp (*handle_error_fp)();
 //from eval.c(maybe I need an eval.h?)
-extern sexp eval(sexp expr,env *cur_env);
-extern sexp call_builtin(sexp expr,env *cur_env);
-extern sexp call_lambda(sexp expr,env *cur_env);
-extern sexp lisp_funcall(sexp expr,env *cur_env);
-extern function_args *getFunctionArgs(sexp arglist,function_args *args,env *cur_env);
+extern sexp eval(sexp expr,env_ptr env);
+extern sexp call_builtin(sexp expr,env_ptr env);
+extern sexp call_lambda(sexp expr,env_ptr env);
+extern sexp lisp_funcall(sexp expr,env_ptr env);
 extern sexp lisp_apply(sexp function,sexp arguments,sexp envrionment);
-extern sexp lisp_macroexpand(sexp cur_macro,env *cur_env);
+extern sexp lisp_macroexpand(sexp cur_macro,env_ptr env);
 //from parser.c
 extern sexp read_string(CORD code);
 extern sexp lisp_read(sexp code);
 extern sexp yyparse(FILE* input,yyscan_t scanner);
-extern _tag parse_tagname(CORD tagname) __attribute__((const));
-
+extern sexp_tag parse_tagname(lisp_string tagname) __attribute__((const));
 extern void initialize_llvm();
 //some of these could be moved to different files,
 //some can't
-static c_string output_file=NULL;
-static inline double getDoubleVal(sexp x){
+static thread_local const char *output_file=NULL;
+static inline double get_double_val(sexp x){
   switch(x.tag){
-    case _double:
+    case sexp_real64:
       return x.val.real64;
-    case _ulong:
-    case _long:
+    case sexp_uint64:
+    case sexp_int64:
       return (double)x.val.int64;
     default:
       return NAN;
   }
 }
-static inline double getDoubleValUnsafe(sexp x){
-  return (x.tag == _double ? x.val.real64 : (double)x.val.int64);
+static inline double get_double_val_unsafe(sexp x){
+  return (x.tag == sexp_real64 ? x.val.real64 : (double)x.val.int64);
 }
 //#define return_errno(fn_name), was here, now in debug.h
 //rather simple but fairly useful functions
 static inline sexp lisp_id(sexp obj){return obj;}
 static inline sexp lisp_not(sexp obj){
-  return (isTrue(obj)?LISP_FALSE:LISP_TRUE);
-}
-//Implements a stack for jmp_buf objects to allow eaiser nesting of
-//setjmp/longjmp pairs
-//non portable and it uses a fixed size array, not good, fix?
-struct __jmp_buf_tag jmp_buf_stack[8];
-static int jmp_buf_stack_len=0;
-static void jmp_buf_hack(jmp_buf buf){
-  //(hopefully temporary) but very ugly hack
-  //but it's better than random segfaults
-  jmp_buf_stack[0]=buf[0];
-  struct __jmp_buf_tag temp=jmp_buf_stack[0];
-  int i;
-  for(i=0;i<7;i++){
-    temp=jmp_buf_stack[i+1];
-    jmp_buf_stack[i+1]=jmp_buf_stack[i];
-    jmp_buf_stack[i]=temp;
-  }
-  return;
-}
-static inline void push_jmp_buf(jmp_buf buf){
-  if(jmp_buf_stack_len>=8){
-    jmp_buf_hack(buf);
-  }
-  jmp_buf_stack[jmp_buf_stack_len]=buf[0];
-  jmp_buf_stack_len++;
-  return;
-}
-static inline struct __jmp_buf_tag pop_jmp_buf(){
-  jmp_buf_stack_len--;
-  return jmp_buf_stack[jmp_buf_stack_len];
-}
-static inline struct __jmp_buf_tag peek_jmp_buf(){
-  return jmp_buf_stack[jmp_buf_stack_len];
+  return (is_true(obj)?LISP_FALSE:LISP_TRUE);
 }
 //reallocate memory and set any newly allocated memory to 0
 static inline void* xrecalloc(void *ptr,uint64_t old_size,uint64_t size){
@@ -271,11 +244,13 @@ static inline void* xrecalloc(void *ptr,uint64_t old_size,uint64_t size){
 }
 //default values for condition handlers,
 //in general sigusr1 & sigusr2 should be more than enough to implement conditions
+//NOTE: conditions are not errors or labols, conditions are morally equivlent to
+//ucontext values in c
 static void __attribute__((noreturn))default_condition_handler(int signum){
   longjmp(error_buf,-1);
 }
 static sexp lisp_eval(sexp obj,sexp env){
-  return eval(obj,topLevelEnv);
+  return eval(obj,current_environment);
 }
 static const struct sigaction sigusr1_object={.sa_handler=default_condition_handler};
 static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};

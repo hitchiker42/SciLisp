@@ -6,29 +6,23 @@
 #include "cons.h"
 #include "prim.h"
 //I tried to simplify this a bit, but it broke things, so it stays like it is
-sexp Cons(sexp car_cell,sexp cdr_cell){
-  sexp retval;
-  cons *new_cell=xmalloc(sizeof(cons));
-  *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
-  return list_sexp(new_cell);
-}
-sexp Cons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
-  sexp retval;
-  cons *new_cell=xmalloc(sizeof(cons)*2);
-  *new_cell=(cons){.car=car_cell,.cdr=
-                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
-  return list_sexp(new_cell);
-}
-sexp raw_cons(sexp car_cell,sexp cdr_cell){
+sexp Fcons(sexp car_cell,sexp cdr_cell){
   sexp retval;
   cons *new_cell=xmalloc(sizeof(cons));
   *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
   return cons_sexp(new_cell);
 }
+sexp Fcons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons)*2);
+  *new_cell=(cons){.car=car_cell,.cdr=
+                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
+  return cons_sexp(new_cell);
+}
 sexp mklist(sexp head,...){
   va_list ap;
   sexp retval,cur_loc;
-  retval.tag=_list;
+  retval.tag=sexp_cons;
   cons *next=retval.val.cons=xmalloc(sizeof(cons));
   cons *trail=next;
   int i=0;
@@ -69,22 +63,21 @@ sexp mkImproper(sexp head,...){
   return retval;
 }
 static inline sexp _cons_reverse(sexp ls){
-  cons *cons_ptr=xmalloc(sizeof(cons));
-  cons *trail=cons_ptr;
-  int i,len=ls.len;
-  cons_ptr->cdr=NIL;
-  while(CONSP(ls)){
-    len && i++;
-    cons_ptr->car=XCAR(ls);
-    trail=cons_ptr;
-    cons_ptr=xmalloc(sizeof(cons));
-    cons_ptr->cdr=cons_sexp(trail);
+  sexp cons_ptr=cons_sexp(xmalloc(sizeof(cons)));
+  sexp trail=cons_ptr;
+  XCDR(cons_ptr)=NIL;
+  while(1){
+    XCAR(cons_ptr)=XCAR(ls);
     ls=XCDR(ls);
+    if(!CONSP(ls)){
+      //don't know what to do for improper lists
+      break;
+    }
+    cons_ptr=cons_sexp(xmalloc(sizeof(cons)));
+    XCDR(cons_ptr)=trail;
+    trail=cons_ptr;
   }
-  sexp retval=cons_sexp(trail);
-  retval.tag=_list;
-  retval.len=(len ? len : i);
-  return retval;
+  return cons_ptr;
 }
 sexp c_cons_reverse(sexp ls){
   return _cons_reverse(ls);
@@ -99,31 +92,28 @@ sexp cons_reverse(sexp ls){
 sexp c_cons_split(sexp ls,sexp num){
   int64_t i=num.val.int64;
   if(i==0){
-    return(Cons(NIL,ls));
+    return(Fcons(NIL,ls));
   }
   if(i<0 || i > cons_length(ls).val.int64){
     return error_sexp("error in split, index out of bounds");
   }
-  cons *left,*trail;
-  sexp left_retval;
-  left=left_retval.val.cons=xmalloc(sizeof(cons));
-  left_retval.tag=_list,left_retval.is_ptr=1,left_retval.len=i;
+  sexp left,left_retval;
+  left=left_retval=cons_sexp(xmalloc(sizeof(cons)));
   while(i>0 && CONSP(ls)){
-    left->car=XCAR(ls);
-    left->cdr=cons_sexp(xmalloc(sizeof(cons)));
-    trail=left;
-    left=left->cdr.val.cons;
+    XCAR(left)=XCAR(ls);
+    XCDR(left)=cons_sexp(xmalloc(sizeof(cons)));
+    left=XCDR(left);
     ls=XCDR(ls);
     i--;
   }
-  trail->cdr=NIL;
-  return(Cons(left_retval,ls));
+  left=NIL;
+  return(Fcons(left_retval,ls));
 }
 sexp cons_split(sexp ls,sexp num){
   if(!CONSP(ls)){
     return format_type_error("split","list",ls.tag);
   } if (NILP(num)){
-    num=long_sexp(cons_length(ls).val.int64>>1);
+    num=long_sexp(cons_length(ls).val.int64/2);//actually >>1,but gcc can do that
   }
   if(!INTP(num)){
     return format_type_error("split","integer",num.tag);
@@ -164,16 +154,15 @@ sexp nappend(sexp conses){
   }
   return cons_sexp(retval);
 }
-
-
 sexp cons_reduce(sexp ls,sexp reduce_fn,sexp start){
-  if(!CONSP(ls) || !FUN2P(reduce_fn)){
+  if(!CONSP(ls) || !SUBRP(reduce_fn)){
     return format_type_error2("reduce","list",ls.tag,"function",reduce_fn.tag);
   }
   if(NILP(start)){
     start=long_sexp(0);
   }
   sexp result=start;
+  //NEEDS TO BE FIXED
   sexp(*f)(sexp,sexp);
   f=reduce_fn.val.fun->comp.f2;
   while(CONSP(ls)){
@@ -186,11 +175,12 @@ sexp mapcar(sexp ls,sexp map_fn){
   if(!CONSP(ls) || !FUNCTIONP(map_fn)){
     return format_type_error2("mapcar","list",ls.tag,"function",map_fn.tag);
   }
+  //NEEDS TO BE FIXED
   sexp result;
   int have_closure=0;
   void **closure;
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
-  result.tag=_cons;
+  result.tag=sexp_cons;
   sexp(*f)(sexp);
   if(FUNP(map_fn)){
     f=map_fn.val.fun->comp.f1;
@@ -217,18 +207,14 @@ sexp mapcar(sexp ls,sexp map_fn){
 static sexp len_acc(sexp ls,long n) __attribute__((pure));
 static sexp len_acc(sexp ls,long n){
   if(!CONSP(ls)){
-    PRINT_FMT("length = %d",n);
+    //PRINT_FMT("length = %d",n);
     return long_sexp(n);
   } else {
     return len_acc(XCDR(ls),++n);
   }
 }
 sexp cons_length(sexp ls) {
-  if(ls.len > 0){
-    return long_sexp(ls.len);
-  } else {
-    return len_acc(ls,0);
-  }
+  return len_acc(ls,0);
 }
 sexp cons_take(sexp ls,sexp num){
   sexp retval = cons_split(ls,num);
@@ -248,6 +234,7 @@ sexp cons_drop(sexp ls,sexp num){
       i--;
     }
     if(i>0){
+      //raise_simple_error(Ebounds,simple_string_sexp("error in drop, index out of bounds"))
       return error_sexp("error in drop, index out of bounds");
     } else {
       return ls;
@@ -263,7 +250,7 @@ static inline sexp int_iota_helper(int64_t j,int64_t jstep,int64_t imax){
     j+=jstep;
   }
   newlist[i-1].cdr=NIL;
-  return (sexp){.tag=_list,.val={.cons=newlist},.len=i};
+  return (sexp){.tag=sexp_cons,.val={.cons=newlist}};
 }
 sexp list_int_iota(sexp start,sexp stop,sexp step){
   int64_t i,j,imax,jstep;
@@ -298,7 +285,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     return format_type_error("iota","number",start.tag);
   }
   if(NILP(stop)){
-    int64_t jmax=lrint(getDoubleVal(start));
+    int64_t jmax=lrint(get_double_val(start));
     int64_t j=0;
     int64_t jstep=(jmax>>63?-1:1);
     return int_iota_helper(j,jstep,abs(jmax));
@@ -313,23 +300,23 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     dstep=getDoubleVal(step);
     if(dstep == 0) return NIL;
   }
-  if(start.tag==stop.tag && stop.tag==step.tag && step.tag == _int64){
+  if(start.tag==stop.tag && stop.tag==step.tag && step.tagf == sexp_int64){
   int64_t j=start.val.int64;
   int64_t jstep=(int64_t)dstep;
   int64_t imax=abs((stop.val.int64-j)/jstep);
     return int_iota_helper(j,jstep,imax);
   }
-  int imax=ceil(fabs(getDoubleVal(lisp_sub_num(stop,start))/dstep));
+  int imax=ceil(fabs(get_double_val(lisp_sub_num(stop,start))/dstep));
   cons* newlist=xmalloc(sizeof(cons)*imax+1);
   double j=getDoubleVal(start);
   for(i=0;i<=imax;i++){
     newlist[i].car=double_sexp(j);
-    newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
+    newlist[i].cdr=cons_sexp(&newlist[i+1]);
     j+=dstep;
   }
   newlist[i-1].cdr=NIL;
   //  PRINT_MSG(print((sexp){.tag=_list,.val={.cons=newlist},.len=i}));
-  return list_len_sexp(newlist,i);
+  return cons_sexp(newlist);
 }
 static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
   //find a way to use length somehow
@@ -344,10 +331,10 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
     ls=XCDR(ls);
     while(CONSP(ls)){
       cur_cell=XCAR(ls);
-      if(isTrue(f(cur_cell,pivot))){
-        lhs=Cons(cur_cell,lhs);
+      if(is_true(f(cur_cell,pivot))){
+        lhs=Fcons(cur_cell,lhs);
       } else {
-        rhs=Cons(cur_cell,rhs);
+        rhs=Fcons(cur_cell,rhs);
       }
       ls=XCDR(ls);
     }
@@ -360,16 +347,16 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
     if(CONSP(lhs)){
       XCDR(last(lhs))=pivot_cell;
     } else if (!NILP(lhs)) {
-      lhs=Cons(lhs,pivot_cell);
+      lhs=Fcons(lhs,pivot_cell);
     } else {
       lhs=pivot_cell;
     }
     if(CONSP(rhs)){
       XCDR(pivot_cell)=rhs;
     } else if (!NILP(rhs)) {
-      XCDR(pivot_cell)=Cons(rhs,NIL);
+      XCDR(pivot_cell)=Fcons(rhs,NIL);
     }
-    lhs.tag=_list;
+    lhs.tag=sexp_cons;
     return lhs;
   }
 }
@@ -435,30 +422,27 @@ sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
   } else if(len <= 1){
     return ls;
   } else {
-    ls.len=len;
     int mid=len/2;
     sexp split_list=c_cons_split(ls,long_sexp(mid));
     if(ERRORP(split_list)){return split_list;}
     sexp left=XCAR(split_list);
-    left.len=mid;
     //I think this should work, but I'm not sure
     sexp right=XCDR(split_list);
-    right.len=len-mid;
     return merge_sort_merge(merge_sort_acc(left,f,mid),merge_sort_acc(right,f,len-mid),f);
   }
 }
 sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
   if(NILP(left)){
-    right.tag=_list;
+    right.tag=cons_sexp;
     return right;
   } else if (NILP(right)){
-    left.tag=_list;
+    left.tag=cons_sexp;
     return left;
   } else {
     if(isTrue(f(XCAR(left),XCAR(right)))){
-      return Cons(XCAR(left),merge_sort_merge(XCDR(left),right,f));
+      return Fcons(XCAR(left),merge_sort_merge(XCDR(left),right,f));
     } else {
-      return Cons(XCAR(right),merge_sort_merge(left,XCDR(right),f));
+      return Fcons(XCAR(right),merge_sort_merge(left,XCDR(right),f));
     }
   }
 }
@@ -466,7 +450,7 @@ sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
 sexp assoc(sexp obj,sexp ls,sexp eq_fn){
   sexp(*eq_fxn)(sexp,sexp)=eq_fn.val.fun->comp.f2;
   while(CONSP(ls)){
-    if(isTrue(eq_fxn(XCAR(ls),obj))){
+    if(is_true(eq_fxn(XCAR(ls),obj))){
       return XCAR(ls);
     }
     ls=XCDR(ls);
@@ -534,6 +518,7 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
   }
   return start;
 }
+//this needs to be rethought
 //(defun list (&rest args))
 sexp lisp_list(sexp args){
   return args;
@@ -544,41 +529,36 @@ sexp lisp_list(sexp args){
 static sexp unsafe_copy_cons(sexp ls){
   sexp retval;
   retval=ls;//shallow copy, to copy metadata
-  cons *copy=retval.val.cons=xmalloc(sizeof(cons));
-  cons *trail=copy;
+  sexp copy=cons_sexp(xmalloc(sizeof(cons)));
   while(CONSP(ls)){
     if(CONSP(XCAR(ls))){
-      copy->car=unsafe_copy_cons(XCAR(ls));
+      XCAR(copy)=unsafe_copy_cons(XCAR(ls));
     } else if(IS_POINTER(XCAR(ls))){
-        copy->car=XCAR(ls);
-        void *mem=xmalloc(sizeof(*XCAR(ls).val.opaque));
-        copy->car=opaque_sexp(memcpy(mem,XCAR(ls).val.opaque,
-                                     sizeof(*XCAR(ls).val.opaque)));
+      XCAR(copy)=XCAR(ls);
+      void *mem=xmalloc(sizeof(*XCAR(ls).val.opaque));
+      XCAR(copy)=opaque_sexp(memcpy(mem,XCAR(ls).val.opaque,
+                                    sizeof(*XCAR(ls).val.opaque)));
     } else {
-      copy->car=XCAR(ls);
+      XCAR(ls)=XCAR(ls);
     }
-    copy->cdr=cons_sexp(xmalloc(sizeof(cons)));
-    trail=copy;
-    copy=copy->cdr.val.cons;
+    XCDR(copy)=cons_sexp(xmalloc(sizeof(cons)));
+    copy=XCDR(copy);
     ls=XCDR(ls);
   }
-  trail->cdr=ls;//not nil so the same thing will work for improper lists too
+  copy=ls;//not nil so the same thing will work for improper lists too
   return retval;
 }
 //copy ls but don't copy the actual values in ls
 sexp c_shallow_copy_cons(sexp ls){
   sexp retval;
-  retval=ls;
-  cons *copy=retval.val.cons=xmalloc(sizeof(cons));
-  cons *trail=copy;
+  sexp copy=retval=cons_sexp(xmalloc(sizeof(cons)));
   while(CONSP(ls)){
-    copy->car=XCAR(ls);
-    copy->cdr.val.cons=xmalloc(sizeof(cons));
-    trail=copy;
-    copy=copy->cdr.val.cons;
+    XCAR(copy)=XCAR(ls);
+    XCDR(copy)=cons_sexp(xmalloc(sizeof(cons)));
+    copy=XCDR(copy)
     ls=XCDR(ls);
   }
-  trail->cdr=ls;
+  copy=ls;
   return retval;
 }
 sexp lisp_shallow_copy_cons(sexp ls){
@@ -595,7 +575,7 @@ sexp copy_cons(sexp ls){
 }
 sexp cons_equal(sexp ls1,sexp ls2){
   if(!CONSP(ls1) || !CONSP(ls2)){
-    if(isTrue(lisp_equal(ls1,ls2))){
+    if(is_true(lisp_equal(ls1,ls2))){
       return LISP_TRUE;
     } else {
       return LISP_FALSE;
@@ -687,7 +667,7 @@ sexp lisp_dequeue(sexp queue,sexp noerror){
     return format_type_error("dequeue","queue(aka list)",queue.tag);
   }
   if(C_QUEUE_EMPTY(queue)){
-    if(isTrue(noerror)){
+    if(is_true(noerror)){
       return NIL;
     } else {
       return error_sexp("can't dequeue a value from an empty queue");
@@ -706,6 +686,3 @@ sexp queue_peek(sexp queue){
     return XCAAR(queue);
   }
 }
-#if 0
-sexp cons_insertion_sort
-#endif

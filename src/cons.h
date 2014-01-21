@@ -35,14 +35,14 @@ sexp cons_length(sexp ls)__attribute__((pure));
 //list based equivlant to apl iota function
 sexp list_iota(sexp start,sexp stop,sexp step);
 //create a cons cell from 2 sexps, result may or may not be a list
-sexp Cons(sexp car_cell,sexp cdr_cell);
+sexp Fcons(sexp car_cell,sexp cdr_cell);
 //cons three args, return (car_cell . (cadr_cell . cddr_cell))
-sexp Cons2(sexp car_cell,sexp cadr_cell,sexp cddr_cell);
+sexp Fcons2(sexp car_cell,sexp cadr_cell,sexp cddr_cell);
 static inline sexp c_list1(sexp cell){
-  return Cons(cell,NIL);
+  return Fcons(cell,NIL);
 }
 static inline sexp c_list2(sexp cell1,sexp cell2){
-  return Cons2(cell1,cell2,NIL);
+  return Fcons2(cell1,cell2,NIL);
 }
 sexp raw_cons(sexp car_cell,sexp cdr_cell);
 //sort ls (mostly in place) using sort_fn to compair elements
@@ -63,25 +63,41 @@ sexp cons_split(sexp ls,sexp num);
 sexp cons_take(sexp ls,sexp num);
 //return the list starting at the num'th element of ls
 sexp cons_drop(sexp ls,sexp num);
+#define XCAR(cell) cell.val.cons->car
+#define XCDR(cell) cell.val.cons->cdr
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
 static inline sexp car(sexp cell){
   if(NILP(cell)){return NIL;}
   if(!CONSP(cell)){
+    //raise_simple_error(Etype,simple_string_sexp("car type error"));
     return error_sexp("car error");
   }
-  else return cell.val.cons->car;
+  else return XCDR(cell)
 }
 //typechecked cdr function
 static inline sexp cdr(sexp cell){
-  if(!(CONSP(cell))){//my_err("Argument not a cons cell\n");}
+  if(!(CONSP(cell))){
+    //raise_simple_error(Etype,simple_string_sexp("cdr type error"));
     return error_sexp("cdr error");
   }
-  else return cell.val.cons->cdr;
+  else return XCDR(cell);
 }
-#define XCAR(cell) cell.val.cons->car
-#define XCDR(cell) cell.val.cons->cdr
+static sexp safe_car(sexp cell){
+  if(!CONSP(cell)){
+    return NIL;
+  } else {
+    return XCAR(cell);
+  }
+}
+static sexp safe_cdr(sexp cell){
+  if(!CONSP(cell)){
+    return NIL;
+  } else {
+    return XCDR(cell);
+  }
+}
 //get nth member of a list using typechecked car
 static inline sexp nth(sexp cell,int64_t n){
   while(n>0 && CONSP(cell)){
@@ -91,21 +107,25 @@ static inline sexp nth(sexp cell,int64_t n){
   return (n==0 ? cell : error_sexp("nth error, index greater than length of list"));
 }
 static inline sexp last(sexp cell){
-  while(!NILP(cdr(cell))){
+  while(!NILP(cdr(cell))){//cdr does the type checking
     cell=XCDR(cell);
   }
   return cell;
 }
+#define POP(list)                               \
+  ({sexp val=XCAR(list);                        \
+    list=XCDR(list);                            \
+    value;})
+#define PUSH(obj,list)                          \
+  ({XCDR(list)=list;                            \
+    XCAR(list)=obj;})
 static inline sexp pop_cons(sexp ls){
   if(!(CONSP(ls))){
     return error_sexp("pop! type error, expected cons cell or list");
   } else {
     sexp retval=XCAR(ls);
-    //why do I need to do this
-    /*    ls.val.cons->car=cdr(ls).val.cons->car;
-          ls.val.cons->cdr=cdr(ls).val.cons->cdr;*/
     if(NILP(XCDR(ls))){
-      ls.val.cons->car=NIL;
+      XCAR(ls)=NIL;//as it is setting ls to NIL would do nothing(pass by value stuff)
     } else {
       *(ls.val.cons)=*(XCDR(ls).val.cons);
     }
@@ -121,31 +141,20 @@ static inline sexp unsafe_pop(sexp cell){
   }
   return retval;
 }
+//if obj is a list return it, q
 static sexp as_list(sexp obj){
   if(CONSP(obj)){
     return obj;
   } else {
-    sexp retval;
-    retval.val.cons=xmalloc(sizeof(cons));
-    XCAR(retval)=obj;
-    XCDR(retval)=NIL;
-    retval.tag=_list;
-    return retval;
+    return c_list1(obj);
   }
 }
 static sexp push_cons(sexp obj,sexp ls){
   if(!(CONSP(ls))){
-    return format_type_error("push!","cons cell",ls.tag);    
+    return format_type_error("push!","cons cell",ls.tag);
   } else {
-    sexp new_cons;
-    new_cons.val.cons=xmalloc(sizeof(cons));    
-    XCDR(new_cons).val.cons=xmalloc(sizeof(cons));
-    new_cons.tag=_list;
-    new_cons.len=(ls.len+1);
-    XCAR(new_cons)=obj;
-    XCDR(new_cons).val.cons->car=car(ls);
-    XCDR(new_cons).val.cons->cdr=cdr(ls);
-    *(ls.val.cons)=*(new_cons.val.cons);
+    XCDR(ls)=ls;
+    XCAR(ls)=obj;
     return ls;
   }
 }
@@ -154,13 +163,13 @@ static inline sexp set_car(sexp cell,sexp new_val){
   if(!(CONSP(cell))){
     return error_sexp("set_car type error, expected cons cell or list");
   }
-  return (cell.val.cons->car=new_val);
+  return (XCAR(cell)=new_val);
 }
 static inline sexp set_cdr(sexp cell,sexp new_val){
   if(!(CONSP(cell))){
     return error_sexp("set_cdr type error, expected cons cell or list");
   }
-  return (cell.val.cons->cdr=new_val);
+  return (XCDR(cell)=new_val);
 }
 sexp cons_equal(sexp ls1,sexp ls2);
 //type checked car/cdr extensions (should any of these be inlined?)

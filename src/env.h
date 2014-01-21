@@ -21,8 +21,8 @@ enum externally_visable {
 /*structure for symbol name and simple/common properties, to avoid having
   to access the plist to determine things like constness or typing*/
 struct symbol_name {
-  uint32_t name_len;
   uint64_t hashv;
+  uint32_t name_len;
   const char *name;//needs to be last(its basically a variable sized array)
 };
 struct symbol {
@@ -41,6 +41,8 @@ struct symbol {
 //we need to search through the bindings stack, this is likely less
 //efficent for single threaded programs than rebinding the symbol value
 //in the obarray, but it lets me do the same thing regardless of threads
+typedef struct binding binding;
+typedef struct subr_call subr_call;
 struct binding {
   symbol *sym;//pointer to symbol
   sexp val;
@@ -59,7 +61,7 @@ struct binding {
 #define push_generic_no_signal(stack,env,data)                          \
   (env->stack##_ptr>=env->stack##_top?NULL:                             \
    env->stack##_index++,*env->stack##_ptr++=data,1)
-#define push_generic_unsafe(stack,env,data)             \
+#define push_generic_unsafe(stack,env,data)                             \
   (env->stack##_index++,*env->stack##ptr++=data)
 #define pop_generic_signal(stack,env)                                   \
   ({if(env->stack##_ptr<=env->stack##_stack){                           \
@@ -107,9 +109,9 @@ struct environment {
   //c thread local data
   stack_t *sigstack;//alternative stack for signals
   //stacks
-  bindings *bindings_stack;//lexical bindings stack
-  bindings *bindings_ptr;//stack pointer
-  bindings *bindings_top;//top of lexical bindings stack
+  binding *bindings_stack;//lexical bindings stack
+  binding *bindings_ptr;//stack pointer
+  binding *bindings_top;//top of lexical bindings stack
   //holds lables(frames,jump points, whatever) for functions/errors,etc
   frame *frame_stack;//stack of jump points (returns, catches, handlers)
   frame *frame_ptr;//stack pointer
@@ -139,6 +141,7 @@ struct subr_call {
   sexp lisp_subr;
   uint32_t bindings_index;
 };
+/* for now dealt with by the call stack
 //should it be an error if num_bindings > env->lex_bindings?
 static void unwind_lex_env(environment *env,uint32_t num_bindings){
   if(num_bindings==env->lex_bindings){
@@ -151,7 +154,7 @@ static void unwind_lex_env(environment *env,uint32_t num_bindings){
       env->lex_bindings--;
     }
   }
-}
+  }*/
 struct package {
   lisp_string name;
   obarray *symbol_table;
@@ -163,7 +166,7 @@ static thread_local struct environment *current_environment;
 static thread_local frame_addr top_level_frame;
 extern uint64_t bindings_stack_size;
 extern uint64_t handler_stack_size;
-symbol *copy_symbol(symbol_new *sym,int copy_props);
+symbol *copy_symbol(symbol *sym,int copy_props);
 sexp getKeywordType(sexp obj);
 struct obarray {
   symbol **buckets;
@@ -179,11 +182,11 @@ struct obarray {
 #endif
   //32 bits of padding
 };
-symbol* lookup_symbol(struct obarray_new *ob,const char* name);
+symbol* lookup_symbol(struct obarray *ob,const char* name);
 symbol *lookup_symbol_global(char *restrict name);
 obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
-symbol *c_intern(const char* name,uint32_t len,struct obarray_new *ob);
-symbol *obarray_lookup_sym(symbol_name *sym_name,obarray_new *ob);
+symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
+symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
 #endif

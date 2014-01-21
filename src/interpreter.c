@@ -19,7 +19,7 @@ sexp eval_top(sexp expr,env_ptr env){
 }
 
 #define eval_sub eval
-         sexp lisp_c_funcall(sexp c_fun,env_ptr env){
+sexp lisp_c_funcall(sexp c_fun,env_ptr env){
   int num_args=data_size(env);
   if(num_args < c_fun->req_args){
     return format_error_sexp("too few args passed to %s",c_fun->lname->string);

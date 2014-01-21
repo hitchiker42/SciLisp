@@ -2,21 +2,21 @@
 #define CFFI_H
 #include "ffi.h"
 enum ctype_kind {
-  _ctype_int8 = _int8,
-  _ctype_int16 = _int16,
-  _ctype_int32 = _int32,
-  _ctype_int64 = _int64,
-  _ctype_uint8 = _uint8,
-  _ctype_uint16 = _uint16,
-  _ctype_uint32 = _uint32,
-  _ctype_uint64 = _uint64,
-  _ctype_float = _float,_ctype_real32=_real32,
-  _ctype_double = _double,_ctype_real64=_real64,
+  ctype_int8 = sexp_int8,
+  ctype_int16 = sexp_int16,
+  ctype_int32 = sexp_int32,
+  ctype_int64 = sexp_int64,
+  ctype_uint8 = sexp_uint8,
+  ctype_uint16 = sexp_uint16,
+  ctype_uint32 = sexp_uint32,
+  ctype_uint64 = sexp_uint64,
+  ctype_real32=sexp_real32,
+  ctype_real64=sexp_real64,
   //special cases of structs
-  _ctype_FILE = _file,
-  _ctype_mpz = _bigint,
-  _ctype_mpfr = _bigfloat,
-  _ctype_struct = _opaque,//pointer to opaque struct
+  ctype_FILE = sexp_file,
+  ctype_mpz = sexp_bigint,
+  ctype_mpfr = sexp_bigfloat,
+  ctype_struct = sexp_opaque,//pointer to opaque struct
 };
 union ctype_val{
   int8_t ctype_int8;

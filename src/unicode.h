@@ -18,26 +18,7 @@
                                 && isutf8_1(str[2])) ||                 \
                                str+3 && ((isutf8_4(str[0]) && isutf8_1(str[1]) \
                                           && isutf8_1(str[2])) && isutf8_1(str[3])))))
-/*structure of strings in lisp,
-  strings immutable, we use cords for actions that would normally use mutable strings
-  ie sprintf, concatenation, modifying substrings etc
-  strings are kept internally in utf-8 encoding (ie multibyte)*/
-enum string_type {
-    str_string,
-    str_mbstring,
-    str_cord,
-};
-struct lisp_string {
-  union {
-    const char *string;
-    CORD cord;
-  };
-  uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t type;
-  //kinda a silly union since a CORD is technically a typedef for const char*
-  //but it makes code clearer in places
 
-};
 static inline lisp_string *make_string(const char *str){
   lisp_string retval=xmalloc(sizeof(lisp_string));
   if(str[0] == '\0'){
