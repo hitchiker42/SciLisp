@@ -42,7 +42,7 @@
         "throw" "catch" "setq" "unwind-protect" "if" "progv" "progn"
         "return-from" "block"))
 (define SciLisp-errors
-  (list "type" "bounds" "file" "read" "args" "fatal";stack overflow,c error
+  (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
         "undefined" "unbound" "math" "eof" "io" "overflow"))
 (define SciLisp-keywords
   (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words  

@@ -2,14 +2,20 @@
    I need an exponential function, log function and basic power function
    I also need arbitary precision versions of e and pi */
 #include "common.h"
+#include "frames.h"
+#include "unicode.h"
 #include "bignum.h"
 #include "lisp_math.h"
 #include "cons.h"
-#include "prim.h"
+//#include "prim.h"
 #include "SFMT/SFMT.h"
+#ifdef type
+#error "type is defined somewhere"
+#endif
+#undef type
 #define binop_to_fun(op,fun_name)                                       \
   sexp fun_name(sexp x,sexp y){                                         \
-    if((x.tag==y.tag)==_long){                                          \
+    if((x.tag==y.tag)==sexp_long){                                          \
       return                                                            \
         long_sexp(x.val.int64 op y.val.int64);                          \
     } else if(NUMBERP(x)&&NUMBERP(y)){                                  \
@@ -47,7 +53,7 @@
   }
 #define mkLisp_cmp(op,cname)                                    \
   sexp cname(sexp x,sexp y){                                    \
-    if((x.tag == y.tag)==_long){                                \
+    if((x.tag == y.tag)==sexp_long){                                \
       return (x.val.int64 op y.val.int64 ? LISP_TRUE : LISP_FALSE);    \
     } else if(NUMBERP(x)&&NUMBERP(y)){                          \
       register double xx=get_double_val(x);                       \
@@ -63,7 +69,7 @@ binop_to_fun(-,lisp_sub_num);
 binop_to_fun(*,lisp_mul_num);
 //division is special
 sexp lisp_div_num(sexp x,sexp y){
-  if((x.tag==y.tag)==_long){
+  if((x.tag==y.tag)==sexp_long){
     if(y.val.int64 == 0){
       return error_sexp("error, integer division by 0");
     }
@@ -215,7 +221,7 @@ sexp lisp_randfloat(sexp sfmt,sexp scale){
 //and fill it with 2x the needed number of random numbers
 //then modify it in place to get the result, being as it
 //would only need 1 allocation
-static sexp c_rand_array(int len,sfmt_t *sfmt,_tag type){
+static sexp c_rand_array(int len,sfmt_t *sfmt,sexp_tag type){
   sexp *retval=xmalloc_atomic(sizeof(sexp)*len);
   uint32_t *sfmt_array=alloca(sizeof(uint32_t)*len);
   //needs typechecking
@@ -224,12 +230,12 @@ static sexp c_rand_array(int len,sfmt_t *sfmt,_tag type){
   //should compile no a noop
   uint64_t *sfmt_array64=(uint64_t*)(sfmt_array);
   switch(type){
-    case _int64:
+    case sexp_int64:
       for(i=0;i<len;i++){
         retval[i]=long_sexp(sfmt_array64[i]);
       };
       return array_sexp(retval,len);
-    case _real64:
+    case sexp_real64:
       for(i=0;i<len;i++){
         retval[i]=double_sexp(sfmt_to_res53(sfmt_array64[i]));
       }
@@ -252,18 +258,18 @@ sexp rand_array_r(sexp len,sexp sfmt,sexp type){
     sfmt_val=&(((sfmt_and_buf*)(sfmt.val.opaque))->sfmt);
   }
   uint64_t array_len=len.val.int64;
-  _tag type_tag;
-  if(!KEYWORDP(type) && !NILP(type)){
+  sexp_tag type_tag;
+  if(!SYMBOLP(type) && !NILP(type)){
     return format_type_error_opt("rand-array-r","keyword",type.tag);
   }
   if(NILP(type)){
-    type_tag=_long;
+    type_tag=sexp_long;
   } else {//type must be a keyword
     sexp type_sexp=getKeywordType(type);
     if(!TYPEP(type_sexp)){
       return type_sexp;
     }
-    type_tag=type_sexp.val.meta;
+    type_tag=type_sexp.val.type;
   }
   return c_rand_array(array_len,sfmt_val,type_tag);
 }
@@ -307,7 +313,7 @@ sexp lisp_round(sexp float_num,sexp mode){
     return error_sexp("round argument is not a number");
   } else if(NILP(mode)){
     return long_sexp(lround(double_val));
-  } else if(!(KEYWORDP(mode))){
+  } else if(!(SYMBOLP(mode))){
     return format_type_error("round","keyword",mode.tag);
   } else {
     if(KEYWORD_COMPARE(":floor",mode)){
@@ -343,7 +349,7 @@ sexp lisp_round(sexp float_num,sexp mode){
 sexp lisp_min(sexp a,sexp b){
   if (!NUMBERP(a) || !(NUMBERP(b))){
     return error_sexp("arguments to min must be numbers");
-  } if (a.tag == b.tag && a.tag==_long){
+  } if (a.tag == b.tag && a.tag==sexp_long){
     return (a.val.int64 > b.val.int64?a:b);
   } else {
     return (get_double_val(a) > get_double_val(b)?a:b);
@@ -353,7 +359,7 @@ sexp lisp_min(sexp a,sexp b){
 sexp lisp_max(sexp a,sexp b){
   if (!NUMBERP(a) || !(NUMBERP(b))){
     return error_sexp("arguments to max must be numbers");
-  } if (a.tag == b.tag && a.tag==_long){
+  } if (a.tag == b.tag && a.tag==sexp_long){
     return (a.val.int64 < b.val.int64?a:b);
   } else {
     return (get_double_val(a) < get_double_val(b)?a:b);
@@ -373,13 +379,13 @@ sexp lisp_neg(sexp num){
     return error_sexp("can't negate something that's not a number");
   }
   switch(num.tag){
-    case _long:
+    case sexp_long:
       return long_sexp(-num.val.int64);
-    case _double:
+    case sexp_double:
       return double_sexp(-num.val.real64);
-    case _bigint:
+    case sexp_bigint:
       return lisp_bigint_neg(num);
-    case _bigfloat:
+    case sexp_bigfloat:
       return lisp_bigfloat_neg(num);
     default:
       return NIL;
@@ -391,13 +397,13 @@ sexp lisp_abs(sexp num){
     return error_sexp("can't take the absolute value of something that's not a number");
   }
   switch(num.tag){
-    case _long:
+    case sexp_long:
       return long_sexp(abs(num.val.int64));
-    case _double:
+    case sexp_double:
       return double_sexp(fabs(num.val.real64));
-    case _bigint:
+    case sexp_bigint:
       return lisp_bigint_abs(num);
-    case _bigfloat:
+    case sexp_bigfloat:
       return lisp_bigfloat_abs(num);
     default:
       return NIL;
@@ -408,13 +414,13 @@ sexp lisp_recip(sexp num){
     return error_sexp("can't negate something that's not a number");
   }
   switch(num.tag){
-    case _long:
+    case sexp_long:
       return long_sexp(1/num.val.int64);
-    case _double:
+    case sexp_double:
       return double_sexp(1/num.val.real64);
-    case _bigint:
+    case sexp_bigint:
       return NIL;
-    case _bigfloat:
+    case sexp_bigfloat:
       return NIL;
     default:
       return NIL;
@@ -477,18 +483,18 @@ static sexp lisp_long_min(sexp a,sexp b)
 {return a.val.int64<b.val.int64?a:b;}
 #undef op_to_fun
 #undef cmp_driver_fun
-sexp constOfTypeX(_tag x,long val){
+sexp constOfTypeX(sexp_tag x,long val){
   switch(x){
-    case _long:
+    case sexp_long:
       return long_sexp(val);
-    case _double:
+    case sexp_double:
       return double_sexp((double)val);
-    case _bigint:{
+    case sexp_bigint:{
       mpz_t *retval=xmalloc(sizeof(mpz_t));
       mpz_init_set_si(*retval,val);
       return bigint_sexp(retval);
     }
-    case _bigfloat:{
+    case sexp_bigfloat:{
       mpfr_t *retval=xmalloc(sizeof(mpfr_t));
       mpfr_init_set_si(*retval,val,MPFR_RNDN);
       return bigfloat_sexp(retval);
@@ -497,116 +503,138 @@ sexp constOfTypeX(_tag x,long val){
       return error_sexp("non numeric type recieved");
   }
 }
-sexp arith_driver(sexp required,sexp values,enum operator op){
+static const char *op_fun_name(enum operator op);
+sexp arith_driver(uint64_t numargs,sexp *values,enum operator op){
   //lets make this a bit unsafe, the type of the result is the type of required
   //we'll prevent serious errors by type checking each argument against
   //the required type, and raising an error if it can't be promoted
-  if(!BIGNUMP(required)){
+  if(!numargs){
+    switch(op){
+      case binop_mul:
+        return lisp_int64_1;
+      case binop_add:
+      case binop_logior:
+      case binop_logxor:
+        return lisp_int64_0;
+      case binop_logand:
+      case binop_logeqv:
+        return lisp_int64_m1;
+      default:
+        raise_simple_error(Eargs,string_sexp
+                           (make_string
+                            ((CORD_cat("Too few arguments passed to",
+                                       op_fun_name(op))))));
+    }
+  }   
+  if(!BIGNUMP(values[0])){
     return error_sexp("arithmatic functions require numeric arguments");
   }
-  _tag type = required.tag;
+  if(numargs==1){
+    if(op == binop_sub){
+      return lisp_neg(values[0]);
+    } else if (op == binop_div){
+      return lisp_recip(values[0]);
+    } else {
+      return values[0];
+    }
+  }
+  sexp_tag type = values[0].tag;
   int cmp=0;
   sexp(*fp)(sexp,sexp);
-  if(NILP(values)){
-    if(op == _sub){
-      return lisp_neg(required);
-    } else if (op == _div){
-      return lisp_recip(required);
-    } else {
-      return required;
-    }
-  } else {
-    sexp acc;
-#define get_fun(binop)                          \
-    switch(type){                               \
-      case _long:                               \
-        fp=lisp_long_##binop;break;             \
-      case _double:                             \
-        fp=lisp_double_##binop;break;           \
-      case _bigint:                             \
-        fp=lisp_bigint_unsafe_##binop;break;    \
-      case _bigfloat:                           \
-        fp=lisp_bigfloat_unsafe_##binop;break;  \
-    }                                           \
-    acc=required;                               \
-    break
-    switch(op){
-      case _add:
-        get_fun(add);
-      case _sub:
-        get_fun(sub);
-      case _mul:
-        get_fun(mul);
-      case _div:
-        get_fun(div);
-        //      case _pow:
-        //        get_fun(pow);acc=required;break;
-      case _max:
-        get_fun(max);
-      case _min:
-        get_fun(min);
-      case _lt:
-        cmp=1;
-        get_fun(lt_driv);
-      case _le:
-        cmp=1;
-        get_fun(le_driv);
-      case _eq:
-        cmp=1;
-        get_fun(eq_driv);
-      case _ne:
-        cmp=1;
-        get_fun(ne_driv);
-      case _gt:
-        cmp=1;
-        get_fun(gt_driv);
-      case _ge:
-        cmp=1;
-        get_fun(ge_driv);
-      default:
-        return error_sexp("unexpected binary operator");
-    }
-    switch(cmp){
-      case 0:
-        while(CONSP(values)){
-          if(XCAR(values).tag > type || XCAR(values).tag<=0){
-            if(ERRORP(XCAR(values))){return XCAR(values);}
-            CORD retval;
-            CORD_sprintf(&retval,"arithmatic type error, can't convert a %r to a %r",
-                         tag_name(XCAR(values).tag),tag_name(type));
-            return error_sexp(retval);
-          }
-          acc=fp(acc,XCAR(values));
-          values=XCDR(values);
+  sexp acc;
+#define get_fun(binop)                           \
+  switch(type){                                  \
+    case sexp_int64:                             \
+      fp=lisp_long_##binop;break;                \
+    case sexp_real64:                            \
+      fp=lisp_double_##binop;break;              \
+    case sexp_bigint:                            \
+      fp=lisp_bigint_unsafe_##binop;break;       \
+    case sexp_bigfloat:                          \
+      fp=lisp_bigfloat_unsafe_##binop;break;     \
+  }                                              \
+  acc=values[0];                                 \
+  break
+  switch(op){
+    case binop_add:
+      get_fun(add);
+    case binop_sub:
+      get_fun(sub);
+    case binop_mul:
+      get_fun(mul);
+    case binop_div:
+      get_fun(div);
+      //      case _pow:
+      //        get_fun(pow);acc=required;break;
+    case binop_max:
+      get_fun(max);
+    case binop_min:
+      get_fun(min);
+    case binop_lt:
+      cmp=1;
+      get_fun(lt_driv);
+    case binop_le:
+      cmp=1;
+      get_fun(le_driv);
+    case binop_eq:
+      cmp=1;
+      get_fun(eq_driv);
+    case binop_ne:
+      cmp=1;
+      get_fun(ne_driv);
+    case binop_gt:
+      cmp=1;
+      get_fun(gt_driv);
+    case binop_ge:
+      cmp=1;
+      get_fun(ge_driv);
+    default:
+      raise_simple_error(Ekey,string_sexp(make_string(CORD_cat("unknown key argument in",
+                                                               op_fun_name(op)))));
+      return error_sexp("unexpected binary operator");
+  }
+  int i;
+  switch(cmp){
+    case 0:
+      for(i=1;i<numargs;i++){
+        if(values[i].tag > type || values[i].tag<=1){
+          raise_simple_error
+            (Etype,string_sexp
+             (make_string
+              (CORD_asprintf("Type error in %r, can't convert a %r to a %r",
+                                 op_fun_name(op),tag_name(values[i].tag),
+                             tag_name(type)))));
+          //return error_sexp(retval);
         }
-        return acc;
-      case 1:
-        while(CONSP(values)){
-          if(XCAR(values).tag > type || XCAR(values).tag<=0){
-            if(ERRORP(XCAR(values))){return XCAR(values);}
-            CORD retval;
-            CORD_sprintf(&retval,"arithmatic type error, can't convert a %r to a %r",
-                         tag_name(XCAR(values).tag),tag_name(type));
-            return error_sexp(retval);
-          }
-          acc=fp(acc,XCAR(values));
-          values=XCDR(values);
-          if(!BIGNUMP(acc)){
-            return acc;
-          }
+        acc=fp(acc,values[i]);
+      }
+      return acc;
+    case 1:
+      for(i=1;i<numargs;i++){
+        if(values[i].tag>type || values[i].tag<=1){
+          raise_simple_error
+            (Etype,CORD_asprintf("Type error in %r, can't convert a %r to a %r",
+                                 op_fun_name(op),tag_name(values[i].tag),
+                                 tag_name(type)));
+          //return error_sexp(retval);
         }
-        return LISP_TRUE;
-    }
+        /* maybe change to
+           for(i=0;i<numargs-1;i++){
+           if(!fp(values[i],values[i+1]))
+           return LISP_FALSE;
+           }}return LISP_TRUE;*/
+        acc=fp(acc,values[i]);
+        if(!BIGNUMP(acc)){
+          return acc;
+        }
+      }
+      return LISP_TRUE;
   }
 }
-#define mk_arith_funs(opname)                                   \
-  sexp lisp_##opname##_driver(sexp required,sexp values){       \
-    return arith_driver(required,values,_##opname);             \
+#define mk_arith_funs(opname)                                       \
+  sexp lisp_##opname##_driver(uint64_t numargs,sexp *values){       \
+    return arith_driver(numargs,values,binop_##opname);            \
   }
-#define mk_cmp_driv_funs(opname)                                   \
-  sexp lisp_##opname##_driver(sexp required,sexp values){       \
-    return arith_driver(required,values,_##opname);             \
-}
 mk_arith_funs(add);
 mk_arith_funs(sub);
 mk_arith_funs(mul);
@@ -614,12 +642,12 @@ mk_arith_funs(div);
 mk_arith_funs(min);
 mk_arith_funs(max);
 mk_arith_funs(pow);
-mk_cmp_driv_funs(eq);
-mk_cmp_driv_funs(ne);
-mk_cmp_driv_funs(lt);
-mk_cmp_driv_funs(le);
-mk_cmp_driv_funs(gt);
-mk_cmp_driv_funs(ge);
+mk_arith_funs(eq);
+mk_arith_funs(ne);
+mk_arith_funs(lt);
+mk_arith_funs(le);
+mk_arith_funs(gt);
+mk_arith_funs(ge);
 #define mk_lisp_cmps(name,op)                   \
   mk_lisp_cmp(name,op);                         \
   mk_lisp_cmp_safe(name,op);                    \
@@ -647,17 +675,17 @@ mk_cmp_driv_funs(ge);
       invert=1;                                                         \
     }                                                                   \
     switch(obj1.tag){                                                   \
-      case _bigfloat:                                                   \
+      case sexp_bigfloat:                                                   \
         retval=lisp_bigfloat_##name(obj1,obj2);                         \
         break;                                                          \
-      case _bigint:                                                     \
+      case sexp_bigint:                                                     \
         retval=lisp_bigint_##name(obj1,obj2);                           \
         break;                                                          \
-      case _double:                                                     \
+      case sexp_double:                                                     \
         retval=(obj1.val.real64 op (get_double_val_unsafe(obj2))           \
                 ? LISP_TRUE : LISP_FALSE);                              \
         break;                                                          \
-      case _long:                                                       \
+      case sexp_long:                                                       \
         retval=(obj1.val.int64 op obj2.val.int64                        \
                 ? LISP_TRUE : LISP_FALSE);                              \
         break;                                                          \
@@ -671,7 +699,7 @@ mk_lisp_cmps(ge,>=);
 mk_lisp_cmps(le,<=);
 mk_lisp_cmps(ne,!=);
 sexp lisp_mod(sexp x,sexp y){
-  if((x.tag==y.tag)==_long){
+  if((x.tag==y.tag)==sexp_long){
     return long_sexp(x.val.int64 % y.val.int64);
   } else if(NUMBERP(x) && NUMBERP(y)){
     register double xx=get_double_val_unsafe(x);
@@ -686,15 +714,15 @@ sexp lisp_evenp(sexp obj){
     return error_sexp("even? type error, expected a number");
   } else {
     switch(obj.tag){
-      case _int64:
+      case sexp_int64:
         return (obj.val.int64 &1 ? LISP_FALSE : LISP_TRUE);
-      case _real64:
+      case sexp_real64:
         return (obj.val.real64 == (lisp_round(obj,NIL)).val.int64 ?
                 ((lisp_round(obj,NIL)).val.int64 &1 ? LISP_FALSE :LISP_TRUE):
                 LISP_FALSE);
-      case _bigint:
+      case sexp_bigint:
         return (mpz_tstbit(*obj.val.bigint,0) ? LISP_FALSE :LISP_TRUE);
-      case _bigfloat:
+      case sexp_bigfloat:
         return LISP_FALSE;//too lazy to do this now
       default:
         return error_sexp("even? unimplemented numeric type");
@@ -706,15 +734,15 @@ sexp lisp_oddp(sexp obj){
     return error_sexp("even? type error, expected a number");
   } else {
     switch(obj.tag){
-      case _int64:
+      case sexp_int64:
         return (obj.val.int64 &1 ? LISP_TRUE : LISP_FALSE);
-      case _real64:
+      case sexp_real64:
         return (obj.val.real64 == (lisp_round(obj,NIL)).val.int64 ?
                 ((lisp_round(obj,NIL)).val.int64 &1 ? LISP_TRUE :LISP_FALSE):
                 LISP_FALSE);
-      case _bigint:
+      case sexp_bigint:
         return (mpz_tstbit(*obj.val.bigint,0) ? LISP_TRUE :LISP_FALSE);
-      case _bigfloat:
+      case sexp_bigfloat:
         return LISP_FALSE;//too lazy to do this now
       default:
         return error_sexp("even? unimplemented numeric type");
@@ -724,16 +752,17 @@ sexp lisp_oddp(sexp obj){
 #define mk_lisp_cmp_select(name,op)                     \
   sexp lisp_cmp_select_##name(sexp obj1,sexp obj2){     \
   if(!BIGNUMP(obj1)){                                   \
-    return format_type_error(#op,"bignum",obj1.tag);    \
+    format_type_error(#op,"bignum",obj1.tag);           \
   }                                                     \
   if(BIGNUMP(obj2)){                                    \
     return unsafe_lisp_cmp_##name(obj1,obj2);           \
   } else if (CONSP(obj2)){                              \
-    return lisp_##name##_driver(obj1,obj2);             \
+    sexp args[2]={obj1,obj2};                           \
+    return lisp_##name##_driver(2,args);                \
   } else if(NILP(obj2)){                                \
     return LISP_TRUE;                                   \
   } else {                                              \
-    return format_type_error_opt2_named                 \
+    return  format_type_error_opt2_named                \
       (#op,"rest","bignum","list",obj2.tag);            \
   }                                                     \
   }
@@ -750,11 +779,11 @@ sexp lisp_inc(sexp num){
     //    return error_sexp("cannot increment something that is not a number");
   } else {
     switch(num.tag){
-      case _long:
-        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+      case sexp_long:
+        return (sexp){.tag=num.tag,.meta=num.meta,
             .val={.int64=(++num.val.int64)}};
-      case _double:
-        return (sexp){.tag=num.tag,.len=num.len,.meta=num.meta,
+      case sexp_double:
+        return (sexp){.tag=num.tag,.meta=num.meta,
             .val={.real64=(++num.val.real64)}};
     }
   }
@@ -764,12 +793,31 @@ sexp lisp_dec(sexp num){
     return format_error_sexp("cannot decrement a(n) %s",tag_name(num.tag));
   } else {
     switch(num.tag){
-      case _long:
+      case sexp_long:
         num.val.int64-=1;
         return num;
-      case _double:
+      case sexp_double:
         num.val.real64-=1;
         return num;
     }
   }
 }
+#ifdef __x86_64__
+sexp bit_scan_forward(sexp x){
+  //typecheck?
+  int64_t result;
+  asm ("bsfq %1,%0": "=g" (result) : "g" (x.val.int64));
+  return int64_sexp(result);
+}
+sexp bit_scan_reverse(sexp x){
+  //typecheck?
+  int64_t result;
+  asm("bsrq %1,%0": "=g" (result) : "g" (x.val.int64));
+  return int64_sexp(result);
+}
+#else
+sexp bit_scan(sexp x){
+  //typecheck
+  return int64_sexp((int64_t)ffsl(x.val.int64));
+}
+#endif

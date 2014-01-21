@@ -7,9 +7,9 @@
 /*translate an enum _tag value into a meaniningful string.
  *usually just translates the tag name into a string(striping the leading _)
  *but for abbreviations expands into the logical string*/
-lisp_string tag_name(sexp_tag obj_tag) __attribute__ ((const));
+const char *tag_name(enum sexp_tag obj_tag) __attribute__ ((const));
 //call tag_name on the tag of obj
-lisp_string  typeName(sexp obj) __attribute__((const));
+lisp_string  type_name(sexp obj) __attribute__((const));
 //return a lisp object contatining the value of typeName(obj)
 sexp lisp_typeName(sexp obj);
 /* print a formatted representation of a number using the format specifier

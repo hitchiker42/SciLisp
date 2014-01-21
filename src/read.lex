@@ -8,7 +8,12 @@
 #include "common.h"
 /*#include "prim.h"*/
 #include "unicode.h"
-#include "read.h"
+//#include "read.h"
+#ifdef YY_DECL
+#undef YY_DECL
+#endif
+#define YY_DECL TOKEN yylex(sexp *yylval,yyscan_t yyscanner)
+#define YYSTYPE sexp
 static int comment_depth=0;
 static thread_local int backtick_flag=0;
 #define FORMAT_READ_ERR(format,args...)       \

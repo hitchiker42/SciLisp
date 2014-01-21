@@ -73,16 +73,18 @@ static inline sexp car(sexp cell){
   if(!CONSP(cell)){
     //raise_simple_error(Etype,simple_string_sexp("car type error"));
     return error_sexp("car error");
+  } else {
+    return XCDR(cell);
   }
-  else return XCDR(cell)
 }
 //typechecked cdr function
 static inline sexp cdr(sexp cell){
   if(!(CONSP(cell))){
     //raise_simple_error(Etype,simple_string_sexp("cdr type error"));
     return error_sexp("cdr error");
+  } else {
+    return XCDR(cell);
   }
-  else return XCDR(cell);
 }
 static sexp safe_car(sexp cell){
   if(!CONSP(cell)){

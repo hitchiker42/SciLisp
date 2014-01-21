@@ -5,7 +5,13 @@
 #ifndef __ENV_H__
 #define __ENV_H__
 #include "common.h"
+#ifdef type
+#error "type is defined in common.h 1"
+#endif
 #include <ucontext.h>
+#ifdef type
+#error "type is defined in ucontext.h 1"
+#endif
 enum symbol_interned {
   _symbol_interned = 0,
   _symbol_uninterned = 1,
@@ -189,4 +195,7 @@ symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
+#ifdef type
+#error "type is defined in env.h 1"
+#endif
 #endif

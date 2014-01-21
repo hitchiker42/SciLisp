@@ -9,7 +9,7 @@
 #include "tree.h"
 #include "hash.h"
 #define mk_tag_name(tag,name) case tag: return #name
-c_string tag_name(_tag obj_tag){
+const char *tag_name(_tag obj_tag){
   switch(obj_tag){
     mk_tag_name(_unbound,unbound);
     mk_tag_name(_error,error);

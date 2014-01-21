@@ -48,5 +48,5 @@ void unwind_to_tag(env_ptr env,uint64_t tag) __attribute__((noreturn));
 void unwind_with_value(uint64_t tag,sexp value) __attribute__((noreturn));
 void unwind_call_stack(env_ptr env,uint64_t index);
 void unwind_bindings(env_ptr env,uint64_t n);
-#define raise_simple_error(tag,value) unwind_with_value(tag,value)
+#define raise_simple_error(tag,value) unwind_with_value((uint64_t)tag,value)
 #endif

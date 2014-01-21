@@ -85,7 +85,7 @@ typedef wchar_t char32_t;
 #define BIGNUMP(obj) (obj.tag >= 1 && obj.tag <= 12)
 #define CDATAP(obj) (obj.tag == sexp_cdata)
 #define CHARP(obj) (obj.tag == sexp_char)
-#define CONSP(obj) (obj.tag == sexp_cons || obj.tag == sexp_list || obj.tag == sexp_dpair)
+#define CONSP(obj) (obj.tag == sexp_cons)
 #define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
 #define ENVP(obj)(obj.tag == sexp_env)
 #define ERRORP(obj)(obj.tag == sexp_error)
@@ -98,7 +98,7 @@ typedef wchar_t char32_t;
 #define INT32P(obj) (obj.tag == sexp_int)
 #define INT64P(obj) (obj.tag == sexp_long)
 #define INT8P(obj) (obj.tag == sexp_byte)
-#define INTP(obj) (obj.tag == sexp_long || obj.tag==_ulong)
+#define INTP(obj) (obj.tag == sexp_long || obj.tag== sexp_ulong)
 #define INT_ANYP(obj)(obj.tag >=1 && obj.tag <= 8)
 #define IS_POINTER(obj) (obj.is_ptr == 1)
 #define LAMBDAP(obj) (obj.tag == sexp_fun && obj.val.fun->type == sexp_lambda_fun)
@@ -122,6 +122,8 @@ typedef wchar_t char32_t;
 #define UINT64P(obj) (obj.tag == sexp_ulong)
 //temporary hack
 symbol *Etype;
+symbol *Ekey;
+symbol *Eargs;
 #define NUM_EQ(obj1,obj2)                       \
   ((obj1.tag<=8?obj1.val.uint64:obj1.val.real64)== \
     (obj2.tag<=8?obj2.val.uint64:obj2.val.real64)
@@ -133,18 +135,19 @@ symbol *Etype;
     CORD_sprintf(&type_error_str,"type error in %r, ",fun);             \
     type_error_str=CORD_cat(type_error_str,format);                     \
     CORD_sprintf(&type_error_str,type_error_str,args);                  \
-    raise_simple_error((uint64_t)Etype,make_string(type_error_str);})
+    raise_simple_error(Etype,make_string(type_error_str);})
 #define format_type_error(fun,expected,got)                             \
   ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
-               fun,expected,tag_name(got));                             \
-  raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
+    CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
+                 fun,expected,tag_name(got));                           \
+    error_sexp(type_error_str);})
+//  raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
 #define format_type_error_named(fun,name,expected,got)                  \
   ({CORD type_error_str;                                                \
     CORD_sprintf(&type_error_str,                                       \
                  "type error in %r, expected a(n) %r for %r but got a(n) %r", \
                  fun,expected,name,tag_name(got)),                      \
-      raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
+      raise_simple_error(Etype,make_string(type_error_str));})
 #define format_type_error2(fun,expected1,got1,expected2,got2)           \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
                ", but got %r and %r",fun,expected1,expected2,           \
@@ -334,11 +337,11 @@ union funcall{
   sexp(*funevaled)(sexp);//sexp is presumably a list
 };
 //for things like map and reduce
-static inline call_many_with_2_args(funcall f,sexp a,sexp b){
+static inline sexp call_many_with_2_args(funcall f,sexp a,sexp b){
   sexp args[2]={a,b};
   return f.fmany(2,args);
 }
-static inline call_many_with_1_arg(funcall f,sexp a){
+static inline sexp  call_many_with_1_arg(funcall f,sexp a){
   sexp args[1]={a};
   return f.fmany(1,args);
 }
@@ -423,6 +426,7 @@ enum operator{
   binop_logior,
   binop_logxor,
   binop_logandn,
+  binop_logeqv,
   binop_lt,
   binop_le,
   binop_eq,
@@ -439,6 +443,15 @@ static const sexp LISP_REAL32_MIN=const_real32_sexp(FLT_MIN);
 static const sexp LISP_REAL64_MIN=const_real64_sexp(DBL_MIN);
 static const sexp LISP_REAL32_EPSILON=const_real32_sexp(FLT_EPSILON);
 static const sexp LISP_REAL64_EPSILON=const_real64_sexp(DBL_EPSILON);
+static const sexp lisp_int64_1=const_int64_sexp(1);
+static const sexp lisp_int64_m1=const_int64_sexp(-1);
+static const sexp lisp_int64_0=const_int64_sexp(0);
+static const sexp lisp_real64_1=const_real64_sexp(1);
+static const sexp lisp_real64_0=const_real64_sexp(0);
+sexp lisp_bigint_0;
+sexp lisp_bigint_1;
+sexp lisp_bigfloat_0;
+sexp lisp_bigfloat_1;
 extern sexp get_type_from_string(CORD typestring);
 /* structure for arrays, typed arrays, matrices and vectors */
 struct lisp_array {
@@ -474,3 +487,4 @@ struct lisp_array {
   uint8_t type;//not sure what this should be in a multityped array
   unsigned int padding :24;
 };
+int type=0;

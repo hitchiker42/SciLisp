@@ -33,7 +33,6 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #endif
 //avoid including lex.yy.h in the lexer itself, because it messes up
 //some macro defines / undefs
-#include "read.h"
 #ifdef MULTI_THREADED
 static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define thread_local __thread
@@ -47,6 +46,9 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define LISP_RWLOCK_RDLOCK(env)
 #define LISP_RWLOCK_WRLOCK(env)
 #define LISP_RWLOCK_UNLOCK(env)
+#endif
+#ifndef IN_LEXER
+#include "read_lex.h"
 #endif
 #include "gc/gc.h"
 #include <pthread.h>
@@ -74,6 +76,10 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   ({ __typeof__ (a) _a = (a);                   \
     __typeof__ (b) _b = (b);                    \
     _a > _b ? _a : _b;})
+#define CORD_asprintf(format,args...)           \
+  ({CORD retval;                                \
+  CORD_sprintf(&retval,format,##args);          \
+  retval;})
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE
@@ -85,7 +91,7 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define construct_sexp_generic_len(sexp_val,sexp_tag,len_val,           \
                                    sexp_field,is_ptr_val,sexp_cast)     \
   sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},                 \
-      .is_ptr=is_ptr_val,.simple_len=len_val,meta=0}
+      .is_ptr=is_ptr_val,.simple_len=len_val,.meta=0}
 #define construct_sexp_len(sexp_val,sexp_tag,sexp_field,is_ptr_val,len_val) \
   construct_sexp_generic_len(sexp_val,sexp_tag,len_val,                 \
                              sexp_field,is_ptr_val,(sexp))
@@ -102,17 +108,17 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define construct_simple_const(sexp_val,name)   \
   construct_const_sexp(sexp_val,sexp_##name,name,0)
 //type_sexp macros for convience (kinda like constructors I suppose)
-#define typed_array_sexp(array_val,array_tag,array_len)         \
+/*#define typed_array_sexp(array_val,array_tag,array_len)       \
   (sexp){.tag=_typed_array,.meta=array_tag,.len=array_len,      \
-      .val={.typed_array=array_val},.is_ptr=1}
+  .val={.typed_array=array_val},.is_ptr=1}*/
 #define bigfloat_sexp(bigfloat_ptr) construct_ptr(bigfloat_ptr,bigfloat)
 #define bigint_sexp(bigint_ptr) construct_ptr(bigint_ptr,bigint)
 #define cons_sexp(cons_val) construct_ptr(cons_val,cons)
 #define cord_sexp(cord_val) string_sexp(cord_val)
-#define c_data_sexp(c_data_val) construct_sexp(c_data_val,_cdata,c_val,1)
+#define c_data_sexp(c_data_val) construct_sexp(c_data_val,sexp_cdata,c_val,1)
 #define double_sexp(double_val) construct_atom(double_val,real64)
-#define env_sexp(env_val) construct_sexp(env_val,_env,cur_env,1)
-#define error_sexp(error_msg) construct_sexp(error_msg,_error,string,1)
+#define env_sexp(env_val) construct_sexp(env_val,sexp_env,cur_env,1)
+#define error_sexp(error_msg) construct_sexp(error_msg,sexp_error,simple_string,1)
 #define float_sexp(float_val) construct_atom(float_val,real32)
 #define funargs_sexp(funargs_val) construct_ptr(funargs_val,funargs)
 #define function_sexp(fun_val) construct_ptr(fun_val,fun)
@@ -123,12 +129,12 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define uint_n_sexp(uint_val,n) construct_atom(uint_val,uint##n)
 #define uint64_sexp(uint64_val) uint_n_sexp(uint64_val,64)
 #define keyword_sexp(keyword_val) construct_atom(keyword_val,keyword)
-#define list_sexp(list_val) construct_sexp(list_val,_list,cons,1)
+#define list_sexp(list_val) construct_sexp(list_val,sexp_cons,cons,1)
 #define list_len_sexp(list_val,_len)                    \
   construct_sexp_len(list_val,_list,cons,1,_len);
 #define long_sexp(long_val) construct_atom(long_val,int64)
 #define ulong_sexp(ulong_val) construct_atom(ulong_val,uint64)
-#define macro_sexp(macro_val) construct_sexp(macro_val,_macro,mac,1)
+//#define macro_sexp(macro_val) construct_sexp(macro_val,_macro,mac,1)
 #define meta_sexp(meta_val) construct_atom(meta_val,meta)
 #define obarray_sexp(ob_val) construct_sexp(ob_val(sexp),_obarray,ob,1)
 #define opaque_sexp(opaque_val) construct_ptr(opaque_val,opaque)
@@ -136,13 +142,13 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define regex_sexp(regex_val) construct_ptr(regex_val,regex)
 #define real64_sexp(real64_val) construct_atom(real64_val,real64)
 #define array_sexp(array_val,array_len)                         \
-  construct_sexp_len(array_val,_array,array,1,array_len)
+  construct_sexp_len(array_val,sexp_array,array,1,array_len)
 #define spec_sexp(spec_tag) construct_atom(spec_tag,special)
 #define stream_sexp(stream_val) construct_ptr(stream_val,stream)
-#define string_sexp(string_val) construct_sexp(string_val,_str,string,1)
+#define string_sexp(string_val) construct_ptr(string_val,string)
 #define symref_sexp(symref_val) construct_ptr(symref_val,sym)
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
-#define type_sexp(type_val) construct_sexp(type_val,_type,meta,0)
+//#define type_sexp(type_val) construct_sexp(type_val,sexp_type,meta,0)
 #define uchar_sexp(uchar_val) construct_atom(uchar_val,uchar)
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)

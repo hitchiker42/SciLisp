@@ -34,7 +34,6 @@
   ({type error_test=variable;;})
 #define size_assert(size,value)                 \
   ({static const char error[(sizeof(value)==size)?1:-1];;})
-#define type
 static void print_trace(void){
   void *array[50];
   size_t size,i;

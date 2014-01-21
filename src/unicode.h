@@ -5,8 +5,7 @@
 #ifndef UNICODE_H
 #define UNICODE_H
 #include "common.h"
-#define make_string(len,type,string_val) (lisp_string){.len=len,.type=type,.val={.string=string_val}}
-#define isascii(char) (char>=0x00 && char <=0x7f)
+//#define make_string(len,type,string_val) (lisp_string){.len=len,.type=type,.val={.string=string_val}}
 #define isutf8_1(char) (char>=0x80 && char <=0xbf)
 #define isutf8_2(char) (char>=0xc2 && char <=0xdf)
 #define isutf8_3(char) (char>=0xe0 && char <=0xef)
@@ -20,11 +19,11 @@
                                           && isutf8_1(str[2])) && isutf8_1(str[3])))))
 
 static inline lisp_string *make_string(const char *str){
-  lisp_string retval=xmalloc(sizeof(lisp_string));
+  lisp_string *retval=xmalloc(sizeof(lisp_string));
   if(str[0] == '\0'){
-    *retval=(lisp_string){.cord=str,.len=CORD_len(str),.type=str_cord};
+    *retval=(lisp_string){.cord=str,.len=(CORD_len(str)),.type=str_cord};
   } else {
-    *retval=(lisp_string){.string=str,.len=strlen(str),.type=str_string};
+    *retval=(lisp_string){.string=str,.len=(strlen(str)),.type=str_string};
   }
   return retval;
 }
@@ -32,8 +31,8 @@ int lex_char(char* cur_yytext,wint_t *new_char);
 sexp lisp_char_to_string(sexp lisp_char);
 sexp lisp_string_to_char(sexp lisp_str);
 //pretty much a wrapper to wcrtomb which returns a vaild c string
-c_string c_wchar_to_string(wchar_t lisp_char);
+const char *c_wchar_to_string(wchar_t lisp_char);
 //pretty much a simplified wrapper to mbsrtowcs, which deals
 //with memory allocation internally (using gc_malloc_atomic)
-wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
+wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state);
 #endif
