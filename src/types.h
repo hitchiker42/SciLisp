@@ -120,10 +120,15 @@ typedef wchar_t char32_t;
 #define TYPEP(obj) (obj.tag == sexp_type)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define UINT64P(obj) (obj.tag == sexp_ulong)
-//temporary hack
-symbol *Etype;
-symbol *Ekey;
-symbol *Eargs;
+//errors, defined somewhere else
+/*extern symbol *Etype;
+extern symbol *Ekey;
+extern symbol *Eargs;
+extern symbol *Ebounds;
+extern symbol *Efile;
+extern symbol *Eread;
+extern symbol *Eundefined;
+extern symbol *E*/
 #define NUM_EQ(obj1,obj2)                       \
   ((obj1.tag<=8?obj1.val.uint64:obj1.val.real64)== \
     (obj2.tag<=8?obj2.val.uint64:obj2.val.real64)
@@ -335,15 +340,26 @@ union funcall{
   //more can be added if/when needed
   sexp(*fmany)(uint64_t,sexp*);
   sexp(*funevaled)(sexp);//sexp is presumably a list
+  sexp(*fspecial)(sexp,env_ptr);
 };
 //for things like map and reduce
-static inline sexp call_many_with_2_args(funcall f,sexp a,sexp b){
+static inline sexp call_many_with_2(funcall f,sexp a,sexp b){
   sexp args[2]={a,b};
   return f.fmany(2,args);
 }
-static inline sexp  call_many_with_1_arg(funcall f,sexp a){
+static inline sexp  call_many_with_1(funcall f,sexp a){
   sexp args[1]={a};
   return f.fmany(1,args);
+}
+static inline sexp call_many_with_2_implicit(sexp a,sexp b){
+  sexp (*f)(uint64_t,sexp*)=env->dat_ptr->val.fun->comp.fmany;
+  sexp args[2]={a,b};
+  return f(2,args);
+}
+static inline sexp call_many_with_1_implicit(sexp a,sexp b){
+  sexp (*f)(uint64_t,sexp*)=env->dat_ptr->val.fun->comp.fmany;
+  sexp args[1]={a};
+  return f(1,args);
 }
 typedef enum {
   rec_none,

@@ -19,16 +19,25 @@
   (indent-region (point-min) (point-max)))
 ;;functions to make primitives
 ;;in elisp a primitive is represented as alist
+;;primitive function,special form, or macro
+;;lname = name in lisp
+;;cname = name of symbol in c (i.e. Scons,Scar)(generally S<lisp_name>)
+;;value = name of function in c (i.e Fcons,car)(no real pattern to this)
+;;minargs,optargs,keyargs,restarg = number of arguments the function takes
+;;sig = function arglist (i.e for cons sig = "(obj1 obj2)" or for list "(&rest objects)"
+;;const = is this an immutable form (generally no,but it should at least warn
+;;but for special forms yes)
 (cl-defun mk-prim-subr
-    (lname cname fname minargs &key (optargs 0) (keyargs 0)
-           (restarg 0) (sig "()") (doc ""))
+    (lname cname value minargs &key (optargs 0) (keyargs 0)
+           (restarg 0) (sig "()") (doc "") (const 2))
   (let ((maxargs (+ minargs optargs keyargs restarg)))
-    `((:lname . ,lname) (:cname . ,cname) (:fname . ,fname)
+    `((:lname . ,lname) (:cname . ,cname) (:value . ,value)
       (:minargs . ,minargs) (:maxargs . ,maxargs)
-    (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
-    (:sig . ,sig) (:doc . ,doc))))
-(cl-defun mk-global (lname cname &key (const 0) (type 0) (doc ""))
-  `((:lname . ,lname) (:cname . ,cname) (:const . ,const)
+      (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
+      (:sig . ,sig) (:doc . ,doc) (:const . ,const))))
+;;primitive global constant or variable
+(cl-defun mk-global (lname cname val &key (const 0) (type 0) (doc ""))
+  `((:lname . ,lname) (:cname . ,cname) (:val . ,val) (:const . ,const)
     (:type . ,type) (:doc . ,doc)))
 (defun intern-prims ()
   (let* ((prims (append SciLisp-prims SciLisp-types SciLisp-keywords)))
@@ -38,22 +47,63 @@
         (princ (format "  cintern_unsafe(global_obarray,%s_val);\n" prim)))
       (princ "}\n"))))
 (define SciLisp-special-forms
-  (list "lambda" "nil" "let" "let_star" "while" "tagbody" "go"
-        "throw" "catch" "setq" "unwind-protect" "if" "progv" "progn"
-        "return-from" "block"))
+  (list "lambda" "closure" "nil" "let" "let_star" "while" "tagbody" "go"
+        "throw" "catch" "setq" "unwind_protect" "if" "progv" "progn"
+        "return_from" "block" "quote" "comma" "backquote"))
 (define SciLisp-errors
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
         "undefined" "unbound" "math" "eof" "io" "overflow"))
+
 (define SciLisp-keywords
   (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words  
   (mapcar (lambda (x) (concat "E" x))()));builtin error types
 (define SciLisp-Types
-  (mapcar (lambda (x) (concat "T" x)
-            (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" 
-                  "uint64" "error" "real32" "real64" "bigint" "bigfloat" 
-                  "char" "string" "array" "stream" "fun" "symbol" "macro" 
-                  "type" "hashtable" "regex" "nil"
-                  "env" "obarray" "true" "false" "uninterned"))))
+  (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" 
+        "uint64" "error" "real32" "real64" "bigint" "bigfloat" 
+        "char" "string" "array" "stream" "fun" "symbol" "macro" 
+        "type" "hashtable" "regex" "nil"
+        "env" "obarray" "true" "false" "uninterned"))
+(defun make-symbol-declarations()
+  (with-temp-file "builtin_symbols.h"
+    (insert "#ifndef _BUILTIN_SYMBOLS_H_\n#define _BUILTIN_SYMBOLS_H_\n")
+    (dolist (err SciLisp-errors)
+      (insert (format "extern symbol *E%s;\n" err)))
+    (dolist (form SciLisp-special-forms)
+      (insert (format "extern symbol *Q%s;\n" form)))
+    (dolist (type SciLisp-Types)
+      (insert (format "extern symbol *T%s;\n" type)))
+    (insert "#endif\n")))
+(defun get-hash (str)
+  (shell-command-to-string (format "%s '%s'"
+                                   (expand-file-name "../get_hash")
+                                   str)))
+(defun make-SciLisp-types (buf)
+  (with-current-buffer buf
+    (dolist (type SciLisp-Types)
+      (insert (format "MAKE_TYPE(%s,%s,%d,%s,NIL,sexp_%s);\n"
+                      (concat "T" type) type (length type)
+                      (get-hash type) type)))))
+(defun assq-val (key list)
+  (return (cdr-safe (assq key list))))
+;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
+(defun make-SciLisp-subrs (buf subrs)
+  (with-current-buffer buf
+    (let ((name ""))
+      (dolist (subr subrs)
+        (setq name (assq-val :lname subr))
+        (insert (format "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
+                        (assq-val :fname subr) lname (length lname)
+                        (get-hash lname) (assq-val :cname subr)
+                        (assq-val :const subr)))))))
+(defun make-SciLisp-globals (buf globals)
+  (with-current-buffer buf
+    (let ((name ""))
+      (dolist (global globals)
+        (setq name (assq-val :lname global))
+        (insert (format "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n")
+                (assq-val :cname global) lname (length lname)
+                (get-hash lname) (assq-val :value global)
+                (assq :const global))))))
 (define SciLisp-predicates
   (append
    (mapcar (lambda (x) (list (concat x "?")

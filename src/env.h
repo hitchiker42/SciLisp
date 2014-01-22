@@ -35,9 +35,9 @@ struct symbol {
   sexp val;
   sexp plist;
   uint8_t type;
-  unsigned interned :2;
-  unsigned constant :2;
-  unsigned visibility :2;
+  unsigned interned :2;//enum symbol_interned
+  unsigned constant :2;//0 no, 1 yes, 2 warn before changing
+  unsigned visibility :2;//enum externally_visable
   unsigned special :1;//non special variables don't need to have their values saved
   struct symbol_name *name;
   //pointer to next symbol, in obarray bucket
