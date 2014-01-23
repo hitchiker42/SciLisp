@@ -1,6 +1,6 @@
 #ifndef _FRAME_H
 #define _FRAME_
-#define UNWIND_PROTECT_TAG 1
+#define UNWIND_PROTECT_TAG Qunwind_protect
 #include "common.h"
 enum  frame_type {//might not use this
   //needs as many bits as possible values,if extended to 9 values
@@ -24,19 +24,19 @@ struct frame {
   uint32_t frame_index;
   jmp_buf dest;
 };
-#define make_frame(tag_val,value_val,frame_type)            \
+#define make_frame(tag_val,frame_type)                                  \
   ({frame_addr retval=xmalloc_atomic(sizeof(struct frame)+sizeof(jmp_buf)); \
   retval->tag=tag;                                                      \
-  retval->value=value;                                                  \
+  retval->value=NIL;                                                    \
   retval->value.meta=frame_type;                                        \
-  retval->dest=retval+sizeof(struct frame);                       \
+  retval->dest=retval+sizeof(struct frame);                             \
   retval;})
 #define make_simple_error_handler(_tag_) make_frame(_tag_,NIL,simple_error_frame)
 typedef void __attribute__((noreturn)) (*error_handler)(frame);
 #define establish_simple_error_handler(name,_tag_,handler_fun)  \
   type_assert(error_handler,handler_fun);                       \
   frame_addr name=make_frame(_tag_,nil,simple_error_frame);     \
-  push_frame(current_environment,*name);                        \
+  push_frame(current_env,*name);                                \
   if(setjmp(name->dest)){                                       \
     handler_fun(*name);                                         \
   }
@@ -48,5 +48,12 @@ void unwind_to_tag(env_ptr env,uint64_t tag) __attribute__((noreturn));
 void unwind_with_value(uint64_t tag,sexp value) __attribute__((noreturn));
 void unwind_call_stack(env_ptr env,uint64_t index);
 void unwind_bindings(env_ptr env,uint64_t n);
-#define raise_simple_error(tag,value) unwind_with_value((uint64_t)tag,value)
+#define raise_sexp_error(tag,value) unwind_with_value((uint64_t)tag,value)
+#define raise_simple_error(tag,value) unwind_with_value((uint64_t)tag,c_string_sexp(value))
+#define raise_simple_error_cord(tag,value) unwind_with_value((uint64_t)tag,\
+                                                             string_sexp(make_string(value)))
+#define raise_simple_error_fmt(tag,format,args...)                      \
+  unwind_with_value((uint64_t)tag,                                      \
+                    string_sexp(make_string(CORD_asprintf(format,##args))))
+
 #endif

@@ -1,38 +1,54 @@
 #include "common.h"
 #include "lisp_strings.h"
-sexp lisp_strcat(sexp cords){
-  if(!CONSP(cords)){
-    if(NILP(cords)){
-      return string_sexp("");
-    }
-    return format_type_error_opt("concat-str",cords.tag);
+CORD CORD_cat_lisp_string(CORD acc,lisp_string *str){
+  if(!str->string[0]){
+    return CORD_cat(acc,str->cord);
+  } else {
+    return CORD_cat_char_star(acc,str->string,str->len);
   }
-  CORD retval="";
-  while(CONSP(cords)){
-    if(!STRINGP(XCAR(cords))){
-      return format_type_error("concat-str","string",XCAR(cords).tag);
+}
+sexp lisp_strcat(int numargs,sexp *strings){
+  if(!numargs){
+    return "";
+  } if (numargs == 1){
+    if(!STRINGP(strings[0])){
+      raise_simple_error(Etype,format_type_error_opt("concat-str",strings[0].tag));
     }
-    retval=CORD_cat(retvar,XCAR(cords));
-    cords=XCDR(cords);
+    return strings[0];
+  }//else {
+  int i,len=0;
+  CORD acc=0;
+  for(i=0;i<numargs;i++){
+    if(!STRINGP(strings[i])){
+      raise_simple_error(Etype,format_type_error("concat-str","string",strings[i].tag));
+    }
+    acc=CORD_cat_lisp_string(acc,strings[i].str);
+    len+=strings[i].str->len;
   }
+  lisp_string *retval=xmalloc(sizeof(lisp_string));
+  *retval=(lisp_string){.cord=acc,.len=len}
   return string_sexp(retval);
 }
-sexp lisp_substr(sexp lisp_cord,sexp start,sexp end){
+sexp lisp_substr(sexp str,sexp start,sexp end){
   if(!STRINGP(lisp_cord)||!INTP(start)||!INTP(end)){
     return format_type_error("substr","string",lisp_cord.tag,
                              "integer",start.tag,"integer",end.tag);
   } else {
-    return string_sexp
-      (CORD_substr(lisp_cord.val.cord,start.val.int64,
-                   end.val.int64-start.val.int64));
+    lisp_string *retval=xmalloc(sizeof(lisp_string));
+    retval.len=end.val.int64-start.val.int64;
+    //the way CORD_substr works is probably a lot better
+    //than anything I could write
+    retval.cord=(CORD_substr(lisp_cord.val.cord,start.val.int64,
+                             end.val.int64-start.val.int64));
+    return string_sexp(retval);
   }
 }
 #if 0
-//is this too confusing?
-typedef struct CORD_stream *CORD_stream
+#includ "gc/ec.h"
+typedef struct CORD_stream *CORD_stream_ptr
 #define buf_pos(stream) (stream->bufptr-stream->buf)
 #define BUFSIZE 128
-struct CORD_stream{
+struct CORD_stream {
   CORD stream;
   CORD_pos pos;//expensive to change, faster to use
   int index;//easy to increment, always points to current position
@@ -83,7 +99,12 @@ cookie_seek_function CORD_stream_seek;
 cookie_close_function CORD_stream_close;
 struct cookie_io_functions_t CORD_stream_functions =
   {.read=CORD_stream_read,.write=CORD_stream_write,
-   .seek=CORD_stream_seek,.close=CORD_stream_close};
+   .seek=NULL,.close=NULL};
+/*ssize_t CORD_stream_seek(void *cookie,off64_t *POSITION,int WHENCE){
+  switch(WHENCE){
+    case SEEK_SET://begining of file
+    case SEEK_CUR://current position
+    case SEEK_END://end position*/
 ssize_t CORD_stream_read(void *cookie,char *buffer, size_t size){
   CORD_stream stream=(CORD_stream)cookie;
   //return 0 if there's nothing to read
@@ -118,7 +139,7 @@ ssize_t CORD_stream_write(void *cookie,char *buffer, size_t size){
   if(!data){return 0};
   if(stream->at_start){
     if(size>stream->len){
-      stream->stream=CORD_cat_char_star(0,data,size);
+      stream->stream=data;
       stream->len=size;
     } else {
       stream->stream=

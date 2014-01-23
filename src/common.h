@@ -118,7 +118,7 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define c_data_sexp(c_data_val) construct_sexp(c_data_val,sexp_cdata,c_val,1)
 #define double_sexp(double_val) construct_atom(double_val,real64)
 #define env_sexp(env_val) construct_sexp(env_val,sexp_env,cur_env,1)
-#define error_sexp(error_msg) construct_sexp(error_msg,sexp_error,simple_string,1)
+#define error_sexp(error_msg) construct_sexp(error_msg,sexp_error,c_string,1)
 #define float_sexp(float_val) construct_atom(float_val,real32)
 #define funargs_sexp(funargs_val) construct_ptr(funargs_val,funargs)
 #define function_sexp(fun_val) construct_ptr(fun_val,fun)
@@ -146,6 +146,8 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define spec_sexp(spec_tag) construct_atom(spec_tag,special)
 #define stream_sexp(stream_val) construct_ptr(stream_val,stream)
 #define string_sexp(string_val) construct_ptr(string_val,string)
+//
+#define c_string_sexp(c_string_val) construct_ptr(string_val,c_string)
 #define symref_sexp(symref_val) construct_ptr(symref_val,sym)
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
 //#define type_sexp(type_val) construct_sexp(type_val,sexp_type,meta,0)
@@ -159,7 +161,7 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define format_error_sexp(format,args...)       \
   format_error_str(format,args),                \
     error_sexp(CORD_to_char_star(error_str))
-#define init_sigstk()                                                   \
+#define init_sigstk(sigstk)                                             \
   sigstk.ss_sp=malloc(SIGSTKSZ);                                        \
   if(!sigstk.ss_sp){                                                    \
   fprintf(stderr,"error, virtual memory exhausted\n");                  \
@@ -256,7 +258,7 @@ static void __attribute__((noreturn))default_condition_handler(int signum){
   longjmp(error_buf,-1);
 }
 static sexp lisp_eval(sexp obj,sexp env){
-  return eval(obj,current_environment);
+  return eval(obj,current_env);
 }
 static const struct sigaction sigusr1_object={.sa_handler=default_condition_handler};
 static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};

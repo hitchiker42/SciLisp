@@ -52,7 +52,7 @@
         "return_from" "block" "quote" "comma" "backquote"))
 (define SciLisp-errors
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
-        "undefined" "unbound" "math" "eof" "io" "overflow"))
+        "undefined" "unbound" "math" "eof" "io" "overflow" "range"))
 
 (define SciLisp-keywords
   (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words  

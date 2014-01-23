@@ -21,9 +21,9 @@
 static inline lisp_string *make_string(const char *str){
   lisp_string *retval=xmalloc(sizeof(lisp_string));
   if(str[0] == '\0'){
-    *retval=(lisp_string){.cord=str,.len=(CORD_len(str)),.type=str_cord};
+    *retval=(lisp_string){.cord=str,.len=(CORD_len(str))}
   } else {
-    *retval=(lisp_string){.string=str,.len=(strlen(str)),.type=str_string};
+    *retval=(lisp_string){.string=str,.len=(strlen(str))}
   }
   return retval;
 }

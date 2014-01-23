@@ -16,10 +16,21 @@ static hash_table* hashtable_rehash(hash_table *ht);
 sexp make_hashtable_default(){
   return makeHashtable(NIL,NIL,NIL,NIL,NIL,NIL,NIL);
 }
-sexp makeHashtable(sexp comp_fn,sexp size,sexp hash_fn,
-                   sexp growth_threshold,sexp growth_factor,
-                   sexp shrink_threshold,sexp shrink_factor){
+//sexp comp_fn,sexp size,sexp hash_fn,
+//sexp growth_threshold,sexp growth_factor,
+//sexp shrink_threshold,sexp shrink_factor){
+sexp make_hashtable(int numargs,sexp *args){
+  if(numargs%2){
+    raise_simple_error
+      (Ekey,"Uneven number of keyword arguments passed to make-hash-table");
+  }
   hash_table *ht=xmalloc(sizeof(hash_table));
+  *ht={.size=16,.used=0,.entries=0,.capacity=0.0,
+       .capacity_inc=1/(160),.gthreshold=0.8,.gfactor=2.0,
+       .hash_fn=hash_function,.hash_cmp=Feq,.test_fn=hash_eq};
+  ht->used=0;
+  ht->entries=0;
+  ht->capacity=0
   if(NILP(comp_fn)){
     ht->hash_cmp=lisp_eq;
     ht->test_fn=_heq;

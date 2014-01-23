@@ -19,7 +19,7 @@
 
 //look for a frame, don't unwind, ignore proctect flags
 frame_addr frame_search(uint64_t tag){
-  env_ptr env=current_environment;
+  env_ptr env=current_env;
   frame_addr ptr=env->frame;
   for(ptr=env->frame_ptr;ptr>=env->frame_stack;ptr--){
     if(ptr->tag == tag){
@@ -40,7 +40,8 @@ void __attribute__((noreturn)) unwind_to_frame(env_ptr env,frame_addr fr){
   longjmp(env->frame_ptr->dest,1);
 }
 void __attribute__((noreturn)) unwind_to_tag(env_ptr env,uint64_t tag){
-  while(env->frame_ptr->tag != tag && env->frame_ptr != UNWIND_PROTECT_TAG){
+  while(env->frame_ptr->tag != tag && 
+        env->frame_ptr != UNWIND_PROTECT_TAG){
     env->frame_ptr--;
   }
   unwind_stacks(env);
@@ -49,7 +50,7 @@ void __attribute__((noreturn)) unwind_to_tag(env_ptr env,uint64_t tag){
 void __attribute__((noreturn)) unwind_with_value(uint64_t tag,sexp value){
   frame_addr fr=frame_search(tag);
   fr->value=value;
-  unwind_to_frame(current_environment,fr);
+  unwind_to_frame(current_env,fr);
 }
 void unwind_call_stack(env_ptr env,uint64_t index){
   env->call_ptr=env->call_ptr-index;

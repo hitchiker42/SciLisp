@@ -4,24 +4,17 @@
  ****************************************************************/
 #ifndef __ENV_H__
 #define __ENV_H__
-#include "common.h"
-#ifdef type
-#error "type is defined in common.h 1"
-#endif
-#include <ucontext.h>
-#ifdef type
-#error "type is defined in ucontext.h 1"
-#endif
+//#include "common.h"
 enum symbol_interned {
-  _symbol_interned = 0,
-  _symbol_uninterned = 1,
-  _symbol_interned_in_initial_obarray = 2,
+  symbol_interned = 0,
+  symbol_uninterned = 1,
+  symbol_interned_in_initial_obarray = 2,
 };
 enum externally_visable {
-  _symbol_in_current_or_global_obarray = 0,
-  _symbol_externally_visable = 1,
-  _symbol_not_externally_visable = 2,
-  _symbol_locally_visable = 3,
+  symbol_in_current_or_global_obarray = 0,
+  symbol_externally_visable = 1,
+  symbol_not_externally_visable = 2,
+  symbol_locally_visable = 3,
 };
 //should be allocated using gc_malloc_atomic(sizeof(symbol_name)*name_len)
 /*structure for symbol name and simple/common properties, to avoid having
@@ -29,6 +22,7 @@ enum externally_visable {
 struct symbol_name {
   uint64_t hashv;
   uint32_t name_len;
+  uint8_t multibyte;//really just needs a bit, but we can spare the space
   const char *name;//needs to be last(its basically a variable sized array)
 };
 struct symbol {
@@ -107,7 +101,18 @@ struct binding {
 #define try_pop_data(env,data) pop_generic_no_signal(data,env)
 
 #define LEX_BIND(env,val,sym) (env->lex_env=Cons(Cons(sym,val),env->lex_env),env->lex_bindings++)
-#define LEX_BIND_CURRENT(val,sym) LEX_BIND(current_environment,val,sym)
+#define LEX_BIND_CURRENT(val,sym) LEX_BIND(current_env,val,sym)
+
+//two megs seems a normal default, but that seems a bit much for now
+//so I'll use 2^15 bytes, whatever that is
+static uint32_t frame_stack_size=2<<15;//max size of an signed short
+static uint32_t data_stack_size=2<<15;
+static uint32_t bindings_stack_size=2<<15;
+static uint32_t call_stack_size=2<<15;
+void init_environment(void);
+void *init_environment_pthread(void*);
+int lisp_pthread_create(pthread_t *thread,const pthread_attr_t *attr,
+                       void*(*start_routine)(void*),void *arg);
 /* per thread values (no need for a lock)*/
 struct environment {
   //data which shouldn't be set to 0
@@ -133,7 +138,7 @@ struct environment {
   sexp *data_top;
   //return values? for now I'll just use the stack
   //everything below here can be set to zero on error
-  uint32_t lex_env;//current lexical environment, call stack is used to unwind it
+  sexp lex_env;//current lexical environment, call stack is used to unwind it
   //used for dealng with c signals, if error_num is set to a non-zero
   //value that means the current signal was sent due to a lisp error
   uint32_t error_num;//maybe define to sig_atomic_t?
@@ -168,10 +173,10 @@ struct package {
 obarray *global_obarray;
 //current dynamic environment
 static thread_local struct obarray *current_obarray;
-static thread_local struct environment *current_environment;
+static thread_local struct environment *current_env;
 static thread_local frame_addr top_level_frame;
-extern uint64_t bindings_stack_size;
-extern uint64_t handler_stack_size;
+//extern uint64_t bindings_stack_size;
+//extern uint64_t handler_stack_size;
 symbol *copy_symbol(symbol *sym,int copy_props);
 sexp getKeywordType(sexp obj);
 struct obarray {
@@ -195,7 +200,4 @@ symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
-#ifdef type
-#error "type is defined in env.h 1"
-#endif
 #endif

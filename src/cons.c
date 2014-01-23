@@ -234,7 +234,7 @@ sexp cons_drop(sexp ls,sexp num){
       i--;
     }
     if(i>0){
-      //raise_simple_error(Ebounds,simple_string_sexp("error in drop, index out of bounds"))
+      raise_simple_error(Ebounds,"error in drop, index out of bounds");
       return error_sexp("error in drop, index out of bounds");
     } else {
       return ls;

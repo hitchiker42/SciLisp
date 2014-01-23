@@ -113,7 +113,7 @@ typedef wchar_t char32_t;
 #define REALP(obj) (obj.tag == sexp_double || obj.tag == sexp_float)
 #define REGEXP(obj)(obj.tag == sexp_regex)
 #define RE_MATCHP(obj) (obj.tag == sexp_re_data)
-#define SEQUENCEP(obj) (CONSP(obj) || ARRAYP(obj))
+#define SEQUENCEP(obj) (CONSP(obj) || (ARRAYP(obj) && obj.val.array->dims == 1) || STRINGP(obj))
 #define STREAMP(obj)(obj.tag ==_stream)
 #define STRINGP(obj) (obj.tag == sexp_str)
 #define SYMBOLP(obj) (obj.tag == sexp_sym)
@@ -141,6 +141,10 @@ extern symbol *E*/
     type_error_str=CORD_cat(type_error_str,format);                     \
     CORD_sprintf(&type_error_str,type_error_str,args);                  \
     raise_simple_error(Etype,make_string(type_error_str);})
+#define format_type_error_str(fun,expected,got)                         \
+  ({CORD type_error_str;                                                \
+    CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
+                 fun,expected,tag_name(got));
 #define format_type_error(fun,expected,got)                             \
   ({CORD type_error_str;                                                \
     CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
@@ -245,7 +249,8 @@ union data {//keep max size at 64 bits
   FILE *stream;
   c_data *c_val;
   cons *cons;
-  const char *simple_string;
+  const char *c_string;
+  char c_char;//internal use, so strings can be cast to data*
   ctype *ctype;
   env_ptr env;
   hash_table *hashtable;
@@ -343,7 +348,7 @@ union funcall{
   sexp(*fspecial)(sexp,env_ptr);
 };
 //for things like map and reduce
-static inline sexp call_many_with_2(funcall f,sexp a,sexp b){
+/*static inline sexp call_many_with_2(funcall f,sexp a,sexp b){
   sexp args[2]={a,b};
   return f.fmany(2,args);
 }
@@ -352,15 +357,15 @@ static inline sexp  call_many_with_1(funcall f,sexp a){
   return f.fmany(1,args);
 }
 static inline sexp call_many_with_2_implicit(sexp a,sexp b){
-  sexp (*f)(uint64_t,sexp*)=env->dat_ptr->val.fun->comp.fmany;
+  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
   sexp args[2]={a,b};
   return f(2,args);
 }
 static inline sexp call_many_with_1_implicit(sexp a,sexp b){
-  sexp (*f)(uint64_t,sexp*)=env->dat_ptr->val.fun->comp.fmany;
+  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
   sexp args[1]={a};
   return f(1,args);
-}
+  }*/
 typedef enum {
   rec_none,
   rec_simple,
@@ -386,13 +391,15 @@ enum string_type {
 struct lisp_string {
   //kinda a silly union since a CORD is technically a typedef for const char*
   //but it makes code clearer in places
+  //also I don't actually need a type arguments
+  //as far as I'm concerned it's a c string if the first character isn't
+  //null and a CORD if it is
   union {
     const char *string;
     CORD cord;
   };
   uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t type;
-  int :0;
+  uint8_t multibyte;
 };
 //lisp subroutine, either a builtin function, a special form, a compilier macro
 //or a lisp function(a lambda) or a lisp macro
@@ -503,4 +510,10 @@ struct lisp_array {
   uint8_t type;//not sure what this should be in a multityped array
   unsigned int padding :24;
 };
+struct lisp_simple_vector {
+  void *data;
+  uint64_t len;
+  uint8_t type;
+};
+
 int type=0;

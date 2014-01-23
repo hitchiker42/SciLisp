@@ -77,7 +77,7 @@ sexp lisp_defvar(sexp args){
     docstr=XCADR(args);
   }
   if(var.val.sym->val == UNBOUND){
-    var.val.sym->val=eval(val,current_environment);
+    var.val.sym->val=eval(val,current_env);
     if(!NILP(docstr)){
       var.val.sym->plist=Cons(Qdocstring,Cons(docstr,var.val.sym->plist));
     }
@@ -105,7 +105,7 @@ sexp lisp_setq(sexp args){
   }
   sexp var=XCAR(args);
   sexp val=XCADR(args);
-  val.var.sym->val=eval(val,current_environment);
+  val.var.sym->val=eval(val,current_env);
   return var;
 }
 sexp lisp_defmacro(sexp args){}
@@ -113,7 +113,7 @@ sexp lisp_defmacro(sexp args){}
 sexp lisp_or(sexp exprs){
   sexp retval=LISP_FALSE;
   while(CONSP(exprs)){
-    if(isTrue(eval(XCAR(exprs),currrent_environment))){
+    if(isTrue(eval(XCAR(exprs),currrent_env))){
       return LISP_TRUE;
     } else {
       exprs=XCDR(exprs);
@@ -137,12 +137,12 @@ sexp lisp_if(sexp args){
   sexp then_br=XCAR(args);
   args=XCDR(args);
   sexp else_br=args;
-  sexp test_result=eval(cond,current_environment);
+  sexp test_result=eval(cond,current_env);
   if(ERRORP(cond)){
     return cond;
   }
   if(isTrue(test_result)){
-    return eval(then_br,current_environment);
+    return eval(then_br,current_env);
   } else {
     return lisp_progn(else_br);
   }
@@ -167,7 +167,7 @@ sexp lisp_macrolet(sexp args,env_ptr env){}
 //(while cond &rest body)
 sexp lisp_while(sexp cond,sexp body){
   sexp result;
-  while(isTrue(eval(cond,current_environment))){
+  while(isTrue(eval(cond,current_env))){
     result=eval(body,current_envrionment);
   }
   return result;
@@ -175,21 +175,21 @@ sexp lisp_while(sexp cond,sexp body){
 sexp lisp_progn(sexp args){
   sexp result=NIL;
   while(CONSP(args)){
-    result=eval(XCAR(args),current_environment);
+    result=eval(XCAR(args),current_env);
     args=XCDR(args);
   }
   return result;
 }
 sexp lisp_prog1(sexp expr,sexp args){
-  sexp result=eval(expr,current_environment);
+  sexp result=eval(expr,current_env);
   while(CONSP(args)){
     eval(XCAR(args),current_envrionment);
   }
   return result;
 }
 sexp lisp_prog2(sexp expr1,sexp expr2,sexp args){
-  eval(expr1,current_environment);
-  sexp result=eval(expr2,current_environment);
+  eval(expr1,current_env);
+  sexp result=eval(expr2,current_env);
   while(CONSP(args)){
     eval(XCAR(args),current_envrionment);
   }

@@ -5,7 +5,7 @@
 #ifndef HASH_H_
 #define HASH_H_
 #include "common.h"
-#include "prim.h"
+//#include "prim.h"
 //ht=hash_table
 //type alias, should change to one type sooner or later
 typedef struct hash_table hashtable;
@@ -22,19 +22,18 @@ struct hash_table {
   uint32_t size;
   uint32_t used;
   uint32_t entries;
-  int is_weak_hash;
   float capacity;//average bucket capacity
   float capacity_inc;//convience value
-  float gthresh;//growth threshold, in terms of capacity
+  float gthreshold;//growth threshold, in terms of capacity
   float gfactor;//amount to grow by
-  float sthresh;//shrink threshold, defaults to 0,i.e never shrink
-  float sfactor;
+  //  float sthresh;//shrink threshold, defaults to 0,i.e never shrink
+  //  float sfactor;
   uint64_t (*hash_fn)(const void*,int);
   sexp (*hash_cmp)(sexp,sexp);
   enum {
-    _heq,
-    _heql,
-    _hequal,
+    hash_eq,
+    hash_eql,
+    hash_equal,
   } test_fn;
 };
 /* return the total number of buckets in the hash table */
@@ -60,7 +59,7 @@ sexp hashtable_walk(sexp ht,sexp walk_fn);
 sexp hashtable_lisp_rehash(sexp ht);
 sexp make_hashtable_default();
 //all arguments are optional, should probably be keyargs
-sexp makeHashtable(sexp comp_fun,sexp size,sexp hash_fn,
+sexp make_hashtable(sexp comp_fun,sexp size,sexp hash_fn,
                    sexp growth_threshold,sexp growth_factor,
                    sexp shrink_threshold,sexp shrink_factor);
 sexp hashtable_reinit(sexp ht,sexp comp_fun,sexp size,sexp hash_fn,
@@ -84,10 +83,10 @@ static uint64_t fnv_hash(const void *key,int keylen){
   }
   return hash;
 }
-#ifdef __X86_64__
+#ifdef __X86_64__//never defined cause its __x86_64__
 #include "city_hash.h"
-#define hash_function(key,len) CityHash64(key,len)
+#define hash_function CityHash64
 #else
-#define hash_function(key,len) fnv_hash(key,len)
+#define hash_function fnv_hash
 #endif
 #endif

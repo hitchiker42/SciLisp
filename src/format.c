@@ -1,19 +1,34 @@
-/*****************************************************************
- * Copyright (C) 2013-2014 Tucker DiNapoli                       *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
-//Code below mostly taken from cordprnt.c with additions and modfications
-//for printing lisp objects
+/* formated printing, mostly modifications to CORD_sprintf
+
+   Copyright (C) 2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "cons.h"
 #include "print.h"
 #include "unicode.h"
 #include "gc/ec.h"
-sexp lisp_format(sexp format,sexp args){
-  if(!STRINGP(format)){
+sexp lisp_format(int numargs,sexp *args){
+  if((!args) || !STRINGP(args[0])){
     return format_type_error("format","string",format.tag);
   }
-  return c_format(format.val.cord,args);
+  if(numargs == 1){
+    return args[0];
+  }
+  return c_format(args[0].val.string->cord,numargs,args+1);
 }
 /*
  * Copyright (c) 1993-1994 by Xerox Corporation.  All rights reserved.
@@ -162,18 +177,18 @@ static int extract_conv_spec(CORD_pos source, char *buf,
   buf[chars_so_far] = '\0';
   return(chars_so_far);
 }
-
-#define va_typecheck(args,typecheck,expected) {                         \
-  if(!CONSP(args)){                                                     \
-    return error_sexp("Not enough arguments for format string");        \
-  }                                                                     \
-  if(!typecheck(XCAR(args))){                                           \
-    return format_type_error_rest("format",expected,XCAR(args));        \
-  }                                                                     \
-  }
+//get next argument for format after typechecking it
+#define va_typecheck(args,typecheck,expected) ({                        \
+    if(!(args)){                                                        \
+      raise_simple_error(Eargs,"Not enough arguments for format string"); \
+    }                                                                   \
+    if(!typecheck(*args)){                                              \
+      return format_type_error_rest("format",expected,XCAR(args));      \
+    }                                                                   \
+    *args++;})
 //defininion of function in cordprnt.c
 //int CORD_vsprintf(CORD * out, CORD format, va_list args) {
-sexp c_format(CORD format,sexp args){
+sexp c_format(CORD format,int numargs,sexp *args){
   CORD_ec result;
   register int count;
   register char current;
@@ -204,25 +219,22 @@ sexp c_format(CORD format,sexp args){
         current = CORD_pos_fetch(pos);
         switch(current) {//cases not handled by default sprintf
           //case 'n': lets not allow this in lisp
-          case 'r':
+          case 'r'://kinda unessary...but eh
             /* Append cord and any padding  */
             if (width == VARIABLE) {
-              va_typecheck(args,INTP,"integer");
-              width = XCAR(args).val.int64;
-              args = XCDR(args);
+              width=(va_typecheck(args,INTP,"integer")).val.int64;
             }
             if (prec == VARIABLE) {
-              va_typecheck(args,INTP,"integer");
-              prec = XCAR(args).val.int64;
-              args = XCDR(args);
+              prec=(va_typecheck(args,INTP,"integer")).val.int64;
             }
-            va_typecheck(args,STRINGP,"string");
-            arg = XCAR(args).val.cord;
-            args = XCDR(args);
-            len = CORD_len(arg);
+            {//limit the scope of temp
+              lisp_string temp=(va_typecheck(args,STRINGP,"string")).val.str;
+              arg=temp->cord;
+              len=temp->len;
+            }
             if (prec != NONE && len > (size_t)prec) {
               if (prec < 0){
-                return error_sexp("Invalid negitive precision value");
+                raise_simple_error(Erange,"Invalid negitive precision value");
               }
               arg = CORD_substr(arg, 0, prec);
               len = prec;
@@ -254,6 +266,12 @@ sexp c_format(CORD format,sexp args){
             }
             break;
           case 's':
+            if(args && (STRINGP(*args))){
+              //handle strings faster for %s
+              CORD_ec_append_cord(result,(*args++).val.str->cord);
+              goto done;
+            }
+            //fallthrough
           case 'a':
             /*
             //code for width and precision from the %r formatting
@@ -277,12 +295,11 @@ sexp c_format(CORD format,sexp args){
             }
             CORD_ec_append_cord(result, arg);
             */
-            if(!CONSP(args)){
-              return error_sexp("Not enough arguments for format string");
+            if(*args){
+              raise_simple_error(Eargs,"Not enough arguments passed to format");
             }
-            CORD_ec_append_cord(result, print(XCAR(args)));
-            args=XCDR(args);
-            goto done;
+            CORD_ec_append_cord(result, print(*args++));
+            goto done;              
             //bignum specifiers
             //on SciLisp initialization memory allocation
             //functions for gmp/mpfr are set to gc functions so we can use asprintf

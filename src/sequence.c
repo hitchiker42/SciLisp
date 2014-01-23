@@ -1,13 +1,14 @@
 #include "common.h"
 #include "sequence.h"
 sexp lisp_length(sexp obj){
-  if(obj.len > 0){
-    return (sexp){.tag=_long,.val={.int64 = obj.len}};
-  } else if (CONSP(obj)){
-    //    HERE();
+  if (CONSP(obj)){
     return cons_length(obj);
-  } else {
-    return error_sexp("object does not have a meaningful length field");
+  } else if (STRINGP(obj)) {
+    return int64_sexp(obj.val.str->len);
+  } else if (ARRAYP(obj)){
+    return int64_sexp(obj.val.array->len);
+  } else
+    raise_simple_error(Etype,"Invalid typed passed to length expected a sequence");
   }
 }
 make_sequence_function2(qsort);
