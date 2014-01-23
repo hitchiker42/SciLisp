@@ -83,7 +83,7 @@ static obarray* obarray_new_rehash(obarray *ob){
 }
 obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor){
 #ifdef MULTI_THREADED
-  obarray *ob retval=xmalloc(sizeof(struct obarray)+
+  obarray *ob=xmalloc(sizeof(struct obarray)+
                                         sizeof(pthread_rwlock_t));
   ob->lock=(pthread_rwlock_t *restrict)((uint8_t*)ob+
                                         offsetof(struct obarray,lock));
@@ -202,7 +202,7 @@ symbol* c_intern(const char* name,uint32_t len,obarray *ob){
   retval->name=new_symbol_name;
   retval->val=UNBOUND;
   retval->plist=NIL;
-  multithreaded_only(pthread_rwlock_wrlock(ob->lock;))
+  multithreaded_only(pthread_rwlock_wrlock(ob->lock));
   //set the new symbol to be the new head of the bucket and point to the current head
   retval->next=ob->buckets[bucket];
   //this needs to be done under a lock

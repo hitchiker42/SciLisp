@@ -34,6 +34,7 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 //avoid including lex.yy.h in the lexer itself, because it messes up
 //some macro defines / undefs
 #ifdef MULTI_THREADED
+#include <pthread.h>
 static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define thread_local __thread
 #define multithreaded_only(code) code
