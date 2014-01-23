@@ -17,16 +17,150 @@ sexp eval_top(sexp expr,env_ptr env){
       return expr;
   }
 }
+sexp lookup_var (symbol *sym,env_ptr env){
+  if(env->lex_env){
+    sexp lex_binding=lex_assq(env->lex_env,sym);
+    if(!NILP(lex_binding)){
+      return XCDR(lex_binding):
+    }
+  }
+  if(UNBOUND(sym->val)){
+      raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
+    } else {
+      return symref_sexp(sym);
+  }
+}
+//shortcut for evaluating arguments, assuming
+//enough arguments are symbols or literals to make
+//this worthwhile
+#define eval_arg(arg,env)                       \
+  ({sexp argval;                                \
+  if(!CONSP(arg) && !SYMBOLP(arg)){             \
+    argval=arg;                                 \
+  } if(SYMBOLP(arg)){                           \
+    argval=lookup_arg(arg,env);                 \
+  } else {                                      \
+    argval=eval(arg,env);                       \
+  }                                             \
+  argval;})
+//not sure where to ultimately put this but I want to write it now
+sexp funcall(sexp args,env_ptr env){
+  sexp sub_sexp=POP(args);
+  if(!CONSP(sub_sexp) && !(SYMBOLP(sub_sexp))){
+  raise_simple_error_fmt(Etype,"Not a function, %r",(print(sub_sexp).cord)):
+  }
+  switch(sub->subr_type){
+    case subr_compiled:{
+      int numargs,maxargs;
+      int minargs=sub->minargs;
+      if(sub->rest_arg){
+        maxargs=data_stack_size/sizeof(sexp);
+      } else {
+        maxargs=sub->maxargs;
+      }      
+      while(CONSP(args)){
+        sexp arg=POP(args);
+        if(!CONSP(arg) && !SYMBOLP(arg)){
+          push_data(arg);
+        } if(SYMBOLP(arg)){
+          push_data(lookup_var(arg,env));
+        } else {
+          push_data(eval(arg,env));
+        }
+        //only call eval if we have to(i.e. if arg is a cons cell
+
+        numargs++;
+        if(numargs>maxargs){
+          raise_simple_error_fmt(Eargs,"Excess args passed to %s",sym->name->name);
+        }
+      }
+      if(numargs<minargs){
+        raise_simple_error_fmt(Eargs,"Too few args passed to %s",sym->name->name);
+      }
+      return lisp_c_funcall(sub,namargs,env);
+    }
+    case subr_compiler_macro:
+      return subr->comp.funevaled(args);
+    case subr_special_form:
+      return subr->comp.fspecial(args,env);
+    case subr_lambda
+    case subr_closure:{
+      cons *lambda=sub->lambda_body;
+      sexp fun_env=NIL;
+      if(lambda->car.val.uint64 == (uint64_t)Qclosure){
+        fun_env=Fcons(XCAR(lambda->cdr),NIL);
+        lambda=lambda->cdr.val.cons->cdr.val.cons;
+      } else {
+        lambda=lambda->cdr.val.cons;
+      }
+      lambda_list arglist=*(sub->lambda_arglist);
+      int num_reqargs = req_args->car.val.int64;
+      symbol *req_arg_names= req_args->cdr.sym;
+      int num_optargs = opt_args->car.val.int64;
+      cons*opt_arg_names= opt_args->cdr.sym;//array of conses
+      int num_keyargs = key_args->car.val.int64;
+      cons *key_arg_names= key_args->cdr.sym;//array of conses
+      /*
+      cons *opt_arg_names= opt_args->cdr.sym;
+      if(num_optargs){
+        //push the defaulats, if any optional arguments
+        //get passed they get pushed on top of these
+        //and the defaults never get seen
+        PUSH(cons_sexp(opt_arg_names),fun_env);
+        }*/
+      int i;
+      for(i=0;i<num_reqargs;i++){
+        if(!CONSP(args)){
+          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname->cord);
+        } else {
+          PUSH(Fcons(req_arg_names[i],eval_arg(POP(args),env)));
+        }
+      }
+      for(i=0;i<num_optargs;i++){
+        if(!CONSP(args)){
+          while(i<num_optargs){
+            PUSH(cons_sexp(&opt_arg_names[i++]),fun_env);
+          }
+          break;
+        } else {
+          PUSH(Fcons(opt_arg_names[i].car,eval_arg(POP(args),fun_env)));
+        }
+      }
+      /*      for(i=0;i<num_keyargs;i++){
+        if(!CONSP(args)){
+          while(i<num_keyargs){
+            PUSH(key_arg_names[i++].cdr,fun_env);
+          }
+          break;
+        } else {
+          sexp key = POP(args);
+          if(!SYMBOL(key)){
+            raise_simple_error_fmt(Etype,"Invaild keyword %s, expected a symbol",
+                                   print(key).cord);
+          } else {
+          while*/            
+      CALL:{
+        subr_call fcall=(subr_call){.lex_env=env->lex_env,.lisp_subr=sub,
+                                    .bindings_index=env->bindings_index};
+        push_call(env,fcall);
+        env->lex_env=Fcons(fun_env,env->lex_env);
+        sexp retval=eval(sub->lambda,env);
+        env->lex_env=pop_call(env).lex_env;
+        return retval;
+      }        
+    }
+  }
+}
 
 #define eval_sub eval
-sexp lisp_c_funcall(sexp c_fun,env_ptr env){
-  int num_args=data_size(env);
+sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env){
+  /*  int num_args=data_size(env);
   if(num_args < c_fun->req_args){
     return format_error_sexp("too few args passed to %s",c_fun->lname->string);
   }
   if(num_args>c_fun->maxargs && !(c_fun->has_rest_arg)){
     return format_error_sexp("excess args passed to %s",c_fun->lname->string);
-  }
+    }*/
   if(c_fun->has_rest_arg){
     sexp *args=xmalloc(sizeof(sexp)*num_args);
     mempcy(args,env->data_stack,sizeof(sexp)*num_args);
@@ -36,7 +170,7 @@ sexp lisp_c_funcall(sexp c_fun,env_ptr env){
   memcpy(args,env->data_stack,sizeof(sexp)*num_args);
   //gc_malloc zeros storage, NIL is defined such that it is a sexp with
   //all fields zero, so we don't need to actually set any optional arguments
-  
+
   //this is just kinda annoying
   switch(c_fun->maxargs){
     case 0:

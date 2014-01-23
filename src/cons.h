@@ -65,6 +65,17 @@ sexp cons_take(sexp ls,sexp num);
 sexp cons_drop(sexp ls,sexp num);
 #define XCAR(cell) cell.val.cons->car
 #define XCDR(cell) cell.val.cons->cdr
+#define SET_CAR(cell,obj) (cell.val.cons->car=obj)
+#define SET_CDR(cell,obj) (cell.val.cons->cdr=obj)
+#define XCAR_SAFE(cell) (CONSP(cell)?XCAR(cell):NIL)
+#define XCDR_SAFE(cell) (CONSP(cell)?XCDR(cell):NIL)
+#define POP(list)                               \
+  ({sexp val=XCAR(list);                        \
+    list=XCDR(list);                            \
+    value;})
+#define PUSH(obj,list)                          \
+  ({XCDR(list)=list;                            \
+    XCAR(list)=obj;})
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
@@ -87,18 +98,10 @@ static inline sexp cdr(sexp cell){
   }
 }
 static sexp safe_car(sexp cell){
-  if(!CONSP(cell)){
-    return NIL;
-  } else {
-    return XCAR(cell);
-  }
+  return XCAR_SAFE(cell);
 }
 static sexp safe_cdr(sexp cell){
-  if(!CONSP(cell)){
-    return NIL;
-  } else {
-    return XCDR(cell);
-  }
+  return XCDR_SAFE(cell);
 }
 //get nth member of a list using typechecked car
 static inline sexp nth(sexp cell,int64_t n){
@@ -114,13 +117,6 @@ static inline sexp last(sexp cell){
   }
   return cell;
 }
-#define POP(list)                               \
-  ({sexp val=XCAR(list);                        \
-    list=XCDR(list);                            \
-    value;})
-#define PUSH(obj,list)                          \
-  ({XCDR(list)=list;                            \
-    XCAR(list)=obj;})
 static inline sexp pop_cons(sexp ls){
   if(!(CONSP(ls))){
     return error_sexp("pop! type error, expected cons cell or list");

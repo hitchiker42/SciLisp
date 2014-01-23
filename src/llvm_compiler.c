@@ -1,5 +1,14 @@
 #include "common.h"
 #include "llvm.h"
+llvm_value lex_lookup(lex_binding *lex_env,symbol *sym){
+  while(lex_env){
+    if((*lex_env).sym ==sym){
+      return (*lex_env).val;
+    }
+    lex_env++;
+  }
+  return NULL;
+}
 #define llvm_is_true(val,env)                   \
   llvm_build_int_cmp(env->builder,llvm_int_eq,          \
     llvm_build_extract_value(env->builder,val,0,""),    \
@@ -15,6 +24,14 @@ llvm_value llvm_build_atom(sexp expr,llvm_env_ptr env){
     case sexp_int64:
     case sexp_uint64:
       return llvm_const_int64(expr.val.uint64);
+    case sexp_symbol:{
+      if(lex_env){
+        llvm_value sym_val=lex_lookup(lex_env,expr.val.sym);
+        if(sym_val){
+          return sym_val;
+        }
+      }
+      
       
 //(if cond then &rest else)
 llvm_value llvm_build_if(sexp args,llvm_env_ptr env){

@@ -63,6 +63,8 @@
         "char" "string" "array" "stream" "fun" "symbol" "macro" 
         "type" "hashtable" "regex" "nil"
         "env" "obarray" "true" "false" "uninterned"))
+(define SciLisp-Ampersand-keywords
+  (list "rest" "body" "environment" "optional" "key"))
 (defun make-symbol-declarations()
   (with-temp-file "builtin_symbols.h"
     (insert "#ifndef _BUILTIN_SYMBOLS_H_\n#define _BUILTIN_SYMBOLS_H_\n")

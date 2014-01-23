@@ -36,3 +36,7 @@
 #define llvm_const_struct LLVMConstStruct
 #define llvm_const_array LLVMConstArray
 #define llvm_function_type LLVMFunctionType
+#define llvm_create_named_struct(context,name,types,num_types)          \
+  ({LLVMTypeRef struct_type=LLVMStructCreateNamed(context,name);        \
+    LLVMStructSetBody(struct_type,types,num_types,0);                   \
+    struct_type;})

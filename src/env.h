@@ -106,8 +106,8 @@ struct binding {
 //two megs seems a normal default, but that seems a bit much for now
 //so I'll use 2^15 bytes, whatever that is
 static uint32_t frame_stack_size=2<<15;//max size of an signed short
-static uint32_t data_stack_size=2<<15;
-static uint32_t bindings_stack_size=2<<15;
+static uint32_t data_stack_size=2<<14;
+static uint32_t bindings_stack_size=2<<14;
 static uint32_t call_stack_size=2<<15;
 void init_environment(void);
 void *init_environment_pthread(void*);
@@ -120,9 +120,9 @@ struct environment {
   //c thread local data
   stack_t *sigstack;//alternative stack for signals
   //stacks
-  binding *bindings_stack;//lexical bindings stack
+  binding *bindings_stack;//dynamic bindings stack
   binding *bindings_ptr;//stack pointer
-  binding *bindings_top;//top of lexical bindings stack
+  binding *bindings_top;//top of dynamic bindings stack
   //holds lables(frames,jump points, whatever) for functions/errors,etc
   frame *frame_stack;//stack of jump points (returns, catches, handlers)
   frame *frame_ptr;//stack pointer
@@ -149,9 +149,19 @@ struct environment {
 };
 struct subr_call {
   sexp lex_env;
+  //  sexp old_lex_env;
   sexp lisp_subr;
   uint32_t bindings_index;
 };
+static inline sexp lex_assq(sexp lex_env,symbol *var){
+  while(CONSP(lex_env)){
+    if(XCAAR(lex_env).val.uint64 == (uint64_t)var){
+      return XCAR(lex_env);
+    }
+    lex_env=XCDR(lex_env);
+  }
+  return NIL;
+}
 /* for now dealt with by the call stack
 //should it be an error if num_bindings > env->lex_bindings?
 static void unwind_lex_env(environment *env,uint32_t num_bindings){

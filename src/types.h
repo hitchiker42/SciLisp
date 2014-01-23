@@ -120,6 +120,7 @@ typedef wchar_t char32_t;
 #define TYPEP(obj) (obj.tag == sexp_type)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define UINT64P(obj) (obj.tag == sexp_ulong)
+#define UNBOUND(obj) (obj.tag == sexp_unbound)
 //errors, defined somewhere else
 /*extern symbol *Etype;
 extern symbol *Ekey;
@@ -372,12 +373,12 @@ typedef enum {
   rec_tail,
 } recursion_type;
 enum subr_type {
-    fun_lambda,
-    fun_closure,
-    fun_compiled,
-    fun_compiler_macro,
-    fun_special_form,
-    fun_macro,
+    subr_lambda,
+    subr_closure,
+    subr_compiled,
+    subr_compiler_macro,
+    subr_special_form,
+    subr_macro,
 };
 /*structure of strings in lisp,
   strings immutable, we use cords for actions that would normally use mutable strings
@@ -401,21 +402,32 @@ struct lisp_string {
   uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
   uint8_t multibyte;
 };
+struct lambda_list {
+  cons *req_args;//( num_req_args . [reqargs ... ])
+  cons *opt_args;//( num_opt_args . [(argname . default)...)]
+  symbol *rest_arg;
+  cons *key_args;//(num_key_args .  [[key . (var . default)]...])
+};
 //lisp subroutine, either a builtin function, a special form, a compilier macro
 //or a lisp function(a lambda) or a lisp macro
 struct subr {
   union {
-    cons *lambda;
-    funcall comp;
+    struct {
+      funcall comp;
+      uint16_t req_args;//42
+      uint16_t opt_args;//num_req_args-num_req_args+num_opt_args 44
+      uint16_t keyword_args;//num_opt_args-num_opt_args+num_keyword_args 46
+      uint16_t rest_arg;//0 or 1(only one restarg allowed) 48
+    };
+    struct {
+      lambda_list *lambda_arglist;
+      cons *lambda_body;
+    };    
   };//8
   lisp_string lname;//lambdas should be #<lambda{number via global counter}> 16
   lisp_string signature;//function signature 32
   lisp_string cname;//name in c, and llvm I suppose 40
-  uint16_t req_args;//42
-  uint16_t opt_args;//num_req_args-num_req_args+num_opt_args 44
-  uint16_t keyword_args;//num_opt_args-num_opt_args+num_keyword_args 46
-  uint16_t rest_arg;//0 or 1(only one restarg allowed) 48
-  uint32_t maxargs;//extra 32 bits, so we can save a bit of 52
+  uint32_t maxargs;//52
   uint8_t subr_type;//53
   unsigned int rec_fun :2;//0 not-recursive,1 recursive, 2 tail recursive
   unsigned int pure_fun :1;//no change to it's arguments, should be most functions
