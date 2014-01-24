@@ -32,6 +32,23 @@ symbol *make_new_symbol(char *restrict name,uint32_t len){
   retval->plist=NIL;
   return retval;
 }
+sexp make_symbol_lisp(sexp sym_name){
+  if(!STRINGP(sym_name)){
+    raise_simple_error(Etype,"Invalid argument to make-symbol expected a string");
+  }
+  return symref_sexp
+    (make_new_symbol
+     (CORD_to_const_char_star(sym_name.val.string->cord),
+      sym_name.val.string->len));
+}
+sexp gensym(){
+  //return #:G<num>
+  char *restrict name=xmalloc(16*sizeof(char));
+  //probably better to include libatomic_ops
+  //and do AO_fetch_and_add1full(&gensym_counter)
+  snprintf(name,16,"#:G%d",gensym_counter++);
+  return make_new_symbol(name,strlen(name));
+}
 symbol *copy_symbol(symbol *sym,int copy_props){
   symbol *retval=xmalloc(sizeof(symbol));
   retval->name=sym->name;
@@ -212,12 +229,12 @@ symbol* c_intern(const char* name,uint32_t len,obarray *ob){
   return (struct symbol *)retval;
 }
 //add unintern later
-sexp lisp_intern(sexp sym_or_name,sexp ob){
+sexp lisp_intern(sexp sym_name,sexp ob){
   const char *name;
   if(STRINGP(sym_or_name)){
-    name=CORD_to_const_char_star(sym_or_name.val.string->cord);
-  } else if (SYMBOLP(sym_or_name)){
-    name=sym_or_name.val.sym->name->name;
+    name=CORD_to_const_char_star(sym_name.val.string->cord);
+    /*  } else if (SYMBOLP(sym_or_name)){
+        name=sym_or_name.val.sym->name->name;*/
   } else {
     return format_type_error("intern","string or symbol",sym_or_name.tag);
   }
@@ -227,8 +244,9 @@ sexp lisp_intern(sexp sym_or_name,sexp ob){
   if(!OBARRAYP(ob)){
     return format_type_error("intern","obarray",ob.tag);
   }
-  return symref_sexp(c_intern(name,strlen(name),ob.val.ob));
+  return symref_sexp(c_intern(name,sym_name.val.string->len,ob.val.ob));
 }
+
 //I suppose this fits here
 /*
 sexp lisp_gensym(){

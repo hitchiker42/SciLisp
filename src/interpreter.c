@@ -11,8 +11,34 @@ sexp eval_top(sexp expr,env_ptr env){
           return XCDR(lex_binding);
         }
       }
-      return expr.val.sym->val;
+      if(UNBOUND(expr.val.sym->val)){
+        raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
+      } else {
+        return expr.val.sym->val;
+      }
     case cons_sym:
+      if(!SYMBOLP(XCAR(expr))){
+        raise_simple_error_fmt(Etype,"Invalid function %r",print(XCAR(expr)).str);
+      }
+      sexp subr_var;
+      if(!NILP(env->lex_env)){//if there is a lexical environment search it first
+        sexp lex_binding=c_assq(env->lex_env,XCAR(expr).val.sym);
+        if(!NILP(lex_binding)){
+          subr_var=XCDR(lex_binding);
+        }
+      }
+      subr_var=XCAR(expr).val.sym->val
+      if(UNBOUND(subr_var)){
+        raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
+      }
+      if(!SUBRP(subr_var)){
+        raise_simple_error_fmt(Etype,"Invalid function %r",print(XCAR(expr)).str);
+      }
+      return funcall(subr_var.val.subr,XCDDR(expr),env);
+      //it might be a good idea to dispatch on special forms via switching
+      //on the symbol before looking it up and calling funcall
+      //being as it would only add 1 extra comparison and a jump
+      //and special forms happen often enough that it'd probably be worth it
     default:
       return expr;
   }
@@ -26,8 +52,8 @@ sexp lookup_var (symbol *sym,env_ptr env){
   }
   if(UNBOUND(sym->val)){
       raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
-    } else {
-      return symref_sexp(sym);
+  } else {
+    return symref_sexp(sym);
   }
 }
 //shortcut for evaluating arguments, assuming
@@ -43,12 +69,9 @@ sexp lookup_var (symbol *sym,env_ptr env){
     argval=eval(arg,env);                       \
   }                                             \
   argval;})
+ 
 //not sure where to ultimately put this but I want to write it now
-sexp funcall(sexp args,env_ptr env){
-  sexp sub_sexp=POP(args);
-  if(!CONSP(sub_sexp) && !(SYMBOLP(sub_sexp))){
-  raise_simple_error_fmt(Etype,"Not a function, %r",(print(sub_sexp).cord)):
-  }
+sexp funcall(subr sub,sexp args,env_ptr env){
   switch(sub->subr_type){
     case subr_compiled:{
       int numargs,maxargs;

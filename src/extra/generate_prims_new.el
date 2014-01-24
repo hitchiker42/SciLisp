@@ -13,6 +13,20 @@
 (defvar SciLisp-special-forms)
 (defalias 'define 'setq);because emacs indents things begining with def
                         ;in a way that makes more sense
+;;man, this is excessive, but it should get the job done
+;;because it has happened more that a few times that 
+;;I didn't actually have the hash function program
+(unless (file-executable-p (expand-file-name "../get_hash"))
+  (if (file-exists-p (expand-file-name "../get_hash"))
+      (error "Error, file get_hash exists and is not executable")
+    (call-process (or (getenv "CC")
+                      (locate-file "gcc" exec-path)
+                      (locate-file "cc" exec-path)
+                      (error (concat "Error, no C compiler found in"
+                                     "default search directories and"
+                                     "CC not defined in the environment")))
+                  nil t nil (concat "-o" current-dir-name "../get_hash")
+                  "../get_hash.c" "-O2")))
 (defun indent-buffer ()
   "Indent entire buffer using indent-region"
   (interactive)
@@ -25,7 +39,7 @@
 ;;value = name of function in c (i.e Fcons,car)(no real pattern to this)
 ;;minargs,optargs,keyargs,restarg = number of arguments the function takes
 ;;sig = function arglist (i.e for cons sig = "(obj1 obj2)" or for list "(&rest objects)"
-;;const = is this an immutable form (generally no,but it should at least warn
+p;;const = is this an immutable form (generally no,but it should at least warn
 ;;but for special forms yes)
 (cl-defun mk-prim-subr
     (lname cname value minargs &key (optargs 0) (keyargs 0)
@@ -55,16 +69,17 @@
         "undefined" "unbound" "math" "eof" "io" "overflow" "range"))
 
 (define SciLisp-keywords
-  (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words  
+  (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words
   (mapcar (lambda (x) (concat "E" x))()));builtin error types
-(define SciLisp-Types
-  (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32" 
-        "uint64" "error" "real32" "real64" "bigint" "bigfloat" 
-        "char" "string" "array" "stream" "fun" "symbol" "macro" 
+(define SciLisp-types
+  (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32"
+        "uint64" "error" "real32" "real64" "bigint" "bigfloat"
+        "char" "string" "array" "stream" "fun" "symbol" "macro"
         "type" "hashtable" "regex" "nil"
         "env" "obarray" "true" "false" "uninterned"))
-(define SciLisp-Ampersand-keywords
+(define SciLisp-ampersand-keywords
   (list "rest" "body" "environment" "optional" "key"))
+(define SciLisp-keywords '())
 (defun make-symbol-declarations()
   (with-temp-file "builtin_symbols.h"
     (insert "#ifndef _BUILTIN_SYMBOLS_H_\n#define _BUILTIN_SYMBOLS_H_\n")
@@ -79,33 +94,33 @@
   (shell-command-to-string (format "%s '%s'"
                                    (expand-file-name "../get_hash")
                                    str)))
-(defun make-SciLisp-types (buf)
-  (with-current-buffer buf
-    (dolist (type SciLisp-Types)
-      (insert (format "MAKE_TYPE(%s,%s,%d,%s,NIL,sexp_%s);\n"
-                      (concat "T" type) type (length type)
-                      (get-hash type) type)))))
 (defun assq-val (key list)
   (return (cdr-safe (assq key list))))
+(defmacro make-SciLisp-something (thing format-str &rest args)
+  `(defun ,(intern (concat "make-SciLisp-" (symbol-name thing) "s")) (buf)
+     (with-current-buffer buf
+       (dolist (,thing ,(intern (concat "SciLisp-" (symbol-name thing) "s")))
+         (insert (format  ,format-str ,@args))))))
+(make-SciLisp-something type 
+                        "MAKE_TYPE(%s,%s,%d,%s,NIL,sexp_%s);\n"
+                        (concat "T" type) type (length type)
+                        (get-hash type) type)
+(make-SciLisp-something error 
+                        "MAKE_SELF_QUOTING_SYMBOL(%s,%s,%d,%s,NIL)"
+                        ;;if needed (replace-regexp-in-string "-" "_" err)
+                        (concat "E" err) err (length err) (get-hash err))
+
 ;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
-(defun make-SciLisp-subrs (buf subrs)
-  (with-current-buffer buf
-    (let ((name ""))
-      (dolist (subr subrs)
-        (setq name (assq-val :lname subr))
-        (insert (format "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
-                        (assq-val :fname subr) lname (length lname)
-                        (get-hash lname) (assq-val :cname subr)
-                        (assq-val :const subr)))))))
-(defun make-SciLisp-globals (buf globals)
-  (with-current-buffer buf
-    (let ((name ""))
-      (dolist (global globals)
-        (setq name (assq-val :lname global))
-        (insert (format "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n")
-                (assq-val :cname global) lname (length lname)
-                (get-hash lname) (assq-val :value global)
-                (assq :const global))))))
+(make-SciLisp-something subr "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
+                        (assq-val :fname subr) (assq-val :lname subr)
+                        (length (assq-val :lname subr))
+                        (get-hash (assq-val :lname subr)) (assq-val :cname subr)
+                        (assq-val :const subr))
+(make-SciLisp-something global "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
+                        (assq-val :cname global) (assq-val :lname global )
+                        (length (assq-val :lname global))
+                        (get-hash (assq-val :lname global)) (assq-val :value global)
+                        (assq :const global))
 (define SciLisp-predicates
   (append
    (mapcar (lambda (x) (list (concat x "?")
@@ -115,7 +130,7 @@
                              "(object)"))
            '("array" "cons" "number" "integer" "function"
              "string" "stream" "sequence" "real")))
-  (list 
+  (list
    ("eq" "lisp_eq" 2 :sig "(obj1 obj2)")
    ("eql" "lisp_eql" 2 :sig "(obj1 obj2)")
    ("equal" "lisp_equal" 2 :sig "(obj1 obj2)")
@@ -147,7 +162,7 @@
    ("tan" "lisp_tan" 1 :sig "(number)")))
 (define SciLisp-cons-funs
   (list
-    ("assoc" "lisp_assoc" 2 :sig ("key list"))    
+    ("assoc" "lisp_assoc" 2 :sig ("key list"))
     ("assq" "lisp_assq" 2 :sig ("key list"))
     ("cons" "Cons" 2 :sig "(car cdr)")
     ("copy-tree" "copy_tree" 1 :sig "(cell)")
@@ -164,13 +179,13 @@
     ("split" "cons_split" 1 :optargs 1)
     ("take" "cons_take" 2 :sig "(list n)")))
 (define SciLisp-array-funs
-  (list 
+  (list
    ("aref" "aref" 2 :sig "(array index)")
     ("array-map!" "array_nmap" 2 :sig "(array map-fn)")
     ("array-map" "array_map" 2 :sig "(array map-fn)")
-    ("array-qsort" "array_qsort" 2 :optargs 1 
+    ("array-qsort" "array_qsort" 2 :optargs 1
      :sig "(array predicate &optional in-place)")
-    ("array-reduce" "array_reduce" 2 :optargs 1 
+    ("array-reduce" "array_reduce" 2 :optargs 1
      :sig "(array function &optional init)")
     ("array-reverse!" "array_nreverse" 1 :sig "(array)")
     ("array-reverse" "array_reverse" 1 :sig "(array)")))
@@ -206,18 +221,18 @@
    )
 (define SciLisp-hash-funs)
 (define SciLisp-subrs
-  '(("addhash" "hashtable_add_entry" 3 :optargs 1 
+  '(("addhash" "hashtable_add_entry" 3 :optargs 1
      :sig "(hash-table key value &optional option)")
     ("apply" "lisp_apply" 2 :optargs 1 :sig "(fun arglist &optional env)")
     ("array->list" "array_to_list" 1 :sig "(array)")
     ("ash" "ash" 2 :sig "(value count)")
     ("assert" "lisp_assert" 1 :sig "(expr)")
-    ("bigfloat" "lisp_bigfloat" 1 :optargs 2 
+    ("bigfloat" "lisp_bigfloat" 1 :optargs 2
      :sig "(number-or-string &optional prec rnd)")
     ("bigint" "lisp_bigint" 1 :sig "(number)")
 ;    ("c-ptr-val" "lisp_dereference_c_ptr" 1 :sig "(pointer)")
     ("concat" "lisp_concat" 0 :restarg 1 :sig "(&rest seqs)")
-    ("ccall" "ffi_ccall" 5 :optargs 1 
+    ("ccall" "ffi_ccall" 5 :optargs 1
      :sig "(function-name libname return-type argtypes args &optional thread)")
 
     ("copy" "Fcopy" "lisp_copy" 1 :sig "(obj)");maybe call this duplicate
@@ -237,12 +252,12 @@
     ("gethash" "hashtable_get_entry" 2 :sig "(hash-table key)")
     ;("gt" "lisp_cmp_gt" 2 :sig "(num1 num2)")
     ("hash-table-entries" "hashtable_num_entries" 1 :sig "(hash-table)")
-    ("hash-table-growth-factor" "hashtable_growth_threshold" 1 
+    ("hash-table-growth-factor" "hashtable_growth_threshold" 1
      :sig "(hash-table)")
-    ("hash-table-growth-size" "hashtable_growth_factor" 1 
+    ("hash-table-growth-size" "hashtable_growth_factor" 1
      :sig "(hash-table)"p)
     ("hash-table-size" "hashtable_size" 1)
-    ("iota" "lisp_iota" 1 :optargs 4 
+    ("iota" "lisp_iota" 1 :optargs 4
      :sig "(start &optional stop step seq-type round)")
     ("identity" "lisp_identity" 1 :sig "(form)")
     ("length" "lisp_length" 1 :sig "(sequence)")
