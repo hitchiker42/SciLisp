@@ -46,3 +46,35 @@ sexp expand_in_backquote(sexp expr,env_ptr env){
   }
   return retval;
 }
+sexp internal_macroexpand_1(subr *sub,sexp expr,env_ptr env){//assume typechecking is done for sub
+      cons *body=sub->lambda_body;
+      sexp fun_env=NIL;
+      lambda_list arglist=*(sub->lambda_arglist);
+      
+      /*
+      cons *opt_arg_names= opt_args->cdr.sym;
+      if(num_optargs){
+        //push the defaulats, if any optional arguments
+        //get passed they get pushed on top of these
+        //and the defaults never get seen
+        PUSH(cons_sexp(opt_arg_names),fun_env);
+        }*/
+      int i;
+      for(i=0;i<num_reqargs;i++){
+        if(!CONSP(args)){
+          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname->cord);
+        } else {
+          PUSH(Fcons(req_arg_names[i],eval_arg(POP(args),env)));
+        }
+      }
+      for(i=0;i<num_optargs;i++){
+        if(!CONSP(args)){
+          while(i<num_optargs){
+            PUSH(cons_sexp(&opt_arg_names[i++]),fun_env);
+          }
+          break;
+        } else {
+          PUSH(Fcons(opt_arg_names[i].car,eval_arg(POP(args),fun_env)));
+        }
+      }
+  

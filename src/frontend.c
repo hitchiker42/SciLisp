@@ -1,18 +1,27 @@
-/*****************************************************************
- * Copyright (C) 2013-2014 Tucker DiNapoli                       *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
-#include "common.h"
-#include "gc/gc.h"
+/* Actual SciLisp program (launches repl, or compiles a file)
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
+#include "frontend.h"
 #include "prim.h"
 #include "print.h"
 #include "codegen.h"
 #incldue "frame.h"
-#include <sys/mman.h>
-#ifdef HAVE_READLINE
-#include <readline/readline.h>
-#include <readline/history.h>
-#endif
+
 #define DEFAULT_LISP_HIST_SIZE 100
 #if defined(MULTI_THREADED)
 static void* initPrims_pthread(void*);
@@ -26,13 +35,6 @@ int quiet_signals=1;
 #else
 int quiet_signals=0;
 #endif
-jmp_buf main_loop,error_buf;
-static c_string banner=
-  "SciLisp  Copyright (C) 2013-2014 Tucker DiNapoli\n"
-  "SciLisp is free software licensed under the GNU GPL V3+";
-static c_string SciLisp_Banner;
-static int no_banner=0;
-static int no_copyright=0;
 static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
 static sexp (*evalFun)(sexp,env*)=NULL;
 static FILE *logfile;
@@ -64,36 +66,11 @@ static void truncate_and_rewind(FILE* stream,c_string name){
   truncate(name,0);
   rewind(stream);
 }
-static void SciLisp_help(int exitCode) __attribute__((noreturn));
-static void SciLisp_version(int exitCode) __attribute__((noreturn));
 const struct sigaction action_object={.sa_handler=&handle_sigsegv};
 const struct sigaction* restrict sigsegv_action=&action_object;
 #define reset_line()       free (line_read);    \
   line_read = (char *)NULL
 //extern FILE* yyin;
-/*Scan a line, subtract 1 from parens for each ")"
- *add 1 to parens for each "(", return -1 if we find a close parenteses
- *without an opening one.
- *parens is an int containing the number of currently open parentheses
- *it could probably be a pointer, but I like to keep functions pure
- *(HA, I wrote that a while ago, but then I added the pure attribute)
- */
-int parens_matched(const char* line,int parens)__attribute__((pure));
-int parens_matched(const char* line,int parens){
-  int i=0;
-  char cur_char;
-  while((cur_char=line[i]) != '\0'){
-    i++;
-    if(cur_char==';'){return parens;}
-    else if(cur_char=='('){parens++;}
-    else if(cur_char==')'){
-      if(parens>0){parens--;}
-      else{return -1;}
-    }
-    else{continue;}
-  }
-  return parens;
-}
 /*read input from file input, parse it into an abstract syntax tree,
  *write c code to c_code file(generate a tmp file if c_code == NULL)
  *and compile the c file with gcc to output file output*/
@@ -101,144 +78,41 @@ int compile(FILE* input,const char *output,FILE* c_code) __attribute__((noreturn
 int compile(FILE* input,const char *output,FILE* c_code){
   HERE();
   CORD generated_code;
-  if(setjmp(error_buf)){
-    PRINT_MSG("jumped to error");
-    fputs("compilation error\n",stderr);
-    exit(-1);
-  } else {
-    //    sexp ast=yyparse(input);
-    yyscan_t scanner;
-    yylex_init(&scanner);
-    sexp ast=yyparse(input,scanner);
-    if(NILP(ast)){
-      CORD_printf("parsing failed exiting compiler\n");
-      exit(1);
-    }
-    CORD_printf("%r\n",print(XCAR(ast)));
+  //    sexp ast=yyparse(input);
+  yyscan_t scanner;
+  yylex_init(&scanner);
+  sexp *yylval=xmalloc(sizeof(sexp));
+  sexp ast=c_read_safe(&scanner,yylval);
+  if(NILP(ast)){
+    CORD_printf("Reading failed exiting compiler\n");
+    exit(1);
+  }
+  CORD_printf("%r\n",print(XCAR(ast)));
 
-    if(setjmp(error_buf)){
-      generated_code=codegen(ast,0);
-    } else {
-      fprintf(stderr,"compile error, current code:\n");
-      CORD_fprintf(stderr,error_str);
-      exit(5);
-    }
-    char tmpFilename[]={'/','t','m','p','/','t','m','p',
-                        'X','X','X','X','X','X','.','c','\0'};
-    int fd=mkstemps(tmpFilename,2);
-    FILE* tmpFile=fdopen(fd,"w");
-    CORD_put(generated_code,tmpFile);
-    char* cc_command;
-    CORD cc_command_CORD;
-    //need to fix this eventually
-    CORD_sprintf(&cc_command_CORD,
-                 "gcc -o %s -O2 -g %s -lSciLisp -Wl,-rpath=$PWD",
-                 output,tmpFilename);
-    cc_command=CORD_to_char_star(cc_command_CORD);
-    int retval=system(cc_command);
-    exit(retval);
+  if(setjmp(error_buf)){
+    generated_code=codegen(ast,0);
+  } else {
+    fprintf(stderr,"compile error, current code:\n");
+    CORD_fprintf(stderr,error_str);
+    exit(5);
   }
+  char tmpFilename[]={'/','t','m','p','/','t','m','p',
+                      'X','X','X','X','X','X','.','c','\0'};
+  int fd=mkstemps(tmpFilename,2);
+  FILE* tmpFile=fdopen(fd,"w");
+  CORD_put(generated_code,tmpFile);
+  char* cc_command;
+  CORD cc_command_CORD;
+  //need to fix this eventually
+  CORD_sprintf(&cc_command_CORD,
+               "gcc -o %s -O2 -g %s -lSciLisp -Wl,-rpath=$PWD",
+               output,tmpFilename);
+  cc_command=CORD_to_char_star(cc_command_CORD);
+  int retval=system(cc_command);
+  exit(retval);
 }
-/* Read interactive input using readline.
- * outfile is a temporary file essentally used as a pipe. read scans a line
- * and if that line has an open paren without a matching close paren read
- * will continue to scan lines unitl all parentese are matched, or it finds
- * a syntax error(really just an extra close paren).
- * input is written to outfile as a place to hold the current input. It is
- * assumed that code will be read from outfile and evaluated. Read returns
- * the position in outfile where it started scanning*/
-int lispReadLine(FILE* outfile,char* filename){
-  FILE* my_pipe=outfile;
-  char* tmpFile=filename;
-  int parens,start_pos=ftello(my_pipe);
- MAIN_LOOP:while(1){
-    parens=0;
-    //makesure readline buffer is NULL
-    if (line_read){
-      free (line_read);
-      line_read = (char *)NULL;
-    }
-    line_read = readline("SciLisp>");
-    if (line_read){
-      if (*line_read){
-        add_history (line_read);
-      } else {goto MAIN_LOOP;}
-    } else {puts("\n");exit(0);}
-    parens=parens_matched(line_read,0);
-    fputs(line_read,my_pipe);
-    fputc(' ',my_pipe);
-    while(parens){
-      if(parens<0){
-        fprintf(stderr,"Extra close parentheses\n");
-        truncate(tmpFile,0);
-        goto MAIN_LOOP;
-      }
-      line_read=readline(">");
-      if(line_read == NULL){
-        puts("");
-        evalError=1;
-        goto MAIN_LOOP;
-      }
-      if (line_read && *line_read){
-        add_history (line_read);
-      }
-      //puts(line_read);
-      parens=parens_matched(line_read,parens);
-      fputs(line_read,my_pipe);
-      fputc(' ',my_pipe);
-    }
-    fflush(my_pipe);
-    break;
-  }
-  return start_pos;
-}
-//input w/o readline
-int lispGetLine(FILE* outfile,char* filename){
-  FILE* my_pipe=outfile;
-  char* tmpFile=filename;
-  int parens,start_pos=ftello(my_pipe);
-  size_t len;
- MAIN_LOOP:while(1){
-    parens=0;
-    //makesure readline buffer is NULL
-    if (line_read){
-      free (line_read);
-      line_read = (char *)NULL;
-    }
-    fputs("SciLisp>",stdout);
-    len = getline(&line_read,NULL,stdin);
-    if (line_read){
-      goto MAIN_LOOP;
-    } else {puts("\n");exit(0);}
-    parens=parens_matched(line_read,0);
-    if(line_read[len-1] == '\n'){
-      line_read[len-1] = ' ';
-    }
-    fputs(line_read,my_pipe);
-    while(parens){
-      if(parens<0){
-        fprintf(stderr,"Extra close parentheses\n");
-        truncate(tmpFile,0);
-        goto MAIN_LOOP;
-      }
-      fputs(">",stdout);
-      len=getline(&line_read,NULL,stdin);
-      if(line_read == NULL){
-        puts("");
-        evalError=1;
-        goto MAIN_LOOP;
-      }
-      parens=parens_matched(line_read,parens);
-      if(line_read[len-1] == '\n'){
-        line_read[len-1] = ' ';
-      }
-      fputs(line_read,my_pipe);
-    }
-    fflush(my_pipe);
-    break;
-  }
-  return start_pos;
-}
+//kinda an abuse of include, but it makes this more maintainable
+#include "repl.c"
 struct thread_args {
   int argc;
   char **argv;
@@ -311,6 +185,9 @@ int main(int argc,char* argv[]){
   if(!evalFun){
     evalFun=eval;
   }
+  read_eval_print_loop();
+}
+/*
   sexp ast;
   //toplevel handler which catches any invalid nonlocal exit
   //also used to return to after any fatal lisp error (i.e
@@ -352,51 +229,7 @@ int main(int argc,char* argv[]){
     }
   }
 }
-static CORD Make_SciLisp_verson_string(c_string Version_no){
-  CORD version_string;
-  CORD_sprintf(&version_string,"SciLisp %s",PACKAGE_VERSION);
-  return version_string;
-}
-static CORD Make_SciLisp_Copyright_string(){
-  CORD retval;
-  CORD_sprintf(&retval,"Copyright %lc 2013 Tucker DiNapoli\n"
-               "License GPLv3+: GNU GPL version 3 or "
-               "later <http://gnu.org/licenses/gpl.html>.",0x00A9);
-  return retval;
-}
-static CORD Make_SciLisp_help_string(){
-  CORD copyright_string=Make_SciLisp_Copyright_string();
-  CORD version_string=Make_SciLisp_verson_string(PACKAGE_VERSION);
-  CORD help_string=CORD_catn(4,version_string," ",copyright_string,"\n");
-  help_string=CORD_cat
-    (help_string,
-     "SciLisp [-hqv] [-e|--eval] [-f|--file] [-l|--load] [-o|--output] [file]\n"
-     "Options:\n"
-     "eval|e [file|string], evaluate code in file or double quote delimited string\n"
-     "help|h, print this help and exit\n"
-     "load|l [file], eval code from file and start interpreter\n"
-     "output|o [file], output compiled code to file, requires a file to compile\n"
-     "test|t, run tests contatined in test.lisp and print results\n"
-     "version|v, print version number and exit\n");
-     // "quiet|q, insure debug messages are not printed (redirect to /dev/null)\n");
-  return help_string;
-}
-static void SciLisp_help(int exitCode){
-  CORD_printf(Make_SciLisp_help_string());
-  exit(exitCode);
-}
-static void SciLisp_version(int exitCode){
-  puts(Make_SciLisp_verson_string(PACKAGE_VERSION));
-  exit(exitCode);
-}
-/*just to note I didn't write this I got it from
-  http://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=SciLisp*/
-static c_string SciLisp_Banner=
-"    ____      _  __    _          \n"
-"   / __/____ (_)/ /   (_)___  ___ \n"
-"  _\\ \\ / __// // /__ / /(_-< / _ \\\n"
-" /___/ \\__//_//____//_//___// .__/\n"
-"                           /_/     ";
+*/
 #ifdef MULTI_THREADED
 static void* initPrims_pthread(void* x __attribute__((unused))){
   //  PRINT_FMT("thread number %lu, initPrims thread",pthread_self());
@@ -446,7 +279,7 @@ static inline int discard_script_header(FILE* file){
   fread(&test,sizeof(uint16_t),1,file);
   if(test==shebang){
     char newline_test;
-    //skip rest of line (kinda naive way of doing this)
+    //skip rest of line (I don't know a better way to do this while discarding the line)
     while ((newline_test=getc(file)) && newline_test !='\n');
     return 1;
   } else {

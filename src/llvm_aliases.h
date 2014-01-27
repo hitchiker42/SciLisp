@@ -1,3 +1,4 @@
+//define aliases for llvm values/functions that don't use camelCase
 /* (defun llvm-fix-case (str) 
    (let ((case-fold-search nil))
    (downcase (replace-regexp-in-string "\\([A-Z][a-z]+\\)" "_\\&" str t))))
@@ -40,3 +41,10 @@
   ({LLVMTypeRef struct_type=LLVMStructCreateNamed(context,name);        \
     LLVMStructSetBody(struct_type,types,num_types,0);                   \
     struct_type;})
+#define llvm_dispose_builder LLVMDisposeBuilder
+#define llvm_dispose_module LLVMDisposeModule
+#define llvm_dispose_context LLVMDisposeContext
+#define llvm_start_multithreaded LLVMStartMultithreaded
+/* (defun llvm-build-alias(instr)
+   (llvm-insert-define (concat "LLVMBuild" instr)))
+   (dolist (instr '("ExtractElement" "InsertElement" "ExtractValue" "InsertValue"*/

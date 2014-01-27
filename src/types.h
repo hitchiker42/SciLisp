@@ -150,7 +150,7 @@ extern symbol *E*/
   ({CORD type_error_str;                                                \
     CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
                  fun,expected,tag_name(got));                           \
-    error_sexp(type_error_str);})
+    type_error_str;})
 //  raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
 #define format_type_error_named(fun,name,expected,got)                  \
   ({CORD type_error_str;                                                \
@@ -159,38 +159,45 @@ extern symbol *E*/
                  fun,expected,name,tag_name(got)),                      \
       raise_simple_error(Etype,make_string(type_error_str));})
 #define format_type_error2(fun,expected1,got1,expected2,got2)           \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
                ", but got %r and %r",fun,expected1,expected2,           \
                tag_name(got1),tag_name(got2)),                          \
-    error_sexp(type_error_str)
+    type_error_str;})
 #define format_type_error3(fun,expected1,got1,expected2,got2,expected3,got3) \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r and %r" \
                ", but got %r,%r and %r",fun,expected1,expected2,expected3, \
                tag_name(got1),tag_name(got2),tag_name(got3)),           \
-    error_sexp(type_error_str)
+    type_error_str;})
 #define format_type_error_opt(fun,expected,got)                         \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
                ", but got %r",fun,expected,tag_name(got)),              \
-    error_sexp(type_error_str)
+    type_error_str;})
 #define format_type_error_opt_named(fun,name,expected,got)              \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r,expected %r or nothing for argument %r" \
                ", but got %r",fun,expected,name,tag_name(got)),         \
-    error_sexp(type_error_str)
+    type_error_str;})
 #define format_type_error_key(fun,named,expected,got)   \
   format_type_error_opt_named(fun,named,expected,got)
 #define format_type_error_opt2(fun,expected1,expected2,got)             \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
-    error_sexp(type_error_str)
+    type_error_str;}}
 #define format_type_error_opt2_named(fun,name,expected1,expected2,got)  \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r or nothing" \
                "for %r, but got %r",fun,expected1,expected2,name,tag_name(got)), \
-    error_sexp(type_error_str)
+    type_error_str;})
 #define format_type_error_rest(fun,expected,failed_arg)                 \
+  ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r for the rest argument," \
                "but received an %r (value was %r)",                     \
                fun,expected,tag_name(failed_arg.tag),print(failed_arg)), \
-    error_sexp(type_error_str)
+    type_error_str;})
 #define const_real64_sexp(real64_val) {.tag=sexp_real64,.val={.real64=real64_val}}
 #define const_real32_sexp(real32_val) {.tag=sexp_real32,.val={.real32=real32_val}}
 #define const_int64_sexp(int64_val) {.tag=sexp_int64,.val={.int64=int64_val}}
@@ -405,8 +412,8 @@ struct lisp_string {
 struct lambda_list {
   cons *req_args;//( num_req_args . [reqargs ... ])
   cons *opt_args;//( num_opt_args . [(argname . default)...)]
-  symbol *rest_arg;
   cons *key_args;//(num_key_args .  [[key . (var . default)]...])
+  symbol *rest_arg;
 };
 //lisp subroutine, either a builtin function, a special form, a compilier macro
 //or a lisp function(a lambda) or a lisp macro

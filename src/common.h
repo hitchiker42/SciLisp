@@ -77,6 +77,13 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   ({ __typeof__ (a) _a = (a);                   \
     __typeof__ (b) _b = (b);                    \
     _a > _b ? _a : _b;})
+#define SWAP(a,b)                               \
+  ({ __typeof__ (a) _a = a;                     \
+    a=b;                                        \
+    b=_a;                                       \
+    ;})
+#define ARR_SWAP(arr,i,j)                       \
+  SWAP(arr[i],arr[j])
 #define CORD_asprintf(format,args...)           \
   ({CORD retval;                                \
   CORD_sprintf(&retval,format,##args);          \

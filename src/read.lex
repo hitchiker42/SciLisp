@@ -226,6 +226,7 @@ void yyfree(void *ptr,void *yyscanner){
   return xfree(ptr);
 }
 sexp read_full(FILE *stream);
+sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
 sexp lisp_read(sexp lisp_stream){
   //really need to write a cord stream/test the one I already wrote
   FILE *stream;
@@ -234,7 +235,7 @@ sexp lisp_read(sexp lisp_stream){
   } else if (STREAMP(stream)){
     stream=lisp_stream.val.stream;
   } else {
-    return format_type_error("read","stream",lisp_stream.tag);
+    raise_simple_error_fmtf(Etype,"Invalid type passed to read, expected a stream");
   }
   return read_full(stream);
 }
@@ -243,14 +244,19 @@ sexp read_full(FILE *stream){
   yylex_init(&scanner);
   yyset_in(scanner);
   sexp *yylval=xmalloc(sizeof(sexp));
-  if(setjmp(read_err)){
-    PRINT_MSG("read error");
-    return error_sexp(read_err_string);
-  } else {
-    return c_read(&scanner,yylval);
-  }
+  return c_read(&scanner,yylval,NULL);
 }
-sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
+sexp c_read_safe(yyscan_t *scanner,register sexp *yylval){
+  frame *read_error_frame=make_frame(Eread,simple_error_frame);
+  push_frame(current_env,read_error_frame);
+  if(setjmp(read_error_frame->dest){
+    CORD_fprintf(stderr,read_error_frame->value.val.string->cord);
+    return NIL;
+  }
+  sexp retval=c_read(scanner,yylval,NULL);
+  pop_frame(current_env);
+  return retval;
+}
 sexp read_list(yyscan_t *scanner,register sexp *yylval);
 sexp read_untyped_array(yyscan_t *scanner,sexp *yylval);
 sexp read_typed_array(yyscan_t *scanner,register sexp *yylval);
@@ -259,8 +265,7 @@ sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
   int last_tok;
   sexp retval=c_read(scanner,yylval,&last_tok);
   if(last_tok){
-    FORMAT_READ_ERR("invalid read syntax %c",last_tok);
-    return handle_read_error();
+    raise_simple_error_fmt(Eread,"invalid read syntax %c",last_tok);
   }
   return retval
 }
@@ -320,15 +325,13 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         backtick_flag=1;
         sexp value=c_read(scanner,yylval,last_tok)
         backtick_flag=0;
-        if(ERRORP(value)){return value;}
         return c_list2(Qbackquote,value);
       case TOK_COMMA:{
         if(!backtick_flag){
-          return error_sexp("error comma not inside a backquote");
+          rasie_simple_error(Eread,"error comma not inside a backquote");
         }
         backtick_flag=0;
         sexp value=c_read(scanner,yylval,last_tok);
-        if(ERRORP(value)){return value;}
         backtick_flag=1;
         return c_list2(Qcomma,value);
       }
@@ -366,7 +369,7 @@ sexp read_list(yyscan_t *scanner,register sexp *yylval){
       }
       return retval;
   }
-  FORMAT_READ_ERR("read error, expected ')' or '.' at end of list");
+  raise_simple_error(Eread,"read error, expected ')' or '.' at end of list");
   return handle_read_error();
   }
 }
@@ -390,7 +393,7 @@ sexp read_untyped_array(yyscan_t *scanner,sexp *yylval){
     arr[i++]=val;
   }
   if(last_tok != ']'){
-    FORMAT_READ_ERR("Read error expected ']' at end of array");
+    raise_simple_error(Eread,"Read error expected ']' at end of array");
     return handle_read_error();
   }
   lisp_array *retval=(lisp_array*)arr;
@@ -415,8 +418,7 @@ sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
   /* another low level hack, the TOKEN enum is layed out in such a way
      that literal tags are between 0 and 10*/
   if(!(yytag >=0 && yytag <= 10)){
-    FORMAT_READ_ERR("Read error invalid token inside of typed array");
-    handle_error();
+    raise_simple_error(Eread,"Read error invalid token inside of typed array");
   }
   TOKEN array_type=yytag;
   arr[i++]=yylval->val;
@@ -435,14 +437,12 @@ sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
     }
     yytag=yylex(yylval,scanner);
     if(yytag != array_type){
-      FORMAT_READ_ERR("Read error, multiple types in a typed array");
-      handle_error();
+      raise_simple_error(Eread,"Read error, multiple types in a typed array");
     }
     arr[i++]=yylval->val;
   }
   if(last_tok != TOK_DBL_RBRACE){
-    FORMAT_READ_ERR("Read error, expected ']]' at the end of a typed array");
-    handle_error();
+    raise_simple_error(Eread,"Read error, expected ']]' at the end of a typed array");
   }
   lisp_array *retval=(lisp_array*)arr;
   retval->len=i;

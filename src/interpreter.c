@@ -117,12 +117,12 @@ sexp funcall(subr sub,sexp args,env_ptr env){
         lambda=lambda->cdr.val.cons;
       }
       lambda_list arglist=*(sub->lambda_arglist);
-      int num_reqargs = req_args->car.val.int64;
-      symbol *req_arg_names= req_args->cdr.sym;
-      int num_optargs = opt_args->car.val.int64;
-      cons*opt_arg_names= opt_args->cdr.sym;//array of conses
-      int num_keyargs = key_args->car.val.int64;
-      cons *key_arg_names= key_args->cdr.sym;//array of conses
+      int num_reqargs = arglist->req_args->car.val.int64;
+      symbol *req_arg_names= arglist->req_args->cdr.sym;
+      int num_optargs = arglist->opt_args->car.val.int64;
+      cons*opt_arg_names= arglist->opt_args->cdr.sym;//array of conses
+      int num_keyargs = arglist->key_args->car.val.int64;
+      cons *key_arg_names= arglist->key_args->cdr.sym;//array of conses
       /*
       cons *opt_arg_names= opt_args->cdr.sym;
       if(num_optargs){
@@ -461,4 +461,4 @@ void unwind_bindings(binding *bindings,int len){
   }
 }
 //internal means of lexically binding a set of variables
-sexp internal_let(struct lexical_env *env,sexp form){
+sexp internal_let(struct lexical_env *env,sexp form){}

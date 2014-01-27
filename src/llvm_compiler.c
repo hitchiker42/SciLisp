@@ -9,7 +9,7 @@ llvm_value lex_lookup(lex_binding *lex_env,symbol *sym){
   }
   return NULL;
 }
-#define llvm_is_true(val,env)                   \
+#define llvm_is_true(val,env)                           \
   llvm_build_int_cmp(env->builder,llvm_int_eq,          \
     llvm_build_extract_value(env->builder,val,0,""),    \
                      llvm_const_null(llvm_uint64_t))
@@ -31,12 +31,15 @@ llvm_value llvm_build_atom(sexp expr,llvm_env_ptr env){
           return sym_val;
         }
       }
+    }
+  }
+}
       
       
 //(if cond then &rest else)
 llvm_value llvm_build_if(sexp args,llvm_env_ptr env){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){
-    return error_sexp("too few arguments passed to if");
+    raise_simple_error("too few arguments passed to if");
   }
   sexp cond=XCAR(args);
   llvm_bb cond_bb=llvm_append_bb(env->current_fun,env->context,"Cond");
@@ -106,7 +109,7 @@ llvm_value llvm_build_and(sexp exprs,llvm_env_ptr env){
 //(while cond body...)
 llvm_val llvm_build_while(sexp args,llvm_env_ptr env){
   if(!CONSP(args)){
-    return error_sexp("to few arguments passed to while");
+    raise_simple_error("to few arguments passed to while");
   }
   sexp cond=XCAR(args);
   sexp body=XCDR(args);
@@ -121,5 +124,12 @@ llvm_val llvm_build_while(sexp args,llvm_env_ptr env){
   llvm_build_br(env->builder,cond_bb);
   llvm_position_at_end_of_bb(end_bb);
   return llvm_nil;
+}
+//(let (bindings*) body...)
+//minimaly (let())
+llvm_val llvm_build_let(sexp args,llvm_env_ptr env){
+  if(!CONSP(args)){
+    raise_simple_error("Error too few arguments to let form");
   }
 }
+    

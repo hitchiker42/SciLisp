@@ -25,13 +25,12 @@ struct frame {
   jmp_buf dest;
 };
 #define make_frame(tag_val,frame_type)                                  \
-  ({frame_addr retval=xmalloc_atomic(sizeof(struct frame)+sizeof(jmp_buf)); \
+  ({frame_addr retval=xmalloc_atomic(sizeof(struct frame));             \
   retval->tag=tag;                                                      \
   retval->value=NIL;                                                    \
   retval->value.meta=frame_type;                                        \
-  retval->dest=retval+sizeof(struct frame);                             \
   retval;})
-#define make_simple_error_handler(_tag_) make_frame(_tag_,NIL,simple_error_frame)
+#define make_simple_error_handler(_tag_) make_frame(_tag_,simple_error_frame)
 typedef void __attribute__((noreturn)) (*error_handler)(frame);
 #define establish_simple_error_handler(name,_tag_,handler_fun)  \
   type_assert(error_handler,handler_fun);                       \

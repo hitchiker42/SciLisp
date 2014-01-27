@@ -198,7 +198,7 @@ static thread_local frame_addr top_level_frame;
 //extern uint64_t bindings_stack_size;
 //extern uint64_t handler_stack_size;
 symbol *copy_symbol(symbol *sym,int copy_props);
-sexp getKeywordType(sexp obj);
+sexp get_keyword_type(sexp obj);
 struct obarray {
   symbol **buckets;
   uint32_t size;//number of buckets
