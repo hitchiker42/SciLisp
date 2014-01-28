@@ -21,7 +21,6 @@
 #include "print.h"
 #include "codegen.h"
 #incldue "frame.h"
-
 #define DEFAULT_LISP_HIST_SIZE 100
 #if defined(MULTI_THREADED)
 static void* initPrims_pthread(void*);
@@ -36,7 +35,6 @@ int quiet_signals=1;
 int quiet_signals=0;
 #endif
 static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
-static sexp (*evalFun)(sexp,env*)=NULL;
 static FILE *logfile;
 static long lisp_hist_size=-1;
 static sexp *lisp_history;

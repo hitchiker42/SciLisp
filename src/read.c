@@ -709,7 +709,24 @@ static yyconst flex_int16_t yy_chk[1009] =
 #define YY_RESTORE_YY_MORE_OFFSET
 #line 1 "read.lex"
 /* -*- c-syntactic-indentation: nil; electric-indent-inhibit: t -*- */
-#line 3 "read.lex"
+/* The reader, uses flex
+
+Copyright (C) 2014 Tucker DiNapoli
+This file is part of SciLisp.
+
+SciLisp is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+SciLisp is distributed in the hope that it will be useful,
+35but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with SciLisp.  If not, see <http://www.gnu.org*/
+#line 20 "read.lex"
 /*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
  * SciLisp is Licensed under the GNU General Public License V3   *
@@ -718,7 +735,7 @@ static yyconst flex_int16_t yy_chk[1009] =
 #include "common.h"
 /*#include "prim.h"*/
 #include "unicode.h"
-//#include "read.h"
+#include "read.h"
 #ifdef YY_DECL
 #undef YY_DECL
 #endif
@@ -731,13 +748,6 @@ static thread_local int backtick_flag=0;
     CORD_sprintf(&read_err_string,            \
     format,##args);                           \
     read_err_string;})
- /*seems redundant but allows me to change how I handle errors */
-static inline void __attribute__((noreturn)) handle_read_error(){
-  longjmp(read_err,-1);
-#define raise_read_error(value) raise_simple_error(Eread,value)
-#define raise_read_error_fmt(format,args...)                          \
-  raise_simple_error(Eread,string_sexp(FORMAT_READ_ERR(format,args)))
-}
 /*FLEX COMMENT RULES:
 Comment needs to start after a space on a line;
 Comments can't be on the same line as a defination
@@ -762,7 +772,7 @@ mostly so unmatched quotes don't fuck up syntax highlighing*/
 /*                                  '   "    [  \   ]        space*/
 /*start condition for scanning nested comments*/
 
-#line 766 "read.c"
+#line 776 "read.c"
 
 #define INITIAL 0
 #define comment 1
@@ -988,11 +998,11 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 83 "read.lex"
+#line 93 "read.lex"
 
  /*numbers need to come first so something like +1 gets read as an integer
   but something like 1+ gets read as a symbol*/
-#line 996 "read.c"
+#line 1006 "read.c"
 
 	if ( !yyg->yy_init )
 		{
@@ -1077,25 +1087,25 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 86 "read.lex"
+#line 96 "read.lex"
 {LEX_MSG("lexing int");
   *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 88 "read.lex"
+#line 98 "read.lex"
 {LEX_MSG("lexing hex int");
   *yylval=long_sexp((long)strtol(yytext,NULL,0));return TOK_INT;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 90 "read.lex"
+#line 100 "read.lex"
 {LEX_MSG("lexing real");
   *yylval=real64_sexp(strtod(yytext,NULL));return TOK_REAL;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 92 "read.lex"
+#line 102 "read.lex"
 {LEX_MSG("lexing real");
   *yylval=real64_sexp(strtod(yytext,NULL));return TOK_REAL;}
 	YY_BREAK
@@ -1104,7 +1114,7 @@ YY_RULE_SETUP
 case 5:
 /* rule 5 can match eol */
 YY_RULE_SETUP
-#line 96 "read.lex"
+#line 106 "read.lex"
 {LEX_MSG("Lexing string");
   *yylval=cord_sexp(CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2)));
   return TOK_STRING;}
@@ -1112,20 +1122,20 @@ YY_RULE_SETUP
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 99 "read.lex"
+#line 109 "read.lex"
 {LEX_MSG("Lexing multibyte string");
   *yylval=cord_sexp(CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2)));
   return TOK_STRING;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 102 "read.lex"
+#line 112 "read.lex"
 {*yylval=cord_sexp(0);return TOK_STRING;}
 	YY_BREAK
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 103 "read.lex"
+#line 113 "read.lex"
 {LEX_MSG("lexing char");
     wint_t new_char;
     if(lex_char(yytext+1,&new_char)<0){
@@ -1137,7 +1147,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 111 "read.lex"
+#line 121 "read.lex"
 {LEX_MSG("lexing symbol");
     symbol *sym=c_intern(yytext,yyleng,NULL);
     *yylval=symref_sexp(sym);
@@ -1146,34 +1156,33 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 116 "read.lex"
+#line 126 "read.lex"
 {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
-  sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
-  return TOK_KEYSYM;}
+   symbol *sym=c_intern(yytext,yyleng,NULL);
+   *yylval=symref_sexp(sym);
+    return TOK_KEYSYM;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 119 "read.lex"
+#line 130 "read.lex"
 {LEX_MSG("lexing qualified id");
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
   if(!ENVP(package->val)){
-    *yylval=format_error_sexp("unknown package %s",package->name.name);
+    /*yylval=format_error_sexp("unknown package %s",package->name.name);*/
     return TOK_ERR;
   }
-  symbol_name sym_name(colon+1,(uint32_t)((yytext+yyleng)-(colon+1)),NULL);
-  symbol *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  symbol_name *sym_name=make_symbol_name(colon+1,(uint32_t)((yytext+yyleng)-(colon+1)),0);
+  symbol *sym=obarray_lookup_sym(sym_name,package->val.val.ob);
   if(!sym){
-    FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
-                                                  package->name->name);
-    return handle_read_error();
+    raise_simple_error(Eundefined,FORMAT_READ_ERR
+      ("value %s not found in package %s",sym_name->name,package->name->name));
   }
-  if(sym->name->externally_visable == 2){
-    FORMAT_READ_ERR
+  if(sym->visibility == 2){
+    raise_simple_error(Evisibility,FORMAT_READ_ERR
     ("value %s not externally visable in package %s (use :. to override visibility)",
-    sym_name->name,package->name->name);
-    return handle_read_error();
+      sym_name->name,package->name->name));
    }
    *yylval=symref_sexp(sym);
    return TOK_ID;
@@ -1181,22 +1190,22 @@ YY_RULE_SETUP
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 143 "read.lex"
+#line 152 "read.lex"
 {LEX_MSG("lexing qualified id");
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   assert(*(colon+1) == '.');
-  symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+  symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),0);
   if(!ENVP(package->val)){
-    FORMAT_READ_ERR("unknown package %s",package->name.name);
-    return handle_read_error()
+    raise_simple_error(Eundefined,
+    FORMAT_READ_ERR("unknown package %s",package->name->name));
   }
-  symbol_name sym_name(colon+2,(uint32_t)((yytext+yyleng)-(colon+2)),NULL);
-  symbol *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  symbol_name *sym_name=make_symbol_name(
+    colon+2,(uint32_t)((yytext+yyleng)-(colon+2)),0);
+  symbol *sym=obarray_lookup_sym(sym_name,package->val.val.ob);
   if(!sym){
-    FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
-                                                  package->name->name);
-    return handle_read_error();
+    raise_simple_error(Eundefined,FORMAT_READ_ERR("value %s not found in package %s",
+      sym_name->name,package->name->name));
   }
   *yylval=symref_sexp(sym);
   return TOK_ID;
@@ -1204,8 +1213,8 @@ YY_RULE_SETUP
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 162 "read.lex"
-{LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
+#line 171 "read.lex"
+{LEX_MSG("lexing typename");*yylval=type_of_tag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
 	YY_BREAK
 /*
@@ -1217,54 +1226,54 @@ YY_RULE_SETUP
     */
 case 14:
 YY_RULE_SETUP
-#line 171 "read.lex"
+#line 180 "read.lex"
 {LEX_MSG("lexing open comment");
   if(YY_START != comment){BEGIN(comment);}comment_depth+=1;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 173 "read.lex"
+#line 182 "read.lex"
 {LEX_MSG("lexing close comment"); comment_depth-=1;
   if(comment_depth == 0){BEGIN(0);}}
 	YY_BREAK
 case 16:
 /* rule 16 can match eol */
 YY_RULE_SETUP
-#line 175 "read.lex"
+#line 184 "read.lex"
 
 	YY_BREAK
 case 17:
 /* rule 17 can match eol */
 YY_RULE_SETUP
-#line 176 "read.lex"
+#line 185 "read.lex"
 
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 177 "read.lex"
+#line 186 "read.lex"
 {LEX_MSG("lexing backquote");return TOK_BACKQUOTE;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 178 "read.lex"
+#line 187 "read.lex"
 {LEX_MSG("HASH");return TOK_HASH;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 179 "read.lex"
-{*yyval=LISP_TRUE; return TOK_SYMBOL;}
+#line 188 "read.lex"
+{*yylval=LISP_TRUE; return TOK_SYMBOL;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 180 "read.lex"
+#line 189 "read.lex"
 {*yyval=LISP_FALSE; return TOK_SYMBOL;}
 	YY_BREAK
 /*uninterned symbol*/
 case 22:
 YY_RULE_SETUP
-#line 182 "read.lex"
+#line 191 "read.lex"
 {struct symbol_name *name=make_symbol_name(yytext+2,yyleng-2,0);
-          struct symbol_new *sym=xmalloc(sizeof(struct symbol_new));
+          symbol *sym=xmalloc(sizeof(struct symbol));
           sym->name=name;
           sym->val=UNDEFINED; /*define this at some point*/
           sym->next=NULL;
@@ -1276,99 +1285,99 @@ YY_RULE_SETUP
 /*"#"{ID} {LEX_MSG("HASH-ID");return TOK_HASH;}*/
 case 23:
 YY_RULE_SETUP
-#line 192 "read.lex"
+#line 201 "read.lex"
 {LEX_MSG("lexing (");return TOK_LPAREN;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 193 "read.lex"
+#line 202 "read.lex"
 {LEX_MSG("lexing )");return TOK_RPAREN;}
 	YY_BREAK
 /*Maybe use the syntax #('['|'[['|'[|') for something*/
 case 25:
 YY_RULE_SETUP
-#line 195 "read.lex"
+#line 204 "read.lex"
 {LEX_MSG("lexing [");return TOK_LBRACE;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 196 "read.lex"
+#line 205 "read.lex"
 {LEX_MSG("lexing ");return TOK_DBL_LBRACE;}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 197 "read.lex"
+#line 206 "read.lex"
 {LEX_MSG("lexing [|");return TOK_MAT_OPEN;}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 198 "read.lex"
+#line 207 "read.lex"
 {LEX_MSG("lexing ]");return TOK_RBRACE;}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 199 "read.lex"
+#line 208 "read.lex"
 {LEX_MSG("lexing ");return TOK_DBL_RBRACE;}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 200 "read.lex"
+#line 209 "read.lex"
 {LEX_MSG("lexing |]");return TOK_MAT_CLOSE;}
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 201 "read.lex"
+#line 210 "read.lex"
 {LEX_MSG("lexing {");return TOK_LCBRACE;}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 202 "read.lex"
+#line 211 "read.lex"
 {LEX_MSG("lexing }");return TOK_RCBRACE;}
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 203 "read.lex"
+#line 212 "read.lex"
 {LEX_MSG("lexing .");return TOK_DOT;}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 204 "read.lex"
+#line 213 "read.lex"
 {LEX_MSG("lexing :");return TOK_COLON;}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 205 "read.lex"
+#line 214 "read.lex"
 {LEX_MSG("lexing @");return TOK_STRUDEL;}
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 206 "read.lex"
+#line 215 "read.lex"
 {LEX_MSG("Lexing quote");return TOK_QUOTE;}
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 207 "read.lex"
+#line 216 "read.lex"
 {LEX_MSG("Lexing comma");return TOK_COMMA;}
 	YY_BREAK
 case 38:
 /* rule 38 can match eol */
 YY_RULE_SETUP
-#line 208 "read.lex"
+#line 217 "read.lex"
 /*whitespace*/
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 209 "read.lex"
+#line 218 "read.lex"
 /*one line comments*/
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(comment):
-#line 210 "read.lex"
+#line 219 "read.lex"
 return -1;
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 211 "read.lex"
+#line 220 "read.lex"
 {LEX_MSG("unknown token");
   PRINT_FMT("Error, unknown token, value %d, character %c",
             yytext[0],yytext[0]);
@@ -1377,10 +1386,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 217 "read.lex"
+#line 226 "read.lex"
 ECHO;
 	YY_BREAK
-#line 1384 "read.c"
+#line 1393 "read.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2508,7 +2517,7 @@ static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 217 "read.lex"
+#line 226 "read.lex"
 
 
 //From this point on flex doesn't touch anything, so it's just normal C99
@@ -2521,7 +2530,6 @@ void *yyrealloc(void *ptr,size_t bytes,void *yyscanner){
 void yyfree(void *ptr,void *yyscanner){
   return xfree(ptr);
 }
-sexp read_full(FILE *stream);
 sexp lisp_read(sexp lisp_stream){
   //really need to write a cord stream/test the one I already wrote
   FILE *stream;
@@ -2530,7 +2538,7 @@ sexp lisp_read(sexp lisp_stream){
   } else if (STREAMP(stream)){
     stream=lisp_stream.val.stream;
   } else {
-    return format_type_error("read","stream",lisp_stream.tag);
+    raise_simple_error_fmtf(Etype,"Invalid type passed to read, expected a stream");
   }
   return read_full(stream);
 }
@@ -2539,14 +2547,19 @@ sexp read_full(FILE *stream){
   yylex_init(&scanner);
   yyset_in(scanner);
   sexp *yylval=xmalloc(sizeof(sexp));
-  if(setjmp(read_err)){
-    PRINT_MSG("read error");
-    return error_sexp(read_err_string);
-  } else {
-    return c_read(&scanner,yylval);
-  }
+  return c_read(&scanner,yylval,NULL);
 }
-sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
+sexp c_read_safe(yyscan_t *scanner,register sexp *yylval){
+  frame *read_error_frame=make_frame(Eread,simple_error_frame);
+  push_frame(current_env,read_error_frame);
+  if(setjmp(read_error_frame->dest){
+    CORD_fprintf(stderr,read_error_frame->value.val.string->cord);
+    return NIL;
+  }
+  sexp retval=c_read(scanner,yylval,NULL);
+  pop_frame(current_env);
+  return retval;
+}
 sexp read_list(yyscan_t *scanner,register sexp *yylval);
 sexp read_untyped_array(yyscan_t *scanner,sexp *yylval);
 sexp read_typed_array(yyscan_t *scanner,register sexp *yylval);
@@ -2555,8 +2568,7 @@ sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
   int last_tok;
   sexp retval=c_read(scanner,yylval,&last_tok);
   if(last_tok){
-    FORMAT_READ_ERR("invalid read syntax %c",last_tok);
-    return handle_read_error();
+    raise_simple_error_fmt(Eread,"invalid read syntax %c",last_tok);
   }
   return retval
 }
@@ -2616,15 +2628,13 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         backtick_flag=1;
         sexp value=c_read(scanner,yylval,last_tok)
         backtick_flag=0;
-        if(ERRORP(value)){return value;}
         return c_list2(Qbackquote,value);
       case TOK_COMMA:{
         if(!backtick_flag){
-          return error_sexp("error comma not inside a backquote");
+          rasie_simple_error(Eread,"error comma not inside a backquote");
         }
         backtick_flag=0;
         sexp value=c_read(scanner,yylval,last_tok);
-        if(ERRORP(value)){return value;}
         backtick_flag=1;
         return c_list2(Qcomma,value);
       }
@@ -2640,7 +2650,6 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
   }
 }
 #pragma GCC diagnostic ignored "-Wswitch-enum"
-
 sexp read_list(yyscan_t *scanner,register sexp *yylval){
   sexp retval;
   sexp new_list=retval=cons_sexp(xmalloc(sizeof(cons)));
@@ -2662,8 +2671,7 @@ sexp read_list(yyscan_t *scanner,register sexp *yylval){
       }
       return retval;
   }
-  FORMAT_READ_ERR("read error, expected ')' or '.' at end of list");
-  return handle_read_error();
+  raise_simple_error(Eread,"read error, expected ')' or '.' at end of list");
   }
 }
 /*read an untyped array  delimited by double braces and
@@ -2686,8 +2694,7 @@ sexp read_untyped_array(yyscan_t *scanner,sexp *yylval){
     arr[i++]=val;
   }
   if(last_tok != ']'){
-    FORMAT_READ_ERR("Read error expected ']' at end of array");
-    return handle_read_error();
+    raise_simple_error(Eread,"Read error expected ']' at end of array");
   }
   lisp_array *retval=(lisp_array*)arr;
   retval->len=i;
@@ -2711,8 +2718,7 @@ sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
   /* another low level hack, the TOKEN enum is layed out in such a way
      that literal tags are between 0 and 10*/
   if(!(yytag >=0 && yytag <= 10)){
-    FORMAT_READ_ERR("Read error invalid token inside of typed array");
-    handle_error();
+    raise_simple_error(Eread,"Read error invalid token inside of typed array");
   }
   TOKEN array_type=yytag;
   arr[i++]=yylval->val;
@@ -2731,14 +2737,12 @@ sexp read_typed_array(yyscan_t *scanner,register sexp *yylval){
     }
     yytag=yylex(yylval,scanner);
     if(yytag != array_type){
-      FORMAT_READ_ERR("Read error, multiple types in a typed array");
-      handle_error();
+      raise_simple_error(Eread,"Read error, multiple types in a typed array");
     }
     arr[i++]=yylval->val;
   }
   if(last_tok != TOK_DBL_RBRACE){
-    FORMAT_READ_ERR("Read error, expected ']]' at the end of a typed array");
-    handle_error();
+    raise_simple_error(Eread,"Read error, expected ']]' at the end of a typed array");
   }
   lisp_array *retval=(lisp_array*)arr;
   retval->len=i;

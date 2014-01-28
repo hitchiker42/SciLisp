@@ -16,12 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
-struct package {
-  lisp_string name;
-  lisp_string documentation;
-  package *uses;
-  obarray *symbol_table;
-};
 sexp make_package(sexp args){
   if(!CONSP(args)){
     raise_simple_error(Eargs,"Too few args passed to defpackage");

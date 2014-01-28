@@ -169,7 +169,7 @@ struct subr_call {
 };
 static inline sexp lex_assq(sexp lex_env,symbol *var){
   while(CONSP(lex_env)){
-    if(XCAAR(lex_env).val.uint64 == (uint64_t)var){
+    if(XCAR(XCAR(lex_env)).val.uint64 == (uint64_t)var){
       return XCAR(lex_env);
     }
     lex_env=XCDR(lex_env);
@@ -220,4 +220,15 @@ symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
+symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv);
+//needs to be in a global header, and xmalloc isn't defined in types.h
+static inline lisp_string *make_string(const char *str){
+  lisp_string *retval=xmalloc(sizeof(lisp_string));
+  if(str[0] == '\0'){
+    *retval=(lisp_string){.cord=str,.len=(CORD_len(str))};
+  } else {
+    *retval=(lisp_string){.string=str,.len=(strlen(str))};
+  }
+  return retval;
+}
 #endif
