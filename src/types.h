@@ -136,68 +136,8 @@ extern symbol *E*/
 #define EQ(obj1,obj2)                                                   \
   ((NUMBERP(obj1) && NUMBERP(obj2))?NUM_EQ(obj1,obj2):                  \
    ((obj1.tag==obj2.tag) && (obj1.val.uint64 == obj.val.uint64)))
-#define format_type_error_va(fun,format,args...)                        \
-  ({CORD type_error_str;                                                \
-    CORD_sprintf(&type_error_str,"type error in %r, ",fun);             \
-    type_error_str=CORD_cat(type_error_str,format);                     \
-    CORD_sprintf(&type_error_str,type_error_str,args);                  \
-    raise_simple_error(Etype,make_string(type_error_str);})
-#define format_type_error_str(fun,expected,got)                         \
-  ({CORD type_error_str;                                                \
-    CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
-                 fun,expected,tag_name(got));
-#define format_type_error(fun,expected,got)                             \
-  ({CORD type_error_str;                                                \
-    CORD_sprintf(&type_error_str,"type error in %r, expected %r but got %r", \
-                 fun,expected,tag_name(got));                           \
-    type_error_str;})
-//  raise_simple_error((uint64_t)Etype,make_string(type_error_str));})
-#define format_type_error_named(fun,name,expected,got)                  \
-  ({CORD type_error_str;                                                \
-    CORD_sprintf(&type_error_str,                                       \
-                 "type error in %r, expected a(n) %r for %r but got a(n) %r", \
-                 fun,expected,name,tag_name(got)),                      \
-      raise_simple_error(Etype,make_string(type_error_str));})
-#define format_type_error2(fun,expected1,got1,expected2,got2)           \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r and %r"   \
-               ", but got %r and %r",fun,expected1,expected2,           \
-               tag_name(got1),tag_name(got2)),                          \
-    type_error_str;})
-#define format_type_error3(fun,expected1,got1,expected2,got2,expected3,got3) \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r and %r" \
-               ", but got %r,%r and %r",fun,expected1,expected2,expected3, \
-               tag_name(got1),tag_name(got2),tag_name(got3)),           \
-    type_error_str;})
-#define format_type_error_opt(fun,expected,got)                         \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r or no argument" \
-               ", but got %r",fun,expected,tag_name(got)),              \
-    type_error_str;})
-#define format_type_error_opt_named(fun,name,expected,got)              \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r,expected %r or nothing for argument %r" \
-               ", but got %r",fun,expected,name,tag_name(got)),         \
-    type_error_str;})
-#define format_type_error_key(fun,named,expected,got)   \
-  format_type_error_opt_named(fun,named,expected,got)
-#define format_type_error_opt2(fun,expected1,expected2,got)             \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
-               ", but got %r",fun,expected1,expected2,tag_name(got)),   \
-    type_error_str;}}
-#define format_type_error_opt2_named(fun,name,expected1,expected2,got)  \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r or nothing" \
-               "for %r, but got %r",fun,expected1,expected2,name,tag_name(got)), \
-    type_error_str;})
-#define format_type_error_rest(fun,expected,failed_arg)                 \
-  ({CORD type_error_str;                                                \
-  CORD_sprintf(&type_error_str,"type error in %r, expected %r for the rest argument," \
-               "but received an %r (value was %r)",                     \
-               fun,expected,tag_name(failed_arg.tag),print(failed_arg)), \
-    type_error_str;})
+//macros to format error strings
+#include "error_fmt.h"
 #define const_real64_sexp(real64_val) {.tag=sexp_real64,.val={.real64=real64_val}}
 #define const_real32_sexp(real32_val) {.tag=sexp_real32,.val={.real32=real32_val}}
 #define const_int64_sexp(int64_val) {.tag=sexp_int64,.val={.int64=int64_val}}
@@ -248,6 +188,8 @@ enum sexp_tag {
   sexp_regexp_data=47,//re match data
   sexp_hash_table=48,sexp_hashtable=48,
   sexp_sfmt=53,//random state
+  //internal use only
+  sexp_c_char=0xfc,//stupid c standard, why can't char just be signed or unsigned
   sexp_uninterned=0xfd,
   sexp_unbound=0xfe,
   sexp_error=0xff,
@@ -387,27 +329,25 @@ enum subr_type {
     subr_special_form,
     subr_macro,
 };
-/*structure of strings in lisp,
+/*
+  structure of strings in lisp,
   strings immutable, we use cords for actions that would normally use mutable strings
   ie sprintf, concatenation, modifying substrings etc
-  strings are kept internally in utf-8 encoding (ie multibyte)*/
-enum string_type {
-    str_string,
-    str_mbstring,
-    str_cord,
-};
+  strings are kept internally in utf-8 encoding (ie multibyte)
+  the wide character string part is for representing strings
+  as arrays of characters(which are currently wide characters)
+*/
 struct lisp_string {
   //kinda a silly union since a CORD is technically a typedef for const char*
   //but it makes code clearer in places
-  //also I don't actually need a type arguments
-  //as far as I'm concerned it's a c string if the first character isn't
-  //null and a CORD if it is
+  //a lisp string is a cord if string[0] == '\0'
   union {
     const char *string;
+    wchar_t *wide_string;//don't know if I'll use this or not but eh
     CORD cord;
   };
   uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t multibyte;
+  uint8_t multibyte;//0=no,1=yes(2=widechar if that's ever valid)
 };
 struct lambda_list {
   cons *req_args;//( num_req_args . [reqargs ... ])
@@ -517,22 +457,15 @@ struct lisp_array {
       uint32_t rows;
       uint32_t cols;
     };
-    struct {//3-D,4-D
-      uint16_t a;
-      uint16_t b;
-      uint16_t c;
-      uint16_t d;
-    };
-    //pointer to a struct with matrix meta data
+    uint32_t *dimensions;
   };
-  uint8_t dims;//max of 256 dimensions, could be enlarged if needed
   uint8_t type;//not sure what this should be in a multityped array
-  unsigned int padding :24;
+  uint8_t dims;//max of 256 dimensions, could be enlarged if needed
+  int :0;
 };
 struct lisp_simple_vector {
   void *data;
   uint64_t len;
   uint8_t type;
 };
-
 int type=0;

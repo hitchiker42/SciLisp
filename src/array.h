@@ -11,6 +11,7 @@
   (sexp){.tag = (_tag)obj.meta,.val = (data)obj.val.typed_array[ind]}
 #define XAREF(obj,ind)                          \
   obj.val.array[ind]
+//find nerest power of two greater than len
 static inline int __attribute__((const)) ARR_SIZE_ACC(int64_t len){
   if(len&(len-1)){
     return ARR_SIZE_ACC(len&(len-1));

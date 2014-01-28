@@ -4,13 +4,22 @@
  ****************************************************************/
 #include "array.h"
 #include "prim.h"
-#ifdef swap
-#undef swap
-#endif
-static sexp stemp;
-#define swap(i,j,arr)  stemp=arr[i];arr[i]=arr[j];arr[j]=stemp
-static data dtemp;
-#define typed_swap(i,j,arr)  dtemp=arr[i];arr[i]=arr[j];arr[j]=dtemp
+#include "unicode.h"
+//not sure how well this will work,unless I convert to a wide character string
+//so for now I will, but I'm not sure if I'll keep it this way or not
+lisp_array *string_to_array_c(lisp_string *string){
+  lisp_array *new_array=xmalloc(sizeof(lisp_array));
+  if(string->multibyte){
+    int wide_len;
+    *new_array=(lisp_arary){.typed_vector=
+                            (data*)lisp_string_to_wcs(string,&wide_len),
+                            .len=wide_len,.type=sexp_char,.dims=1};
+  } else {
+    *new_array=(lisp_array){.typed_vector=CORD_to_const_char_star(string->cord),
+                            .len=string->len,.type=sexp_c_char,.dims=1};
+  }
+  return new_array;
+}
 //(defun make-array (dimensions &key element-type initial-element initial-contents)
 sexp make_array(sexp dims,sexp elem_type,sexp initial_elem){}
 #define aref_generic(name,test,type,macro)                              \
@@ -224,7 +233,7 @@ sexp array_reverse_inplace(sexp arr){
   sexp *arr_data=arr.val.array;
   int i,j;
   for(i=0,j=arr.len-1;i<arr.len;i++,j--){
-    swap(i,j,arr_data);
+    ARR_SWAP(arr_data,i,j);
   }
   return array_sexp(arr_data,arr.len);
 }
@@ -246,7 +255,7 @@ static int typed_array_qsort_partition
   pivot_ind=left;
   for(i=left;i<right-1;i++){
     if(f(arr[i],pivot)){
-      typed_swap(i,pivot_ind,arr);
+      ARR_SWAP(arr,i,pivot_ind);
       pivot_ind++;
     }
   }
@@ -282,16 +291,16 @@ sexp typed_array_qsort(sexp arr,sexp comp_fun,sexp in_place){
 static int array_qsort_partition
 (sexp *arr,int left,int right,int pivot,sexp(*f)(sexp,sexp)){
   sexp pivot_val=arr[pivot];
-  swap(pivot,right,arr);
+  ARR_SWAP(arr,pivot,right);
   int i;
   int store=left;
   for(i=left;i<right;i++){
     if(isTrue(f(arr[i],pivot_val))){
-      swap(i,store,arr);
+      ARR_SWAP(arr,i,store);
       store++;
     }
   }
-  swap(store,right,arr);
+  ARR_SWAP(arr,store,right);
   return store;
 }
 static void array_qsort_inplace(sexp *arr,int left,int right,
@@ -327,7 +336,7 @@ void slow_sort_acc(sexp *arr,int i,int j,sexp(*f)(sexp,sexp)){
   slow_sort_acc(arr,i,m,f);
   slow_sort_acc(arr,m+1,j,f);
   if(isTrue(f(arr[m],arr[j]))){
-    swap(m,j,arr);
+    ARR_SWAP(arr,m,j);
   }
   slow_sort_acc(arr,i,j-1,f);
 }
@@ -345,15 +354,14 @@ sexp array_insertion_sort(sexp* arr,int len,sexp(*f)(sexp,sexp)){
   for(i=1;i<len;i++){
     for(j=i-1;j>0;j++){
       if(isTrue(f(arr[j],arr[i]))){
-        swap(i,j,arr);
+        ARR_SWAP(arr,i,j);
         break;
       }
-      swap(i,0,arr);
+      ARR_SWAP(arr,i,0);
     }
   }
 }
   
-#undef swap
 /* Heap
    -tree with compairson function f
    -the tree satisfies the headp property

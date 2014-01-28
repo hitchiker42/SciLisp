@@ -51,7 +51,7 @@ sexp lisp_string_to_char(sexp lisp_str){
   } else if (str->string[0]>0 && str->string<=127){
     //test if first char is a valid ascii char
     return uchar_sexp((wchar_t)str->string[0]);
-  }    
+  }
   wchar_t retval;
   mbstate_t state;
   size_t nbytes;
@@ -80,6 +80,34 @@ sexp lisp_string_to_char(sexp lisp_str){
     return uchar_sexp(retval);
   }
 }
+wchar_t* lisp_string_to_wcs(lisp_string *string,int *out_len){
+  mbstate_t state;
+  size_t nbytes;
+  memset(&state,'\0',sizeof(state));
+  //make a naieve assumption that almost every byte in the input is a character
+  //and hope that the memory wasted is worth only having to allocate
+  //memory once (we'd only call this if the string was a multibyte string
+  //meaning the number of bytes must be > the number of characters
+  wchar_t *output=xmalloc_atomic((string->len-1)*sizeof(wchar_t));
+  const char *input=CORD_to_const_char_star(string->cord);
+  int output_index,input_index,len=string->len;
+  while((nbytes=mbrtowc(output+output_index,input+input_index,
+                        len-input_index,state))){
+    if(nbytes==(size_t)-1){
+      return NULL;//needs a better value
+    }
+    if(nbytes==(size_t)-2){
+      return NULL;//n was too small, my math was off
+      //or the  input string was an invalid multibyte string
+    }
+    input_index+=nbytes;
+    output_index++;
+  }
+  if(out_len){
+    *out_len=output_index;
+  }
+  return output;
+}  
 wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
   if(!state){
     state=alloca(sizeof(mbstate_t));
@@ -88,12 +116,38 @@ wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
   char *restrict strptr=str;
   uint32_t len=16;
   wchar_t *wstr=xmalloc_atomic(len*sizeof(wchar_t));
-  //loop converting the given string to a wchar string, 
+  //loop converting the given string to a wchar string,
   //allocating more memory to hold the wchar string, if necessary
   while(mbstrowcs(wstr,&strptr,len,state) == len && strptr){
     wstr=xrealloc(wstr,(len*=2));
   }
   return wstr;
+}
+/*
+ * convert a wide character string into a multi-byte string re using the input
+ * butter as the output buffer, thus overwriting the given input.
+ * This assumes that the maximum size of a multibyte sequence is <= sizeof(wchar_t)
+ * which for UTF-8 (on the basic multilingual plane) as the multibyte encoding
+ * and a 32 bit wchar should hold. This could change and render this funciton
+ * unuseable.
+ */
+char *wcsrtombs_destructive(wchar *restrict input,mbstate *restrict state){
+  char *output=(char *)input;
+  int output_index=0,input_index=0;
+  size_t nbytes;
+  while(input[input_index]){
+    nbytes=wcrtomb(output+output_index,input[input_index],state);
+    if(nbytes=(size_t)-1){
+      return NULL;//I dunno what to do here, it'd be weird to use lisp errors
+    }
+    output_index+=nbytes;
+    input_index++;
+  }
+  //this `should` zero the rest of the input buffer
+  //assunming my math is right (which it might not be)
+  memset(output+output_index,'\0',
+         (input_index*(sizeof(wchar_t)/sizeof(char)))-output_index);
+  return output;
 }
 sexp *c_lisp_strcat(sexp *args,int numargs){
   if(numargs <=1){
@@ -108,4 +162,3 @@ sexp *c_lisp_strcat(sexp *args,int numargs){
                               args[i].val.string->len);
   };
   return
-  

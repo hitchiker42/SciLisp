@@ -63,6 +63,10 @@ sexp cons_split(sexp ls,sexp num);
 sexp cons_take(sexp ls,sexp num);
 //return the list starting at the num'th element of ls
 sexp cons_drop(sexp ls,sexp num);
+//return the last cons cell in a list, or nil if given nil
+static sexp last(sexp ls);
+//same as above but uses XCDR insstead of cdr
+static sexp unsafe_last(sexp ls); 
 #define XCAR(cell) cell.val.cons->car
 #define XCDR(cell) cell.val.cons->cdr
 #define SET_CAR(cell,obj) (cell.val.cons->car=obj)
@@ -76,6 +80,10 @@ sexp cons_drop(sexp ls,sexp num);
 #define PUSH(obj,list)                          \
   ({XCDR(list)=list;                            \
     XCAR(list)=obj;})
+#define APPEND(list1,list2)                     \
+  ({sexp list1_last=unsafe_last(list1);         \
+    SET_CDR(list1_last(list2));                 \
+    list1;})
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));
@@ -111,10 +119,22 @@ static inline sexp nth(sexp cell,int64_t n){
   }
   return (n==0 ? cell : error_sexp("nth error, index greater than length of list"));
 }
+//cdr(NIL) = NIL, so this is safe on nil
 static inline sexp last(sexp cell){
   while(!NILP(cdr(cell))){//cdr does the type checking
     cell=XCDR(cell);
   }
+  return cell;
+}
+static inline sexp unsafe_last(sexp cell){
+  //without this little check this would segfault on nil
+  //so not worth the little gain I'd get from ommitting it
+  if(NILP(cell)){
+    return cell;
+  }
+  while(!NILP(XCDR(cell))){
+    cell=XCDR(cell);
+  } 
   return cell;
 }
 static inline sexp pop_cons(sexp ls){

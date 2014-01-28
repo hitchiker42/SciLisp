@@ -32,6 +32,11 @@ sexp lisp_char_to_string(sexp lisp_char);
 sexp lisp_string_to_char(sexp lisp_str);
 //pretty much a wrapper to wcrtomb which returns a vaild c string
 const char *c_wchar_to_string(wchar_t lisp_char);
+//destructively convert intput, return value is NULL on error
+//and input otherwise
+char *wcsrtombs_destructive(wchar *restrict input,mbstate *restrict state);
+//convert a lisp_string to a c wide character string
+wchar_t* lisp_string_to_wcs(lisp_string *string,int *out_len);
 //pretty much a simplified wrapper to mbsrtowcs, which deals
 //with memory allocation internally (using gc_malloc_atomic)
 wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state);
