@@ -1,5 +1,5 @@
 #ifndef _FRAME_H
-#define _FRAME_
+#define _FRAME_H
 #define UNWIND_PROTECT_TAG Qunwind_protect
 #include "common.h"
 enum  frame_type {//might not use this

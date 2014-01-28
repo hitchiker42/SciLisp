@@ -161,7 +161,7 @@ static const sexp NIL={.val={0}};//NIL is all 0s
 #define c_string_sexp(c_string_val) construct_ptr(c_string_val,c_string)
 #define symref_sexp(symref_val) construct_ptr(symref_val,sym)
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
-//#define type_sexp(type_val) construct_sexp(type_val,sexp_type,meta,0)
+#define type_sexp(type_val) construct_sexp(type_val,sexp_type,sym,1)
 #define uchar_sexp(uchar_val) construct_atom(uchar_val,uchar)
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
@@ -196,7 +196,7 @@ static const sexp LispEmptyList={.tag=sexp_cons,.val={.cons=(cons*)&EmptyList},.
 //sexp* yylval;
 //FILE* yyin;
 yyscan_t global_scanner;
-
+static uint64_t gensym_counter;
 //flag for errors at repl
 extern int evalError;
 //probably don't need anymore, what with pthread_once
