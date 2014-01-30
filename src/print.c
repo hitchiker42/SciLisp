@@ -261,58 +261,8 @@ CORD print(sexp obj){
     case sexp_str:
       //need to figure out how to do esacpe sequences
       return CORD_catn(3,"\"",obj.val.cord,"\"");
-    case sexp_lenv:{
-      local_symref cur_sym=obj.val.lenv;
-      acc="(";
-      while(cur_sym != 0){
-        acc=CORD_cat(acc,cur_sym->name);
-        cur_sym=cur_sym->next;
-        if(cur_sym != 0){
-          acc=CORD_cat_char(acc,' ');
-        }
-      }
-      return CORD_balance(CORD_cat(acc,")"));
-    }
-    case sexp_funarg:{
-      acc="(";
-      function_args* args=obj.val.funarg;
-      int i=0,j=0;
-      if(args->num_req_args){
-        for(i=0;i<args->num_req_args;i++){
-          acc=CORD_cat(acc,args->args[j++].name);
-          if(j != args->max_args){
-            acc=CORD_cat(acc," ");
-          }
-        }
-      }
-#define funarg_print_loop(argtype,optional_str)             \
-      if(args->num_##argtype##_args){                       \
-        acc=CORD_cat(acc,optional_str);                     \
-        for(i=0;i<args->num_##argtype##_args;i++){          \
-          acc=CORD_cat(acc,args->args[j++].name);                \
-          if(j != args->max_args){                          \
-            acc=CORD_cat(acc," ");                          \
-          }                                                 \
-        }                                                   \
-      }
-      funarg_print_loop(opt,"&optional");
-      funarg_print_loop(keyword,"&key");
-      if(args->has_rest_arg){
-        acc=CORD_catn(4,"&rest ",args->args[j].name,")");
-      } else {
-        acc=CORD_cat(acc,")");
-      }
-      return CORD_balance(acc);
-    }
-#undef funarg_print_loop
-    case sexp_lam://depricated type
-      /*      acc="(lambda ";
-      acc=CORD_catn(5,acc,
-                    print((sexp){.tag=_lenv,.val=
-                          {.lenv =(local_env*)obj.val.lam->env}})
-                    ," ",print(obj.val.lam->body),")");
-                    return CORD_balance(acc);*/
-      return "Lambda";
+    case sexp_array:{
+      switch(obj.val.array->
     case sexp_typed_array:{
       acc="[[";
       int i;

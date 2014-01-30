@@ -31,17 +31,16 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #include <gmp.h>
 #include <mpfr.h>
 #include <mpf2mpfr.h>
-#ifdef USE_COMPLEX_H
+//I include complex stuff, but for now I'm not actually using it
 #include <complex.h>
 #undef I
-typedef float complex imag32_t;
-typedef double complex imag64_t;
+typedef float complex complex32_t;
+typedef double complex complex64_t;
 //usable a lvalues unlike creal/cimag
 #define realpart(x) (((double*)(&x))[0])
 #define imagpart(x) (((double*)(&x))[1])
 #define realpartf(x) (((float*)(&x))[0])
 #define imagpartf(x) (((float*)(&x))[1])
-#endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef union lisp_data lisp_data;//core representation of a lisp object
@@ -178,7 +177,7 @@ enum sexp_tag {
   //end of numbers
   sexp_c_str = 19,sexp_c_string=19,//const char *'s, for simple strings
   sexp_str = 20,sexp_string=20,//type of strings, value is cord
-  sexp_array = 21,//type of arrays, element type in meta, vaule is array
+  sexp_array = 21,//type of arrays, pointers to 
   sexp_regex = 23,//compiled regular expression
   sexp_stream = 24,sexp_file=24,//type of input/output streams, corresponds to c FILE*
   sexp_matrix =25,//array for mathematical calculations
@@ -211,7 +210,7 @@ union data {//keep max size at 64 bits
   cons *cons;
   const char *c_string;
   char c_char;//internal use, so strings can be cast to data*
-  ctype *ctype;
+  ctype *ctype;//can this be removed?
   env_ptr env;
   hash_table *hashtable;
   int8_t int8;
@@ -230,7 +229,7 @@ union data {//keep max size at 64 bits
   lisp_array *array;
   subr *subr;
   symbol *sym;
-  sexp_tag type;
+  sexp_tag type;//although types are symbols now
   uint8_t uint8;
   uint16_t uint16;
   uint32_t uint32;
@@ -310,25 +309,6 @@ union funcall{
   sexp(*funevaled)(sexp);//sexp is presumably a list
   sexp(*fspecial)(sexp,env_ptr);
 };
-//for things like map and reduce
-/*static inline sexp call_many_with_2(funcall f,sexp a,sexp b){
-  sexp args[2]={a,b};
-  return f.fmany(2,args);
-}
-static inline sexp  call_many_with_1(funcall f,sexp a){
-  sexp args[1]={a};
-  return f.fmany(1,args);
-}
-static inline sexp call_many_with_2_implicit(sexp a,sexp b){
-  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
-  sexp args[2]={a,b};
-  return f(2,args);
-}
-static inline sexp call_many_with_1_implicit(sexp a,sexp b){
-  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
-  sexp args[1]={a};
-  return f(1,args);
-  }*/
 typedef enum {
   rec_none,
   rec_simple,
@@ -378,26 +358,26 @@ struct package {
 //or a lisp function(a lambda) or a lisp macro
 struct subr {
   union {
-    struct {
+    struct {//compiled function
       funcall comp;
       uint16_t req_args;//42
       uint16_t opt_args;//num_req_args-num_req_args+num_opt_args 44
       uint16_t keyword_args;//num_opt_args-num_opt_args+num_keyword_args 46
       uint16_t rest_arg;//0 or 1(only one restarg allowed) 48
     };
-    struct {
-      lambda_list *lambda_arglist;
-      cons *lambda_body;
+    struct {//lambda function for (lambda (args) body)
+      lambda_list *lambda_arglist;//this is args
+      cons *lambda_body;//and this is body
     };    
-  };//8
-  lisp_string lname;//lambdas should be #<lambda{number via global counter}> 16
-  lisp_string signature;//function signature 32
-  lisp_string cname;//name in c, and llvm I suppose 40
-  uint32_t maxargs;//52
-  uint8_t subr_type;//53
+  };//16
+  lisp_string lname;//lambdas should be #<lambda{number via global counter}> 24
+  lisp_string signature;//function signature 40
+  lisp_string cname;//name in c, and llvm I suppose 56
+  uint32_t maxargs;//60
+  uint8_t subr_type;//61
   unsigned int rec_fun :2;//0 not-recursive,1 recursive, 2 tail recursive
   unsigned int pure_fun :1;//no change to it's arguments, should be most functions
-  unsigned int const_fun :1;//returns the same result given the same arguments //53.5
+  unsigned int const_fun :1;//returns the same result given the same arguments //61.5
   int :0;
   //in short it doesn't rely on pointers
 };
@@ -462,13 +442,13 @@ struct lisp_array {
     data *typed_vector;//1-D array of a specific type
     data *array_vector;//2-D array of a specific type
     //mathmatical arrays, for use with blas,lapack,etc
-    double *double_matrix;
-    float *float_matrix;
-#ifdef HAVE_COMPLEX_H
-    float complex *float_complex_matrix;
-    double complex *double_complex_matrix;
-#endif
+    real64_t *double_matrix;
+    real32_t *float_matrix;
+    complex32_t *float_complex_matrix;
+    complex64_t *double_complex_matrix;
     void *data;//anything else (specificly 3+ dimensional arrays)
+    blas_array *matrix;//seperate struct for arrays for use with blas
+    
   };
   union {
     uint64_t len;//1-D
@@ -481,6 +461,31 @@ struct lisp_array {
   uint8_t type;//not sure what this should be in a multityped array
   uint8_t dims;//max of 256 dimensions, could be enlarged if needed
   int :0;
+};
+enum cblas_type {
+  cblas_float,
+  cblas_double,
+  cblas_complex_float,
+  cblas_complex_double,
+};
+struct blas_array{
+  union {
+    real32_t *real32_array;
+    real64_t *real64_array;
+    complex32_t *complex32_array;
+    complex64_t *complex64_array;
+  };
+  //For these we assume a minimum of 2 dimensions, that is vectors
+  //are really just Nx1 matrices
+  uint32_t N;
+  uint32_t M;
+  uint8_t dims;
+  uint8_t blas_type;
+  uint8_t blas_order;//value of type enum cblas_order
+  uint8_t blas_transpose;//value of type enum cblas_transpose
+  uint8_t blas_uplo;//"" cblas_uplo
+  uint8_t blas_diag;//"" cblas_diag
+  uint8_t blas_side;//"" cblas_side
 };
 struct lisp_simple_vector {
   void *data;
