@@ -14,7 +14,7 @@ const char *tag_name(sexp_tag obj_tag){
     mk_tag_name(sexp_unbound,unbound);
     mk_tag_name(sexp_error,error);
     mk_tag_name(sexp_false,#f);
-    mk_tag_name(sexp_uninterned,uninterned);
+    //    mk_tag_name(sexp_uninterned,uninterned);
     mk_tag_name(sexp_nil,nil);
     mk_tag_name(sexp_cons,cons);
     mk_tag_name(sexp_int8,int8);
@@ -32,21 +32,21 @@ const char *tag_name(sexp_tag obj_tag){
     mk_tag_name(sexp_str,string);
     mk_tag_name(sexp_array,array);
     mk_tag_name(sexp_stream,stream);
-    mk_tag_name(sexp_list,list);
-    mk_tag_name(sexp_dpair,dotted pair);
-    mk_tag_name(sexp_fun,function);
+    //    mk_tag_name(sexp_list,list);
+    //    mk_tag_name(sexp_dpair,dotted pair);
+    mk_tag_name(sexp_subr,subroutine);
     mk_tag_name(sexp_sym,symbol);
-    mk_tag_name(sexp_special,special form);
-    mk_tag_name(sexp_macro,macro);
+    //    mk_tag_name(sexp_special,special form);
+    //    mk_tag_name(sexp_macro,macro);
     mk_tag_name(sexp_type,type);
-    mk_tag_name(sexp_lam,lambda);
-    mk_tag_name(sexp_lenv,local environment);
-    mk_tag_name(sexp_keyword,Keyword Symbol);
-    mk_tag_name(sexp_funargs,Function Args);
+    //    mk_tag_name(sexp_lam,lambda);
+    //    mk_tag_name(sexp_lenv,local environment);
+    //    mk_tag_name(sexp_keyword,Keyword Symbol);
+    //    mk_tag_name(sexp_funargs,Function Args);
     mk_tag_name(sexp_true,t);
     mk_tag_name(sexp_obarray,obarray);
     mk_tag_name(sexp_typed_array,typed array);
-    mk_tag_name(sexp_tree,tree);
+    //    mk_tag_name(sexp_tree,tree);
     mk_tag_name(sexp_hash_table,hash table);
     mk_tag_name(sexp_ctype,ctype);
     mk_tag_name(sexp_cdata,cdata);
@@ -144,6 +144,7 @@ const char *typeName(sexp obj){
 sexp lisp_typeName(sexp obj){
   return (sexp){.tag = _str,.val={.cord = CORD_from_char_star(typeName(obj))}};
 }
+//
 CORD print_num_format(sexp obj,CORD format){
   if(!BIGNUMP(obj)){return 0;}
   else{
@@ -200,57 +201,47 @@ CORD print_num_format(sexp obj,CORD format){
 inline CORD print_num(sexp obj){
   return print_num_format(obj,0);
 }
-#define get_comma_and_quote()                   \
-  if(obj.has_comma){                            \
-  if(obj.quoted){                               \
-  acc="`";                                      \
-  } else {                                      \
-    acc=",";                                    \
-  }                                             \
-  } else if(obj.quoted){                        \
-    acc=CORD_cat(acc,"'");                      \
-  }
 CORD print(sexp obj){
   CORD retval=CORD_EMPTY,acc=CORD_EMPTY;
   switch (obj.tag){
-    HERE();
     case sexp_double:
     case sexp_long:
     case sexp_ulong:
     case sexp_bigint:
     case sexp_bigfloat:
       return print_num(obj);
-    case sexp_fun:
-      get_comma_and_quote();
-      return CORD_cat(acc,obj.val.fun->lname);
+    case sexp_subr:
+      switch(obj.val.subr->subr_type){
+        case subr_special_form:
+          return CORD_catn(3,"#<special form ",obj.val.subr->lname,">")
+        case subr_compiled:
+          return CORD_catn(3,"#<compiled function ",obj.val.subr->lname,">");
+        case subr_compiler_macro:
+          return CORD_catn(3,"#<compiler macro  ",obj.val.subr->lname,">");
+        case subr_lambda:
+          //this won't work for the argument list as is
+          return CORD_catn(3,"(lambda ",print(obj.val.subr->lambda_arglist),
+                           print(cons_sexp(obj.val.subr->lambda_body)));
+        default:
+          raise_simple_error(Eprint,"don't know how to print that type of subr");
+      }
     case sexp_sym:
-      get_comma_and_quote();
       return CORD_cat(acc,obj.val.var->name);
-    case sexp_macro:
-      return obj.val.mac->lname;
-    case sexp_keyword:
-      return obj.val.keyword->name;
     case sexp_char:{
-      PRINT_FMT("numerical val of char %d",obj.val.uchar);
+      //PRINT_FMT("numerical val of char %d",obj.val.uchar);
       CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
       return retval;
     }
     case sexp_nil:
       return "()";
-    case sexp_tree:
-      obj=obj.val.tree->tree;//fallthrough
-    case sexp_list:
     case sexp_cons:
-      get_comma_and_quote();
       acc=CORD_cat(acc,"(");
       int i=0;
-      while(CONSP(obj)){
+      do{
         acc=CORD_cat(acc,print(XCAR(obj)));
-        obj=XCDR(obj);
-        if(CONSP(obj)){acc=CORD_cat_char(acc,' ');}
-      }
-      //      PRINT_MSG(tag_name(obj.tag));
-      if(!NILP(obj)){
+        obj=XCDR(obj);        
+      } while (CONSP(obj) && (acc=CORD_cat_char(acc,' ');));
+      if(!NILP(obj)){//cons-cell/improper list
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
         acc=CORD_cat(acc,")");
@@ -258,7 +249,7 @@ CORD print(sexp obj){
       }
       //      PRINT_MSG(retval);
       return CORD_balance(retval);
-    case sexp_uninterned:
+      /*    case sexp_uninterned:
       switch(obj.val.meta){
         case 11:
           return "#t";
@@ -266,8 +257,7 @@ CORD print(sexp obj){
           return "unbound symbol";
         default:
           return "uninterned symbol";
-      }
-    case sexp_error:
+          }*/
     case sexp_str:
       //need to figure out how to do esacpe sequences
       return CORD_catn(3,"\"",obj.val.cord,"\"");
