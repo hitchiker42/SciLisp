@@ -35,7 +35,7 @@ struct re_match_data {
 };
 sexp lisp_re_compile(sexp regex,sexp opts);
 sexp lisp_re_optimize(sexp regex);
-sexp lisp_re_match(sexp regex,sexp string,sexp start,sexp opts)
+sexp lisp_re_match(sexp regex,sexp string,sexp start,sexp opts);
 sexp lisp_get_re_backref(sexp match_data,sexp ref_num);
 sexp lisp_re_replace(sexp regex,sexp replacement,sexp string);
 /*

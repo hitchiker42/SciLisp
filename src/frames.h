@@ -1,5 +1,5 @@
 #ifndef _FRAME_H
-#define _FRAME_
+#define _FRAME_H
 #define UNWIND_PROTECT_TAG Qunwind_protect
 #include "common.h"
 enum  frame_type {//might not use this
@@ -26,10 +26,10 @@ struct frame {
 };
 #define make_frame(tag_val,frame_type)                                  \
   ({frame_addr retval=xmalloc_atomic(sizeof(struct frame));             \
-  retval->tag=tag;                                                      \
-  retval->value=NIL;                                                    \
-  retval->value.meta=frame_type;                                        \
-  retval;})
+    retval->tag=tag_val;                                                \
+    retval->value=NIL;                                                  \
+    retval->value.meta=frame_type;                                      \
+    retval;})
 #define make_simple_error_handler(_tag_) make_frame(_tag_,simple_error_frame)
 typedef void __attribute__((noreturn)) (*error_handler)(frame);
 #define establish_simple_error_handler(name,_tag_,handler_fun)  \

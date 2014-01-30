@@ -27,6 +27,7 @@ BUILT_SOURCES =  fnv_hash prim.c prim.h lex.yy.c lex.yy.h
 SUBDIRS = SFMT gc/bdwgc libffi
 #Things to be built
 bin_PROGRAMS = SciLisp
+read_test_SOURCES = read_test.c env.c cons.c print.c
 SciLisp_LDADD = SFMT/libSFMT.la libSciLisp.la
 SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)
 #SciLisp_CFLAGS= $(AM_CFLAGS)
@@ -37,6 +38,8 @@ libSciLisp_la_LIBADD = SFMT/libSFMT.la gc/bdwgc/libgc_convenience.la \
 #libSciLisp_la_includedir=$(includedir)/SciLisp
 #libSciLisp_la_HEADERS = $(SCILISP_INCLUDES)
 test: SciLisp_test
+read_test: $(read_test_SOURCES)
+	$(CC) -std=gnu99 $(INCLUDE_FLAGS) $^ -o read_test
 #gc/bdwgc/libcord.la gc/bdwgc/libgc.la: gc/bdwgc/configure
 #	cd gc/bdwgc && ./configure $(GC_OPTIONS) --disable-gcj-support && $(MAKE)
 SciLisp_llvm: $(FRONTEND) $(BACKEND) $(SCILISP_INCLUDES) llvm_codegen.o

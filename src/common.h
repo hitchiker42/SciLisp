@@ -48,10 +48,12 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define LISP_RWLOCK_WRLOCK(env)
 #define LISP_RWLOCK_UNLOCK(env)
 #endif
-#ifndef IN_LEXER
-#include "read_lex.h"
-#endif
+#include "read.h"
 #include "gc/gc.h"
+#define xmalloc GC_MALLOC
+#define xrealloc GC_REALLOC
+#define xfree GC_FREE
+#define xmalloc_atomic GC_MALLOC_ATOMIC
 #include <pthread.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -64,7 +66,12 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #include "bignum.h"
 #include "cffi.h"
 #include "llvm_externs.h"
+//we need NIL in env.h
+static const sexp NIL={.val={0}};//NIL is all 0s
 #include "env.h"
+//temporary
+#include "extra/builtin_symbols.h"
+#include "frames.h"
 //print what is being lexed, very verbose, rarely useful
 //#define VERBOSE_LEXING
 #include "debug.h"
@@ -88,10 +95,6 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   ({CORD retval;                                \
   CORD_sprintf(&retval,format,##args);          \
   retval;})
-#define xmalloc GC_MALLOC
-#define xrealloc GC_REALLOC
-#define xfree GC_FREE
-#define xmalloc_atomic GC_MALLOC_ATOMIC
 #define construct_sexp_generic(sexp_val,sexp_tag,                       \
                                sexp_field,is_ptr_val,sexp_cast)         \
   sexp_cast {.tag=sexp_tag,.val={.sexp_field=sexp_val},                 \
@@ -122,7 +125,7 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define bigfloat_sexp(bigfloat_ptr) construct_ptr(bigfloat_ptr,bigfloat)
 #define bigint_sexp(bigint_ptr) construct_ptr(bigint_ptr,bigint)
 #define cons_sexp(cons_val) construct_ptr(cons_val,cons)
-#define cord_sexp(cord_val) string_sexp(cord_val)
+#define cord_sexp(cord_val) string_sexp(make_string(cord_val))
 #define c_data_sexp(c_data_val) construct_sexp(c_data_val,sexp_cdata,c_val,1)
 #define double_sexp(double_val) construct_atom(double_val,real64)
 #define env_sexp(env_val) construct_sexp(env_val,sexp_env,cur_env,1)
@@ -155,10 +158,10 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define stream_sexp(stream_val) construct_ptr(stream_val,stream)
 #define string_sexp(string_val) construct_ptr(string_val,string)
 //
-#define c_string_sexp(c_string_val) construct_ptr(string_val,c_string)
+#define c_string_sexp(c_string_val) construct_ptr(c_string_val,c_string)
 #define symref_sexp(symref_val) construct_ptr(symref_val,sym)
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
-//#define type_sexp(type_val) construct_sexp(type_val,sexp_type,meta,0)
+#define type_sexp(type_val) construct_sexp(type_val,sexp_type,sym,1)
 #define uchar_sexp(uchar_val) construct_atom(uchar_val,uchar)
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
@@ -178,7 +181,6 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
   sigstk.ss_size=SIGSTKSZ;                                              \
   sigaltstack(&sigstk,NULL)
 //lisp constants needed in c
-static const sexp NIL={.val={0}};//NIL is all 0s
 static const sexp UNBOUND={.tag = sexp_unbound,.val={0}};
 static const sexp LISP_TRUE={.tag = sexp_true,.val={1}};
 static const sexp LISP_FALSE={.tag = sexp_false,.val={0}};
@@ -194,7 +196,7 @@ static const sexp LispEmptyList={.tag=sexp_cons,.val={.cons=(cons*)&EmptyList},.
 //sexp* yylval;
 //FILE* yyin;
 yyscan_t global_scanner;
-
+static uint64_t gensym_counter;
 //flag for errors at repl
 extern int evalError;
 //probably don't need anymore, what with pthread_once

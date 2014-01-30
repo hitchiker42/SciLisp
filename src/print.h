@@ -41,4 +41,5 @@ sexp lisp_fputs(sexp string,sexp stream);
 //code in format.c
 sexp c_format(CORD format,sexp args);
 sexp lisp_format(sexp format,sexp args);
+sexp type_of_tag(sexp_tag tag);
 #endif

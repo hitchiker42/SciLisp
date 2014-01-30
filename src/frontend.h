@@ -25,25 +25,26 @@ static const char *banner=
   "SciLisp  Copyright (C) 2013-2014 Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+";
 static const char *SciLisp_Banner;
+//globals, but only ever set once in a locked thread (getopt) or read
 static int no_banner=0;
 static int no_copyright=0;
+char *line_read;
+symbol *lisp_ans_ptr;
+int parens_matched(const char* line,int parens)__attribute__((pure));
+int lisp_getline(FILE* outfile,char* filename);
+void read_eval_print_loop();
+void read_eval_print_loop() __attribute__((noreturn));
+//the repl isn't multithreaded (at least for now)
+static sexp (*eval_fun)(sexp,env_ptr)=NULL;
 /*just to note I didn't write this I got it from
   http://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=SciLisp*/
-static c_string SciLisp_Banner=
+static const char *SciLisp_Banner=
 "    ____      _  __    _          \n"
 "   / __/____ (_)/ /   (_)___  ___ \n"
 "  _\\ \\ / __// // /__ / /(_-< / _ \\\n"
 " /___/ \\__//_//____//_//___// .__/\n"
 "                           /_/     ";
-static void SciLisp_help(int exitCode){
-  CORD_printf(Make_SciLisp_help_string());
-  exit(exitCode);
-}
-static void SciLisp_version(int exitCode){
-  puts(Make_SciLisp_verson_string(PACKAGE_VERSION));
-  exit(exitCode);
-}
-static CORD Make_SciLisp_verson_string(c_string Version_no){
+static CORD Make_SciLisp_verson_string(const char *Version_no){
   CORD version_string;
   CORD_sprintf(&version_string,"SciLisp %s",PACKAGE_VERSION);
   return version_string;
@@ -72,15 +73,21 @@ static CORD Make_SciLisp_help_string(){
      // "quiet|q, insure debug messages are not printed (redirect to /dev/null)\n");
   return help_string;
 }
-int parens_matched(const char* line,int parens)__attribute__((pure));
-int lisp_getline(FILE* outfile,char* filename);
-void read_eval_print_loop();
+static void SciLisp_help(int exitCode){
+  CORD_printf(Make_SciLisp_help_string());
+  exit(exitCode);
+}
+static void SciLisp_version(int exitCode){
+  puts(Make_SciLisp_verson_string(PACKAGE_VERSION));
+  exit(exitCode);
+}
+//static global, because only used in the repl
 #ifdef HAVE_READLINE
 int lisp_readline(FILE* outfile,char* filename);
-static int(*lisp_readline_ptr)(FILE*,char*)=lisp_readline;
+static int(*lisp_readline_fun)(FILE*,char*)=lisp_readline;
 #include <readline/readline.h>
 #include <readline/history.h>
 #else
-static int(*lisp_readline_ptr)(FILE*,char*)=lisp_getline;
+static int(*lisp_readline_fun)(FILE*,char*)=lisp_getline;
 #endif
 #endif

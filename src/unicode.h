@@ -18,15 +18,6 @@
                                str+3 && ((isutf8_4(str[0]) && isutf8_1(str[1]) \
                                           && isutf8_1(str[2])) && isutf8_1(str[3])))))
 
-static inline lisp_string *make_string(const char *str){
-  lisp_string *retval=xmalloc(sizeof(lisp_string));
-  if(str[0] == '\0'){
-    *retval=(lisp_string){.cord=str,.len=(CORD_len(str))}
-  } else {
-    *retval=(lisp_string){.string=str,.len=(strlen(str))}
-  }
-  return retval;
-}
 int lex_char(char* cur_yytext,wint_t *new_char);
 sexp lisp_char_to_string(sexp lisp_char);
 sexp lisp_string_to_char(sexp lisp_str);
@@ -34,7 +25,7 @@ sexp lisp_string_to_char(sexp lisp_str);
 const char *c_wchar_to_string(wchar_t lisp_char);
 //destructively convert intput, return value is NULL on error
 //and input otherwise
-char *wcsrtombs_destructive(wchar *restrict input,mbstate *restrict state);
+char *wcsrtombs_destructive(wchar_t *restrict input,mbstate_t *restrict state);
 //convert a lisp_string to a c wide character string
 wchar_t* lisp_string_to_wcs(lisp_string *string,int *out_len);
 //pretty much a simplified wrapper to mbsrtowcs, which deals

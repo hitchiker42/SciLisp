@@ -62,14 +62,15 @@ typedef struct ctype ctype;
 typedef struct c_data c_data;
 typedef struct re_match_data re_match_data;
 typedef struct re_pattern_buffer regex_t;
-typedef struct hash_table hash_table;//hash table for use in lisp(obarrays are mostly for c)
+typedef struct hash_table hash_table;//hash table for use in lisp(obarrays are mostly for)
+typedef struct lambda_list lambda_list;
 typedef struct hash_entry hash_entry;
 typedef struct lisp_condition lisp_condition;//error handling
 typedef struct lisp_string lisp_string;//string/CORD + length
 typedef struct lisp_array lisp_array;//array/typed array/matrix
 typedef struct subr subr;//any kind of subroutine(macro,function,special form,etc)
 typedef struct frame frame;//a jmp_buf and information to reinitialize lisp environment
-typedef frame *frame_addr;
+typedef struct frame *frame_addr;
 typedef environment *env_ptr;
 typedef symbol *symref;//type of generic symbol references
 //typedefs akin to the ones in stdint.h and sml
@@ -141,6 +142,9 @@ extern symbol *E*/
 #define EQ(obj1,obj2)                                                   \
   ((NUMBERP(obj1) && NUMBERP(obj2))?NUM_EQ(obj1,obj2):                  \
    ((obj1.tag==obj2.tag) && (obj1.val.uint64 == obj.val.uint64)))
+//more defined in cons,h, but these are so common I need them even in headers
+#define XCAR(cell) cell.val.cons->car
+#define XCDR(cell) cell.val.cons->cdr
 //macros to format error strings
 #include "error_fmt.h"
 #define const_real64_sexp(real64_val) {.tag=sexp_real64,.val={.real64=real64_val}}
@@ -172,6 +176,7 @@ enum sexp_tag {
   sexp_bigint = 12,sexp_mpz=12,
   sexp_bigfloat = 13,sexp_mpfr=13,
   //end of numbers
+  sexp_c_str = 19,sexp_c_string=19,//const char *'s, for simple strings
   sexp_str = 20,sexp_string=20,//type of strings, value is cord
   sexp_array = 21,//type of arrays, element type in meta, vaule is array
   sexp_regex = 23,//compiled regular expression
@@ -260,7 +265,9 @@ enum TOKEN {
   TOK_LISP_TRUE=6,
   TOK_LISP_FALSE=7,
   TOK_KEYSYM=8,
+  TOK_SYMBOL=9,
   //reserved words/characters 18-30
+  TOK_BACKQUOTE=17,
   TOK_QUOTE=18,
   TOK_QUASI=19,//`
   TOK_SPECIAL=20,
@@ -286,6 +293,7 @@ enum TOKEN {
   TOK_DBL_RBRACE=57,//]]
   TOK_MAT_OPEN=58,//"[|", start a literal blas compatiable matrix
   TOK_MAT_CLOSE=59,//"|]", close """"
+  TOK_ERR=60,
 };
 //this is almost exactly the way emacs does builtin functions
 union funcall{
@@ -359,6 +367,12 @@ struct lambda_list {
   cons *opt_args;//( num_opt_args . [(argname . default)...)]
   cons *key_args;//(num_key_args .  [[key . (var . default)]...])
   symbol *rest_arg;
+};
+struct package {
+  lisp_string name;
+  lisp_string documentation;
+  package *uses;
+  obarray *symbol_table;
 };
 //lisp subroutine, either a builtin function, a special form, a compilier macro
 //or a lisp function(a lambda) or a lisp macro
@@ -473,4 +487,4 @@ struct lisp_simple_vector {
   uint64_t len;
   uint8_t type;
 };
-int type=0;
+//int type=0;

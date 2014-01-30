@@ -14,16 +14,15 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with SciLisp.  If not, see <http://www.gnu.org*/
-#include "frontend.h"
-#define reset_line()       free (line_read);    \
-  line_read = (char *)NULL
+   along with SciLisp.  If not, see <http:
 /*Scan a line, subtract 1 from parens for each ")"
  *add 1 to parens for each "(", return -1 if we find a close parenteses
  *without an opening one.
  *parens is an int containing the number of currently open parentheses
  *it could probably be a pointer, but I like to keep functions pure
  */
+#include "frontend.h"
+
 int parens_matched(const char* line,int parens){
   int i=0;
   char cur_char;
@@ -50,7 +49,7 @@ int parens_matched(const char* line,int parens){
  * the position in outfile where it started scanning*/
 int lisp_readline(FILE* outfile,char* filename){
   FILE* my_pipe=outfile;
-  char* tmpFile=filename;
+  char* tmp_file=filename;
   int parens,start_pos=ftello(my_pipe);
  MAIN_LOOP:while(1){
     parens=0;
@@ -71,7 +70,7 @@ int lisp_readline(FILE* outfile,char* filename){
     while(parens){
       if(parens<0){
         fprintf(stderr,"Extra close parentheses\n");
-        truncate(tmpFile,0);
+        truncate(tmp_file,0);
         goto MAIN_LOOP;
       }
       line_read=readline(">");
@@ -97,7 +96,7 @@ int lisp_readline(FILE* outfile,char* filename){
 //input w/o readline
 int lisp_getline(FILE* outfile,char* filename){
   FILE* my_pipe=outfile;
-  char* tmpFile=filename;
+  char* tmp_file=filename;
   int parens,start_pos=ftello(my_pipe);
   size_t len;
  MAIN_LOOP:while(1){
@@ -120,7 +119,7 @@ int lisp_getline(FILE* outfile,char* filename){
     while(parens){
       if(parens<0){
         fprintf(stderr,"Extra close parentheses\n");
-        truncate(tmpFile,0);
+        truncate(tmp_file,0);
         goto MAIN_LOOP;
       }
       fputs(">",stdout);
@@ -144,9 +143,9 @@ int lisp_getline(FILE* outfile,char* filename){
 void __attribute__((noreturn)) read_eval_print_loop(){
   static char *line_read =(char *)NULL;
   int parens,start_pos;
-  char tmpFile[]={'/','t','m','p','/','S','c','i','L','i','s','p','_','P','i','p','e',
+  char tmp_file[]={'/','t','m','p','/','S','c','i','L','i','s','p','_','P','i','p','e',
                   'X','X','X','X','X','X','\0'};
-  int fd=mkstemp(tmpFile);
+  int fd=mkstemp(tmp_file);
   FILE* my_pipe=fdopen(fd,"w+");
   yyscan_t scanner;
   yylex_init(&scanner);
@@ -161,25 +160,25 @@ void __attribute__((noreturn)) read_eval_print_loop(){
   //toplevel handler which catches any invalid nonlocal exit
   //also used to return to after any fatal lisp error (i.e
   //the lisp stack overflows or something
-  frame *top_level_frame=make_frame(UNWIND_PROTECT_TAG,protect_frame);
-  push_frame(current_env,top_level_frame);
+  frame *top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
+  push_frame(current_env,*top_level_frame);
  REPL:while(1){
     if(setjmp(top_level_frame->dest)){
       if(STRINGP(top_level_frame->value)){
         //should print to lisp stderr 
         CORD_fprintf(stderr,top_level_frame->value.val.string->cord);
       } else {
-        CORD_fprintf("Recieved lisp error with value",print(top_level_frame->value));
+        CORD_fprintf(stderr,"Recieved lisp error with value",print(top_level_frame->value));
       }
     }
-    start_pos=lisp_readline_fun(my_pipe,tmpfile);
+    start_pos=lisp_readline_fun(my_pipe,tmp_file);
     fseeko(my_pipe,start_pos,SEEK_SET);
     yyrestart(my_pipe,scanner);
     ast=c_read(&scanner,yylval,NULL);
     //print
     if(!NILP(ast)){
       lisp_ans_ptr->val=eval_fun(XCAR(ast),current_env);
-      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
+      CORD_printf(CORD_cat(print(lisp_ans_ptr->val).cord,"\n"));
     } else {
       ;
     }

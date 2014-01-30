@@ -67,8 +67,6 @@ sexp cons_drop(sexp ls,sexp num);
 static sexp last(sexp ls);
 //same as above but uses XCDR insstead of cdr
 static sexp unsafe_last(sexp ls); 
-#define XCAR(cell) cell.val.cons->car
-#define XCDR(cell) cell.val.cons->cdr
 #define SET_CAR(cell,obj) (cell.val.cons->car=obj)
 #define SET_CDR(cell,obj) (cell.val.cons->cdr=obj)
 #define XCAR_SAFE(cell) (CONSP(cell)?XCAR(cell):NIL)
@@ -169,7 +167,7 @@ static sexp as_list(sexp obj){
 }
 static sexp push_cons(sexp obj,sexp ls){
   if(!(CONSP(ls))){
-    return format_type_error("push!","cons cell",ls.tag);
+    raise_simple_error(Etype,format_type_error("push!","cons cell",ls.tag));
   } else {
     XCDR(ls)=ls;
     XCAR(ls)=obj;

@@ -1,4 +1,21 @@
 /* -*- c-syntactic-indentation: nil; electric-indent-inhibit: t -*- */
+/* The reader, uses flex
+
+Copyright (C) 2014 Tucker DiNapoli
+This file is part of SciLisp.
+
+SciLisp is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+SciLisp is distributed in the hope that it will be useful,
+35but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with SciLisp.  If not, see <http://www.gnu.org*/
 %{
 /*****************************************************************
  * Copyright (C) 2013 Tucker DiNapoli                            *
@@ -8,7 +25,7 @@
 #include "common.h"
 /*#include "prim.h"*/
 #include "unicode.h"
-//#include "read.h"
+#include "read.h"
 #ifdef YY_DECL
 #undef YY_DECL
 #endif
@@ -21,13 +38,6 @@ static thread_local int backtick_flag=0;
     CORD_sprintf(&read_err_string,            \
     format,##args);                           \
     read_err_string;})
- /*seems redundant but allows me to change how I handle errors */
-static inline void __attribute__((noreturn)) handle_read_error(){
-  longjmp(read_err,-1);
-#define raise_read_error(value) raise_simple_error(Eread,value)
-#define raise_read_error_fmt(format,args...)                          \
-  raise_simple_error(Eread,string_sexp(FORMAT_READ_ERR(format,args)))
-}
 %}
  /*FLEX COMMENT RULES:
    Comment needs to start after a space on a line;
@@ -114,28 +124,27 @@ QUALIFIED_ID_ALL {ID}":."{ID}
     return TOK_SYMBOL;
    }
 {KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
-  sexp temp=(sexp)getKeySymSexp(name);*yylval=temp;
-  return TOK_KEYSYM;}
+   symbol *sym=c_intern(yytext,yyleng,NULL);
+   *yylval=symref_sexp(sym);
+    return TOK_KEYSYM;}
 {QUALIFIED_ID} {LEX_MSG("lexing qualified id");
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
   if(!ENVP(package->val)){
-    *yylval=format_error_sexp("unknown package %s",package->name.name);
+    /*yylval=format_error_sexp("unknown package %s",package->name.name);*/
     return TOK_ERR;
   }
-  symbol_name sym_name(colon+1,(uint32_t)((yytext+yyleng)-(colon+1)),NULL);
-  symbol *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  symbol_name *sym_name=make_symbol_name(colon+1,(uint32_t)((yytext+yyleng)-(colon+1)),0);
+  symbol *sym=obarray_lookup_sym(sym_name,package->val.val.ob);
   if(!sym){
-    FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
-                                                  package->name->name);
-    return handle_read_error();
+    raise_simple_error(Eundefined,FORMAT_READ_ERR
+      ("value %s not found in package %s",sym_name->name,package->name->name));
   }
-  if(sym->name->externally_visable == 2){
-    FORMAT_READ_ERR
+  if(sym->visibility == 2){
+    raise_simple_error(Evisibility,FORMAT_READ_ERR
     ("value %s not externally visable in package %s (use :. to override visibility)",
-    sym_name->name,package->name->name);
-    return handle_read_error();
+      sym_name->name,package->name->name));
    }
    *yylval=symref_sexp(sym);
    return TOK_ID;
@@ -144,22 +153,22 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   /*know we've got a colon, so we can use rawmemchr*/
   char *colon=rawmemchr(yytext,':');
   assert(*(colon+1) == '.');
-  symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),NULL);
+  symbol *package=c_intern(yytext,(uint32_t)(colon-yytext),0);
   if(!ENVP(package->val)){
-    FORMAT_READ_ERR("unknown package %s",package->name.name);
-    return handle_read_error()
+    raise_simple_error(Eundefined,
+    FORMAT_READ_ERR("unknown package %s",package->name->name));
   }
-  symbol_name sym_name(colon+2,(uint32_t)((yytext+yyleng)-(colon+2)),NULL);
-  symbol *sym=obarray_lookup_sym(&sym_name,package->val.val.ob);
+  symbol_name *sym_name=make_symbol_name(
+    colon+2,(uint32_t)((yytext+yyleng)-(colon+2)),0);
+  symbol *sym=obarray_lookup_sym(sym_name,package->val.val.ob);
   if(!sym){
-    FORMAT_READ_ERR("value %s not found in package %s",sym_name->name,
-                                                  package->name->name);
-    return handle_read_error();
+    raise_simple_error(Eundefined,FORMAT_READ_ERR("value %s not found in package %s",
+      sym_name->name,package->name->name));
   }
   *yylval=symref_sexp(sym);
   return TOK_ID;
   }
-{TYPENAME} {LEX_MSG("lexing typename");*yylval=typeOfTag(parse_tagname(yytext+2));
+{TYPENAME} {LEX_MSG("lexing typename");*yylval=type_of_tag(parse_tagname(yytext+2));
   return TOK_TYPEINFO;}
   /*
 {ID}{TYPENAME} {LEX_MSG("lexing typed id");
@@ -176,11 +185,11 @@ QUALIFIED_ID_ALL {ID}":."{ID}
 <comment>"#"[^|}|"|"[^#]
 "quasiquote"|"`" {LEX_MSG("lexing backquote");return TOK_BACKQUOTE;}
 "#" {LEX_MSG("HASH");return TOK_HASH;}
-"#t" {*yyval=LISP_TRUE; return TOK_SYMBOL;}
+"#t" {*yylval=LISP_TRUE; return TOK_SYMBOL;}
 "#f" {*yyval=LISP_FALSE; return TOK_SYMBOL;}
  /*uninterned symbol*/
 "#:"{ID} {struct symbol_name *name=make_symbol_name(yytext+2,yyleng-2,0);
-          struct symbol_new *sym=xmalloc(sizeof(struct symbol_new));
+          symbol *sym=xmalloc(sizeof(struct symbol));
           sym->name=name;
           sym->val=UNDEFINED; /*define this at some point*/
           sym->next=NULL;
@@ -225,8 +234,6 @@ void *yyrealloc(void *ptr,size_t bytes,void *yyscanner){
 void yyfree(void *ptr,void *yyscanner){
   return xfree(ptr);
 }
-sexp read_full(FILE *stream);
-sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok);
 sexp lisp_read(sexp lisp_stream){
   //really need to write a cord stream/test the one I already wrote
   FILE *stream;
@@ -347,7 +354,6 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
   }
 }
 #pragma GCC diagnostic ignored "-Wswitch-enum"
-
 sexp read_list(yyscan_t *scanner,register sexp *yylval){
   sexp retval;
   sexp new_list=retval=cons_sexp(xmalloc(sizeof(cons)));
@@ -370,7 +376,6 @@ sexp read_list(yyscan_t *scanner,register sexp *yylval){
       return retval;
   }
   raise_simple_error(Eread,"read error, expected ')' or '.' at end of list");
-  return handle_read_error();
   }
 }
 /*read an untyped array  delimited by double braces and
@@ -394,7 +399,6 @@ sexp read_untyped_array(yyscan_t *scanner,sexp *yylval){
   }
   if(last_tok != ']'){
     raise_simple_error(Eread,"Read error expected ']' at end of array");
-    return handle_read_error();
   }
   lisp_array *retval=(lisp_array*)arr;
   retval->len=i;

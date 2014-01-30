@@ -6,10 +6,10 @@
 #include "cons.h"
 #include "regex.h"
 #include "print.h"
-#include "tree.h"
+//#include "tree.h"
 #include "hash.h"
 #define mk_tag_name(tag,name) case tag: return #name
-const char *tag_name(_tag obj_tag){
+const char *tag_name(sexp_tag obj_tag){
   switch(obj_tag){
     mk_tag_name(sexp_unbound,unbound);
     mk_tag_name(sexp_error,error);
@@ -57,10 +57,54 @@ const char *tag_name(_tag obj_tag){
     }
   }
 }
+//temporary
+#define mkTypeCase(type,tag) case tag: return type_sexp(type)
+sexp type_of_tag(sexp_tag tag){
+  switch(tag){
+    mkTypeCase(Tint8,sexp_int8);
+    mkTypeCase(Tint16,sexp_int16);
+    mkTypeCase(Tint32,sexp_int32);
+    mkTypeCase(Tint64,sexp_int64);
+    mkTypeCase(Tuint8,sexp_uint8);
+    mkTypeCase(Tuint16,sexp_uint16);
+    mkTypeCase(Tuint32,sexp_uint32);
+    mkTypeCase(Tuint64,sexp_uint64);
+    mkTypeCase(Terror,sexp_error);
+    mkTypeCase(Treal32,sexp_real32);
+    mkTypeCase(Treal64,sexp_real64);
+    mkTypeCase(Tbigint,sexp_bigint);
+    mkTypeCase(Tbigfloat,sexp_bigfloat);
+    mkTypeCase(Tchar,sexp_char);
+    mkTypeCase(Tstring,sexp_string);
+    mkTypeCase(Tarray,sexp_array);
+    mkTypeCase(Tstream,sexp_stream);
+    //    mkTypeCase(Tlist,sexp_list);
+    mkTypeCase(Tfun,sexp_fun);
+    mkTypeCase(Tsymbol,sexp_symbol);
+    //    mkTypeCase(Tmacro,sexp_macro);
+    mkTypeCase(Ttype,sexp_type);
+    //    mkTypeCase(Tkeyword,sexp_keyword);
+    mkTypeCase(Thashtable,sexp_hashtable);
+    //    mkTypeCase(Tspec,sexp_spec);
+    mkTypeCase(Tregex,sexp_regex);
+    mkTypeCase(Tnil,sexp_nil);
+    //    mkTypeCase(Tdpair,sexp_dpair);
+    //    mkTypeCase(Tlenv,sexp_lenv);
+    mkTypeCase(Tenv,sexp_env);
+    mkTypeCase(Tobarray,sexp_obarray);
+    //    mkTypeCase(Tfunargs,sexp_funargs);
+    mkTypeCase(Ttrue,sexp_true);
+    mkTypeCase(Tfalse,sexp_false);
+    mkTypeCase(Tuninterned,sexp_uninterned);
+    mkTypeCase(Tcons,sexp_cons);
+    //    mkTypeCase(Tpointer,sexp_opaque);
+  }
+}
 #undef mk_tag_name
+#if 0
 #define spec_to_string(spec)                    \
   case _##spec: return #spec
-c_string specialForm_name(sexp obj){
+const char *specialForm_name(sexp obj){
   special_form spec=obj.val.special;
   switch(spec){
     spec_to_string(comma);
@@ -93,7 +137,8 @@ c_string specialForm_name(sexp obj){
       return "woops forgot to implement that special form";
   }
 }
-c_string typeName(sexp obj){
+#endif
+const char *typeName(sexp obj){
   return tag_name(obj.tag);
 }
 sexp lisp_typeName(sexp obj){
@@ -169,33 +214,33 @@ CORD print(sexp obj){
   CORD retval=CORD_EMPTY,acc=CORD_EMPTY;
   switch (obj.tag){
     HERE();
-    case _double:
-    case _long:
-    case _ulong:
-    case _bigint:
-    case _bigfloat:
+    case sexp_double:
+    case sexp_long:
+    case sexp_ulong:
+    case sexp_bigint:
+    case sexp_bigfloat:
       return print_num(obj);
-    case _fun:
+    case sexp_fun:
       get_comma_and_quote();
       return CORD_cat(acc,obj.val.fun->lname);
-    case _sym:
+    case sexp_sym:
       get_comma_and_quote();
       return CORD_cat(acc,obj.val.var->name);
-    case _macro:
+    case sexp_macro:
       return obj.val.mac->lname;
-    case _keyword:
+    case sexp_keyword:
       return obj.val.keyword->name;
-    case _char:{
+    case sexp_char:{
       PRINT_FMT("numerical val of char %d",obj.val.uchar);
       CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
       return retval;
     }
-    case _nil:
+    case sexp_nil:
       return "()";
-    case _tree:
+    case sexp_tree:
       obj=obj.val.tree->tree;//fallthrough
-    case _list:
-    case _cons:
+    case sexp_list:
+    case sexp_cons:
       get_comma_and_quote();
       acc=CORD_cat(acc,"(");
       int i=0;
@@ -213,7 +258,7 @@ CORD print(sexp obj){
       }
       //      PRINT_MSG(retval);
       return CORD_balance(retval);
-    case _uninterned:
+    case sexp_uninterned:
       switch(obj.val.meta){
         case 11:
           return "#t";
@@ -222,11 +267,11 @@ CORD print(sexp obj){
         default:
           return "uninterned symbol";
       }
-    case _error:
-    case _str:
+    case sexp_error:
+    case sexp_str:
       //need to figure out how to do esacpe sequences
       return CORD_catn(3,"\"",obj.val.cord,"\"");
-    case _lenv:{
+    case sexp_lenv:{
       local_symref cur_sym=obj.val.lenv;
       acc="(";
       while(cur_sym != 0){
@@ -238,7 +283,7 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,")"));
     }
-    case _funarg:{
+    case sexp_funarg:{
       acc="(";
       function_args* args=obj.val.funarg;
       int i=0,j=0;
@@ -270,7 +315,7 @@ CORD print(sexp obj){
       return CORD_balance(acc);
     }
 #undef funarg_print_loop
-    case _lam://depricated type
+    case sexp_lam://depricated type
       /*      acc="(lambda ";
       acc=CORD_catn(5,acc,
                     print((sexp){.tag=_lenv,.val=
@@ -278,7 +323,7 @@ CORD print(sexp obj){
                     ," ",print(obj.val.lam->body),")");
                     return CORD_balance(acc);*/
       return "Lambda";
-    case _typed_array:{
+    case sexp_typed_array:{
       acc="[[";
       int i;
       CORD format=0;
@@ -303,7 +348,7 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,"]]"));
     }
-    case _array:{
+    case sexp_array:{
       acc="[";
       int i;
       sexp *arr=obj.val.array;
@@ -316,18 +361,18 @@ CORD print(sexp obj){
       }
       return CORD_balance(CORD_cat(acc,"]"));
     }
-    case _opaque:
+    case sexp_opaque:
       return "<#opaque pointer>";
-    case _special:
+    case sexp_special:
       return specialForm_name(obj);
-    case _false:
+    case sexp_false:
       return "#f";
-    case _type:
+    case sexp_type:
       return tag_name(obj.val.meta);
-    case _stream:
+    case sexp_stream:
       CORD_sprintf(&retval,"File descriptor %d",fileno(obj.val.stream));
       return retval;
-    case _obarray:{
+    case sexp_obarray:{
       obarray* ob=obj.val.ob;
       CORD_sprintf
         (&retval,
@@ -335,14 +380,14 @@ CORD print(sexp obj){
          ob->size,ob->used,ob->entries,ob->capacity);
         return retval;
     }
-    case _re_data:
+    case sexp_re_data:
       CORD_sprintf
         (&retval,
          "#<re-match-data for \"%r\">",obj.val.re_data->re_string);
       return retval;
-    case _regex:
+    case sexp_regex:
       return ("#<regular-expression>");
-    case _cdata:{
+    case sexp_cdata:{
       c_data* c_obj=obj.val.c_val;
       if(c_obj->ptr_depth){
         acc=CORD_cat(acc,"#<");
@@ -358,21 +403,21 @@ CORD print(sexp obj){
         return print(c_data_to_sexp(c_obj));
       }
     }
-    case _hashtable:{
+    case sexp_hashtable:{
       hash_table *hash=obj.val.hashtable;
       CORD_sprintf(&retval,"#<hash-table :test %r :entries %d>",
                    hashtable_test_fn_name(obj),hash->entries);
       return retval;
     }
-    case _env:{
+    case sexp_env:{
       switch(obj.val.cur_env->tag){
-        case _local:
+        case sexp_local:
           return "#<local environment>";
-        case _global:
+        case sexp_global:
           return "#<global environment>";
-        case _funArgs:
+        case sexp_funArgs:
           return "#<function arguments environment>";
-        case _obEnv:
+        case sexp_obEnv:
           return "#<obarray environment>";
       }
     }

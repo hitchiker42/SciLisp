@@ -86,7 +86,7 @@
         "end2" "export" "import" "import-from" "initial-contents" "test"
         "initial-element" "key" "size" "start" "start2" "test" "use"))
 (define SciLisp-globals;prefix G (lisp prefix/postfix *)
-  ("stdin" "stdout" "stderr"))
+  (list "stdin" "stdout" "stderr"))
 ;subroutines prefix S
 (define SciLisp-predicates
   (append
@@ -94,17 +94,15 @@
                              1 :sig "(object)"))
            '("array" "cons" "number" "integer" "function"
              "string" "stream" "sequence" "real" "bignum" "bigint" "bigfloat"
-             "hashtable" "macro" "special-form")))
-  (list
-   ("eq" "lisp_eq" 2 :sig "(obj1 obj2)")
-   ("eql" "lisp_eql" 2 :sig "(obj1 obj2)")
-   ("equal" "lisp_equal" 2 :sig "(obj1 obj2)")
-   ("even?" "lisp_evenp" 1 :sig "(integer)")
-   ("odd?" "lisp_oddp" 1 :sig "(integer)")
-   ("zero?" "lisp_zerop" 1 :sig "(number)")))
+             "hashtable" "macro" "special-form"))
+   '(("eq" "lisp_eq" 2 :sig "(obj1 obj2)")
+    ("eql" "lisp_eql" 2 :sig "(obj1 obj2)")
+    ("equal" "lisp_equal" 2 :sig "(obj1 obj2)")
+    ("even?" "lisp_evenp" 1 :sig "(integer)")
+    ("odd?" "lisp_oddp" 1 :sig "(integer)")
+    ("zero?" "lisp_zerop" 1 :sig "(number)"))))
 (define SciLisp-math-funs
-  (list
-   ("!=" "Sne" "lisp_numne" 2 :sig "(num1 num2)")
+  '(("!=" "Sne" "lisp_numne" 2 :sig "(num1 num2)")
    ("*"  "Smul" "lisp_mul_driver" 1 :restarg 1 :sig "(num1 num2)")
    ("+"  "Sadd" "lisp_add_driver" 1 :restarg 1 :sig "(num1 num2)")
    ("1+" "Sinc" "lisp_inc" 1 :sig "(number)")
@@ -126,8 +124,7 @@
    ("sin" "Ssin" "lisp_sin" 1 :sig "(number)")
    ("tan" "Stan" "lisp_tan" 1 :sig "(number)")))
 (define SciLisp-cons-funs
-  (list
-    ("assoc" "Sassoc" "lisp_assoc" 2 :sig ("key list" "Skey list"))
+    '(("assoc" "Sassoc" "lisp_assoc" 2 :sig ("key list" "Skey list"))
     ("assq" "Sassq" "lisp_assq" 2 :sig ("key list" "Skey list"))
     ("cons" "Scons" "Cons" 2 :sig "(car cdr)")
     ("copy-tree" "Scopy-tree" "copy_tree" 1 :sig "(cell)")
@@ -145,8 +142,7 @@
     ("split" "Ssplit" "cons_split" 1 :optargs 1)
     ("take" "Stake" "cons_take" 2 :sig "(list n)")))
 (define SciLisp-array-funs
-  (list
-   ("aref" "Saref" "aref" 2 :sig "(array index)")
+  '(("aref" "Saref" "aref" 2 :sig "(array index)")
    ("array-map!" "Sarray-map!" "array_nmap" 2 :sig "(array map-fn)")
    ("array-map" "Sarray-map" "array_map" 2 :sig "(array map-fn)")
    ("array-qsort" "Sarray-qsort" "array_qsort" 2 :optargs 1
@@ -157,8 +153,7 @@
    ("array-reverse" "Sarray-reverse" "array_reverse" 1 :sig "(array)")))
 (define SciLisp-io-funs)
 (define SciLisp-sequence-funs
-  (list
-   ("map")
+   '(("map")
    ("reduce")
    ("sort")
    ("stable-sort")
@@ -184,7 +179,7 @@
    ("delete-duplicates")
    ("subseq")
    ("rand-seq");(rand-seq type size &optional (element-type 'int))
-   )
+   ))
 (define SciLisp-hash-funs)
 (define SciLisp-subrs
   '(("addhash" "Saddhash" "hashtable_add_entry" 3 :optargs 1
@@ -200,7 +195,6 @@
     ("concat" "Sconcat" "lisp_concat" 0 :restarg 1 :sig "(&rest seqs)")
     ("ccall" "Sccall" "ffi_ccall" 5 :optargs 1
      :sig "(function-name libname return-type argtypes args &optional thread)")
-
     ("copy" "Scopy" "Fcopy" "lisp_copy" 1 :sig "(obj)");maybe call this duplicate
     ("char->string" "Schar->string" "lisp_char_to_string" 1 :sig "(character)")
     ("documentation" "Sdocumentation" "lisp_get_docstring" 1 :sig "(obj)")
@@ -252,7 +246,6 @@
     ("print" "Sprint" "lisp_print" 1 :sig "(object)")
     ("print-to-string" "Sprint-to-string" "lisp_print_to_string" 1 :sig "(object)")
     ("println" "Sprintln" "lisp_println" 1 :sig "(object)")
-
     ("pwd" "Spwd" "lisp_getcwd" 0 :sig "()")
     ("qsort" "Sqsort" "sequence_qsort" 2 :sig "(seq predicate)")
     ;raises a simple error
@@ -268,7 +261,6 @@
     ("read-string" "Sread_string" "lisp_read_string" 1 :sig "(string)")
     ("read" "Sread" "lisp_read" 1 :sig "(stream)")
 ;need to make generic
-
     ("round" "Sround" "lisp_round" 1 :optargs 1)
     ("set-aref!" "Sset_aref" "set_aref" 3 :sig "(array index new-val)")
     ("arglist" "Sarglist" "lisp_get_signature" 1 :sig "(function)")
@@ -288,9 +280,9 @@
       (dolist (prim prims)
         (princ (format "  cintern_unsafe(global_obarray,%s_val);\n" prim)))
       (princ "}\n"))))
-(define SciLisp-keywords
-  (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words
-  (mapcar (lambda (x) (concat "E" x))()));builtin error types
+;(define SciLisp-keywords
+;  (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words
+;  (mapcar (lambda (x) (concat "E" x))()));builtin error types
 (define SciLisp-keywords '())
 (defun make-symbol-declarations()
   (with-temp-file "builtin_symbols.h"
@@ -299,7 +291,7 @@
       (insert (format "extern symbol *E%s;\n" err)))
     (dolist (form SciLisp-special-forms)
       (insert (format "extern symbol *Q%s;\n" form)))
-    (dolist (type SciLisp-Types)
+    (dolist (type SciLisp-types)
       (insert (format "extern symbol *T%s;\n" type)))
     (insert "#endif\n")))
 (defun get-hash (str)

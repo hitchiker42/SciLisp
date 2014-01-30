@@ -24,7 +24,7 @@ symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv){
   retval->name_len=len;
   return retval;
 }
-symbol *make_new_symbol(char *restrict name,uint32_t len){
+symbol *make_new_symbol(const char *name,uint32_t len){
   struct symbol_name *sym_name=make_symbol_name(name,len,0);
   symbol *retval=xmalloc(sizeof(symbol));
   retval->name=sym_name;
@@ -47,7 +47,7 @@ sexp gensym(){
   //probably better to include libatomic_ops
   //and do AO_fetch_and_add1full(&gensym_counter)
   snprintf(name,16,"#:G%d",gensym_counter++);
-  return make_new_symbol(name,strlen(name));
+  return symref_sexp(make_new_symbol(name,strlen(name)));
 }
 symbol *copy_symbol(symbol *sym,int copy_props){
   symbol *retval=xmalloc(sizeof(symbol));
@@ -231,18 +231,18 @@ symbol* c_intern(const char* name,uint32_t len,obarray *ob){
 //add unintern later
 sexp lisp_intern(sexp sym_name,sexp ob){
   const char *name;
-  if(STRINGP(sym_or_name)){
+  if(STRINGP(sym_name)){
     name=CORD_to_const_char_star(sym_name.val.string->cord);
     /*  } else if (SYMBOLP(sym_or_name)){
         name=sym_or_name.val.sym->name->name;*/
   } else {
-    return format_type_error("intern","string or symbol",sym_or_name.tag);
+    raise_simple_error(Etype,format_type_error("intern","string or symbol",sym_name.tag));
   }
 #ifndef OBARRAYP
 #define OBARRAYP(obj) 0
 #endif
   if(!OBARRAYP(ob)){
-    return format_type_error("intern","obarray",ob.tag);
+    raise_simple_error(Etype,format_type_error("intern","obarray",ob.tag));
   }
   return symref_sexp(c_intern(name,sym_name.val.string->len,ob.val.ob));
 }
