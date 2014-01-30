@@ -585,3 +585,13 @@ void unwind_bindings(binding *bindings,int len){
     binding->sym.val=binding.prev_val;
   }
 }
+//rought sketch of how to do this
+sexp cond_expand(sexp expr){
+  sexp retval=expr;
+  sexp cond_case;
+  while(!NILP((cond_case=POP(expr)))){
+    //(test then...)->(test 
+    XCDR(cond_case)=Fcons(Qprogn,XCDR(cond_case));
+    PUSH(cond_case,Qif);
+
+    

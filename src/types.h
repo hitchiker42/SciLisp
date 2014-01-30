@@ -36,6 +36,11 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #undef I
 typedef float complex imag32_t;
 typedef double complex imag64_t;
+//usable a lvalues unlike creal/cimag
+#define realpart(x) (((double*)(&x))[0])
+#define imagpart(x) (((double*)(&x))[1])
+#define realpartf(x) (((float*)(&x))[0])
+#define imagpartf(x) (((float*)(&x))[1])
 #endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
