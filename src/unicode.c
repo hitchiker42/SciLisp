@@ -1,14 +1,27 @@
-/*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Unicode support and general string routines
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 /* A note about SciLisp strings and characters,
    SciLisp characters are represented by a single wchar_t value, regardless of
    the value of the character, while SciLisp strings are represented by CORDs, so
    SciLisp characters are wide characters, while SciLisp strings are multibyte
    strings, This may change at some point, but that's how it is for now*/
 #include "unicode.h"
-#include <endian.h>
 #include <ctype.h>
 
 sexp lisp_char_to_string(sexp lisp_char){
@@ -127,9 +140,9 @@ wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
  * convert a wide character string into a multi-byte string re using the input
  * butter as the output buffer, thus overwriting the given input.
  * This assumes that the maximum size of a multibyte sequence is <= sizeof(wchar_t)
- * which for UTF-8 (on the basic multilingual plane) as the multibyte encoding
- * and a 32 bit wchar should hold. This could change and render this funciton
- * unuseable.
+ * which for UTF-8 on the basic multilingual plane and a 32 bit wide character
+ * is true. If there are characters outside the BMP this might work depending on how
+ * many and where they are in the string, but really don't use this if that's the case.
  */
 char *wcsrtombs_destructive(wchar *restrict input,mbstate *restrict state){
   char *output=(char *)input;
@@ -161,4 +174,5 @@ sexp *c_lisp_strcat(sexp *args,int numargs){
     retval=CORD_cat_char_star(retval,args[i].val.string->string,
                               args[i].val.string->len);
   };
-  return
+  return;
+}

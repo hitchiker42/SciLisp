@@ -1,6 +1,6 @@
 /* Declaration and definitions of various structures and unions
 
-Copyright (C) 2014 Tucker DiNapoli
+Copyright (C) 2013-2014 Tucker DiNapoli
 
 This file is part of SciLisp.
 
@@ -31,6 +31,8 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #include <gmp.h>
 #include <mpfr.h>
 #include <mpf2mpfr.h>
+//currently simd things are unimplemetnted beyond the types
+#include "simd_types.h"
 //I include complex stuff, but for now I'm not actually using it
 #include <complex.h>
 #undef I
@@ -197,6 +199,19 @@ enum sexp_tag {
   sexp_regexp_data=47,//re match data
   sexp_hash_table=48,sexp_hashtable=48,
   sexp_sfmt=53,//random state
+  //simd types
+  sexp_simd128_real32=60,
+  sexp_simd128_real64=61,
+  sexp_simd128_int8=62,
+  sexp_simd128_int16=63,
+  sexp_simd128_int32=64,
+  sexp_simd128_int64=65,
+  sexp_simd256_real32=66,
+  sexp_simd256_real64=67,
+  sexp_simd256_int8=68,
+  sexp_simd256_int16=69,
+  sexp_simd256_int32=70,
+  sexp_simd256_int64=71,
   //internal use only
   sexp_c_char=0xfc,//stupid c standard, why can't char just be signed or unsigned
   sexp_uninterned=0xfd,
@@ -227,6 +242,8 @@ union data {//keep max size at 64 bits
   regex_t *regex;
   re_match_data *re_data;
   lisp_array *array;
+  simd128 *simd128;//type field determines element type
+  simd256 *simd256;
   subr *subr;
   symbol *sym;
   sexp_tag type;//although types are symbols now

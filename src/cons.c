@@ -1,24 +1,26 @@
-/*****************************************************************
- * Copyright (C) 2013-2014 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Functions on lists/cons cells
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "cons.h"
 #include "prim.h"
 //I tried to simplify this a bit, but it broke things, so it stays like it is
-sexp Fcons(sexp car_cell,sexp cdr_cell){
-  sexp retval;
-  cons *new_cell=xmalloc(sizeof(cons));
-  *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
-  return cons_sexp(new_cell);
-}
-sexp Fcons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
-  sexp retval;
-  cons *new_cell=xmalloc(sizeof(cons)*2);
-  *new_cell=(cons){.car=car_cell,.cdr=
-                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
-  return cons_sexp(new_cell);
-}
+
 sexp mklist(sexp head,...){
   va_list ap;
   sexp retval,cur_loc;

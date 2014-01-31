@@ -1,7 +1,22 @@
-/*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Header file for conses, contains macros/static functions for 
+   the most common operations(car/cdrs,cons,last,nth,push,pop,etc)
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #ifndef __CONS_H__
 #define __CONS_H__
 #include "common.h"
@@ -108,6 +123,19 @@ static sexp safe_car(sexp cell){
 }
 static sexp safe_cdr(sexp cell){
   return XCDR_SAFE(cell);
+}
+static sexp Fcons(sexp car_cell,sexp cdr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons));
+  *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
+  return cons_sexp(new_cell);
+}
+static sexp Fcons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons)*2);
+  *new_cell=(cons){.car=car_cell,.cdr=
+                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
+  return cons_sexp(new_cell);
 }
 //get nth member of a list using typechecked car
 static inline sexp nth(sexp cell,int64_t n){

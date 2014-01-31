@@ -1,3 +1,21 @@
+/* Header file for generic math functions on sexp's 
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #ifndef __LISP_MATH_H
 #define __LISP_MATH_H
 sexp lisp_add_driver(uint64_t numargs,sexp *values);
