@@ -4,7 +4,7 @@
  ****************************************************************/
 #include "common.h"
 #include "cons.h"
-#include "prim.h"
+//#include "prim.h"
 //I tried to simplify this a bit, but it broke things, so it stays like it is
 sexp Fcons(sexp car_cell,sexp cdr_cell){
   sexp retval;
@@ -15,8 +15,10 @@ sexp Fcons(sexp car_cell,sexp cdr_cell){
 sexp Fcons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
   sexp retval;
   cons *new_cell=xmalloc(sizeof(cons)*2);
-  *new_cell=(cons){.car=car_cell,.cdr=
-                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
+  new_cell->car=car_cell;
+  new_cell->cdr=cons_sexp(new_cell+1);
+  XCAR(new_cell->cdr)=cadr_cell;
+  XCDR(new_cell->cdr)=cddr_cell;
   return cons_sexp(new_cell);
 }
 sexp mklist(sexp head,...){

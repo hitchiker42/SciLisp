@@ -447,7 +447,7 @@ struct lisp_array {
     complex32_t *float_complex_matrix;
     complex64_t *double_complex_matrix;
     void *data;//anything else (specificly 3+ dimensional arrays)
-    blas_array *matrix;//seperate struct for arrays for use with blas
+    //    blas_array *matrix;//seperate struct for arrays for use with blas
     
   };
   union {

@@ -14,7 +14,6 @@ const char *tag_name(sexp_tag obj_tag){
     mk_tag_name(sexp_unbound,unbound);
     mk_tag_name(sexp_error,error);
     mk_tag_name(sexp_false,#f);
-    //    mk_tag_name(sexp_uninterned,uninterned);
     mk_tag_name(sexp_nil,nil);
     mk_tag_name(sexp_cons,cons);
     mk_tag_name(sexp_int8,int8);
@@ -32,21 +31,12 @@ const char *tag_name(sexp_tag obj_tag){
     mk_tag_name(sexp_str,string);
     mk_tag_name(sexp_array,array);
     mk_tag_name(sexp_stream,stream);
-    //    mk_tag_name(sexp_list,list);
-    //    mk_tag_name(sexp_dpair,dotted pair);
     mk_tag_name(sexp_subr,subroutine);
     mk_tag_name(sexp_sym,symbol);
-    //    mk_tag_name(sexp_special,special form);
-    //    mk_tag_name(sexp_macro,macro);
     mk_tag_name(sexp_type,type);
-    //    mk_tag_name(sexp_lam,lambda);
-    //    mk_tag_name(sexp_lenv,local environment);
-    //    mk_tag_name(sexp_keyword,Keyword Symbol);
-    //    mk_tag_name(sexp_funargs,Function Args);
     mk_tag_name(sexp_true,t);
     mk_tag_name(sexp_obarray,obarray);
     mk_tag_name(sexp_typed_array,typed array);
-    //    mk_tag_name(sexp_tree,tree);
     mk_tag_name(sexp_hash_table,hash table);
     mk_tag_name(sexp_ctype,ctype);
     mk_tag_name(sexp_cdata,cdata);
@@ -57,7 +47,7 @@ const char *tag_name(sexp_tag obj_tag){
     }
   }
 }
-//temporary
+//temporary (should be generated)
 #define mkTypeCase(type,tag) case tag: return type_sexp(type)
 sexp type_of_tag(sexp_tag tag){
   switch(tag){
@@ -78,21 +68,14 @@ sexp type_of_tag(sexp_tag tag){
     mkTypeCase(Tstring,sexp_string);
     mkTypeCase(Tarray,sexp_array);
     mkTypeCase(Tstream,sexp_stream);
-    //    mkTypeCase(Tlist,sexp_list);
     mkTypeCase(Tfun,sexp_fun);
     mkTypeCase(Tsymbol,sexp_symbol);
-    //    mkTypeCase(Tmacro,sexp_macro);
     mkTypeCase(Ttype,sexp_type);
-    //    mkTypeCase(Tkeyword,sexp_keyword);
     mkTypeCase(Thashtable,sexp_hashtable);
-    //    mkTypeCase(Tspec,sexp_spec);
     mkTypeCase(Tregex,sexp_regex);
     mkTypeCase(Tnil,sexp_nil);
-    //    mkTypeCase(Tdpair,sexp_dpair);
-    //    mkTypeCase(Tlenv,sexp_lenv);
     mkTypeCase(Tenv,sexp_env);
     mkTypeCase(Tobarray,sexp_obarray);
-    //    mkTypeCase(Tfunargs,sexp_funargs);
     mkTypeCase(Ttrue,sexp_true);
     mkTypeCase(Tfalse,sexp_false);
     mkTypeCase(Tuninterned,sexp_uninterned);
@@ -101,43 +84,6 @@ sexp type_of_tag(sexp_tag tag){
   }
 }
 #undef mk_tag_name
-#if 0
-#define spec_to_string(spec)                    \
-  case _##spec: return #spec
-const char *specialForm_name(sexp obj){
-  special_form spec=obj.val.special;
-  switch(spec){
-    spec_to_string(comma);
-    spec_to_string(datatype);
-    spec_to_string(def);
-    spec_to_string(defconst);
-    spec_to_string(defmacro);
-    spec_to_string(defun);
-    spec_to_string(defvar);
-    spec_to_string(do);
-    spec_to_string(dolist);
-    spec_to_string(enum);
-    spec_to_string(eval);
-    spec_to_string(flet);
-    spec_to_string(go);
-    spec_to_string(if);
-    spec_to_string(lambda);
-    spec_to_string(let);
-    spec_to_string(main);
-    spec_to_string(prog1);
-    spec_to_string(progn);
-    spec_to_string(quasi);
-    spec_to_string(quote);
-    spec_to_string(setq);
-    spec_to_string(struct);
-    spec_to_string(tagbody);
-    spec_to_string(union);
-    spec_to_string(while);
-    default:
-      return "woops forgot to implement that special form";
-  }
-}
-#endif
 const char *typeName(sexp obj){
   return tag_name(obj.tag);
 }
@@ -168,7 +114,9 @@ CORD print_num_format(sexp obj,CORD format){
         CORD_sprintf(&retval,"0x%lx",(uint64_t)obj.val.uint64);
       }
     }
-    else if (BIGINTP(obj)){
+    //I use asprintf for gmp and mpfr, but I set them to use
+    //gc malloc for allocation, so the memory will get cleaned up
+    else if (BIGINTP(obj)){      
       if(format != 0){
         char *temp;
         gmp_asprintf(&temp,format,(*obj.val.bigint));
@@ -183,14 +131,10 @@ CORD print_num_format(sexp obj,CORD format){
         char *temp;
         mpfr_asprintf(&temp,format,(*obj.val.bigfloat));
         retval=temp;
-        //        retval=CORD_from_char_star(temp);
-        //        mpfr_free_str(temp);
       } else {
         char *temp;
         mpfr_asprintf(&temp,"%.10RG",(*obj.val.bigfloat));
         retval=temp;
-        //        retval=CORD_from_char_star(temp);
-        //        mpfr_free_str(temp);
       }
     } else {
       return "print num error";
@@ -201,15 +145,32 @@ CORD print_num_format(sexp obj,CORD format){
 inline CORD print_num(sexp obj){
   return print_num_format(obj,0);
 }
+//assume we have a global var *print-level* which
+//determines when to abbrivate things   
+static inline CORD print_array(sexp *arr,int len){
+  int i;
+  CORD acc="[";
+  for(i=0;i<len-1;i++){
+    acc=CORD_catn(3,acc,print(arr[i])," ");
+  }
+  return CORD_catn(3,acc,print(arr[len-1]),"]");
+}
+static inline CORD print_typed_array(data *arr,int len,int type){
+  acc
+  if(type==sexp_uchar){
+    
 CORD print(sexp obj){
   CORD retval=CORD_EMPTY,acc=CORD_EMPTY;
-  switch (obj.tag){
-    case sexp_double:
-    case sexp_long:
-    case sexp_ulong:
-    case sexp_bigint:
-    case sexp_bigfloat:
+  if(obj.tag < 13){//so I don't need to write a case for every numeric type
+    if(obj.tag == 0){
+      return "nil";
+    } else if (obj.tag == 1){
+      return CORD_asprintf("%lc",obj.val.uchar);
+    } else {
       return print_num(obj);
+    }
+  }
+  switch (obj.tag){
     case sexp_subr:
       switch(obj.val.subr->subr_type){
         case subr_special_form:
@@ -226,14 +187,7 @@ CORD print(sexp obj){
           raise_simple_error(Eprint,"don't know how to print that type of subr");
       }
     case sexp_sym:
-      return CORD_cat(acc,obj.val.var->name);
-    case sexp_char:{
-      //PRINT_FMT("numerical val of char %d",obj.val.uchar);
-      CORD_sprintf(&retval,"%lc",(wchar_t)obj.val.uchar);
-      return retval;
-    }
-    case sexp_nil:
-      return "()";
+      return obj.val.sym->name->name;
     case sexp_cons:
       acc=CORD_cat(acc,"(");
       int i=0;
@@ -247,64 +201,52 @@ CORD print(sexp obj){
         acc=CORD_cat(acc,")");
         retval=acc;
       }
-      //      PRINT_MSG(retval);
       return CORD_balance(retval);
-      /*    case sexp_uninterned:
-      switch(obj.val.meta){
-        case 11:
-          return "#t";
-        case -0xf:
-          return "unbound symbol";
-        default:
-          return "uninterned symbol";
-          }*/
     case sexp_str:
       //need to figure out how to do esacpe sequences
       return CORD_catn(3,"\"",obj.val.cord,"\"");
     case sexp_array:{
-      switch(obj.val.array->
-    case sexp_typed_array:{
+      lisp_array *arr=obj.val.array;
+      if(arr->type == 0){
+        if(arr->dims==1){
+          int len=arr>len;
+          if(len>lisp_print_length){
+            return "[...]";
+          } else {
+            return print_array(arr->vector,len);
+          }
+        } else if (arr->dims == 2){
+          int rows=arr->rows,cols=arr->cols,i;
+          if(rows>lisp_print_length){
+            return "[...]";
+          } else if (cols>lisp_print_length){
+            acc="[";
+            for(i=0;i<rows;i++){
+              acc=CORD_cat(acc,"[...]");
+            }
+            return CORD_balance(CORD_cat(acc,"]"));
+          } else {
+            acc="[";
+            for(i=0;i<rows;i++){
+              acc=CORD_cat(acc,print_array((arr->array)+(i*cols),cols));
+            }
+            return CORD_balance(CORD_cat(acc,"]"));
+          }
+        } else {
+          CORD_asprintf("#<%d dimensional array>",arr->dims);
+        }
+      }//if type== char loop printig chars
+      //if type <13 loop printing numbers
+      //else we would've translated to a sexp array already
+      //(theres not much point of having an array of some non 
+      //scalar data, the inconvience is far greater than any performance gain)
       acc="[[";
-      int i;
-      CORD format=0;
-      data* arr=obj.val.typed_array;
-      PRINT_FMT("len = %d",obj.len);
-      if(obj.meta==_double_array){
-        for(i=0;i<obj.len;i++){
-          CORD_sprintf(&format,"%f",arr[i].real64);
-          acc=CORD_cat(acc,format);
-          if(i<obj.len-1){
-            acc=CORD_cat_char(acc,' ');
-          }
-        }
-      } else if (obj.meta == _long_array){
-        for(i=0;i<obj.len;i++){
-          CORD_sprintf(&format,"%d",arr[i].int64);
-          acc=CORD_cat(acc,format);
-          if(i<obj.len-1){
-            acc=CORD_cat_char(acc,' ');
-          }
-        }
-      }
+      if(arr->type==sexp_uchar){
+        
       return CORD_balance(CORD_cat(acc,"]]"));
-    }
-    case sexp_array:{
-      acc="[";
-      int i;
-      sexp *arr=obj.val.array;
-      PRINT_FMT("length = %d",obj.len);
-      for(i=0;i<obj.len;i++){
-        acc=CORD_cat(acc,print(arr[i]));
-        if(i<obj.len-1){
-          acc=CORD_cat_char(acc,' ');
-        }
-      }
-      return CORD_balance(CORD_cat(acc,"]"));
     }
     case sexp_opaque:
       return "<#opaque pointer>";
-    case sexp_special:
-      return specialForm_name(obj);
     case sexp_false:
       return "#f";
     case sexp_type:
@@ -350,6 +292,8 @@ CORD print(sexp obj){
       return retval;
     }
     case sexp_env:{
+      return "#<environment>";
+      /*
       switch(obj.val.cur_env->tag){
         case sexp_local:
           return "#<local environment>";
@@ -360,6 +304,7 @@ CORD print(sexp obj){
         case sexp_obEnv:
           return "#<obarray environment>";
       }
+      */
     }
     default:
       CORD_sprintf(&error_str,"print error got type %s",typeName(obj));
@@ -467,3 +412,32 @@ sexp lisp_get_docstring(sexp lisp_symbol){
 }
 CORD prin1(sexp obj);//print readably
 CORD princ(sexp obj);//pretty print
+//I'll need to see how this is done elsewhere first
+//use the environment's data stack
+#if 0
+CORD print_circle(sexp obj){
+  return print_circle_sub(obj,NULL,0);
+}
+CORD print_circle_sub(sexp obj,cons *prev,int index){
+  if(!CONSP(obj)){
+    return print(obj);
+  } else {
+    int i;
+    for(i=0;i<index;i++){
+      if(obj.val.cons==prev[i]){
+        return CORD_asprintf("#%d#",%i);
+      }
+    }
+    int size=8,i=0;
+    sexp *buf=alloca(8*sizeof(sexp));
+    while(CONSP(obj)){
+      if(size<i){
+        sexp *temp=alloca((size*=2)*sizeof(sexp));
+        memcpy(temp,buf,size>>1);
+        buf=temp;
+      }
+      buf[i++]=POP(obj);
+    }
+  }
+}
+#endif
