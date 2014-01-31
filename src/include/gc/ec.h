@@ -47,6 +47,17 @@ typedef struct CORD_ec_struct {
 /* Note that this is almost the only real function, and it is   */
 /* implemented in 6 lines in cordxtra.c                         */
 void CORD_ec_flush_buf(CORD_ec x);
+/*void CORD_ec_flush_buf(CORD_ec x){
+    register size_t len = x[0].ec_bufptr - x[0].ec_buf;
+    char * s;
+
+    if (len == 0) return;
+    s = GC_MALLOC_ATOMIC(len+1);
+    memcpy(s, x[0].ec_buf, len);
+    s[len] = '\0';
+    x[0].ec_cord = CORD_cat_char_star(x[0].ec_cord, s, len);
+    x[0].ec_bufptr = x[0].ec_buf;
+    }*/
 
 /* Convert an extensible cord to a cord. */
 # define CORD_ec_to_cord(x) (CORD_ec_flush_buf(x), (x)[0].ec_cord)
@@ -64,5 +75,11 @@ void CORD_ec_flush_buf(CORD_ec x);
 /* Append a cord to an extensible cord.  Structure remains shared with  */
 /* original.                                                            */
 void CORD_ec_append_cord(CORD_ec x, CORD s);
+/*
+void CORD_ec_append_cord(CORD_ec x, CORD s){
+    CORD_ec_flush_buf(x);
+    x[0].ec_cord = CORD_cat(x[0].ec_cord, s);
+}
+*/
 
 # endif /* EC_H */

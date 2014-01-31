@@ -18,9 +18,25 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "cons.h"
-#include "prim.h"
+//#include "prim.h"
 //I tried to simplify this a bit, but it broke things, so it stays like it is
-
+/*
+sexp Fcons(sexp car_cell,sexp cdr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons));
+  *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
+  return cons_sexp(new_cell);
+}
+sexp Fcons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
+  sexp retval;
+  cons *new_cell=xmalloc(sizeof(cons)*2);
+  new_cell->car=car_cell;
+  new_cell->cdr=cons_sexp(new_cell+1);
+  XCAR(new_cell->cdr)=cadr_cell;
+  XCDR(new_cell->cdr)=cddr_cell;
+  return cons_sexp(new_cell);
+}
+*/
 sexp mklist(sexp head,...){
   va_list ap;
   sexp retval,cur_loc;
