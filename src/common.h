@@ -42,7 +42,7 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #define LISP_RWLOCK_WRLOCK(env) (pthread_rwlock_wrlock(env->lock))
 #define LISP_RWLOCK_UNLOCK(env) (pthread_rwlock_unlock(env->lock))
 #else
-#define thread_local  
+#define thread_local
 #define multithreaded_only(code)
 #define LISP_RWLOCK_RDLOCK(env)
 #define LISP_RWLOCK_WRLOCK(env)
@@ -50,10 +50,67 @@ static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 #endif
 #include "read.h"
 #include "gc/gc.h"
+#if 0
+//unchecked allocation
 #define xmalloc GC_MALLOC
 #define xrealloc GC_REALLOC
 #define xfree GC_FREE
 #define xmalloc_atomic GC_MALLOC_ATOMIC
+#else
+static inline void *xmalloc(size_t sz){
+  void *test=GC_MALLOC(sz);
+  if(!test && sz){
+    env->error_num->ENOMEM;
+    raise(SIGUSR1);
+  }
+  return test;
+}
+static inline void *xrealloc(void *ptr,size_t sz){
+  void *test=GC_REALLOC(ptr,sz);
+  if(!test && sz){
+    env->error_num->ENOMEM;
+    raise(SIGUSR1);
+  }
+  return test;
+}
+#define xfree(sz) GC_FREE
+static inline void *xmalloc_atomic(size_t sz){
+  void *test=GC_MALLOC_ATOMIC(sz);
+  if(!test && sz){
+    env->error_num->ENOMEM;
+    raise(SIGUSR1);
+  }
+  return test;
+}
+//version unexposed to user code or anything
+//taken from the code for GC_memalign
+//but opimized to assume align is newer anywhere
+//near the page size and  all_interiror_pointers
+//is true (which it is, if I change that I'll need
+//to change this)
+//get default alignment
+#include "gc_tiny_fl.h"
+#define DEFAULT_ALIGNMENT GC_GRANULE_BYTES
+static void *xmemalign(size_t align,size_t sz){
+  void *result;
+  if(align<=DEFAULT_ALIGNMENT){
+    result=xmalloc(sz);
+  } else {
+    size_t new_sz=sz+align-1;
+    result = xmalloc(new_sz);
+    size_t offset= (size_t)result % align;
+    //technically a gcc extension to add to a void*
+    result = result+offset;
+  }
+  return result;
+}
+//needs to be a macro for obvious reasons
+//assume you're not an idiot and sz is > initial sizeof ptr
+#define re_alloca(ptr,old_sz,sz)                \
+  ({void *tmp=alloca(sz);                       \
+    memcpy(tmp,ptr,old_sz);                     \
+    ptr=tmp;})
+#endif
 #include <pthread.h>
 #include <ctype.h>
 #include <unistd.h>
