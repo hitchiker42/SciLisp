@@ -87,7 +87,7 @@ static void *xmalloc_atomic(size_t sz)__attribute__ ((warn_unused_result));
 static const sexp NIL={.val={0}};//NIL is all 0s
 #include "env.h"
 //temporary, bulitin_symbols.h should be generated and placed in the src dir
-#include "extra/builtin_symbols.h"
+#include "prim.h"
 #include "frames.h"
 #include "debug.h"
 /*actually define allocation routines

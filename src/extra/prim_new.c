@@ -19,19 +19,3 @@
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
 
-#include "scilisp.h"
-#include <locale.h>
-#include <langinfo.h>
-#define DEFSUBR(l_name,c_name,reqargs,optargs,keyargs,                  \
-                restarg,max_args,fieldname,arglist,type)                \
-  subr c_name##_subr=                                                   \
-    {.req_args=reqargs,.opt_args=optargs,.keyword_args=keyargs,         \
-     .rest_arg=restarg,.maxargs=max_args,                               \
-     .lname=l_name,.cname=#c_name,                                      \
-     .comp = {.fieldname=c_name}, .signature=arglist,                   \
-     .subr_type = type};
-
-#define DEFMACRO(l_name,c_name,reqargs,optargs,keyargs,                 \
-                 restarg,max_args,arglist)                              \
-  DEFSUBR(l_name,c_name,reqargs,optargs,keyargs,                        \
-          restarg,max_args,funevaled,arglist,subr_compiler_macro)

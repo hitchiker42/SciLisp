@@ -44,6 +44,11 @@ libSciLisp_la_LIBADD = SFMT/libSFMT.la gc/bdwgc/libgc_convenience.la \
 %.s : %.c 
 	$(CC) $(CFLAGS) -fverbose-asm $<
 test: SciLisp_test
+read_test_src := read_test.c env.c read.c print.c 
+read.c: read.lex
+	flex read.lex
+read_test: $(read_test_src:%.c=%.o)
+	$(CC) -std=gnu99 -lgc -lcord -I$$PWD/include $^ -o read_test
 read_test: $(read_test_SOURCES)
 	$(CC) -std=gnu99 $(INCLUDE_FLAGS) $^ -o read_test
 #gc/bdwgc/libcord.la gc/bdwgc/libgc.la: gc/bdwgc/configure
