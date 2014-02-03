@@ -171,8 +171,21 @@ static inline CORD print_array(sexp *arr,int len){
   return CORD_catn(3,acc,print(arr[len-1]),"]");
 }
 static inline CORD print_typed_array(data *arr,int len,int type){
-  acc
+  CORD acc="[[";  
+  int i;
   if(type==sexp_uchar){
+    mbstate_t state;
+    size_t nbytes;
+    for(i=0;i<len-1;i++){
+      //wcrtomb(buf,arr[i].uchar,&state);
+    }
+  } else {
+    for(i=0;i<len-1;i++){
+      acc=CORD_catn(3,acc,print_num((sexp){.val=arr[i],.tag=type})," ");
+    }
+    return CORD_cat(acc,print_num((sexp){.val=arr[i],.tag=type}));
+  }
+}
     
 CORD print(sexp obj){
   CORD retval=CORD_EMPTY,acc=CORD_EMPTY;
