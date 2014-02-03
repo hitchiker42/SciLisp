@@ -50,9 +50,9 @@ sexp cons_length(sexp ls)__attribute__((pure));
 //list based equivlant to apl iota function
 sexp list_iota(sexp start,sexp stop,sexp step);
 //create a cons cell from 2 sexps, result may or may not be a list
-sexp Fcons(sexp car_cell,sexp cdr_cell);
+static sexp Fcons(sexp car_cell,sexp cdr_cell);
 //cons three args, return (car_cell . (cadr_cell . cddr_cell))
-sexp Fcons2(sexp car_cell,sexp cadr_cell,sexp cddr_cell);
+static sexp Fcons2(sexp car_cell,sexp cadr_cell,sexp cddr_cell);
 static inline sexp c_list1(sexp cell){
   return Fcons(cell,NIL);
 }
@@ -130,11 +130,12 @@ static sexp Fcons(sexp car_cell,sexp cdr_cell){
   *new_cell=(cons){.car=car_cell,.cdr=cdr_cell};
   return cons_sexp(new_cell);
 }
-static sexp Fcons_2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
+static sexp Fcons2(sexp car_cell,sexp cadr_cell,sexp cddr_cell){
   sexp retval;
   cons *new_cell=xmalloc(sizeof(cons)*2);
-  *new_cell=(cons){.car=car_cell,.cdr=
-                   ((cons){.car=cadr_cell,.cdr=cddr_cell})};
+  new_cell->car=car_cell;
+  new_cell->cdr=cons_sexp(new_cell+1);
+  *(new_cell+1)=(cons){.car=cadr_cell,.cdr=cddr_cell};
   return cons_sexp(new_cell);
 }
 //get nth member of a list using typechecked car

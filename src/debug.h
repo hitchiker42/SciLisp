@@ -102,4 +102,15 @@ static void default_debug_printf(CORD fmt,...){
   CORD ___errorstr;                                                     \
   CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
   return error_sexp(___errorstr)
+static const char * lisp_strerror(int errnum){
+  //I think this works, but I need to test to make sure
+  if(errnum>=1&&errnum<=133){//errnum is aliased to a c errno value
+    char *buf;
+    size_t buflen=0;
+    strerror_r(errnum,buf,buflen);
+    return buf;
+  } else {
+    return "Lisp specific error numbers are currently undocumented";
+  }
+}
 #define CAT(x,rest...) x##rest

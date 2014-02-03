@@ -19,7 +19,6 @@
 #ifndef _FRAME_H
 #define _FRAME_H
 #define UNWIND_PROTECT_TAG Qunwind_protect
-#include "common.h"
 enum  frame_type {//might not use this
   //needs as many bits as possible values,if extended to 9 values
   //will need to be enlarged to a 16 bit value

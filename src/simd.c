@@ -57,6 +57,67 @@ LABEL op2 xmm2,xmm1;
 /*so many macros, I did this in sml using a lot of parameterized functions
   shame I can't really do that in c, well not as eaisly anyway. (i mean I can 
   paramterize things by function pointers, but then I'm bound to specific types)*/
+//return a pointer to the first aligned location in the array
+//if the return value != arr then the initial unaligned bits need to be
+//delt with seperately
+#define AVX_ALIGNED(arr)                        \
+  (arr+(arr%32))
+#define SSE_ALIGNED(arr)                        \
+  (arr+(arr%16))
+#define MK_SHUFFLE_CONST_32(a,b,c,d)            \
+  (a|b<<2|c<<4|d<<6)
+#define MK_SHUFFLE_CONST_64_AVX(a,b,c,d)            \
+  (a|b<<1|c<<2|d<<3)
+#define MK_SHUFFLE_CONST_64(a,b)            \
+  (a|b<<1)
+//input of |128a|128b| output |000...|128a| (or ifdef AVX2 |128b|128a|
+//needed when reducing a 256 bit simd vector
+__m256 AVX_rsh_128(__m256 simd){
+#ifdef __AVX2__
+  return _mm256_permute2f128ps(simd,simd,0b00000001);
+#else
+  uint64_t temp[6];//2 extra bytes to insure loading temp+2 works
+  //assume statck storage isn't 32 byte aligned(it generally wouldn't be)
+  _mm256_storeu_si256((__m256i*)temp,(__m256i)simd);
+  //I'm pretty sure a cast from __m256 to __m256i is just a bitwise cast
+  return (__m256)_mm256_loadu_si256(temp+2);
+}
+//just an example using doubles & avx
+void avx_double_arr_map_destructive(double *arr,size_t len,
+                                    double(*f_scalar)(double),
+                                    __m256d(*f_simd)(__m256d)){
+  size_t index=0;
+  size_t offset=arr%32;
+  register __m256d simd;
+  if(!offset % 8){//it would be hard to do this but you could
+    goto UNALIGNED;
+  }  
+  while(index<(offset/8)){//this could be done probably be done better
+    arr[index]=f_scalar(arr[index]);
+    index++;
+  }
+ ALIGNED:
+  for(;index<len;index+=4){
+    simd=_mm256_load_pd(arr+index);
+    simd=f_simd(simd);
+    _mm256_store_pd(arr+index,simd); 
+  }
+  goto EXCESS;
+ UNALIGNED:
+  for(;index<len;index+=4){
+    simd=_mm256_loadu_pd(arr+index);
+    simd=f_simd(simd);
+    _mm256_storeu_pd((_m256d*)arr+index,simd);
+  }
+ EXCESS:
+  if(index>len){
+    index-=4;
+    for(index<len;index++){
+      arr[index]=f_scalar(arr[index]);
+    }
+  }
+  return;
+}
 //macros to translate infix operations to prefix operations
 #define add(a,b) (a+b)
 #define sub(a,b) (a-b)

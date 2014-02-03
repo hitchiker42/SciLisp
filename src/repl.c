@@ -14,7 +14,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with SciLisp.  If not, see <http:
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 /*Scan a line, subtract 1 from parens for each ")"
  *add 1 to parens for each "(", return -1 if we find a close parenteses
  *without an opening one.
@@ -22,7 +22,6 @@
  *it could probably be a pointer, but I like to keep functions pure
  */
 #include "frontend.h"
-
 int parens_matched(const char* line,int parens){
   int i=0;
   char cur_char;
@@ -76,7 +75,7 @@ int lisp_readline(FILE* outfile,char* filename){
       line_read=readline(">");
       if(line_read == NULL){
         puts("");
-        evalError=1;
+        //        eval_error=1;
         goto MAIN_LOOP;
       }
       if (line_read && *line_read){
@@ -126,7 +125,7 @@ int lisp_getline(FILE* outfile,char* filename){
       len=getline(&line_read,NULL,stdin);
       if(line_read == NULL){
         puts("");
-        evalError=1;
+        //        eval_error=1;
         goto MAIN_LOOP;
       }
       parens=parens_matched(line_read,parens);
@@ -178,7 +177,7 @@ void __attribute__((noreturn)) read_eval_print_loop(){
     //print
     if(!NILP(ast)){
       lisp_ans_ptr->val=eval_fun(XCAR(ast),current_env);
-      CORD_printf(CORD_cat(print(lisp_ans_ptr->val).cord,"\n"));
+      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
     } else {
       ;
     }

@@ -121,7 +121,7 @@ typedef wchar_t char32_t;
 #define REGEXP(obj)(obj.tag == sexp_regex)
 #define RE_MATCHP(obj) (obj.tag == sexp_re_data)
 #define SEQUENCEP(obj) (CONSP(obj) || (ARRAYP(obj) && obj.val.array->dims == 1) || STRINGP(obj))
-#define STREAMP(obj)(obj.tag ==_stream)
+#define STREAMP(obj)(obj.tag == sexp_stream)
 #define STRINGP(obj) (obj.tag == sexp_str)
 #define SYMBOLP(obj) (obj.tag == sexp_sym)
 #define TYPEP(obj) (obj.tag == sexp_type)
@@ -196,7 +196,7 @@ enum sexp_tag {
   sexp_ctype=44,//c ffi type
   sexp_cdata=45,//c value and typeinfo(includes c pointer types)
   sexp_opaque=46,//generic opaque c struct/union
-  sexp_regexp_data=47,//re match data
+  sexp_regexp_data=47,sexp_re_data=47,//re match data
   sexp_hash_table=48,sexp_hashtable=48,
   sexp_sfmt=53,//random state
   //simd types
@@ -360,6 +360,7 @@ struct lisp_string {
   uint8_t multibyte;//0=no,1=yes(2=widechar if that's ever valid)
 };
 struct lambda_list {
+  cons *arglist;//unmodified arglist
   cons *req_args;//( num_req_args . [reqargs ... ])
   cons *opt_args;//( num_opt_args . [(argname . default)...)]
   cons *key_args;//(num_key_args .  [[key . (var . default)]...])
@@ -398,8 +399,8 @@ struct subr {
   int :0;
   //in short it doesn't rely on pointers
 };
-static inline lisp_string get_signature(subr *lisp_subr){
-  return lisp_subr->signature;
+static inline lisp_string *get_signature(subr *lisp_subr){
+  return &(lisp_subr->signature);
 }
 //defines what values are considered false
 //currently, these are false,nil,numerical 0 or a null pointer
@@ -509,4 +510,24 @@ struct lisp_simple_vector {
   uint64_t len;
   uint8_t type;
 };
+//use to be declared inline, but I use get_double_val_unsafe for
+//cases where speed is important, so let gcc decide on inling
+static double get_double_val(sexp x){
+  switch(x.tag){
+    case sexp_real64:
+      return x.val.real64;
+    case sexp_uint64:
+    case sexp_uint32:
+    case sexp_uint16:
+    case sexp_uint8:
+      return (double)x.val.uint64;
+    case sexp_int64:
+    case sexp_int32:
+    case sexp_int16:
+    case sexp_int8:
+      return (double)x.val.int64;
+    default:
+      return NAN;
+  }
+}
 //int type=0;

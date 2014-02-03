@@ -23,7 +23,7 @@
 #include "gc/ec.h"
 sexp lisp_format(int numargs,sexp *args){
   if((!args) || !STRINGP(args[0])){
-    return format_type_error("format","string",format.tag);
+    raise_simple_error(Etype,format_type_error("format","string",args[0].tag));
   }
   if(numargs == 1){
     return args[0];
@@ -178,12 +178,14 @@ static int extract_conv_spec(CORD_pos source, char *buf,
   return(chars_so_far);
 }
 //get next argument for format after typechecking it
-#define va_typecheck(args,typecheck,expected) ({                        \
-    if(!(args)){                                                        \
+#define va_typecheck(args,typecheck,expected)                           \
+  ({if(!(args)){                                                        \
       raise_simple_error(Eargs,"Not enough arguments for format string"); \
     }                                                                   \
-    if(!typecheck(*args)){                                              \
-      return format_type_error_rest("format",expected,XCAR(args));      \
+    if(!typecheck(args[0])){                                            \
+      raise_simple_error(Etype,                                         \
+                         format_type_error_rest(                        \
+                           "format",expected,XCAR(args[0])));           \
     }                                                                   \
     *args++;})
 //defininion of function in cordprnt.c
@@ -228,7 +230,7 @@ sexp c_format(CORD format,int numargs,sexp *args){
               prec=(va_typecheck(args,INTP,"integer")).val.int64;
             }
             {//limit the scope of temp
-              lisp_string temp=(va_typecheck(args,STRINGP,"string")).val.str;
+              lisp_string *temp=(va_typecheck(args,STRINGP,"string")).val.string;
               arg=temp->cord;
               len=temp->len;
             }
@@ -254,11 +256,9 @@ sexp c_format(CORD format,int numargs,sexp *args){
             goto done;
           case 'c':
             if (width == NONE && prec == NONE) {
-              register char *str;
               register char c;
-              va_typecheck(args,CHARP,"character");
-              str = (char*)c_wchar_to_string(XCAR(args).val.uchar);
-              args=XCDR(args);
+              register const char *str = 
+                c_wchar_to_string(va_typecheck(args,CHARP,"character").val.uchar);
               while((c = *str++)){
                 CORD_ec_append(result, c);
               }
@@ -266,9 +266,9 @@ sexp c_format(CORD format,int numargs,sexp *args){
             }
             break;
           case 's':
-            if(args && (STRINGP(*args))){
+            if(args && (STRINGP(args[0]))){
               //handle strings faster for %s
-              CORD_ec_append_cord(result,(*args++).val.str->cord);
+              CORD_ec_append_cord(result,(*args++).val.string->cord);
               goto done;
             }
             //fallthrough
@@ -295,7 +295,7 @@ sexp c_format(CORD format,int numargs,sexp *args){
             }
             CORD_ec_append_cord(result, arg);
             */
-            if(*args){
+            if(args){
               raise_simple_error(Eargs,"Not enough arguments passed to format");
             }
             CORD_ec_append_cord(result, print(*args++));
@@ -313,7 +313,7 @@ sexp c_format(CORD format,int numargs,sexp *args){
             conv_spec[spec_len]='\0';
             va_typecheck(args,BIGINTP,"bigint");
             char *gmp_str;
-            mpfr_asprintf(&gmp_str,conv_spec,XCAR(args).val.bigint);
+            mpfr_asprintf(&gmp_str,conv_spec,XCAR(args[0]).val.bigint);
             CORD_ec_append_cord(result,gmp_str);
             goto done;
           case 'R':
@@ -328,7 +328,7 @@ sexp c_format(CORD format,int numargs,sexp *args){
             conv_spec[spec_len]='\0';
             va_typecheck(args,BIGFLOATP,"bigfloat");
             char *mpfr_str;
-            mpfr_asprintf(&mpfr_str,conv_spec,XCAR(args).val.bigfloat);
+            mpfr_asprintf(&mpfr_str,conv_spec,XCAR(args[0]).val.bigfloat);
             CORD_ec_append_cord(result,mpfr_str);
             goto done;
           default:
@@ -340,14 +340,10 @@ sexp c_format(CORD format,int numargs,sexp *args){
           int max_size = 0;
           int res;
           if (width == VARIABLE) {
-            va_typecheck(args,INTP,"integer");
-            width = XCAR(args).val.int64;
-            args = XCDR(args);
+            width = va_typecheck(args,INTP,"integer").val.int64;
           }
           if (prec == VARIABLE) {
-            va_typecheck(args,INTP,"integer");
-            prec = XCAR(args).val.int64;
-            args = XCDR(args);
+            prec=va_typecheck(args,INTP,"integer").val.int64;
           }
           if (width != NONE) {max_size = width;}
           if (prec != NONE && prec > max_size) {max_size = prec;}
@@ -367,27 +363,28 @@ sexp c_format(CORD format,int numargs,sexp *args){
             case 'u':
             case 'x':
             case 'X':
-            case 'c':
-              va_typecheck(args,INT_ANYP,"integer");
+            case 'c':{
+              uint64_t int_val =va_typecheck(args,INT_ANYP,"integer").val.uint64;
               PRINT_FMT("calling printf with conversion specifier %r",conv_spec);
-              res=sprintf(buf, conv_spec, XCAR(args).val.uint64);
+              res=sprintf(buf, conv_spec, int_val);
               break;
               //not sure about these so ignore them
               //            case 's':
               //            case 'p':
+            }
             case 'f':
             case 'e':
             case 'E':
             case 'g':
-            case 'G':
-              va_typecheck(args,REALP,"real");
+            case 'G':{
+              real64_t real_val=va_typecheck(args,REALP,"real").val.real64;
               PRINT_FMT("calling printf with conversion specifier %r",conv_spec);
-              res=sprintf(buf, conv_spec, XCAR(args).val.real64);
+              res=sprintf(buf, conv_spec, real_val);
               break;
+            }
             default:
               return format_error_sexp("Unrecognized format specifier %c",current);
           }
-          args=XCDR(args);
           len = (size_t)res;
           if (res < 0) {
             return_errno("printf");

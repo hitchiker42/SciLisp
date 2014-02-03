@@ -23,7 +23,8 @@
                             .name_len=sym_len,.name=lname};             \
   symbol cname##_val={.val=val,.name=&cname##_name,                     \
                       .plist=proplist,.next=NULL};                      \
-  symbol *cname=&cname##_val;
+  symbol *cname=&cname##_val;                                           \
+  sexp cname##_sexp=const_symref_sexp
 #define MAKE_SELF_QUOTING_SYMBOL(cname,lname,sym_len,sym_hashv,proplist) \
   symbol_name cname##_name={.hashv=sym_hashv,.is_const=1,               \
                                    .name_len=sym_len,.name=lname};      \

@@ -23,6 +23,8 @@
 #include "print.h"
 //#include "tree.h"
 #include "hash.h"
+//temporary
+#define lisp_print_length 100
 #define mk_tag_name(tag,name) case tag: return #name
 const char *tag_name(sexp_tag obj_tag){
   switch(obj_tag){
@@ -51,7 +53,7 @@ const char *tag_name(sexp_tag obj_tag){
     mk_tag_name(sexp_type,type);
     mk_tag_name(sexp_true,t);
     mk_tag_name(sexp_obarray,obarray);
-    mk_tag_name(sexp_typed_array,typed array);
+    //    mk_tag_name(sexp_typed_array,typed array);
     mk_tag_name(sexp_hash_table,hash table);
     mk_tag_name(sexp_ctype,ctype);
     mk_tag_name(sexp_cdata,cdata);
@@ -83,7 +85,7 @@ sexp type_of_tag(sexp_tag tag){
     mkTypeCase(Tstring,sexp_string);
     mkTypeCase(Tarray,sexp_array);
     mkTypeCase(Tstream,sexp_stream);
-    mkTypeCase(Tfun,sexp_fun);
+    mkTypeCase(Tfun,sexp_subr);
     mkTypeCase(Tsymbol,sexp_symbol);
     mkTypeCase(Ttype,sexp_type);
     mkTypeCase(Thashtable,sexp_hashtable);
@@ -102,9 +104,9 @@ sexp type_of_tag(sexp_tag tag){
 const char *typeName(sexp obj){
   return tag_name(obj.tag);
 }
-sexp lisp_typeName(sexp obj){
-  return (sexp){.tag = _str,.val={.cord = CORD_from_char_star(typeName(obj))}};
-}
+/*sexp lisp_typeName(sexp obj){
+  return (sexp){.tag = sexp_string,.val={.cord = CORD_from_char_star(typeName(obj))}};
+}*/
 //
 CORD print_num_format(sexp obj,CORD format){
   if(!BIGNUMP(obj)){return 0;}
@@ -202,14 +204,14 @@ CORD print(sexp obj){
     case sexp_subr:
       switch(obj.val.subr->subr_type){
         case subr_special_form:
-          return CORD_catn(3,"#<special form ",obj.val.subr->lname,">")
+          return CORD_catn(3,"#<special form ",obj.val.subr->lname,">");
         case subr_compiled:
           return CORD_catn(3,"#<compiled function ",obj.val.subr->lname,">");
         case subr_compiler_macro:
           return CORD_catn(3,"#<compiler macro  ",obj.val.subr->lname,">");
         case subr_lambda:
           //this won't work for the argument list as is
-          return CORD_catn(3,"(lambda ",print(obj.val.subr->lambda_arglist),
+          return CORD_catn(3,"(lambda ",print(cons_sexp(obj.val.subr->lambda_arglist->arglist)),
                            print(cons_sexp(obj.val.subr->lambda_body)));
         default:
           raise_simple_error(Eprint,"don't know how to print that type of subr");
@@ -222,7 +224,7 @@ CORD print(sexp obj){
       do{
         acc=CORD_cat(acc,print(XCAR(obj)));
         obj=XCDR(obj);        
-      } while (CONSP(obj) && (acc=CORD_cat_char(acc,' ');));
+      } while (CONSP(obj) && (acc=CORD_cat_char(acc,' ')));
       if(!NILP(obj)){//cons-cell/improper list
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
       } else {
@@ -232,12 +234,12 @@ CORD print(sexp obj){
       return CORD_balance(retval);
     case sexp_str:
       //need to figure out how to do esacpe sequences
-      return CORD_catn(3,"\"",obj.val.cord,"\"");
+      return CORD_catn(3,"\"",obj.val.string->cord,"\"");
     case sexp_array:{
       lisp_array *arr=obj.val.array;
       if(arr->type == 0){
         if(arr->dims==1){
-          int len=arr>len;
+          int len=arr->len;
           if(len>lisp_print_length){
             return "[...]";
           } else {
@@ -272,13 +274,14 @@ CORD print(sexp obj){
       if(arr->type==sexp_uchar){
         
       return CORD_balance(CORD_cat(acc,"]]"));
+      }
     }
     case sexp_opaque:
       return "<#opaque pointer>";
     case sexp_false:
       return "#f";
     case sexp_type:
-      return tag_name(obj.val.meta);
+      return tag_name(obj.val.type);
     case sexp_stream:
       CORD_sprintf(&retval,"File descriptor %d",fileno(obj.val.stream));
       return retval;
@@ -340,21 +343,21 @@ CORD print(sexp obj){
   }
 }
 sexp lisp_print(sexp obj){
-  CORD print_string = print(eval(obj,topLevelEnv));
+  CORD print_string = print(eval(obj,current_env));
   CORD_printf("%r",print_string);
   return obj;
 }
 sexp lisp_pprint(sexp obj){
-  CORD print_string = print(eval(obj,topLevelEnv));
+  CORD print_string = print(eval(obj,current_env));
   CORD_printf("\n%r",print_string);
   return NIL;
 }
 sexp lisp_print_to_string(sexp obj){
-  CORD print_string = print(eval(obj,topLevelEnv));
-  return string_sexp(print_string);
+  CORD print_string = print(eval(obj,current_env));
+  return string_sexp(make_string(print_string));
 }
 sexp lisp_println(sexp obj){
-  CORD print_string = print(eval(obj,topLevelEnv));
+  CORD print_string = print(eval(obj,current_env));
   CORD_fprintf(stderr,"%r\n",print_string);
   return obj;
 }
@@ -368,10 +371,10 @@ sexp lisp_fprintln(sexp obj, sexp file){
 }
 sexp make_string_input_stream(sexp str){
   if(!STRINGP(str)){
-    return format_type_error("make-string-stream","string",str.tag);
+    raise_simple_error(Etype,format_type_error("make-string-stream","string",str.tag));
   }
-  FILE *retval=fmemopen(CORD_to_char_star(str.val.cord),
-                        CORD_len(str.val.cord),"r");
+  FILE *retval=fmemopen(CORD_to_char_star(str.val.string->cord),
+                        str.val.string->len,"r");
   if(retval){
     return stream_sexp(retval);
   } else {
@@ -387,57 +390,64 @@ sexp make_string_input_stream(sexp str){
   }
   }*/
 #define mk_tok_name(tok) case tok: return #tok
-CORD token_name(TOKEN token){
+const char *token_name(TOKEN token){
   switch(token){
-    mk_tok_name(TOK_CHAR);
-    mk_tok_name(TOK_COLON);
-    mk_tok_name(TOK_COMMA);
-    mk_tok_name(TOK_COMMENT_END);
-    mk_tok_name(TOK_COMMENT_START);
-    mk_tok_name(TOK_DBL_LBRACE);
-    mk_tok_name(TOK_DBL_RBRACE);
-    mk_tok_name(TOK_DOT);
+    mk_tok_name(TOK_ERROR);
+    mk_tok_name(TOK_UNKN);
     mk_tok_name(TOK_EOF);
-    mk_tok_name(TOK_ID);
     mk_tok_name(TOK_INT);
-    mk_tok_name(TOK_LAMBDA);
-    mk_tok_name(TOK_LBRACE);
-    mk_tok_name(TOK_LCBRACE);
-    mk_tok_name(TOK_LET);
-    mk_tok_name(TOK_LISP_FALSE);
-    mk_tok_name(TOK_LISP_TRUE);
-    mk_tok_name(TOK_LPAREN);
-    mk_tok_name(TOK_MACRO);
-    mk_tok_name(TOK_QUASI);
-    mk_tok_name(TOK_QUOTE);
-    mk_tok_name(TOK_RBRACE);
-    mk_tok_name(TOK_RCBRACE);
     mk_tok_name(TOK_REAL);
-    mk_tok_name(TOK_RPAREN);
-    mk_tok_name(TOK_SPECIAL);
+    mk_tok_name(TOK_CHAR);
     mk_tok_name(TOK_STRING);
+    mk_tok_name(TOK_ID);
+    mk_tok_name(TOK_LISP_TRUE);
+    mk_tok_name(TOK_LISP_FALSE);
+    mk_tok_name(TOK_KEYSYM);
+    mk_tok_name(TOK_SYMBOL);
+    mk_tok_name(TOK_BACKQUOTE);
+    mk_tok_name(TOK_QUOTE);
+    mk_tok_name(TOK_QUASI);
+    mk_tok_name(TOK_SPECIAL);
+    mk_tok_name(TOK_COMMENT_START);
+    mk_tok_name(TOK_COMMENT_END);
+    mk_tok_name(TOK_DOT);
+    mk_tok_name(TOK_COLON);
+    mk_tok_name(TOK_STRUDEL);
+    mk_tok_name(TOK_COMMA);
+    mk_tok_name(TOK_LIST_SPLICE);
+    mk_tok_name(TOK_HASH);
     mk_tok_name(TOK_TYPEDEF);
     mk_tok_name(TOK_TYPEINFO);
-    mk_tok_name(TOK_LIST_SPLICE);
+    mk_tok_name(TOK_LPAREN);
+    mk_tok_name(TOK_RPAREN);
+    mk_tok_name(TOK_LBRACE);
+    mk_tok_name(TOK_RBRACE);
+    mk_tok_name(TOK_LCBRACE);
+    mk_tok_name(TOK_RCBRACE);
+    mk_tok_name(TOK_DBL_LBRACE);
+    mk_tok_name(TOK_DBL_RBRACE);
+    mk_tok_name(TOK_MAT_OPEN);
+    mk_tok_name(TOK_MAT_CLOSE);
+    mk_tok_name(TOK_ERR);
     default:
       return "forgot to implemnt that token";
   }
 }
 sexp lisp_get_signature(sexp fun_or_macro){
-  if(!FUNCTIONP(fun_or_macro) && !MACROP(fun_or_macro)){
-    return format_type_error_opt2
-      ("signature","function","macro",fun_or_macro.tag);
+  if(!SUBRP(fun_or_macro)){
+    raise_simple_error(Etype,format_type_error_opt2(
+                         "signature","function","macro",fun_or_macro.tag));
   } else {
-    return cord_sexp(get_signature(fun_or_macro.val.fun));
+    return string_sexp(get_signature(fun_or_macro.val.subr));
   }
 }
-sexp lisp_get_docstring(sexp lisp_symbol){
+/*sexp lisp_get_docstring(sexp lisp_symbol){
   if(!SYMBOLP(lisp_symbol)){
-    return format_type_error("documentation","symbol",lisp_symbol.tag);
+    raise_simple_error(Etype,format_type_error("documentation","symbol",lisp_symbol.tag));
   } else {
     return cord_sexp(get_docstring(lisp_symbol.val.var));
   }
-}
+  }*/
 CORD prin1(sexp obj);//print readably
 CORD princ(sexp obj);//pretty print
 //I'll need to see how this is done elsewhere first
