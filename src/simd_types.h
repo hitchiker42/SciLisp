@@ -34,12 +34,14 @@
 #define SIMD256_INT64P(obj) (obj.tag == sexp_simd256_int64)
 typedef union simd128_real64 simd128_real64;
 typedef union simd128_real32 simd128_real32;
+typedef union simd128_int_n simd128_int_n;
 typedef union simd128_int_n simd128_int8;
 typedef union simd128_int_n simd128_int16;
 typedef union simd128_int_n simd128_int32;
 typedef union simd128_int_n simd128_int64;
 typedef union simd256_real64 simd256_real64;
 typedef union simd256_real32 simd256_real32;
+typedef union simd256_int_n simd256_int_n;
 typedef union simd256_int_n simd256_int8;
 typedef union simd256_int_n simd256_int16;
 typedef union simd256_int_n simd256_int32;
@@ -86,7 +88,7 @@ union simd128_int_n {
   uint16_t int16_vec[8];
   uint32_t int32_vec[4];
   uint64_t int64_vec[2];
-  __m128i m128i
+  __m128i m128i;
 };
 typedef union simd128_int_n m128i;
 #ifdef __AVX__
@@ -100,13 +102,21 @@ union simd256_real32 {
   __m256 m256f;
 };
 typedef union simd256_real32 m256f;
+#else
+union simd256_real64 {
+  double real64_vec[4];
+};
+union simd256_real32 {
+  float real32_vec[8];
+};
+#endif /*ifdef __AVX__*/
 #ifdef __AVX2__
 union simd256_int_n {
   uint8_t int8_vec[32];
   uint16_t int16_vec[16];
   uint32_t int32_vec[8];
   uint64_t int64_vec[4];
-  __m256i m256i
+  __m256i m256i;
 };
 typedef union simd256_int_n m256i;
 #else
@@ -117,14 +127,6 @@ union simd256_int_n {
   uint64_t int64_vec[4];
 };
 #endif /*ifdef __AVX2__*/
-#else
-union simd256_real64 {
-  double real64_vec[4];
-};
-union simd256_real32 {
-  float real32_vec[8];
-};
-#endif /*ifdef __AVX__*/
 #endif /*ifdef __x86_64__*/
 union simd128 {
   simd128_real32 real32;

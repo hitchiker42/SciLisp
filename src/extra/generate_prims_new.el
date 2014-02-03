@@ -72,12 +72,13 @@
         "return_from" "block" "quote" "comma" "backquote"))
 (define SciLisp-errors;prefix E
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
-        "undefined" "unbound" "math" "eof" "io" "overflow" "range" "const"))
+        "undefined" "unbound" "math" "eof" "io" "overflow" "range" "const"
+        "print" "visibility"))
 (define SciLisp-types;prefix T
   (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32"
         "uint64" "error" "real32" "real64" "bigint" "bigfloat"
         "char" "string" "array" "stream" "fun" "symbol" "macro"
-        "type" "hashtable" "regex" "nil"
+        "type" "hashtable" "regex" "nil" "cons"
         "env" "obarray" "true" "false" "uninterned"))
 (define SciLisp-ampersand-keywords;prefix A
   (list "rest" "body" "environment" "optional" "key"))
@@ -288,11 +289,14 @@
   (with-temp-file "builtin_symbols.h"
     (insert "#ifndef _BUILTIN_SYMBOLS_H_\n#define _BUILTIN_SYMBOLS_H_\n")
     (dolist (err SciLisp-errors)
-      (insert (format "extern symbol *E%s;\n" err)))
+      (insert (format "extern symbol *E%s;\n" err))
+      (insert (format "extern sexp E%s_sexp;\n" err)))
     (dolist (form SciLisp-special-forms)
-      (insert (format "extern symbol *Q%s;\n" form)))
+      (insert (format "extern symbol *Q%s;\n" form))
+      (insert (format "extern sexp Q%s_sexp;\n" form)))
     (dolist (type SciLisp-types)
-      (insert (format "extern symbol *T%s;\n" type)))
+      (insert (format "extern symbol *T%s;\n" type))
+      (insert (format "extern sexp T%s_sexp;\n" type)))
     (insert "#endif\n")))
 (defun get-hash (str)
   (shell-command-to-string (format "%s '%s'"
@@ -325,3 +329,4 @@
                         (length (assq-val :lname global))
                         (get-hash (assq-val :lname global)) (assq-val :value global)
                         (assq :const global))
+(make-symbol-declarations)

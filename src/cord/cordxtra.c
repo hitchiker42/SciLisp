@@ -20,9 +20,6 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#ifndef CORD_BUILD
-# define CORD_BUILD
-#endif
 
 # include <stdio.h>
 # include <string.h>

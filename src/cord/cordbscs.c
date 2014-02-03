@@ -14,10 +14,6 @@
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
-#ifndef CORD_BUILD
-# define CORD_BUILD
-#endif
-
 # include "gc.h"
 # include "cord.h"
 # include <stdlib.h>

@@ -79,11 +79,11 @@ struct binding {
   (env->stack##_index++,*env->stack##ptr++=data)
 #define pop_generic_signal(stack,env)                                   \
   ({if(env->stack##_ptr<=env->stack##_stack){                           \
-    env->error_num=2;                                                   \
-    raise(SIGUSR1):                                                     \
+      env->error_num=2;                                                 \
+      raise(SIGUSR1);                                                   \
     }                                                                   \
     env->stack##_index--;                                               \
-    *env->stack##_ptr--})
+    *env->stack##_ptr--;})
 #define pop_generic_no_signal(stack,env,data)                           \
   (env->stack##_ptr<=env->stack##_stack?NULL:                           \
    env->stack##_size--,data=*env->stack##_ptr--,1)
