@@ -1,27 +1,34 @@
 #!/usr/bin/emacs --script
 ;;-*- lexical-binding: t -*-
 (require 'cl)
-(assert (eq t lexical-binding))
+(eval-when-compile
+  (assert (eq t lexical-binding)))
 ;;utitily functions
 (defvar script-dir-name
-  (if load-in-progress
-      (expand-file-name (file-name-directory load-file-name))
-    (expand-file-name default-directory)))
+  (eval-when ('compile 'eval)
+    (expand-file-name (file-name-directory (buffer-file-name)))))
+(if load-in-progress
+    (setq script-dir-name (expand-file-name (file-name-directory load-file-name))))
 (defvar src-dir-name
   (expand-file-name (concat script-dir-name "../")))
 (defvar prim.h-filename (concat src-dir-name "prim.h"))
 (defvar prim.c-filename (concat src-dir-name "prim.c"))
+(defvar get-hash-filename (concat src-dir-name "get_hash"))
 (defvar SciLisp-prims nil "a list containing builtin functions, compilier macros and special forms")
 (defvar SciLisp-types nil "a list of builtin scilisp types")
 (defvar SciLisp-keywords nil "a list of builtin self quoting symbols")
 (defvar SciLisp-special-forms nil "a lisp of the special forms in SciLisp")
-(defalias 'define 'setq);because emacs indents things begining with def
+(defmacro define (&rest args)
+  `(setq ,@args))
+(defun assq-val (key list)
+  (cdr (assq key list)))
+;because emacs indents things begining with def
                         ;in a way that makes more sense
 ;;man, this is excessive, but it should get the job done
 ;;because it has happened more that a few times that 
 ;;I didn't actually have the hash function program
-(unless (file-executable-p (expand-file-name "../get_hash"))
-  (if (file-exists-p (expand-file-name "../get_hash"))
+(unless (file-executable-p get-hash-filename)
+  (if (file-exists-p get-hash-filename)
       (error "Error, file get_hash exists and is not executable")
     (call-process (or (getenv "CC")
                       (locate-file "gcc" exec-path)
@@ -29,10 +36,9 @@
                       (error (concat "Error, no C compiler found in"
                                      "default search directories and"
                                      "CC not defined in the environment")))
-                  nil t nil (concat "-o" current-dir-name "../get_hash")
-                  "../get_hash.c" "-O2")))
+                  nil t nil (concat "-o" get-hash-filename
+                  (concat get-hash-filename ".c") "-O2"))))
 (defun indent-buffer ()
-  "Indent entire buffer using indent-region"
   (interactive)
   (indent-region (point-min) (point-max)))
 ;;functions to make primitives
@@ -67,7 +73,7 @@
       (:rettype . ,rettype)(:sig . ,sig) (:doc . ,doc) (:const . ,const))))
 ;;primitive global constant or variable
 (cl-defun mk-global (lname cname val &key (const 0) (type 0) (doc ""))
-  `((:lname . ,lname) (:cname . ,cname) (:val . ,val) (:const . ,const)
+  `((:lname . ,lname) (:cname . ,cname) (:value . ,val) (:const . ,const)
     (:type . ,type) (:doc . ,doc)))
 (define SciLisp-special-forms ;prefix Q
   (list "lambda" "closure" "nil" "let" "let_star" "while" "tagbody" "go"
@@ -90,7 +96,19 @@
         "end2" "export" "import" "import-from" "initial-contents" "test"
         "initial-element" "key" "size" "start" "start2" "test" "use"))
 (define SciLisp-globals;prefix G (lisp prefix/postfix *)
-  (list "stdin" "stdout" "stderr"))
+  (mapcar (lambda (x) (apply #'mk-global x))
+          '(("stdin" "lisp_stdin"  "stdin")
+            ("stdout" "lisp_stdout"  "stout")
+            ("stderr" "lisp_stderr"  "stderr"))))
+(define builtin-symbols
+  (append
+   (mapcar (lambda (x) (concat "Q" x)) SciLisp-special-forms)
+   (mapcar (lambda (x) (concat "E" x)) SciLisp-errors)
+   (mapcar (lambda (x) (concat "T" x)) SciLisp-types)
+   (mapcar (lambda (x) (concat "K" x)) SciLisp-keywords)
+   (mapcar (lambda (x) (concat "A" x)) SciLisp-ampersand-keywords)
+   (remq nil (mapcar (lambda (x) (assq-val :cname x))
+                     (append SciLisp-globals SciLisp-subrs))))
 ;subroutines prefix S
 (define SciLisp-predicates
   (append
@@ -302,18 +320,18 @@
       (insert (format "extern sexp T%s_sexp;\n" type)))
     (insert "#endif\n")))
 (defun get-hash (str)
-  (shell-command-to-string (format "%s '%s'"
-                                   (expand-file-name "../get_hash")
-                                   str)))
-(defun assq-val (key list)
-  (return (cdr-safe (assq key list))))
+  (shell-command-to-string (format "%s '%s'" get-hash-filename str)))
+
 ;;generated functions are
 ;;make-SciLisp-types
 ;;make-SciLisp-errors
 ;;make-SciLisp-subrs
 ;;make-SciLisp-globals
+
+    
 (defmacro make-SciLisp-something (thing format-str &rest args)
-  `(defun ,(intern (concat "make-SciLisp-" (symbol-name thing) "s")) (buf)
+  `(defun ,(intern (concat "make-SciLisp-" (symbol-name thing) "s")) (&optional buf)
+     (if (null buf) (setq buf (current-buffer)))
      (with-current-buffer buf
        (dolist (,thing ,(intern (concat "SciLisp-" (symbol-name thing) "s")))
          (insert (format  ,format-str ,@args))))))
@@ -322,10 +340,14 @@
                         (concat "T" type) type (length type)
                         (get-hash type) type)
 (make-SciLisp-something error 
-                        "MAKE_SELF_QUOTING_SYMBOL(%s,%s,%d,%s,NIL)"
+                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,NIL);\n"
                         ;;if needed (replace-regexp-in-string "-" "_" err)
-                        (concat "E" err) err (length err) (get-hash err))
-
+                        (concat "E" error) error (length error) (get-hash error))
+(make-SciLisp-something special-form
+                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,NIL);\n"
+                        ;;if needed (replace-regexp-in-string "-" "_" err)
+                        (concat "Q" special-form) special-form (length special-form) 
+                        (get-hash special-form))
 ;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
 (make-SciLisp-something subr "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
                         (assq-val :fname subr) (assq-val :lname subr)
@@ -336,25 +358,77 @@
                         (assq-val :cname global) (assq-val :lname global )
                         (length (assq-val :lname global))
                         (get-hash (assq-val :lname global)) (assq-val :value global)
-                        (assq :const global))
+                        (assq-val :const global))
+(defun make-c-array (name type list)
+  (with-output-to-string
+    (princ (format "static const %s %s[%d]={" type name (length list)))
+    (while (consp (cdr list))
+      (princ (concat (pop list) ", ")))
+    (princ (concat (car list) "};\n"))))
 (defvar prim.c-header 
 "#include \"scilisp.h\"
 #include <locale.h>
 #include <langinfo.h>
 #define INSIDE_PRIMS
 ")
+(defvar prim.c-suffix
+"mpz_t *lisp_mpz_1,*lisp_mpz_0;
+mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
+static void init_global_obarray();
+void initPrims(){
+if(initPrimsFlag){
+  initPrimsFlag=0;
+} else {
+  return;
+}
+global_obarray=xmalloc(sizeof(obarray));
+*global_ooarray=(obarray)
+{.size=128,.used=0,.entries=0,.capacity=0.0,
+ .capacity_inc=(1.0/(128*10)),.gthreshold=0.75,.gfactor=2}
+global_obarray->buckets=xmalloc(128*sizeof(symbol*));
+#ifdef MULTI_THREADED
+global_obarary->lock=xmalloc(sizeof(pthread_rwlock_t));
+pthread_rwlock_init(global_obarray->lock,NULL);
+#endif
+global_environment=xmalloc(sizeof(environment));
+initPrimsObarray(global_obarray);
+mpfr_set_default_prec(256);
+mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
+set_global_vars();
+srand48(time(NULL));
+lisp_init_rand(NIL);
+prep_sexp_cifs();
+//test if the user's locale is utf-8 compatable
+setlocale(LC_ALL,\"\");//set locale based on environment variables
+char *locale_codeset=nl_langinfo(CODESET);
+if(!strcmp(\"UTF-8\",locale-codeset)){
+  ;//hopefully the most common case, we're in a utf-8 locale, good
+} else {
+  //not utf-8, in a desperate attempt to get things working
+  //we try to set the locale to en_US.UTF-8, after printing a warning
+  fprintf(stderr,\"Warning default locale does not use UTF-8 encoding,\\n\"
+  \"Attempting to set locale to en_US.UTF-8\\n\");
+  if(setlocale(LC_ALL,\"en_US.UTF-8\")){
+    ;//somehow that worked
+  } else {
+    fprintf(stderr,\"Error, SciLisp requires a locale with a utf-8 codeset\\n\");
+    exit(EXIT_FAILURE);
+  }
+}
+//INIT_SYNONYM(lisp_consp,\"cons?\",1);
+}
+static void init_global_obarray(){
+
+")
 (defvar defun-args 
-  #s(hash-table
+  #s(hash-table 
      data (many "(uint64_t, sexp*)" unevaled "(sexp)"
                 8 "(sexp, sexp, sexp, sexp, sexp, sexp, sexp, sexp)"
                 7 "(sexp, sexp, sexp, sexp, sexp, sexp, sexp)"
                 6 "(sexp, sexp, sexp, sexp, sexp, sexp)"
                 5 "(sexp, sexp, sexp, sexp, sexp)"
-                4 "(sexp, sexp, sexp, sexp)"
-                3 "(sexp, sexp, sexp)"
-                2 "(sexp,sexp)"
-                1 "(sexp)" 
-                0 "(void)")))
+                4 "(sexp, sexp, sexp, sexp)" 3 "(sexp, sexp, sexp)"
+                2 "(sexp,sexp)" 1 "(sexp)" 0 "(void)")))
 (defun declare-SciLisp-global (name)
   (concat "extern symbol *" name ";\n" 
           "extern sexp " name "_sexp;\n"))
@@ -384,5 +458,22 @@
     (dolist (key SciLisp-keywords)
       (insert (declare-SciLisp-global (concat "K" key))))
     (insert "#endif\n")))
+(defsubst make-intern-prim (cname)
+  (format "c_intern_unsafe(global_obarray,%s);\n" cname)) 
 (defun make-prim.c ()
-  (with-temp-file prim.c-filename))
+  (with-temp-file prim.c-filename
+    (insert prim.c-header)
+    (make-SciLisp-types (current-buffer))
+    (make-SciLisp-errors (current-buffer))
+    (make-SciLisp-globals (current-buffer))
+    (insert prim.c-suffix)
+    (dolist (sym builtin-symbols)
+      (insert (make-intern-prim sym)))
+    (insert "}\n")))
+;    (make-SciLisp-subrs (current-buffer))))
+
+
+  
+(let ((debug-on-error t))
+  (make-prim.h)
+  (make-prim.c))
