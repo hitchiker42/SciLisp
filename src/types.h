@@ -43,6 +43,12 @@ typedef double complex complex64_t;
 #define imagpart(x) (((double*)(&x))[1])
 #define realpartf(x) (((float*)(&x))[0])
 #define imagpartf(x) (((float*)(&x))[1])
+//gcc defines __CHAR_UNSIGNED__ if char is unsigned but this is more portable
+#if (CHAR_MIN < 0)
+#define CHAR_SIGNED
+#else
+#define CHAR_UNSIGNED
+#endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 typedef union lisp_data lisp_data;//core representation of a lisp object
@@ -155,13 +161,10 @@ extern symbol *E*/
 //key point to this enum is that arithmetic types are numbered in their type
 //hierarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the hierarchy correctly
-//TODO:
-//This needs to be cleaned up some, so that all non pointer types (excepting bigint and bigfloat)
-//come before all pointer types, also nil should be 0
 enum sexp_tag {
   //literals
   sexp_nil = 0,
-  sexp_char = 1, sexp_uchar = 1,
+  sexp_char = 1, sexp_uchar = 1,  
   //numbers
   sexp_byte = 2,sexp_int8 = 2,
   sexp_ubyte = 3,sexp_uint8 = 3,
@@ -177,6 +180,12 @@ enum sexp_tag {
   sexp_bigint = 12,sexp_mpz=12,
   sexp_bigfloat = 13,sexp_mpfr=13,
   //end of numbers
+  //define c_char as int8 or uint8 based on platform
+#ifdef SIGNED_CHAR
+  sexp_c_char = sexp_int8,
+#else
+  sexp_c_char = sexp_uint8,
+#endif
   sexp_c_str = 19,sexp_c_string=19,//const char *'s, for simple strings
   sexp_str = 20,sexp_string=20,//type of strings, value is cord
   sexp_array = 21,//type of arrays, pointers to 
@@ -212,8 +221,9 @@ enum sexp_tag {
   sexp_simd256_int16=69,
   sexp_simd256_int32=70,
   sexp_simd256_int64=71,
+  sexp_sexp = 0xfc,//supertype of everything else, used mainly to indicate that
+  //something (i.e an array) doesn't have a specific type
   //internal use only
-  sexp_c_char=0xfc,//stupid c standard, why can't char just be signed or unsigned
   sexp_uninterned=0xfd,
   sexp_unbound=0xfe,
   sexp_error=0xff,
@@ -252,6 +262,8 @@ union data {//keep max size at 64 bits
   uint32_t uint32;
   void *opaque;
   wchar_t uchar;
+  char mb_char[8];//multibyte chararacter constant, any unused byte is set 
+  //to '\0' so it's generally a string, but if all 8 bytes are used it's not
 };
 //I really want to make this 64 bits, but then I'd need to indrect for pretty much
 //every data type except for integers
@@ -344,8 +356,8 @@ enum subr_type {
   strings immutable, we use cords for actions that would normally use mutable strings
   ie sprintf, concatenation, modifying substrings etc
   strings are kept internally in utf-8 encoding (ie multibyte)
-  the wide character string part is for representing strings
-  as arrays of characters(which are currently wide characters)
+  // the wide character string part is for representing strings
+  // as arrays of characters(which are currently wide characters)
 */
 struct lisp_string {
   //kinda a silly union since a CORD is technically a typedef for const char*
@@ -393,9 +405,11 @@ struct subr {
   lisp_string cname;//name in c, and llvm I suppose 56
   uint32_t maxargs;//60
   uint8_t subr_type;//61
+  uint8_t return_type;//useful for things like mapping over typed arrays
   unsigned int rec_fun :2;//0 not-recursive,1 recursive, 2 tail recursive
   unsigned int pure_fun :1;//no change to it's arguments, should be most functions
   unsigned int const_fun :1;//returns the same result given the same arguments //61.5
+  unsigned int no_throw :1;//0 if function can raise an error, 1 if not
   int :0;
   //in short it doesn't rely on pointers
 };

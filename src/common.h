@@ -148,7 +148,7 @@ static void *xmemalign(size_t align,size_t sz){
   ({void *tmp=alloca(sz);                       \
     memcpy(tmp,ptr,old_sz);                     \
     ptr=tmp;})
-#endif
+#endif /*not unsafe_allocation*/
 //common macros, made somewhat more typesafe using __typeof__
 //and statement exprs
 #define MAX(a,b)                                \
@@ -203,6 +203,7 @@ static void *xmemalign(size_t align,size_t sz){
 #define cons_sexp(cons_val) construct_ptr(cons_val,cons)
 #define cord_sexp(cord_val) string_sexp(make_string(cord_val))
 #define c_data_sexp(c_data_val) construct_sexp(c_data_val,sexp_cdata,c_val,1)
+#define c_char_sexp(c_char_val) construct_atom(c_char_val,c_char)
 #define double_sexp(double_val) construct_atom(double_val,real64)
 #define env_sexp(env_val) construct_sexp(env_val,sexp_env,cur_env,1)
 #define error_sexp(error_msg) construct_sexp(error_msg,sexp_error,c_string,1)

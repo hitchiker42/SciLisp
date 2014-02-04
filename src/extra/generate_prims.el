@@ -59,12 +59,12 @@
   (replace-regexp-in-string "[^A-Za-z_0-9]" "_" lisp_name))
 (cl-defun mk-prim-subr
     (lname cname value minargs &key (optargs 0) (keyargs 0)
-           (restarg 0) (sig "()") (doc "") (const 2))
+           (rettype "sexp")(restarg 0) (sig "()") (doc "") (const 2))
   (let ((maxargs (+ minargs optargs keyargs restarg)))
     `((:lname . ,lname) (:cname . ,cname) (:value . ,value)
       (:minargs . ,minargs) (:maxargs . ,maxargs)
       (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
-      (:sig . ,sig) (:doc . ,doc) (:const . ,const))))
+      (:rettype . ,rettype)(:sig . ,sig) (:doc . ,doc) (:const . ,const))))
 ;;primitive global constant or variable
 (cl-defun mk-global (lname cname val &key (const 0) (type 0) (doc ""))
   `((:lname . ,lname) (:cname . ,cname) (:val . ,val) (:const . ,const)

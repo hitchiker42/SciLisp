@@ -18,5 +18,9 @@ struct lisp_string {
     str_wstring,
     str_mut_string,
   } string_type;
+};
+//make a cord out of a stream of bytes
+static char* CORD_from_mem(size_t i,void *client_data){
+  return ((char*)client_data)[i];
 }
 #endif

@@ -18,6 +18,8 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #define IN_LEXER
 #include "read.h"
+//For actual unicode compilance this should be 16, but llke this it filts in an sexp
+#define MAX_MULTIBYTE_LEN 8
 //for functions that return characters I return -1 to indicate an error,
 //this should work in any instance, since the sign bit of a simple ascii char is generally
 //unimportant so something like if(value==(char)-1); is safe, i.e -1 is never valid.
