@@ -18,6 +18,10 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "cons.h"
+#include <fcntl.h>
+#ifdef MULTI_THREADED
+static pthread_mutex_t getenv_mutex=PTHREAD_MUTEX_INITALIZER;
+#endif
 //(defun cat (&rest strings)
 sexp lisp_cat(sexp string,sexp rest){
   if(!STRINGP(string)){
@@ -41,17 +45,27 @@ sexp lisp_cat(sexp string,sexp rest){
 //(defun cwd ())
 sexp lisp_getcwd(){
   //probabaly not the most efficent way to do this
-  char* temp_cwdname=get_current_dir_name();
-  CORD cwdname=CORD_from_char_star(temp_cwdname);
-  free(temp_cwdname);
-  return cord_sexp(cwdname);
+  uint64_t size=128;
+  char *buf
+  while(1){
+    buf=xmalloc(size);
+    if(getcwd(buf,size)==buf){
+      //It might be faster to keep track of the last
+      //value of size and use that, but probably not
+      return string_sexp(make_string_len(buf,0));
+    }
+    if(errno != ERANGE){
+      raise_simple_error(Esystem,lisp_strerror(errno));
+    }
+    size*=2;
+  }
 }
 sexp lisp_system_simple(sexp command){
   if(!STRINGP(command)){
-    return format_type_error("system","string",command.tag);
+    raise_simple_error(Etype,format_type_error("system","string",command.tag));
   } else {
-    int retval=system(command.val.cord);//should probably be CORD_as_cstring
-    return long_sexp(retval);
+    int retval=system(CORD_to_const_char_star(command.val.string->cord));
+    return int64_sexp(retval);
   }
 }
 static void *async_system_helper(void *command){
@@ -61,83 +75,150 @@ static void *async_system_helper(void *command){
 }
 sexp lisp_system_async(sexp command){
   if(!STRINGP(command)){
-    return error_sexp("argument to system must be a string");
+    raise_simple_error(Etype,"argument to system must be a string");
   }
   pthread_t new_thread;
-  char *pthread_arg=(char*)CORD_to_char_star(command.val.cord);
+  char *pthread_arg=(char*)CORD_to_const_char_star(command.val.string->cord);
   pthread_create(&new_thread,NULL,async_system_helper,pthread_arg);
   return NIL;
 }
+//it feels like there should be a better way to do this
+//but at the same time what I'm doing is quite low level
+//so the question is, is this what the shell does
+//to implement something like echo or not?
+//I'll need to look at the bash source
 
-#define SHELL "/bin/bash"
-sexp lisp_system(sexp command,sexp args){
-  //  HERE();
-  if(!STRINGP(command)){
-  string_error:
-    return error_sexp("arguments to system must be strings");
-  } if(NILP(args)){
-    //    return lisp_system_simple(command);
-  }
-  /*allocate arguments, suprisingly complicated */
-  char **argv=alloca(16*sizeof(char*));//this should usually be enough
-  argv[0]="bash";
-  argv[1]="-c";
-  argv[2]=(char*)CORD_to_const_char_star(command.val.cord);
-  int i=3,maxargs=16;
-  while(1){
-    //    HERE();
-    while(CONSP(args) && i<maxargs){
-      //      HERE();
-      if(!STRINGP(XCAR(args))){goto string_error;}
-      argv[i]=(char*)CORD_to_const_char_star(XCAR(args).val.cord);
-      args=XCDR(args);
-      i++;
-    } if(i<maxargs){break;}
-    maxargs*=2;
-    char** temp=alloca(maxargs*sizeof(char*));
-    *temp=*argv;//? this seems somehow wrong
-    argv=temp;
-  }
-  argv[i]=NULL;
-  PRINT_MSG(argv[3]);
-  //now to actually do what we came here for
-  int status;
-  pid_t pid;
-  pid=fork();
-  if(!pid){
-    //we're in the child process now (fork returns 0 in child process)
-    execv(SHELL,argv);//doesn't return
-    _exit(EXIT_FAILURE);//if we get here something failed
-    //we need to termin
-  } else if (pid < 0) {//fork failed
-    return_errno("fork");
-  } else {//this is the parent process
-    if(waitpid(pid,&status,0) != pid){
-      return error_sexp
-        ("the hell, I only forked one process, how'd we get here");
-    } else {
-      return long_sexp(status);
+//when I wrote that I was using streams
+//hopefully using a more explicit buffering 
+//system geared to what I'm actually using this for
+//this will optimize into something using x86_64 fast string operations
+//or something similar
+void fd_echo(int fd_in,int fd_out){
+  char buf[8];
+  ssize_t nbytes;
+  while((nbytes=read(fd_in,buf,8))){
+    if(write(fd_out,buf,nbytes)==-1){
+      raise_simple_error(Esystem,lisp_strerror(errno));
     }
   }
 }
-//pretty sure this doesn't actually work
-sexp get_pathname(sexp pathname_str,sexp no_expansion){
+//the core of this is a wrapper around getpwuid and getpwnam
+//which could be reused should I ever need other partst of the passwd struct
+char *get_home_dir(const char *name){
+  struct passwd user_info[1];
+  void *result;
+  uint64_t bufsize=sysconf(_SC_GETPW_R_SIZE_MAX);
+  if(bufsize<0){
+    bufsize=4096;//a page, why not
+  }
+  int status;
+  while(1){
+    char *buf=xmalloc_atomic(bufsize);
+    if(!name){
+      status=getpwuid_r(getuid(),user_info,buf,bufsize,&result);
+    } else {
+      status=getpwnam_r(name,user_info,buf,bufsize,&result);
+    }
+    if(!result){
+      if(status==ERANGE){
+        bufsize*=2;
+        continue;
+      }
+      if(status==0){
+        raise_simple_error_fmt(Esystem,"Error no user %s found",name);
+      } else {
+        raise_simple_error(Esystem,lisp_strerror);
+      }
+    }
+  }
+  return user_info->pw_dir;
+}
+
+
+/*
+  Effectively the same as getenv, but threadsafe (albeit only because it locks)
+  and returns a copy of the value returned by getenv, insuring that it will not
+  change and that should the caller so desire, it can be mutated
+ */
+char *getenv_r(const char *name){
+#ifdef MULTI_THREADED
+  pthread_mutex_lock(getenv_mutex);
+#endif
+  char *val=getenv(name);
+  char *retval=NULL;
+  if(!val){
+    goto RETURN;//used to minimize the ammonut of code (less #ifdefs)
+  }
+  //I'm being kinda lazy here
+  retval=GC_strdup(val);
+ RETURN:
+#ifdef MULTI_THREADED
+  pthread_mutex_unlock(getenv_mutex);
+#endif
+  return retval;
+}
+  
+#define SHELL "/bin/bash"
+//equvilent to the shell commands 2>&1 && 1>&new_fd
+#define redirect_stdout_stderr(new_fd)          \
+  (close(STDOUT_FILENO);                        \
+   close(STDERR_FILENO);                        \
+   fcntl(new_fd,F_DUPFD,STDOUT_FILENO);         \
+   fcntl(new_fd,F_DUPFD,STDERR_FILENO);)
+  //add some way to specify an async process
+sexp lisp_system(uint64_t numargs,sexp *args){
+  int i;
+  for(i=0;i<numargs;i++){
+    if(!STRINGP(args[i])){
+      raise_simple_error(Etype,"Arguments to system must be strings");
+    }
+  }
+  int status;
+  //for using a pipe
+  int filedes[2];
+  if(pipe(filedes)){
+    raise_simple_error(Esystem,"Failure opening pipe");
+  }
+  //if i want to pipe stdout/err back to the parent I can't use vfork
+  //pid_t pid=vfork();
+  pid_t pid=fork();  
+  if(pid<0){
+    raise_simple_error(Esystem,lisp_strerror(errno));
+  } else if (pid > 0) {
+    close(filedes[1]);
+    fd_echo(filedes[0],STDOUT_FILENO);
+    if(waitpid(pid,&status,0) == (pid_t)-1){
+      raise_simple_error(Esystem,lisp_strerror(errno));
+    } 
+  } else {
+    //we're in the child process now (fork returns 0 in child process)
+    close(filedes[0]);
+    redirect_stdout_stderr(filedes[1]);
+    execv(SHELL,args);//doesn't return
+    _exit(EXIT_FAILURE);//if we get here something failed
+  }
+}
+sexp expand_pathname(sexp pathname_str,sexp default_directory){
   if(!STRINGP(pathname_str)){
-    return format_type_error("get-pathname","string",pathname_str.tag);
+    raise_simple_error(Etype,format_type_error("get-pathname","string",pathname_str.tag));
   } if(!NILP(no_expansion)){
     return pathname_str;
   }
-  int tilde;
-  CORD pathname=pathname_str.val.cord;
-  if((tilde = CORD_chr(pathname,CORD_len(pathname)-1,'~'))!= -1){
-    HERE();
-    char *home_dir=getenv("HOME");
-    //not sure the best way to splice a cord into the middle of an existing cord
-    CORD_pos pos[1];
-    CORD_set_pos(pos[0],pathname,tilde);
-    CORD rest=CORD_pos_to_cord(pos[0]);
-    pathname=CORD_catn(3,CORD_substr(pathname,0,tilde),CORD_from_char_star(home_dir),rest);
-  }
+  CORD pathname=pathname_str.val.string->cord;
+  CORD_ec expanded_pathname;
+  CORD_ec_init(expanded_pathname);
+  CORD_pos p;
+  CORD_set_pos(p,pathname,0);
+  char c=CORD_pos_fetch(p);
+  if(c != '/'){
+    if(c == '~'){
+      CORD_ec_append_cord(expanded_pathname,getenv_r("$HOME"));
+    
+  
+  for(;CORD_pos_valid(pos); CORD_next(pos)){
+    c=CORD_pos_fetch(p);
+    switch(c){
+      
   return cord_sexp(pathname);
 }
 //I can think of an issue here, if I fail to load a file, the parts I'd already

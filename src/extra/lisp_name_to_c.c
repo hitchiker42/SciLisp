@@ -1,4 +1,9 @@
 #include "cord.h"
+#include "ec.h"
+#define seperator '_'
+const char *number_name(const char* number,
+                        int len,int tens_special) __attribute__((const));
+//CORD lisp_name_to_c_name(CORD lisp_name){  
 const char *__attribute__((const)) digit_name(char digit){
   switch(digit){
     case '0': return "zero";
@@ -27,12 +32,12 @@ const char *__attribute__((const)) tens_name(char digit){
 }
 const char *__attribute__((const)) power_of_ten_name(int pow){
   switch(pow){
-    case 0: return " ";
-    case 3: return " thousand";
-    case 6: return " million";
-    case 9: return " billion";
-    case 12: return " quadrillion";
-    case 15: return " quintillion";
+    case 0: return seperator;
+    case 3: return seperator "thousand";
+    case 6: return seperator "million";
+    case 9: return seperator "billion";
+    case 12: return seperator "quadrillion";
+    case 15: return seperator "quintillion";
       //etc...
   }
 }
@@ -42,8 +47,7 @@ const char *__attribute__((const)) power_of_ten_name(int pow){
 /*take an input number of the form:
   [+-]?[0-9][0-9]?[0-9]?([0-9]{3})?  
  */
-const char *__attribute__((const)) number_name(const char* number,
-                                               int len,int tens_special){
+const char *__attribute__((const)) number_name(const char* number,int len,int tens_special){
   if(len == 0){len=strlen(number);}//assume number is an actual string of some length
   CORD name=0,sign=0;
   if(number[0] == '-'){

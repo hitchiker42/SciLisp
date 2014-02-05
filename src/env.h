@@ -231,4 +231,18 @@ static inline lisp_string *make_string(const char *str){
   }
   return retval;
 }
+//should probably make the normal make_string this, but I don't want to
+//go through and replace things right now
+static inline lisp_string *make_string_len(const char *str,uint32_t len){
+ lisp_string *retval=xmalloc(sizeof(lisp_string));
+  if(!len){
+    len=CORD_len(str);
+  } 
+  if(str[0] == '\0'){
+    *retval=(lisp_string){.cord=str,.len=(CORD_len(str))};
+  } else {
+    *retval=(lisp_string){.string=str,.len=(strlen(str))};
+  }
+  return retval;
+}
 #endif

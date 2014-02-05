@@ -18,6 +18,7 @@
 (defvar SciLisp-types nil "a list of builtin scilisp types")
 (defvar SciLisp-keywords nil "a list of builtin self quoting symbols")
 (defvar SciLisp-special-forms nil "a lisp of the special forms in SciLisp")
+(defvar SciLisp-subrs nil)
 (defmacro define (&rest args)
   `(setq ,@args))
 (defun assq-val (key list)
@@ -56,6 +57,16 @@
   (case digit
     (0 "zero")(1 "one")(2 "two")(3 "three")(4 "four")
     (5 "five")(6 "six")(7 "seven")(8 "eight")(9 "nine")))
+(defsubst lisp_char->c_char (lisp_char)
+  (pcase lisp_char
+    (?- ?_)
+    ;((pred lambda (x) (and (>= #x30 x) (<= #x39 x))) (digit-name (- lisp_char #x30)))
+    (?+ "plus")
+    (?* "star")
+    (?\? "qmark")
+    (?! "emark")))
+(defun lisp_name->c_name (name)
+  (map 'string #'lisp_char->c_char name))
 (defun lisp-name->c_name (lisp_name)
   (if (string-match "^[0-9]" lisp_name)
       (setq lisp_name (concat (digit-name (- (aref lisp_name 0) #x30))
@@ -63,12 +74,14 @@
   (setq lisp_name (replace-regexp-in-string "+" "_plus_" lisp_name))
   (setq lisp_name (replace-regexp-in-string "*" "_star_" lisp_name))
   (replace-regexp-in-string "[^A-Za-z_0-9]" "_" lisp_name))
+;;I guess I'll do types (at least in emacs) as a list whith the last element being
+;;the return value
 (cl-defun mk-prim-subr
-    (lname cname value minargs &key (optargs 0) (keyargs 0)
+    (lname cname value minargs &key (optargs 0) (keyargs 0) (type '(nil . nil))
            (rettype "sexp")(restarg 0) (sig "()") (doc "") (const 2))
   (let ((maxargs (+ minargs optargs keyargs restarg)))
     `((:lname . ,lname) (:cname . ,cname) (:value . ,value)
-      (:minargs . ,minargs) (:maxargs . ,maxargs)
+      (:minargs . ,minargs) (:maxargs . ,maxargs) (:type . ,type)
       (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
       (:rettype . ,rettype)(:sig . ,sig) (:doc . ,doc) (:const . ,const))))
 ;;primitive global constant or variable
@@ -82,7 +95,7 @@
 (define SciLisp-errors;prefix E
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
         "undefined" "unbound" "math" "eof" "io" "overflow" "range" "const"
-        "print" "visibility"))
+        "system" "print" "visibility"))
 (define SciLisp-types;prefix T
   (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32"
         "uint64" "error" "real32" "real64" "bigint" "bigfloat"
@@ -92,9 +105,9 @@
 (define SciLisp-ampersand-keywords;prefix A
   (list "rest" "body" "environment" "optional" "key"))
 (define SciLisp-keywords;prefix K (lisp prefix ':")  
-  (list "end" "start1" "count" "documentation" "element-type" "end1"
-        "end2" "export" "import" "import-from" "initial-contents" "test"
-        "initial-element" "key" "size" "start" "start2" "test" "use"))
+  (list "end" "start1" "count" "documentation" "end1" ;"element-type" 
+        "end2" "export" "import" "test" ;"import-from" "initial-contents" "initial-element" 
+        "key" "size" "start" "start2" "test" "use"))
 (define SciLisp-globals;prefix G (lisp prefix/postfix *)
   (mapcar (lambda (x) (apply #'mk-global x))
           '(("stdin" "lisp_stdin"  "stdin")
@@ -108,43 +121,43 @@
    (mapcar (lambda (x) (concat "K" x)) SciLisp-keywords)
    (mapcar (lambda (x) (concat "A" x)) SciLisp-ampersand-keywords)
    (remq nil (mapcar (lambda (x) (assq-val :cname x))
-                     (append SciLisp-globals SciLisp-subrs))))
+                     (append SciLisp-globals SciLisp-subrs)))))
 ;subroutines prefix S
 (define SciLisp-predicates
   (append
    (mapcar (lambda (x) (list (concat x "?") (concat "lisp_" x "p")
-                             1 :sig "(object)"))
+                             1 :sig "(object)" :type '(:sexp . :bool)))
            '("array" "cons" "number" "integer" "function"
              "string" "stream" "sequence" "real" "bignum" "bigint" "bigfloat"
              "hashtable" "macro" "special-form"))
-   '(("eq" "lisp_eq" 2 :sig "(obj1 obj2)")
-    ("eql" "lisp_eql" 2 :sig "(obj1 obj2)")
-    ("equal" "lisp_equal" 2 :sig "(obj1 obj2)")
-    ("even?" "lisp_evenp" 1 :sig "(integer)")
-    ("odd?" "lisp_oddp" 1 :sig "(integer)")
-    ("zero?" "lisp_zerop" 1 :sig "(number)"))))
+   '(("eq" "lisp_eq" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
+    ("eql" "lisp_eql" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
+    ("equal" "lisp_equal" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
+    ("even?" "lisp_evenp" 1 :sig "(integer)" :type '(:int :int . :bool))
+    ("odd?" "lisp_oddp" 1 :sig "(integer)" :type '(:int :int . :bool))
+    ("zero?" "lisp_zerop" 1 :sig "(number)" :type '(:num  :num . :bool)))))
 (define SciLisp-math-funs
-  '(("!=" "Sne" "lisp_numne" 2 :sig "(num1 num2)")
-   ("*"  "Smul" "lisp_mul_driver" 1 :restarg 1 :sig "(num1 num2)")
-   ("+"  "Sadd" "lisp_add_driver" 1 :restarg 1 :sig "(num1 num2)")
+  '(("!=" "Sne" "lisp_numne" 2 :sig "(num1 num2)" :type '(:number :number . :bool))
+   ("*"  "Smul" "lisp_mul_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("+"  "Sadd" "lisp_add_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    ("1+" "Sinc" "lisp_inc" 1 :sig "(number)")
-   ("-"  "Ssub" "lisp_sub_driver" 1 :restarg 1 :sig "(num1 num2)")
-   ("1-" "Sdec" "lisp_dec" 1 :sig "(number)")
-   ("/" "Sdiv" "lisp_div_driver" 1 :restarg 1 :sig "(num1 num2)")
-   ("<" "Slt" "lisp_numlt" 2 :sig "(num1 num2)")
-   ("<=" "Sle" "lisp_numle" 2 :sig "(num1 num2)")
-   ("=" "Seq" "lisp_numeq" 2 :sig "(num1 num2)")
-   (">" "Sgt" "lisp_numgt" 2 :sig "(num1 num2)")
-   (">=" "Sge" "lisp_numge" 2 :sig "(num1 num2)")
-   ("abs" "Sabs" "lisp_abs" 1 :sig "(number)")
-   ("cos" "Scos" "lisp_cos" 1 :sig "(number)")
-   ("exp" "Sexp" "lisp_exp" 1 :sig "(number)")
-   ("expt" "Sexpt" "lisp_pow" 2 :sig "(num1 num2)")
-   ("log" "Slog" "lisp_log" 1 :sig "(number)")
-   ("mod" "Smod" "lisp_mod" 2)
-   ("pow" "Spow" "lisp_pow_driver" 1 :restarg 1)
-   ("sin" "Ssin" "lisp_sin" 1 :sig "(number)")
-   ("tan" "Stan" "lisp_tan" 1 :sig "(number)")))
+   ("-"  "Ssub" "lisp_sub_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("1-" "Sdec" "lisp_dec" 1 :sig "(number)" :type '(:number . :number))
+   ("/" "Sdiv" "lisp_div_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("<" "Slt" "lisp_numlt" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("<=" "Sle" "lisp_numle" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("=" "Seq" "lisp_numeq" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   (">" "Sgt" "lisp_numgt" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   (">=" "Sge" "lisp_numge" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("abs" "Sabs" "lisp_abs" 1 :sig "(number)" :type '(:number . :number))
+   ("cos" "Scos" "lisp_cos" 1 :sig "(number)" :type '(:number . :number))
+   ("exp" "Sexp" "lisp_exp" 1 :sig "(number)" :type '(:number . :number))
+   ("expt" "Sexpt" "lisp_pow" 2 :sig "(num1 num2)" :type '(:number :number . :number))
+   ("log" "Slog" "lisp_log" 1 :sig "(number)" :type '(:number . :number))
+   ("mod" "Smod" "lisp_mod" 2 :type '(:number :number . :number))
+   ("pow" "Spow" "lisp_pow_driver" 1 :restarg 1 :type '(&rest :numbers . :number))
+   ("sin" "Ssin" "lisp_sin" 1 :sig "(number)" :type '(:number . :number))
+   ("tan" "Stan" "lisp_tan" 1 :sig "(number)") :type '(:number . :number)))
 (define SciLisp-cons-funs
     '(("assoc" "Sassoc" "lisp_assoc" 2 :sig ("key list" "Skey list"))
     ("assq" "Sassq" "lisp_assq" 2 :sig ("key list" "Skey list"))
@@ -336,25 +349,25 @@
        (dolist (,thing ,(intern (concat "SciLisp-" (symbol-name thing) "s")))
          (insert (format  ,format-str ,@args))))))
 (make-SciLisp-something type 
-                        "MAKE_TYPE(%s,%s,%d,%s,NIL,sexp_%s);\n"
+                        "MAKE_TYPE(%s,%s,%d,%s,{0},sexp_%s);\n"
                         (concat "T" type) type (length type)
                         (get-hash type) type)
 (make-SciLisp-something error 
-                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,NIL);\n"
+                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,{0});\n"
                         ;;if needed (replace-regexp-in-string "-" "_" err)
                         (concat "E" error) error (length error) (get-hash error))
 (make-SciLisp-something special-form
-                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,NIL);\n"
+                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,{0});\n"
                         ;;if needed (replace-regexp-in-string "-" "_" err)
                         (concat "Q" special-form) special-form (length special-form) 
                         (get-hash special-form))
 ;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
-(make-SciLisp-something subr "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
+(make-SciLisp-something subr "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,{0},%d);\n"
                         (assq-val :fname subr) (assq-val :lname subr)
                         (length (assq-val :lname subr))
                         (get-hash (assq-val :lname subr)) (assq-val :cname subr)
                         (assq-val :const subr))
-(make-SciLisp-something global "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,NIL,%d);\n"
+(make-SciLisp-something global "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,{0},%d);\n"
                         (assq-val :cname global) (assq-val :lname global )
                         (length (assq-val :lname global))
                         (get-hash (assq-val :lname global)) (assq-val :value global)
@@ -366,10 +379,11 @@
       (princ (concat (pop list) ", ")))
     (princ (concat (car list) "};\n"))))
 (defvar prim.c-header 
-"#include \"scilisp.h\"
+"#define INSIDE_PRIMS
+#include \"scilisp.h\"
 #include <locale.h>
 #include <langinfo.h>
-#define INSIDE_PRIMS
+#include \"prim.h\"
 ")
 (defvar prim.c-suffix
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;
@@ -401,7 +415,7 @@ prep_sexp_cifs();
 //test if the user's locale is utf-8 compatable
 setlocale(LC_ALL,\"\");//set locale based on environment variables
 char *locale_codeset=nl_langinfo(CODESET);
-if(!strcmp(\"UTF-8\",locale-codeset)){
+if(!strcmp(\"UTF-8\",locale_codeset)){
   ;//hopefully the most common case, we're in a utf-8 locale, good
 } else {
   //not utf-8, in a desperate attempt to get things working

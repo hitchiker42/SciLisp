@@ -60,25 +60,26 @@ extern sexp type_of(sexp obj);
 void initPrims();
 #ifdef INSIDE_PRIMS
 #define MAKE_SELF_QUOTING_SYMBOL(cname,lname,sym_len,sym_hashv,proplist) \
-  symbol_name cname##_name={.hashv=sym_hashv,.is_const=1,               \
-                                   .name_len=sym_len,.name=lname};      \
-  symbol cname##_val={.name=&cname##_name,                              \
-                      .plist=proplist,.next=NULL};                      \
-  cname##_val.val=symref_sexp(&cname##_val);                            \
+  symbol_name cname##_name={.hashv=sym_hashv,                           \
+                            .name_len=sym_len,.name=lname};             \
+  symbol cname##_val={.name=&cname##_name,.constant=1,                  \
+                      .plist=proplist,.next=NULL,                       \
+                      .val=const_symref_sexp(&cname##_val)};            \
   symbol *cname=&cname##_val;                                           \
   sexp cname##_sexp=const_symref_sexp(&cname##_val)
 #define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
-  symbol_name cname##_name={.hashv=sym_hashv,.is_const=const_sym,       \
+  symbol_name cname##_name={.hashv=sym_hashv,                           \
                             .name_len=sym_len,.name=lname};             \
-  symbol cname##_val={.val=val,.name=&cname##_name,                     \
+  symbol cname##_val={.val=val,.name=&cname##_name,.constant=const_sym  \
                       .plist=proplist,.next=NULL};                      \
   symbol *cname=&cname##_val;                                           \
   sexp cname##_sexp=const_symref_sexp(&cname##_val)
 #define MAKE_TYPE(cname,lname,sym_len,sym_hashv,proplist,type_tag)      \
-  symbol_name cname##_name={.hashv=sym_hashv,.is_const=1,               \
+  symbol_name cname##_name={.hashv=sym_hashv,                           \
                             .name_len=sym_len,.name=#lname};            \
-  symbol cname##_val={.name=&cname##_name,.plist=proplist,.next=NULL};  \
-  cname##_val.val={.tag=sexp_type,.val={.type=type_tag}};               \
+  symbol cname##_val={.name=&cname##_name,.constant=1,                  \
+                      .plist=proplist,.next=NULL,                       \
+                      .val={.tag=sexp_type,.val={.type=type_tag}}};     \
   symbol *cname = &cname##_val;                                         \
   sexp cname##_sexp = const_symref_sexp(&cname##_val)
 #define PRIM_DEFSUBR(l_name,c_name,reqargs,optargs,keyargs,             \
@@ -124,6 +125,8 @@ extern symbol *Erange;
 extern sexp Erange_sexp;
 extern symbol *Econst;
 extern sexp Econst_sexp;
+extern symbol *Esystem;
+extern sexp Esystem_sexp;
 extern symbol *Eprint;
 extern sexp Eprint_sexp;
 extern symbol *Evisibility;

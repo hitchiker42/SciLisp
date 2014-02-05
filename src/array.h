@@ -7,7 +7,7 @@
 #include "common.h"
 #include "cons.h"
 //unsafe array access in C
-#define TYPED_AREF(obj,ind)                                          \
+#define TYPED_AREF(obj,ind)                                             \
   (sexp){.tag = (_tag)obj.meta,.val = (data)obj.val.typed_array[ind]}
 #define XAREF(obj,ind)                          \
   obj.val.array[ind]
