@@ -19,6 +19,7 @@
 //global includes
 #ifndef __COMMON_H__
 #define __COMMON_H__
+#define VERBOSE_LEXING
 //system includes
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,8 +48,9 @@
 #include <pthread.h>
 static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
 //generic global lock, in case it's needed
-static pthread_mutex_t global_lock=PTHREAD_MUTEX_INITALIZER;
+static pthread_mutex_t global_lock=PTHREAD_MUTEX_INITIALIZER;
 #define thread_local __thread
+#define static_thread_local static __thread
 #define multithreaded_only(code) code
 #define LISP_RWLOCK_RDLOCK(env) (pthread_rwlock_rdlock(env->lock))
 #define LISP_RWLOCK_WRLOCK(env) (pthread_rwlock_wrlock(env->lock))
@@ -86,6 +88,10 @@ static void *xmalloc_atomic(size_t sz)__attribute__ ((warn_unused_result));
 //we need NIL in env.h
 static const sexp NIL={.val={0}};//NIL is all 0s
 #include "env.h"
+//current dynamic environment
+extern thread_local struct obarray *current_obarray;
+extern thread_local struct environment *current_env;
+frame_addr top_level_frame;
 //temporary, bulitin_symbols.h should be generated and placed in the src dir
 #include "prim.h"
 #include "frames.h"
@@ -278,7 +284,7 @@ static const sexp LispEmptyList={.tag=sexp_cons,.val={.cons=(cons*)&EmptyList},.
 yyscan_t global_scanner;
 static uint64_t gensym_counter=0;//only modify this using atomic fetch and add
 //probably don't need anymore, what with pthread_once
-static int initPrimsFlag=1;
+static int init_prims_flag=1;
 //These are depreciated, will be removed soon
 CORD error_str;
 CORD type_error_str;
@@ -288,8 +294,8 @@ sexp error_val;
 static thread_local struct obarray *current_obarray;
 static thread_local struct environment *current_env;*/
 //functions to print (or not print) debug info
-void (*debug_printf)(const char*,...);
-void (*CORD_debug_printf)(CORD,...);
+static void (*debug_printf)(const char*,...)=default_debug_printf;
+static void (*CORD_debug_printf)(CORD,...)=default_CORD_debug_printf;
 //allow for error handler to be changed at runtime
 sexp (*handle_error_fp)();
 //These are currently invalid

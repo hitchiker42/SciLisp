@@ -95,6 +95,7 @@ static void default_debug_printf(CORD fmt,...){
   vfprintf(stderr,fmt,ap);
   return;
 }
+#include "error.h"
 //not quite debugging but it fits best here
 #define return_errno(fn_name)                                           \
   int ___errsave=errno;                                                 \
@@ -102,6 +103,7 @@ static void default_debug_printf(CORD fmt,...){
   CORD ___errorstr;                                                     \
   CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
   return error_sexp(___errorstr)
+
 static const char * lisp_strerror(int errnum){
   //I think this works, but I need to test to make sure
   if(errnum>=1&&errnum<=133){//errnum is aliased to a c errno value
@@ -110,7 +112,18 @@ static const char * lisp_strerror(int errnum){
     strerror_r(errnum,buf,buflen);
     return buf;
   } else {
-    return "Lisp specific error numbers are currently undocumented";
+    switch(errnum){
+      case ELISP_STACK_OVERFLOW:
+        return "Lisp stack overflow";
+      default:
+        return "Lisp specific error numbers are currently undocumented";
+    }
   }
 }
 #define CAT(x,rest...) x##rest
+
+
+
+
+
+

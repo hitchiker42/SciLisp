@@ -65,13 +65,15 @@ struct binding {
 */
 //the signaling push/pop macros might need to use a statement expression
 //rather than a ?: operator
-#define push_generic_signal(stack,env,data)                             \
-  ({if(env->stack##_ptr>=env->stack##_top){                             \
-      env->error_num=2;                                                 \
-    raise(SIGUSR1);                                                     \
-    }                                                                   \
-    env->stack##_index++;                                               \
-    *env->stack##_ptr++=data;})
+#define push_generic_signal(stack,env,data)     \
+  ({HERE();                                     \
+    if(env->stack##_ptr>=env->stack##_top){     \
+      env->error_num=2;                         \
+      raise(SIGUSR1);                           \
+    }                                           \
+    HERE();                                     \
+    env->stack##_index++;                       \
+      *(env->stack##_ptr++)=data;})
 #define push_generic_no_signal(stack,env,data)                          \
   (env->stack##_ptr>=env->stack##_top?NULL:                             \
    env->stack##_index++,*env->stack##_ptr++=data,1)
@@ -191,10 +193,6 @@ static void unwind_lex_env(environment *env,uint32_t num_bindings){
   }
   }*/
 obarray *global_obarray;
-//current dynamic environment
-static thread_local struct obarray *current_obarray;
-static thread_local struct environment *current_env;
-static thread_local frame_addr top_level_frame;
 //extern uint64_t bindings_stack_size;
 //extern uint64_t handler_stack_size;
 symbol *copy_symbol(symbol *sym,int copy_props);
@@ -213,14 +211,16 @@ struct obarray {
 #endif
   //32 bits of padding
 };
-symbol* lookup_symbol(struct obarray *ob,const char* name);
-symbol *lookup_symbol_global(char *restrict name);
+symbol* lookup_symbol(const char* name,struct obarray *ob);
+//something like a default arg for lookup_symbol
+#define lookup_symbol_global(name) lookup_symbol(name,global_obarray)
 obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
 symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
 symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv);
+void c_signal_handler(int signo,siginfo_t *info,void *context_ptr);
 //needs to be in a global header, and xmalloc isn't defined in types.h
 static inline lisp_string *make_string(const char *str){
   lisp_string *retval=xmalloc(sizeof(lisp_string));
@@ -237,7 +237,7 @@ static inline lisp_string *make_string_len(const char *str,uint32_t len){
  lisp_string *retval=xmalloc(sizeof(lisp_string));
   if(!len){
     len=CORD_len(str);
-  } 
+  }
   if(str[0] == '\0'){
     *retval=(lisp_string){.cord=str,.len=(CORD_len(str))};
   } else {

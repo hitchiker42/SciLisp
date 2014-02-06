@@ -21,6 +21,8 @@
 #include "frames.h"
 #include "hash.h"
 #include <ucontext.h>
+thread_local struct obarray *current_obarray;
+thread_local struct environment *current_env;
 symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv){
   if(!len){
     len=strlen(name);
@@ -143,13 +145,13 @@ static inline int maybe_rehash_obarray(obarray *ob){
 //assumes that the symbol argument is not in the obarray already 
 void c_intern_unsafe(obarray *ob,symbol* new){
   uint32_t index=new->name->hashv % ob->size;
-  struct symbol *sym;
-  if(!(new=ob->buckets[index])){
-    ob->buckets[index]=sym;
-    sym->next=0;
+  //  struct symbol *sym;
+  if(!(ob->buckets[index])){
+    ob->buckets[index]=new;
+    new->next=0;
   } else {
-    sym->next=ob->buckets[index];
-    ob->buckets[index]=sym;
+    new->next=ob->buckets[index];
+    ob->buckets[index]=new;
   }
   maybe_rehash_obarray(ob);
   return;
@@ -199,7 +201,10 @@ symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob){
   multithreaded_only(pthread_rwlock_unlock(ob->lock));
   return NULL;
 }
-    
+symbol* lookup_symbol(const char* name,obarray *ob){
+  symbol_name* sym_name=make_symbol_name(name,0,0);
+  return obarray_lookup_sym(sym_name,ob);
+}
 symbol* c_intern(const char* name,uint32_t len,obarray *ob){
   if(!ob){
     ob=current_obarray;
@@ -305,6 +310,10 @@ void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
           //}
         exit(1);
       default://re raise the signal with the default handler,
+        fprintf(stderr,"Signal number %d raised, which is:\n%s"
+                "\nCurrent error_num is %d, which means:\n%s\n",
+                signo,strsignal(signo),current_env->error_num,
+                lisp_strerror(current_env->error_num));
         //maybe not the best, but it'll do for now
         signal(signo,SIG_DFL);
         raise(signo);
@@ -336,8 +345,10 @@ void *init_environment_pthread(void* arg){
   return f(args[1]);
 }
 void init_environment(void){
-  current_obarray=global_obarray;//set to a new obarray with set_package (or similar)
-  current_env=xmalloc(sizeof(environment));
+  current_env=xmalloc(sizeof(struct environment));
+//set to a new obarray with set_package (or similar)
+  current_obarray=global_obarray;
+  current_env->sigstack=xmalloc_atomic(sizeof(stack_t));
   current_env->sigstack->ss_sp=xmalloc_atomic(SIGSTKSZ);
   if(!current_env->sigstack->ss_sp){
     fprintf(stderr,"error, virtual memory exhausted\n");
@@ -345,18 +356,23 @@ void init_environment(void){
   }
   current_env->sigstack->ss_size=SIGSTKSZ;
   sigaltstack(current_env->sigstack,NULL);
-  current_env->frame_stack=GC_malloc_ignore_off_page(frame_stack_size);
+  current_env->frame_stack=
+    GC_malloc_ignore_off_page(frame_stack_size);//*sizeof(frame));
   current_env->frame_ptr=current_env->frame_stack;
-  current_env->frame_top=current_env->frame_ptr+(frame_stack_size/sizeof(frame*));
-  current_env->data_stack=GC_malloc_ignore_off_page(data_stack_size);
+  current_env->frame_top=
+    current_env->frame_ptr+(frame_stack_size);
+  current_env->data_stack=
+    GC_malloc_ignore_off_page(data_stack_size);//*sizeof(sexp));
   current_env->data_ptr=current_env->data_stack;
-  current_env->data_top=current_env->data_ptr+(data_stack_size/sizeof(sexp*));
-  current_env->bindings_stack=GC_malloc_ignore_off_page(bindings_stack_size);
+  current_env->data_top=current_env->data_ptr+(data_stack_size);
+  current_env->bindings_stack=
+    GC_malloc_ignore_off_page(bindings_stack_size);//*sizeof(binding));
   current_env->bindings_ptr=current_env->bindings_stack;
-  current_env->bindings_top=current_env->bindings_ptr+(bindings_stack_size/sizeof(binding*));
-  current_env->call_stack=GC_malloc_ignore_off_page(call_stack_size);
+  current_env->bindings_top=current_env->bindings_ptr+(bindings_stack_size);
+  current_env->call_stack=
+    GC_malloc_ignore_off_page(call_stack_size);
   current_env->call_ptr=current_env->call_stack;
-  current_env->call_top=current_env->call_ptr+(call_stack_size/sizeof(subr_call*));
+  current_env->call_top=current_env->call_ptr+(call_stack_size);
   //gc sets everything to 0, every other field needs to be 0, so we're done
   return;
 }

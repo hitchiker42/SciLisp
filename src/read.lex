@@ -88,7 +88,9 @@ QUALIFIED_ID_ALL {ID}":."{ID}
 %option noyywrap
    /*start condition for scanning nested comments*/
 %x comment
-%option noyyalloc noyyrealloc noyyfree
+%option noyyalloc 
+%option noyyrealloc 
+%option noyyfree
 %option 8bit reentrant
 %option header-file="read_lex.h" outfile="read.c"
 %%   /*Literals*/

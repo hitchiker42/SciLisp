@@ -272,16 +272,14 @@ sexp lisp_close(sexp stream){
     }
   }
 }
-sexp lisp_fputs(sexp string,sexp stream){
+/*sexp lisp_fputs(sexp string,sexp stream){
   if(!STREAMP(stream)||!STRINGP(string)){
-    format_type_error2("fputs","string",string.tag,"stream",stream.tag);
-  } else if (string.tag == _str){
-    fputs(CORD_to_const_char_star(string.val.cord),stream.val.stream);
-  } else {//string must be a w_char string
-    fputws(string.val.ustr,stream.val.stream);
+    raise_simple_error(Etype,format_type_error2("fputs","string",string.tag,
+                                                "stream",stream.tag));
   }
+  fputs(CORD_to_const_char_star(string.val.string->cord),stream.val.stream);
   return NIL;
-}
+  }*/
 sexp lisp_time(sexp raw){
   time_t cur_time=time(NULL);
   if(isTrue(raw)){

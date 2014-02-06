@@ -1,0 +1,9 @@
+CC:=gcc
+CFLAGS:=-D_GNU_SOURCE -I$$PWD/include -flto -std=gnu99 \
+	-ggdb -Og -rdynamic -fPIC -DMULTI_THREADED
+read_test_src := read_test.c env.c read.c print.c cord.c frames.c prim.c lisp_utf8.c
+read.c: read.lex
+	flex read.lex
+read_test: $(read_test_src:%.c=%.o)
+	$(CC) -std=gnu99 -lpthread -ldl -lgc -lcord -lreadline \
+	 -lgmp -lm -lmpfr -I$$PWD/include $^ -o read_test

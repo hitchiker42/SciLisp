@@ -101,6 +101,7 @@ int lisp_getline(FILE* outfile,char* filename){
  MAIN_LOOP:while(1){
     parens=0;
     //makesure readline buffer is NULL
+    HERE();
     if (line_read){
       free (line_read);
       line_read = (char *)NULL;
@@ -147,8 +148,10 @@ void __attribute__((noreturn)) read_eval_print_loop(){
   int fd=mkstemp(tmp_file);
   FILE* my_pipe=fdopen(fd,"w+");
   yyscan_t scanner;
+  HERE();
   yylex_init(&scanner);
   yyset_in(my_pipe,scanner);
+  HERE();
   //  yyin=my_pipe;
   #ifdef HAVE_READLINE
   rl_set_signals();
@@ -156,6 +159,7 @@ void __attribute__((noreturn)) read_eval_print_loop(){
   #endif
   sexp ast;
   sexp *yylval=xmalloc(sizeof(sexp));
+  HERE();
   //toplevel handler which catches any invalid nonlocal exit
   //also used to return to after any fatal lisp error (i.e
   //the lisp stack overflows or something
@@ -171,9 +175,13 @@ void __attribute__((noreturn)) read_eval_print_loop(){
       }
     }
     start_pos=lisp_readline_fun(my_pipe,tmp_file);
+    HERE();
     fseeko(my_pipe,start_pos,SEEK_SET);
+    HERE();
     yyrestart(my_pipe,scanner);
+    HERE();
     ast=c_read(&scanner,yylval,NULL);
+    HERE();
     //print
     if(!NILP(ast)){
       lisp_ans_ptr->val=eval_fun(XCAR(ast),current_env);

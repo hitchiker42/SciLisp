@@ -13,6 +13,12 @@ static inline uint64_t ffz(uint64_t word){
   return word;
 #else
   return ffsl(~word);
+#endif
+}
+int utf8_isucs4(wchar_t ch){
+    return !(ch & (~((wchar_t)0x7FFFFFFF)))
+        && (ch < 0xD800 || ch > 0xDFFF)
+        && (ch != 0xFFFE) && (ch != 0xFFFF);
 }
 int utf8_char_len(char mb_char){  
   if(mb_char<0x80){
@@ -36,7 +42,7 @@ size_t utf8_encode_char(char* dest, wchar_t src){
   if(!dest){
     dest = xmalloc_atomic(utf8_len_max);
   }
-  if(!utf8_isucs4(ch)) {//test if ch is a valid codepoint
+  if(!utf8_isucs4(src)) {//test if ch is a valid codepoint
     errno = EILSEQ;
     return 0;
   }
@@ -108,7 +114,7 @@ size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size){
   }
   if(retval < min) {
     errno = EILSEQ;
-    return (size_t)-1
+    return (size_t)-1;
   }
   if(needed>size){
     return (size_t)-2;
@@ -180,4 +186,36 @@ size_t utf8_encode_mem(char *dest,size_t bufsize,const wchar_t *src,size_t maxch
     j++;
   }
   return j;
+}
+int utf8_isascii(wchar_t ch){
+    return !(ch & ~0x7F);
+}
+int utf8_isspace(wchar_t ch){
+    return((ch >= 0x0009 && ch <= 0x000D)
+            || ch == 0x0020
+            || ch == 0x0085
+            || ch == 0x00A0
+            || ch == 0x1680
+            || ch == 0x180E
+            || (ch >= 0x2000 && ch <= 0x200A)
+            || ch == 0x2028
+            || ch == 0x2029
+            || ch == 0x202F
+            || ch == 0x205F
+            || ch == 0x3000);
+}
+int utf8_iseol(wchar_t ch){
+    return (ch >= 0x000A && ch <= 0x000D)
+        || ch == 0x0085
+        || ch == 0x2028
+        || ch == 0x2029;
+}
+int utf8_isutf32(wchar_t ch){
+    return ch >= 0 && ch <= 0x10FFFF
+        && (ch < 0xD800 || ch > 0xDFFF)
+        && (ch != 0xFFFE) && (ch != 0xFFFF);
+}
+int utf8_isutf16(wchar_t ch){
+    return ch >= 0 && ch <= 0xFFFD
+        && (ch < 0xD800 || ch > 0xDFFF);
 }

@@ -18,6 +18,7 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #define IN_LEXER
 #include "read.h"
+#include "lisp_utf8.h"
 //For actual unicode compilance this should be 16, but llke this it filts in an sexp
 #define MAX_MULTIBYTE_LEN 8
 //for functions that return characters I return -1 to indicate an error,
@@ -27,7 +28,7 @@
 char parse_hex_escape(char *input);//sets input to the first character after the escape
 wchar_t parse_unicode_escape(char *input);
 //just for convience, just calls wcrtomb on parse_unicode_escape
-char* parse_unicode_escape_to_utf8(char *input);
+uint64_t parse_unicode_escape_to_utf8(char *input);
 #define HEXVALUE(c) \
   (((c) >= 'a' && (c) <= 'f') \
         ? (c)-'a'+10 \
@@ -102,16 +103,20 @@ wchar_t parse_escape(char *input){
     return (wchar_t)-1;
   }
 }
-char *parse_escape_mb(char *input){
+uint64_t parse_escape_mb(char *input){
   //I really don't know a better way to do this
-  char simple_retval[1];
-  char *mb_retval;
-  if((simple_retval[0]=parse_simple_escape(*input) != (char)-1)){
-    return simple_retval;
-  } else if((simple_retval[0]=parse_hex_escape(input)) != (char)-1){
-    return simple_retval;
-  } else if((mb_retval==parse_unicode_escape_to_utf8)){
-    return mb_retval;
+  union {
+    uint64_t mem;
+    char bytes[8];
+  } retval;
+  retval.mem=0;
+  if((retval.bytes[0]=parse_simple_escape(*input) != (char)-1)){
+    return retval.mem;
+  } else if((retval.bytes[0]=parse_hex_escape(input)) != (char)-1){
+    return retval.mem;
+    //this bit will probably fail
+  } else if((retval.mem==parse_unicode_escape_to_utf8(input))){
+    return retval.mem;
   }
 }
 char parse_hex_escape(char *input){//sets input to the first character after the escape
@@ -140,36 +145,34 @@ wchar_t parse_unicode_escape(char *input){
   }
   return uvalue;
 }
-char* parse_unicode_escape_to_utf8(char *input){
+uint64_t parse_unicode_escape_to_utf8(char *input){
   wchar_t u32_char=parse_unicode_escape(input);
   if(u32_char == (wchar_t)-1){
-    return NULL;
+    raise_simple_error(Eilseq,"invalid unicode character");
   } else {
     mbstate_t state;
     size_t nbytes;
-    char retval[MB_LEN_MAX];//I could just use sizeof(wchar_t) (i.e. 4) but
-    //this is more future proof at a slight space cost
-    memset(&state,'\0',sizeof(state));    
-    if(((size_t)-1)==(wcrtomb(retval,u32_char,&state))){
-      fprintf(stderr,"error converting %lc to multibyte\n",u32_char);
-      return NULL;
+    char retval[UTF8_LEN_MAX]={0};
+    if(((size_t)-1)==(utf8_encode_char(retval,u32_char))){
+      raise_simple_error_fmt(Eilseq,"error converting %lc to multibyte\n",
+                             u32_char);
     } else {
-      return retval;
+      return *(uint64_t*)retval;
     }
   }
 }   
 //returns the index of the first backslash in input
 //or -1 if there isn't one
-inline int string_has_escape(lisp_string *input){
+extern inline int string_has_escape(lisp_string *input){
   //I would use CORD_chr for both types of string
   //but it looks like CORD_chr doesn't optimize things
   //when a CORD is a c_string so I need to do that myself
   if(input->string[0]=='\0'){//cord
     size_t cordind=CORD_chr(input->cord,0,'\\');
-    if(cordint==CORD_NOT_FOUND){
+    if(cordind==CORD_NOT_FOUND){
       return -1;
     } else {
-      return cordint;
+      return cordind;
     }
   } else {//cstring(will most likely return a cord however)
     char *strptr=memchr(input->string,'\\',input->len);
@@ -184,25 +187,25 @@ inline int strchr_index(const char *input){
   //I would use CORD_chr for both types of string
   //but it looks like CORD_chr doesn't optimize things
   //when a CORD is a c_string so I need to do that myself
-  if(input->string[0]=='\0'){//cord
-    size_t cordind=CORD_chr(input->cord,0,'\\');
-    if(cordint==CORD_NOT_FOUND){
+  if(input[0]=='\0'){//cord
+    size_t cordind=CORD_chr(input,0,'\\');
+    if(cordind==CORD_NOT_FOUND){
       return -1;
     } else {
-      return cordint;
+      return cordind;
     }
   } else {//cstring(will most likely return a cord however)
-    char *strptr=strchr(input->string,'\\');
+    char *strptr=strchr(input,'\\');
     if(!strptr){
       return -1;
     } else {
-      return input->string-strptr;
+      return strptr-input;
     }
   }
 }
 lisp_string *parse_string_escapes(lisp_string *input){
   int ind;
-  if((int=string_has_escape(input))<0){
+  if((ind=string_has_escape(input))<0){
     return input;
   }
   //get the begining of the string, before any escapes

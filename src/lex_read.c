@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
-//From this point on flex doesn't touch anything, so it's just normal C99
+#include "read_util.c"
 void *yyalloc(size_t bytes,void* yyscanner){
   return xmalloc(bytes);
 }
@@ -69,7 +69,10 @@ sexp c_read_sub(yyscan_t *scanner,register sexp *yylval){
   }
   return retval;
 }
-sexp read_matrix(yyscan_t *scanner,register sexp *yylval);
+sexp read_matrix(yyscan_t *scanner,register sexp *yylval){
+  return NIL;//temporary hack
+}
+
 //reads one sexp or token(i.e ',',''',')',']','}','.')
 //so read list/vector/etc can be called as
 /* int last_tok=0;
@@ -80,8 +83,8 @@ sexp read_matrix(yyscan_t *scanner,register sexp *yylval);
 */
 //make sure I handle every possible token
 //Wswitch-enum requires every enumerated value to be used explicity 
-#pragma GCC diagnostic warning "-Wswitch-enum"
-sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
+#pragma GCC diagnostic warning "-Wswitch"
+sexp c_read(yyscan_t *scanner,sexp *yylval,int *last_tok){
 #define get_tok() (yytag = yylex(yylval,scanner))
   register TOKEN yytag=0;
   register cons *ast=xmalloc(sizeof(cons));
@@ -106,6 +109,9 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       case TOK_CHAR:
       case TOK_ID:
       case TOK_KEYSYM:
+      case TOK_SYMBOL:
+      case TOK_LISP_FALSE:
+      case TOK_LISP_TRUE:
         ast->car=*yylval;
         break;
       case TOK_QUOTE:{
@@ -119,6 +125,10 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       case TOK_LBRACE:
       case TOK_DBL_LBRACE:
       case TOK_MAT_CLOSE:
+      case TOK_EOF:
+      case TOK_ERR:
+      case TOK_UNKN:
+      case TOK_DOT:
         *last_tok=yytag;
         return NIL;
       case TOK_BACKQUOTE:
@@ -135,6 +145,11 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
         backtick_flag=1;
         return c_list2(Qcomma_sexp,value);
       }
+      case TOK_COMMENT_START:
+      case TOK_COMMENT_END:
+        return NIL;//I'm pretty sure this shouldn't ever happend
+      default:
+        return NIL;
     }
     /*
       get_tok();
@@ -143,10 +158,10 @@ sexp c_read(yyscan_t *scanner,register sexp *yylval,int *last_tok){
       ast=ast->cdr;
       continue;
       } else {*/
-    return cons_sexp(ast);
+     return cons_sexp(ast);
   }
 }
-#pragma GCC diagnostic ignored "-Wswitch-enum"
+#pragma GCC diagnostic ignored "-Wswitch"
 sexp read_list(yyscan_t *scanner,register sexp *yylval){
   sexp retval;
   sexp new_list=retval=cons_sexp(xmalloc(sizeof(cons)));

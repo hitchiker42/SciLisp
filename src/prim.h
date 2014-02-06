@@ -57,7 +57,7 @@ extern const sexp lisp_mach_eps;
 extern symref lisp_ans_ptr;
 extern sexp type_of_tag(sexp_tag tag);
 extern sexp type_of(sexp obj);
-void initPrims();
+void init_prims();
 #ifdef INSIDE_PRIMS
 #define MAKE_SELF_QUOTING_SYMBOL(cname,lname,sym_len,sym_hashv,proplist) \
   symbol_name cname##_name={.hashv=sym_hashv,                           \
@@ -70,8 +70,8 @@ void initPrims();
 #define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
   symbol_name cname##_name={.hashv=sym_hashv,                           \
                             .name_len=sym_len,.name=lname};             \
-  symbol cname##_val={.val=val,.name=&cname##_name,.constant=const_sym  \
-                      .plist=proplist,.next=NULL};                      \
+  symbol cname##_val={.val=sym_val,.name=&cname##_name,                 \
+                      .constant=const_sym,.plist=proplist,.next=NULL};  \
   symbol *cname=&cname##_val;                                           \
   sexp cname##_sexp=const_symref_sexp(&cname##_val)
 #define MAKE_TYPE(cname,lname,sym_len,sym_hashv,proplist,type_tag)      \
@@ -94,6 +94,62 @@ void initPrims();
                  restarg,max_args,arglist)                              \
   DEFSUBR(l_name,c_name,reqargs,optargs,keyargs,                        \
           restarg,max_args,funevaled,arglist,subr_compiler_macro)
+#endif
+//need to add later
+#if 0
+#define set_global_vars()                                               \
+  lisp_stderr_sym.val.val.stream=stderr;                                \
+  lisp_stdout_sym.val.val.stream=stdout;                                \
+  lisp_stdin_sym.val.val.stream=stdin;                                  \
+  mpz_t *mpz_const_1=xmalloc(sizeof(mpz_t));                            \
+  mpz_t *mpz_const_0=xmalloc(sizeof(mpz_t));                            \
+  mpfr_t *mpfr_const_1=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_0=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_e=xmalloc(sizeof(mpfr_t));                         \
+  mpfr_t *mpfr_const_pi_var=xmalloc(sizeof(mpfr_t));                    \
+  mpfr_t *mpfr_const_nan=xmalloc(sizeof(mpfr_t));                       \
+  mpfr_t *mpfr_const_inf=xmalloc(sizeof(mpfr_t));                       \
+  mpz_init((*mpz_const_0));                                             \
+  mpfr_init((*mpfr_const_0));                                           \
+  mpfr_init((*mpfr_const_nan));                                         \
+  mpfr_init((*mpfr_const_inf));                                         \
+  mpz_init_set_ui((*mpz_const_1),1);                                    \
+  mpfr_init_set_ui((*mpfr_const_1),1,MPFR_RNDN);                        \
+  mpfr_init((*mpfr_const_e));                                           \
+  mpfr_init((*mpfr_const_pi_var));                                      \
+  mpfr_exp(*mpfr_const_e,*mpfr_const_1,MPFR_RNDN);                      \
+  mpfr_const_pi(*mpfr_const_pi_var,MPFR_RNDN);                          \
+  mpfr_set_nan(*mpfr_const_nan);                                        \
+  mpfr_set_inf(*mpfr_const_inf,1);                                      \
+  lisp_bigint_0_sym.val.val.bigint=mpz_const_0;                         \
+  lisp_bigint_1_sym.val.val.bigint=mpz_const_1;                         \
+  lisp_bigfloat_0_sym.val.val.bigfloat=mpfr_const_0;                    \
+  lisp_bigfloat_1_sym.val.val.bigfloat=mpfr_const_1;                    \
+  lisp_bigfloat_e_sym.val.val.bigfloat=mpfr_const_e;                    \
+  lisp_bigfloat_pi_sym.val.val.bigfloat=mpfr_const_pi_var
+
+#define lisp_stderr {.tag = _stream,.val={.stream=0}}
+#define lisp_stdout {.tag = _stream,.val={.stream=0}}
+#define lisp_stdin {.tag = _stream,.val={.stream=0}}
+#define lisp_mach_eps  {.tag=_double,.val={.real64=1.41484755040568800000e-16}}
+#define lisp_pi  {.tag=_double,.val={.real64=3.14159265358979323846}}
+#define lisp_euler {.tag=_double,.val={.real64=2.7182818284590452354}}
+#define lisp_max_long  {.tag=_long,.val={.int64=LONG_MAX}}
+#define lisp_double_0  {.tag=_double,.val={.real64=0.0}}
+#define lisp_double_1  {.tag=_double,.val={.real64=1.0}}
+#define lisp_long_0  {.tag=_long,.val={.int64=0}}
+#define lisp_long_1  {.tag=_long,.val={.int64=1}}
+//allocating static space for pointers, not actually initalizing constants
+#define lisp_bigint_0  {.tag=_bigint,.val={.bigint=0}}
+#define lisp_bigint_1  {.tag=_bigint,.val={.bigint=0}}
+#define lisp_bigfloat_0   {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_1   {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_e {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_bigfloat_pi {.tag=_bigfloat,.val={.bigfloat=0}}
+#define lisp_NIL {.tag = -1,.val={.meta = -1}}
+#define lisp_LISP_TRUE {.tag = -2,.val={.meta = 11}}
+#define lisp_LISP_FALSE {.tag = -3,.val={.meta = -3}}
+#define lisp_ans {.tag=-1,.val={.meta=-1},.quoted=0}
 #endif
 extern symbol *Etype;
 extern sexp Etype_sexp;
@@ -131,6 +187,8 @@ extern symbol *Eprint;
 extern sexp Eprint_sexp;
 extern symbol *Evisibility;
 extern sexp Evisibility_sexp;
+extern symbol *Eilseq;
+extern sexp Eilseq_sexp;
 extern symbol *Tint8;
 extern sexp Tint8_sexp;
 extern symbol *Tint16;
@@ -159,18 +217,18 @@ extern symbol *Tbigfloat;
 extern sexp Tbigfloat_sexp;
 extern symbol *Tchar;
 extern sexp Tchar_sexp;
+extern symbol *Tc_char;
+extern sexp Tc_char_sexp;
 extern symbol *Tstring;
 extern sexp Tstring_sexp;
 extern symbol *Tarray;
 extern sexp Tarray_sexp;
 extern symbol *Tstream;
 extern sexp Tstream_sexp;
-extern symbol *Tfun;
-extern sexp Tfun_sexp;
+extern symbol *Tsubr;
+extern sexp Tsubr_sexp;
 extern symbol *Tsymbol;
 extern sexp Tsymbol_sexp;
-extern symbol *Tmacro;
-extern sexp Tmacro_sexp;
 extern symbol *Ttype;
 extern sexp Ttype_sexp;
 extern symbol *Thashtable;
@@ -231,4 +289,32 @@ extern symbol *Qcomma;
 extern sexp Qcomma_sexp;
 extern symbol *Qbackquote;
 extern sexp Qbackquote_sexp;
+extern symbol *Kend;
+extern sexp Kend_sexp;
+extern symbol *Kstart1;
+extern sexp Kstart1_sexp;
+extern symbol *Kcount;
+extern sexp Kcount_sexp;
+extern symbol *Kdocumentation;
+extern sexp Kdocumentation_sexp;
+extern symbol *Kend1;
+extern sexp Kend1_sexp;
+extern symbol *Kend2;
+extern sexp Kend2_sexp;
+extern symbol *Kexport;
+extern sexp Kexport_sexp;
+extern symbol *Kimport;
+extern sexp Kimport_sexp;
+extern symbol *Ktest;
+extern sexp Ktest_sexp;
+extern symbol *Kkey;
+extern sexp Kkey_sexp;
+extern symbol *Ksize;
+extern sexp Ksize_sexp;
+extern symbol *Kstart;
+extern sexp Kstart_sexp;
+extern symbol *Kstart2;
+extern sexp Kstart2_sexp;
+extern symbol *Kuse;
+extern sexp Kuse_sexp;
 #endif

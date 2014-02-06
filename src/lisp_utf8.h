@@ -1,14 +1,14 @@
 #ifndef _LISP_UTF8_H
 #define _LISP_UTF8_h
-#include <wchar.h> //for wchar and wint types
-#include "cord.h" //for encoding/decoding cords
-#include "ec.h"  // "" ""
+//minimal includes so this can stand on it's own
+#include "common.h"
 static const int utf8_max[6]={0x7F,0x7FF,0xFFFF,0x1FFFFF,0x3FFFFFF,0x7FFFFFFF};
 static const int utf8_min[6]={0x9,0x80,0x800,0x10000,0x200000,0x4000000};
 static const uint8_t utf8_initial_mask[6]={0x0,0b00011111,0b00001111,
                                            0b00000111,0b00000011,0b00000001};
 static const uint8_t utf8_rest_mask=0b00111111;
 static const int utf8_len_max=8;//really it's 6, but setting this to 8 makess life eaiser
+#define UTF8_LEN_MAX 8
 /*
   Simple UTF-8 spec
   bits of    | First      | Last         | Num Bytes | Leading    |
@@ -37,7 +37,7 @@ int utf8_char_len_unsafe(char mb_char);
 //and dest is set to NULL for any other error dest is set to NULL
 //errno is set and -1 is returned. otherwise dest is set to the 
 //result and the number of bytes used is returned
-int utf8_decode_char(const char* src, wchar_t *dest, size_t size);
+size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size);
 size_t utf8_encode_char(char* dest, wchar_t src);
 //not sure how much info to put in here
 struct decode_state_simple {
@@ -68,3 +68,4 @@ struct decode_state {
   uint8_t bytes_consumed;//bytes used so far in current char
   wchar_t result;//where to store the partial result
 };
+#endif

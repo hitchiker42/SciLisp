@@ -65,38 +65,38 @@ const char *tag_name(sexp_tag obj_tag){
   }
 }
 //temporary (should be generated)
-#define mkTypeCase(type,tag) case tag: return type_sexp(type)
+#define make_type_case(type,tag) case tag: return type_sexp(type)
 sexp type_of_tag(sexp_tag tag){
   switch(tag){
-    mkTypeCase(Tint8,sexp_int8);
-    mkTypeCase(Tint16,sexp_int16);
-    mkTypeCase(Tint32,sexp_int32);
-    mkTypeCase(Tint64,sexp_int64);
-    mkTypeCase(Tuint8,sexp_uint8);
-    mkTypeCase(Tuint16,sexp_uint16);
-    mkTypeCase(Tuint32,sexp_uint32);
-    mkTypeCase(Tuint64,sexp_uint64);
-    mkTypeCase(Terror,sexp_error);
-    mkTypeCase(Treal32,sexp_real32);
-    mkTypeCase(Treal64,sexp_real64);
-    mkTypeCase(Tbigint,sexp_bigint);
-    mkTypeCase(Tbigfloat,sexp_bigfloat);
-    mkTypeCase(Tchar,sexp_char);
-    mkTypeCase(Tstring,sexp_string);
-    mkTypeCase(Tarray,sexp_array);
-    mkTypeCase(Tstream,sexp_stream);
-    mkTypeCase(Tfun,sexp_subr);
-    mkTypeCase(Tsymbol,sexp_symbol);
-    mkTypeCase(Ttype,sexp_type);
-    mkTypeCase(Thashtable,sexp_hashtable);
-    mkTypeCase(Tregex,sexp_regex);
-    mkTypeCase(Tnil,sexp_nil);
-    mkTypeCase(Tenv,sexp_env);
-    mkTypeCase(Tobarray,sexp_obarray);
-    mkTypeCase(Ttrue,sexp_true);
-    mkTypeCase(Tfalse,sexp_false);
-    mkTypeCase(Tuninterned,sexp_uninterned);
-    mkTypeCase(Tcons,sexp_cons);
+    make_type_case(Tint8,sexp_int8);
+    make_type_case(Tint16,sexp_int16);
+    make_type_case(Tint32,sexp_int32);
+    make_type_case(Tint64,sexp_int64);
+    make_type_case(Tuint8,sexp_uint8);
+    make_type_case(Tuint16,sexp_uint16);
+    make_type_case(Tuint32,sexp_uint32);
+    make_type_case(Tuint64,sexp_uint64);
+    make_type_case(Terror,sexp_error);
+    make_type_case(Treal32,sexp_real32);
+    make_type_case(Treal64,sexp_real64);
+    make_type_case(Tbigint,sexp_bigint);
+    make_type_case(Tbigfloat,sexp_bigfloat);
+    make_type_case(Tchar,sexp_char);
+    make_type_case(Tstring,sexp_string);
+    make_type_case(Tarray,sexp_array);
+    make_type_case(Tstream,sexp_stream);
+    make_type_case(Tsubr,sexp_subr);
+    make_type_case(Tsymbol,sexp_symbol);
+    make_type_case(Ttype,sexp_type);
+    make_type_case(Thashtable,sexp_hashtable);
+    make_type_case(Tregex,sexp_regex);
+    make_type_case(Tnil,sexp_nil);
+    make_type_case(Tenv,sexp_env);
+    make_type_case(Tobarray,sexp_obarray);
+    make_type_case(Ttrue,sexp_true);
+    make_type_case(Tfalse,sexp_false);
+    make_type_case(Tuninterned,sexp_uninterned);
+    make_type_case(Tcons,sexp_cons);
     //    mkTypeCase(Tpointer,sexp_opaque);
   }
 }
@@ -301,6 +301,7 @@ CORD print(sexp obj){
     case sexp_regex:
       return ("#<regular-expression>");
     case sexp_cdata:{
+      return "";//temp hack
       c_data* c_obj=obj.val.c_val;
       if(c_obj->ptr_depth){
         acc=CORD_cat(acc,"#<");
@@ -309,7 +310,7 @@ CORD print(sexp obj){
           acc=CORD_cat(acc,"*");
           depth--;
         }
-        acc=CORD_cat(acc,print(dereference_c_ptr(c_obj)));
+        //        acc=CORD_cat(acc,print(dereference_c_ptr(c_obj)));
         acc=CORD_cat(acc,">");
         return acc;
       } else {
@@ -319,7 +320,7 @@ CORD print(sexp obj){
     case sexp_hashtable:{
       hash_table *hash=obj.val.hashtable;
       CORD_sprintf(&retval,"#<hash-table :test %r :entries %d>",
-                   hashtable_test_fn_name(obj),hash->entries);
+                   hashtable_test_fn_name(hash->test_fn),hash->entries);
       return retval;
     }
     case sexp_env:{
@@ -407,7 +408,6 @@ const char *token_name(TOKEN token){
     mk_tok_name(TOK_BACKQUOTE);
     mk_tok_name(TOK_QUOTE);
     mk_tok_name(TOK_QUASI);
-    mk_tok_name(TOK_SPECIAL);
     mk_tok_name(TOK_COMMENT_START);
     mk_tok_name(TOK_COMMENT_END);
     mk_tok_name(TOK_DOT);
@@ -450,6 +450,14 @@ sexp lisp_get_signature(sexp fun_or_macro){
   }*/
 CORD prin1(sexp obj);//print readably
 CORD princ(sexp obj);//pretty print
+sexp lisp_fputs(sexp string,sexp stream){
+  if(!STREAMP(stream)||!STRINGP(string)){
+    raise_simple_error(Etype,format_type_error2("fputs","string",string.tag,
+                                                "stream",stream.tag));
+  }
+  fputs(CORD_to_const_char_star(string.val.string->cord),stream.val.stream);
+  return NIL;
+}
 //I'll need to see how this is done elsewhere first
 //use the environment's data stack
 #if 0
