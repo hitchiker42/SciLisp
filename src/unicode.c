@@ -176,3 +176,21 @@ sexp *c_lisp_strcat(sexp *args,int numargs){
   };
   return;
 }
+//from the linux kernel (the assembly bit)
+//not sure why I couldn't think to do bsf !val but eh
+static inline uint64_t ffz(uint64_t word){
+#ifdef __x86_64__ 
+  asm("bsf %1,%0"
+      : "=r" (word)
+      : "r" (~word));
+  return word;
+#else
+  return ffsl(~word);
+}
+int utf8_char_len(char *mb_char){  
+  if(mb_char<0x80){
+    return 1;
+  } else {
+    return 1-ffz(*mb_char);
+  }
+}
