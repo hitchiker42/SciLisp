@@ -181,3 +181,53 @@ size_t utf8_encode_mem(char *dest,size_t bufsize,const wchar_t *src,size_t maxch
   }
   return j;
 }
+//assume that src is a CORD that is not also a c string 
+size_t utf8_decode_cord(CORD src, wchar_t *dest, size_t size){
+  int i=0;
+  wchar_t retval,min;
+  CORD_pos p;
+  uint8_t c;
+  CORD_set_pos(p,src,0);
+  //deal with invaid arguments and ascii chars
+  if(!size){
+    return (size_t)-2;
+  } else if(!src && size) {
+    errno = EINVAL;
+    return (size_t)-1;
+  } else if(src[0]>=0XFE){
+    errno=EILSEQ;
+    return (size_t)-1;
+  } else if (src[0]<0x80){
+    *dest=CORD_pos_fetch(p);
+    return 1;
+  }
+  int needed=ffz(src[0])-1;
+  min=utf8_min[needed];
+  c=CORD_pos_fetch(p);
+  CORD_next(p);
+  retval=c & utf8_initial_mask[needed-1];
+  while(CORD_pos_valid(pos) && i++ && --size){
+    c=CORD_pos_fetch(p);
+    CORD_next(p)
+    if(IS_INVALID_CONT_BYTE(c)){
+        errno = EILSEQ;
+        return (size_t)-1;
+    }
+    //0x3f == 0b00111111
+    /*ex retval = 0b00011111
+      retval <<=6 retval = 0b00000111 0b11000000
+    //ok I guess this works I'm not 100% sure on how though
+     */
+    retval <<= 6;
+    retval |= c & 0x3F;
+  }
+  if(retval < min) {
+    errno = EILSEQ;
+    return (size_t)-1
+  }
+  if(needed>size){
+    return (size_t)-2;
+  }
+  *dest=retval;
+  return i;
+}
