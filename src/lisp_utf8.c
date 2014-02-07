@@ -6,7 +6,7 @@
 //from the linux kernel
 //not sure why I couldn't think to do bsf !val but eh
 static inline uint64_t ffz(uint64_t word){
-#ifdef __x86_64__ 
+#ifdef __x86_64__
   asm("bsf %1,%0"
       : "=r" (word)
       : "r" (~word));
@@ -14,7 +14,7 @@ static inline uint64_t ffz(uint64_t word){
 #else
   return ffsl(~word);
 }
-int utf8_char_len(char mb_char){  
+int utf8_char_len(char mb_char){
   if(mb_char<0x80){
     return 1;
   } else if (mb_char>=0xFE){//invalid leading byte
@@ -23,8 +23,16 @@ int utf8_char_len(char mb_char){
     return ffz(mb_char)-1;
   }
 }
-//like 
-int utf8_char_len_unsafe(char mb_char){
+int utf8_mb_char_len(char mb_char){
+  if (mb_char>=0xFE){//invalid leading byte
+    return -1;
+  } else {
+    return ffz(mb_char)-1;
+  }
+}
+//internal use only, really unsafe, need to check
+//for 0xFE/0xFF and >0x80 yourself
+static inline int utf8_char_len_unsafe(char mb_char){
   return 1-ffz(mb_char);
 }
 /*
@@ -38,7 +46,7 @@ size_t utf8_encode_char(char* dest, wchar_t src){
   }
   if(!utf8_isucs4(ch)) {//test if ch is a valid codepoint
     errno = EILSEQ;
-    return 0;
+    return (size_t)-1;
   }
   int i=0;
   if(src < 0x80) {
@@ -116,10 +124,79 @@ size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size){
   *dest=retval;
   return i;
 }
+#define default_dest_size 64
+utf8_encode_state *init_encode_state(wchar_t *src,char *dest,int maxchars,int dest_size){
+  utf8_encode_state *state=xmalloc_atomic(sizeof(struct encode_state));
+  //xmalloc_atomic doesn't 0 data
+  memset(state,'\0',sizeof(struct encode_state));
+  if(!dest){
+    dest=xmalloc_atomic(default_dest_size);
+    state->dest=dest;
+    state->resize=1;
+    state->dest_size=default_dest_size;
+  } else {
+    state->dest=dest;
+    state->dest_size=dest_size;
+    state->resize=0;
+  }
+  state->src=src;
+  state->maxchars=maxchars;
+  return state;
+}
+
+//INCOMPLETE
+//reentrent, i.e interuptable, state contains the infomation needed
+//to encode a wide string, and can be interupted and restanted
+//cur_maxchars, if not 0 tells the max ammount of characters to encode this call
+size_t encode_with_state(utf8_encode_state *state,size_t cur_maxchars){
+  if(!cur_maxchars){
+    cur_maxchars=(size_t)-1;
+  } else if (cur_maxchars >state->maxchars){
+    cur_maxchars=state->maxchars;
+  }
+  union {
+    char bytes[8];
+    uint8_t mb_val;
+  } temp;
+  size_t nbytes;
+  int initial_offset=state->src_offset;
+  while(cur_maxchars){
+    temp.mb_val=0;
+    nbytes=utf8_encode_char(temp.bytes,state->src[state->src_offset]);
+    if(nbytes == (size_t)-1){
+      return (size_t)-1;//needs a better way to do this
+    }
+    //needs work
+    if(!temp.mb_val){
+      state->complete=1;
+      return state->src_offset-initial_offset;
+    }
+    if(state->dest_offset+nbytes>state->dest_size){
+      if(state->resize){
+        state->dest_size*=2;
+        state->dest=xrealloc(state->dest,state->dest_size);
+      } else {
+        errno=ERANGE;
+        return (size_t)-2;
+      }
+    }
+    cur_maxchars--;
+    state->maxchars--;
+    //this will probably give and invalid lvalue error
+    (uint64_t*)state->dest+dest_offset=temp.mb_val;
+    state->dest_offset+=nbytes;
+    state->src_offest++;
+  }
+  if(!state->maxchars){
+    state->complete=1;
+    return state->src_offset-initial_offset;  
+  }
+}
+utf8_decode_state *init_decode_state(char *src,wchar_t *dest,int maxchars,int dest_size);
 //encode characters from src untill either a null character is reached
 //or maxchars chars have been read from src; if maxchars is 0 keep encoding
 //untill a nul character is reached
-//if bufsize is not 0 than it specifies teh max number of bytes to 
+//if bufsize is not 0 than it specifies teh max number of bytes to
 //store in dest, if  more bytes are required (size_t)-2 is returned. if bufsize is 0
 //a buffer is allocated which is large enough to hold the result of encoding  src
 size_t utf8_encode_string(char *dest,size_t bufsize,const wchar_t *src,size_t maxchars){

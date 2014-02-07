@@ -145,19 +145,16 @@ char* parse_unicode_escape_to_utf8(char *input){
   if(u32_char == (wchar_t)-1){
     return NULL;
   } else {
-    mbstate_t state;
     size_t nbytes;
-    char retval[MB_LEN_MAX];//I could just use sizeof(wchar_t) (i.e. 4) but
-    //this is more future proof at a slight space cost
-    memset(&state,'\0',sizeof(state));    
-    if(((size_t)-1)==(wcrtomb(retval,u32_char,&state))){
-      fprintf(stderr,"error converting %lc to multibyte\n",u32_char);
-      return NULL;
-    } else {
-      return retval;
+    char retval[utf8_len_max]={0};
+    nbytes=utf8_encode_char(retval,u32_char);
+    if(nbytes == (size_t)-1){
+      raise_simple_error(Etype,"Invalid unicode code point");
     }
+    return retval;
   }
 }   
+
 //returns the index of the first backslash in input
 //or -1 if there isn't one
 inline int string_has_escape(lisp_string *input){

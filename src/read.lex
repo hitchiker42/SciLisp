@@ -67,7 +67,8 @@ ASCSTR  [\x00-\x21\x23-\x7f]
 DIGIT [0-9]
 XDIGIT [0-9a-fA-F]
  /*                                  '   "    [  \   ]        space*/
-ASC_ID  [\x00-\x7f]{-}[#|,.;:`(){}@\x27\x22\x5b\x5c\x5d\x20\t\n]
+ASC_ID_CHAR  [\x00-\x7f]{-}[#|,.;:`(){}@\x27\x22\x5b\x5c\x5d\x20\t\n]
+ASC_ID ({ASC_ID_CHAR}|"\\"[#|,.;:`(){}@\x27\x22\x5b\x5c\x5d\x20\t\n])+
 ASCN    [\x00-\t\v-\x7f]
 U       [\x80-\xbf]
 U2      [\xc2-\xdf]
@@ -109,6 +110,7 @@ QUALIFIED_ID_ALL {ID}":."{ID}
   return TOK_STRING;}
 "\""([\x00-\x21\x23-\x7f]|{UONLY}|"\\""\"")+"\"" {LEX_MSG("Lexing multibyte string");
   *yylval=cord_sexp(CORD_strdup(CORD_substr(yytext,1,CORD_len(yytext)-2)));
+  yylval->val.string->multibyte=1;
   return TOK_STRING;}
 "\"\"" {*yylval=cord_sexp(0);return TOK_STRING;}
 {UCHAR} {LEX_MSG("lexing char");
@@ -119,11 +121,18 @@ QUALIFIED_ID_ALL {ID}":."{ID}
       *yylval=uchar_sexp(new_char); return TOK_CHAR;
     }
   }
-{ID} {LEX_MSG("lexing symbol");
+{ASC_ID} {LEX_MSG("lexing symbol");
     symbol *sym=c_intern(yytext,yyleng,NULL);
+    sym->name->multibyte=0;
     *yylval=symref_sexp(sym);
     return TOK_SYMBOL;
-   }
+  }
+{ID} {LEX_MSG("lexing symbol");
+    symbol *sym=c_intern(yytext,yyleng,NULL);
+    sym->name->multibyte=1;
+    *yylval=symref_sexp(sym);
+    return TOK_SYMBOL;
+  }
 {KEYSYM} {LEX_MSG("lexing keyword symbol");CORD name=CORD_from_char_star(yytext);
    symbol *sym=c_intern(yytext,yyleng,NULL);
    *yylval=symref_sexp(sym);

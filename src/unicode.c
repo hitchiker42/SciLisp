@@ -22,6 +22,7 @@
    SciLisp characters are wide characters, while SciLisp strings are multibyte
    strings, This may change at some point, but that's how it is for now*/
 #include "unicode.h"
+#include "lisp_utf8.h"
 #include <ctype.h>
 
 sexp lisp_char_to_string(sexp lisp_char){
@@ -120,7 +121,7 @@ wchar_t* lisp_string_to_wcs(lisp_string *string,int *out_len){
     *out_len=output_index;
   }
   return output;
-}  
+}
 wchar_t* lisp_mbsrtowcs(char *restrict str,mbstate_t *restrict state){
   if(!state){
     state=alloca(sizeof(mbstate_t));
@@ -179,7 +180,7 @@ sexp *c_lisp_strcat(sexp *args,int numargs){
 //from the linux kernel (the assembly bit)
 //not sure why I couldn't think to do bsf !val but eh
 static inline uint64_t ffz(uint64_t word){
-#ifdef __x86_64__ 
+#ifdef __x86_64__
   asm("bsf %1,%0"
       : "=r" (word)
       : "r" (~word));
@@ -187,10 +188,80 @@ static inline uint64_t ffz(uint64_t word){
 #else
   return ffsl(~word);
 }
-int utf8_char_len(char *mb_char){  
+int utf8_char_len(char *mb_char){
   if(mb_char<0x80){
     return 1;
   } else {
     return 1-ffz(*mb_char);
   }
+}
+sexp lisp_string_to_vector(sexp str){
+  if(!STRINGP(str)){
+    raise_simple_error(Etype,format_type_error("string->vector","string",str.tag));
+  }
+  const char *string=str.val.string->cord;
+  void *mem=xmalloc_atomic(sizeof(lisp_simple_vector)+
+                           str.val.string->len*sizeof(data));
+  lisp_simple_vector *retval=mem;
+  data *vec=retval+sizeof(lisp_simple_vector);
+  memset(vec,'\0',str.val.string->len*sizeof(data));
+  int i=0,j=0,len;
+  if(!str.val.string->multibyte){
+    if(string[0]){
+      for(i=0;i<str.val.string->len;i++){
+        vec[i].c_char=string[i];
+      }
+
+    } else {
+      CORD_pos p;
+      CORD_set_pos(p,string,0);
+      while(CORD_pos_valid(p)){
+        vec[i++].c_char=CORD_pos_fetch(p);
+        CORD_next(p);
+      }
+    }
+    retval->type=sexp_c_char;
+    retval->typed_vector=vec;
+    retval->len=i;
+    return svector_sexp(retval);
+  } else {
+
+    if(string[0]){
+      while(j<=str.val.string->len){
+        len=utf8_mb_char_len(string[j]);
+        if(len<0){
+          //probly shouldn't be a type error
+          raise_simple_error(Etype,"invalid utf8 sequence");
+        }
+        memcpy(vec+i,string+j,len);
+        j++;
+        i+=len;
+      }
+    } else {
+      CORD_pos p;
+      CORD_set_pos(p,string,0);
+      int c;
+      char *cur_char;
+      while(CORD_pos_valid(p)){
+        c=CORD_fetch(p);
+        len=utf8_mb_char_len(c);
+        if(len<0){
+          //probly shouldn't be a type error
+          raise_simple_error(Etype,"invalid utf8 sequence");
+        }n
+        cur_char=vec+(i++);//I'm pretty sure this is equal to vec+i
+        for(j=0;j<len;j++){
+          cur_char[j]=CORD_fetch(p);
+          CORD_next(p);
+          if(!CORD_pos_valid(p)){
+            raise_simple_error(Einternal,"Invalid cord position");
+          }
+        }
+      }
+    }
+    retval->type=sexp_char;
+  }
+  retval->typed_vector=vec;
+  retval->len=i;  
+  return svector_sexp(retval);
 }

@@ -28,8 +28,7 @@ static const int utf8_len_max=8;//really it's 6, but setting this to 8 makess li
 //given the first byte in a possible utf8 sequence
 //return 
 int utf8_char_len(char mb_char);
-//like utf8_char_len, assumes mb_char > 0x7F and mb_char < 0xFE
-int utf8_char_len_unsafe(char mb_char);
+int utf8_mb_char_len(char mb_char);
 //same semantics as mbrtowc
 //convert a valid utf-8 sequence of upto size bytes from src
 //and store the result in dest, if src contains a possibly valid
@@ -37,14 +36,15 @@ int utf8_char_len_unsafe(char mb_char);
 //and dest is set to NULL for any other error dest is set to NULL
 //errno is set and -1 is returned. otherwise dest is set to the 
 //result and the number of bytes used is returned
-int utf8_decode_char(const char* src, wchar_t *dest, size_t size);
+size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size);
 size_t utf8_encode_char(char* dest, wchar_t src);
-//not sure how much info to put in here
-struct decode_state_simple {
+typedef struct encode_state utf8_encode_state;
+typedef struct decode_state utf8_decode_state;
+struct decode_state_simple {//indivual char state
+  wchar_t result;//where to store the partial result
   uint8_t state;//0 if in initial state
   uint8_t total_bytes;//total bytes in current char
   uint8_t bytes_remaning;//bytes left in current char
-  char result[6];//where to store the partial result
 };
 struct encode_state {
   //state for the string
@@ -53,6 +53,9 @@ struct encode_state {
   int maxchars;//0 to scan untill null
   int src_offset;//current widechar to decode is src[offset]
   int dest_offset;
+  int dest_size;
+  int resize;
+  int complete;
   //no indivual char state
 };
 struct decode_state {

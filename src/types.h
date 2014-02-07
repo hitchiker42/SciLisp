@@ -75,6 +75,7 @@ typedef struct hash_entry hash_entry;
 typedef struct lisp_condition lisp_condition;//error handling
 typedef struct lisp_string lisp_string;//string/CORD + length
 typedef struct lisp_array lisp_array;//array/typed array/matrix
+typedef struct lisp_simple_vector lisp_svector;
 typedef struct subr subr;//any kind of subroutine(macro,function,special form,etc)
 typedef struct frame frame;//a jmp_buf and information to reinitialize lisp environment
 typedef struct frame *frame_addr;
@@ -85,6 +86,11 @@ typedef float real32_t;
 typedef double real64_t;
 typedef char char8_t;
 typedef wchar_t char32_t;
+//values for the type hierarchy
+static const int sexp_num_tag_min = 2;
+static const int sexp_num_tag_min = 19;
+static const int sexp_seq_tag_min = 20;
+static const int sexp_seq_tag_max = 30;
 //c macros to test for a specific type
 #define ARRAYP(obj) (obj.tag == sexp_array)
 #define AS_ARRAY(obj) (obj.val.array)
@@ -95,7 +101,7 @@ typedef wchar_t char32_t;
 #define AS_SYMBOL(obj) (obj.val.var)
 #define BIGFLOATP(obj) (obj.tag == sexp_bigfloat)
 #define BIGINTP(obj)(obj.tag == sexp_bigint)
-#define BIGNUMP(obj) (obj.tag >= 1 && obj.tag <= 12)
+#define BIGNUMP(obj) (obj.tag >= sexp_num_tag_min && obj.tag <= sexp_num_tag_max)
 #define CDATAP(obj) (obj.tag == sexp_cdata)
 #define CHARP(obj) (obj.tag == sexp_char)
 #define CONSP(obj) (obj.tag == sexp_cons)
@@ -126,7 +132,7 @@ typedef wchar_t char32_t;
 #define REALP(obj) (obj.tag == sexp_double || obj.tag == sexp_float)
 #define REGEXP(obj)(obj.tag == sexp_regex)
 #define RE_MATCHP(obj) (obj.tag == sexp_re_data)
-#define SEQUENCEP(obj) (CONSP(obj) || (ARRAYP(obj) && obj.val.array->dims == 1) || STRINGP(obj))
+#define SEQUENCEP(obj) (obj.tag >= sexp_seq_tag_min && obj.tag <= sexp_seq_tag_max)
 #define STREAMP(obj)(obj.tag == sexp_stream)
 #define STRINGP(obj) (obj.tag == sexp_str)
 #define SYMBOLP(obj) (obj.tag == sexp_sym)
@@ -158,14 +164,15 @@ extern symbol *E*/
 #define const_real32_sexp(real32_val) {.tag=sexp_real32,.val={.real32=real32_val}}
 #define const_int64_sexp(int64_val) {.tag=sexp_int64,.val={.int64=int64_val}}
 #define const_uint64_sexp(uint64_val) {.tag=sexp_uint64,.val={.uint64=uint64_val}}
+
 //key point to this enum is that arithmetic types are numbered in their type
 //hierarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the hierarchy correctly
 enum sexp_tag {
-  //literals
+  //literals 0-20
   sexp_nil = 0,
   sexp_char = 1, sexp_uchar = 1,  
-  //numbers
+  //numbers 2-19
   sexp_byte = 2,sexp_int8 = 2,
   sexp_ubyte = 3,sexp_uint8 = 3,
   sexp_short = 4,sexp_int16 = 4,
@@ -186,15 +193,17 @@ enum sexp_tag {
 #else
   sexp_c_char = sexp_uint8,
 #endif
-  sexp_c_str = 19,sexp_c_string=19,//const char *'s, for simple strings
-  sexp_str = 20,sexp_string=20,//type of strings, value is cord
-  sexp_array = 21,//type of arrays, pointers to 
-  sexp_regex = 23,//compiled regular expression
-  sexp_stream = 24,sexp_file=24,//type of input/output streams, corresponds to c FILE*
-  sexp_matrix =25,//array for mathematical calculations
-  sexp_cons = 26,//type of lists,value is cons
-  sexp_subr=30,//typo of functions,macros,special forms and builtins
-  sexp_sym = 32,sexp_symbol=32,//type of symbols,value is var
+  //sequences 20-30
+  sexp_c_str = 20,sexp_c_string=20,//const char *'s, for simple strings
+  sexp_str = 21,sexp_string=21,//type of strings, value is cord
+  sexp_array = 22,//type of arrays, pointers to 
+  sexp_svector = 23,
+  sexp_cons = 24,
+  sexp_matrix =26,//array for mathematical calculations
+  sexp_regex = 30,//compiled regular expression
+  sexp_stream = 31,sexp_file=31,//type of input/output streams, corresponds to c FILE*
+  sexp_subr=32,//typo of functions,macros,special forms and builtins
+  sexp_sym = 33,sexp_symbol=33,//type of symbols,value is var
   sexp_type = 35,//type of types
   sexp_env = 38,sexp_environment=38,
   //maybo just a boolean type instead of two
@@ -252,6 +261,7 @@ union data {//keep max size at 64 bits
   regex_t *regex;
   re_match_data *re_data;
   lisp_array *array;
+  lisp_svector *svector;
   simd128 *simd128;//type field determines element type
   simd256 *simd256;
   subr *subr;
@@ -479,8 +489,7 @@ struct lisp_array {
     complex32_t *float_complex_matrix;
     complex64_t *double_complex_matrix;
     void *data;//anything else (specificly 3+ dimensional arrays)
-    //    blas_array *matrix;//seperate struct for arrays for use with blas
-    
+    //    blas_array *matrix;//seperate struct for arrays for use with blas    
   };
   union {
     uint64_t len;//1-D
@@ -519,8 +528,12 @@ struct blas_array{
   uint8_t blas_diag;//"" cblas_diag
   uint8_t blas_side;//"" cblas_side
 };
+//strict substruct of lisp_array
 struct lisp_simple_vector {
-  void *data;
+  union {
+    data *typed_vector;
+    sexp *sexp_vector;
+  };
   uint64_t len;
   uint8_t type;
 };
