@@ -158,7 +158,7 @@ uint64_t parse_unicode_escape_to_utf8(char *input){
     } else {
       return *(uint64_t*)retval;
     }
-    return retval;
+    return *(uint64_t*)retval;
   }
 }   
 

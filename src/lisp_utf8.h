@@ -27,8 +27,8 @@ static const int utf8_len_max=8;//really it's 6, but setting this to 8 makess li
  */
 //given the first byte in a possible utf8 sequence
 //return 
-int utf8_char_len(char mb_char);
-int utf8_mb_char_len(char mb_char);
+int utf8_char_len(uint8_t mb_char);
+int utf8_mb_char_len(uint8_t mb_char);
 //same semantics as mbrtowc
 //convert a valid utf-8 sequence of upto size bytes from src
 //and store the result in dest, if src contains a possibly valid
@@ -36,8 +36,8 @@ int utf8_mb_char_len(char mb_char);
 //and dest is set to NULL for any other error dest is set to NULL
 //errno is set and -1 is returned. otherwise dest is set to the 
 //result and the number of bytes used is returned
-size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size);
-size_t utf8_encode_char(char* dest, wchar_t src);
+size_t utf8_decode_char(const uint8_t* src, wchar_t *dest, size_t size);
+size_t utf8_encode_char(uint8_t* dest, wchar_t src);
 typedef struct encode_state utf8_encode_state;
 typedef struct decode_state utf8_decode_state;
 struct decode_state_simple {//indivual char state

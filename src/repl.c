@@ -159,6 +159,7 @@ void __attribute__((noreturn)) read_eval_print_loop(){
   #endif
   sexp ast;
   sexp *yylval=xmalloc(sizeof(sexp));
+  int last_tok;
   HERE();
   //toplevel handler which catches any invalid nonlocal exit
   //also used to return to after any fatal lisp error (i.e
@@ -178,9 +179,9 @@ void __attribute__((noreturn)) read_eval_print_loop(){
     HERE();
     fseeko(my_pipe,start_pos,SEEK_SET);
     HERE();
-    yyrestart(my_pipe,scanner);
+    //    yyrestart(my_pipe,scanner);
     HERE();
-    ast=c_read(&scanner,yylval,NULL);
+    ast=c_read(&scanner,yylval,&last_tok);
     HERE();
     //print
     if(!NILP(ast)){

@@ -1,52 +1,50 @@
 #include "lisp_utf8.h"
 //from libutf8
+#define IS_VALID_CONT_BYTE(byte) (((byte) & 0xC0) == 0x80)
+#define IS_INVALID_CONT_BYTE(byte) (((byte) & 0xC0) != 0x80)
 //using binary to make things a bit more clear
-#define IS_VALID_CONT_BYTE(byte) ((byte & 0b11000000) == 0b10000000)
-#define IS_INVALID_CONT_BYTE(byte) ((byte & 0b11000000) != 0b10000000)
-//from the linux kernel
-//not sure why I couldn't think to do bsf !val but eh
-static inline uint64_t ffz(uint64_t word){
-#ifdef __x86_64__
-  asm("bsf %1,%0"
-      : "=r" (word)
-      : "r" (~word));
-  return word;
-#else
-  return ffsl(~word);
-#endif
-}
+/*#define IS_VALID_CONT_BYTE(byte) ((byte & 0b11000000) == 0b10000000)
+  #define IS_INVALID_CONT_BYTE(byte) ((byte & 0b11000000) != 0b10000000)*/
 int utf8_isucs4(wchar_t ch){
     return !(ch & (~((wchar_t)0x7FFFFFFF)))
         && (ch < 0xD800 || ch > 0xDFFF)
         && (ch != 0xFFFE) && (ch != 0xFFFF);
 }
-int utf8_char_len(char mb_char){
+int utf8_char_len(uint8_t mb_char){
   if(mb_char<0x80){
     return 1;
   } else if (mb_char>=0xFE){//invalid leading byte
     return -1;
-  } else {
-    return ffz(mb_char)-1;
+  } else if (mb_char<=0xCF){
+    return 2;
+  } else if (mb_char<=0xE0){
+    return 3;
+  } else if (mb_char<=0xF0){
+    return 4;
+  } else if (mb_char<=0xF8){
+    return 5;
+  } else if (mb_char<0xFC){
+    return 6;
   }
 }
-int utf8_mb_char_len(char mb_char){
+/*int utf8_mb_char_len(char mb_char){
   if (mb_char>=0xFE){//invalid leading byte
     return -1;
   } else {
     return ffz(mb_char)-1;
   }
-}
+  }*/
 //internal use only, really unsafe, need to check
 //for 0xFE/0xFF and >0x80 yourself
-static inline int utf8_char_len_unsafe(char mb_char){
+/*static inline int utf8_char_len_unsafe(char mb_char){
   return 1-ffz(mb_char);
-}
+  }*/
 /*
   modified quite a bit from libutf8, libutf8 takes a parameter giving the length of dest
   and checks it, which I don't, and the value returned is different, it returns a pointer
   to the dest+bytes_used whereas I just return bytes used
  */
-size_t utf8_encode_char(char* dest, wchar_t src){
+size_t utf8_encode_char(uint8_t* dest, wchar_t src){
   if(!dest){
     dest = xmalloc_atomic(utf8_len_max);
   }
@@ -56,7 +54,7 @@ size_t utf8_encode_char(char* dest, wchar_t src){
   }
   int i=0;
   if(src < 0x80) {
-    dest[i++] == src;
+    dest[i++] = src;
   } else if(src < 0x800) {
     dest[i++] = 0xC0 | ((src >> 6) & 0x1F);
     dest[i++] = 0x80 | (src & 0x3F);
@@ -88,7 +86,7 @@ size_t utf8_encode_char(char* dest, wchar_t src){
 /*
   modified from libutf8 in a similar way to encode_char
  */
-size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size){
+size_t utf8_decode_char(const uint8_t* src, wchar_t *dest, size_t size){
   int i=0;
   wchar_t retval,min;
   //deal with invaid arguments and ascii chars
@@ -104,10 +102,11 @@ size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size){
     *dest=src[0];
     return 1;
   }
-  int needed=ffz(src[0])-1;
-  min=utf8_min[needed];
+  int needed=utf8_char_len(src[0]);
+  min=utf8_min[needed-1];
   retval=src[0] & utf8_initial_mask[needed-1];
-  while(i++&& --size){//i is first so we can return it regardless
+  size=MIN(size,needed);
+  while(++ i&& --size){//i is first so we can return it regardless
     if(IS_INVALID_CONT_BYTE(src[i])){
         errno = EILSEQ;
         return (size_t)-1;
@@ -124,7 +123,7 @@ size_t utf8_decode_char(const char* src, wchar_t *dest, size_t size){
     errno = EILSEQ;
     return (size_t)-1;
   }
-  if(needed>size){
+  if(i < needed){
     return (size_t)-2;
   }
   *dest=retval;
@@ -149,7 +148,7 @@ utf8_encode_state *init_encode_state(wchar_t *src,char *dest,int maxchars,int de
   state->maxchars=maxchars;
   return state;
 }
-
+#if 0
 //INCOMPLETE
 //reentrent, i.e interuptable, state contains the infomation needed
 //to encode a wide string, and can be interupted and restanted
@@ -296,3 +295,4 @@ int utf8_isutf16(wchar_t ch){
     return ch >= 0 && ch <= 0xFFFD
         && (ch < 0xD800 || ch > 0xDFFF);
 }
+#endif

@@ -18,7 +18,7 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "read_util.c"
 void *yyalloc(size_t bytes,void* yyscanner){
-  return xmalloc(bytes);
+  return xmalloc_atomic(bytes);
 }
 void *yyrealloc(void *ptr,size_t bytes,void *yyscanner){
   return xrealloc(ptr,bytes);

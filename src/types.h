@@ -88,7 +88,7 @@ typedef char char8_t;
 typedef wchar_t char32_t;
 //values for the type hierarchy
 static const int sexp_num_tag_min = 2;
-static const int sexp_num_tag_min = 19;
+static const int sexp_num_tag_max = 19;
 static const int sexp_seq_tag_min = 20;
 static const int sexp_seq_tag_max = 30;
 //c macros to test for a specific type
