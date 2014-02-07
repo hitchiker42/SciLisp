@@ -95,11 +95,11 @@
 (define SciLisp-errors;prefix E
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
         "undefined" "unbound" "math" "eof" "io" "overflow" "range" "const"
-        "system" "print" "visibility"))
+        "system" "print" "visibility" "ilseq"))
 (define SciLisp-types;prefix T
   (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32"
         "uint64" "error" "real32" "real64" "bigint" "bigfloat"
-        "char" "string" "array" "stream" "fun" "symbol" "macro"
+        "char""c_char" "string" "array" "stream" "subr" "symbol"
         "type" "hashtable" "regex" "nil" "cons"
         "env" "obarray" "true" "false" "uninterned"))
 (define SciLisp-ampersand-keywords;prefix A
@@ -107,19 +107,19 @@
 (define SciLisp-keywords;prefix K (lisp prefix ':")  
   (list "end" "start1" "count" "documentation" "end1" ;"element-type" 
         "end2" "export" "import" "test" ;"import-from" "initial-contents" "initial-element" 
-        "key" "size" "start" "start2" "test" "use"))
+        "key" "size" "start" "start2" "use"))
 (define SciLisp-globals;prefix G (lisp prefix/postfix *)
   (mapcar (lambda (x) (apply #'mk-global x))
-          '(("stdin" "lisp_stdin"  "stdin")
-            ("stdout" "lisp_stdout"  "stout")
-            ("stderr" "lisp_stderr"  "stderr"))))
+          '(("stdin" "lisp_stdin"  "STDIN_FILENO")
+            ("stdout" "lisp_stdout"  "STDOUT_FILENO")
+            ("stderr" "lisp_stderr"  "STDERR_FILENO"))))
 (define builtin-symbols
   (append
    (mapcar (lambda (x) (concat "Q" x)) SciLisp-special-forms)
    (mapcar (lambda (x) (concat "E" x)) SciLisp-errors)
    (mapcar (lambda (x) (concat "T" x)) SciLisp-types)
    (mapcar (lambda (x) (concat "K" x)) SciLisp-keywords)
-   (mapcar (lambda (x) (concat "A" x)) SciLisp-ampersand-keywords)
+;   (mapcar (lambda (x) (concat "A" x)) SciLisp-ampersand-keywords)
    (remq nil (mapcar (lambda (x) (assq-val :cname x))
                      (append SciLisp-globals SciLisp-subrs)))))
 ;subroutines prefix S
@@ -318,7 +318,6 @@
 ;(define SciLisp-keywords
 ;  (mapcar (lambda (x) (concat "Q" x))());special things..?/reserved words
 ;  (mapcar (lambda (x) (concat "E" x))()));builtin error types
-(define SciLisp-keywords '())
 (defun make-symbol-declarations()
   (with-temp-file "builtin_symbols.h"
     (insert "#ifndef _BUILTIN_SYMBOLS_H_\n#define _BUILTIN_SYMBOLS_H_\n")
@@ -361,6 +360,11 @@
                         ;;if needed (replace-regexp-in-string "-" "_" err)
                         (concat "Q" special-form) special-form (length special-form) 
                         (get-hash special-form))
+(make-SciLisp-something keyword
+                        "MAKE_SELF_QUOTING_SYMBOL(%s,\"%s\",%d,%s,{0});\n"
+                        ;;if needed (replace-regexp-in-string "-" "_" err)
+                        (concat "K" keyword) keyword (length keyword) 
+                        (get-hash keyword))
 ;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
 (make-SciLisp-something subr "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,{0},%d);\n"
                         (assq-val :fname subr) (assq-val :lname subr)
@@ -389,29 +393,31 @@
 "mpz_t *lisp_mpz_1,*lisp_mpz_0;
 mpfr_t *lisp_mpfr_1,*lisp_mpfr_0;
 static void init_global_obarray();
-void initPrims(){
-if(initPrimsFlag){
-  initPrimsFlag=0;
+void init_prims(){
+if(init_prims_flag){
+  init_prims_flag=0;
 } else {
   return;
 }
 global_obarray=xmalloc(sizeof(obarray));
-*global_ooarray=(obarray)
+*global_obarray=(obarray)
 {.size=128,.used=0,.entries=0,.capacity=0.0,
- .capacity_inc=(1.0/(128*10)),.gthreshold=0.75,.gfactor=2}
+ .capacity_inc=(1.0/(128*10)),.gthreshold=0.75,.gfactor=2};
 global_obarray->buckets=xmalloc(128*sizeof(symbol*));
 #ifdef MULTI_THREADED
-global_obarary->lock=xmalloc(sizeof(pthread_rwlock_t));
+global_obarray->lock=xmalloc(sizeof(pthread_rwlock_t));
 pthread_rwlock_init(global_obarray->lock,NULL);
 #endif
-global_environment=xmalloc(sizeof(environment));
-initPrimsObarray(global_obarray);
+//global_environment=xmalloc(sizeof(environment));
+HERE();
+init_global_obarray(global_obarray);
+HERE();
 mpfr_set_default_prec(256);
 mp_set_memory_functions(GC_MALLOC_1,GC_REALLOC_3,GC_FREE_2);
-set_global_vars();
+//set_global_vars();
 srand48(time(NULL));
-lisp_init_rand(NIL);
-prep_sexp_cifs();
+//lisp_init_rand(NIL);
+//prep_sexp_cifs();
 //test if the user's locale is utf-8 compatable
 setlocale(LC_ALL,\"\");//set locale based on environment variables
 char *locale_codeset=nl_langinfo(CODESET);
@@ -480,6 +486,8 @@ static void init_global_obarray(){
     (make-SciLisp-types (current-buffer))
     (make-SciLisp-errors (current-buffer))
     (make-SciLisp-globals (current-buffer))
+    (make-SciLisp-keywords (current-buffer))
+    (make-SciLisp-special-forms (current-buffer))
     (insert prim.c-suffix)
     (dolist (sym builtin-symbols)
       (insert (make-intern-prim sym)))

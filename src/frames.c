@@ -42,7 +42,7 @@ void __attribute__((noreturn)) unwind_to_frame(env_ptr env,frame_addr fr){
 }
 void __attribute__((noreturn)) unwind_to_tag(env_ptr env,uint64_t tag){
   while(env->frame_ptr->tag != tag && 
-        env->frame_ptr != (uint64_t)UNWIND_PROTECT_TAG){
+        (uint64_t)env->frame_ptr != (uint64_t)UNWIND_PROTECT_TAG){
     env->frame_ptr--;
   }
   unwind_stacks(env);

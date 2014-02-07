@@ -149,7 +149,7 @@ int main(int argc,char* argv[]){
   }
   //  PRINT_FMT("thread number %lu, Main Thread",pthread_self());
 #else
-  initPrims();
+  init_prims();
   SciLisp_getopt(argc,argv);
 #endif
   static char *line_read =(char *)NULL;

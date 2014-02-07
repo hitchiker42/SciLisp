@@ -18,6 +18,7 @@
    along with SciLisp. If not, see <http://www.gnu.org*/
 //just a copy of macros from errno.h(well from files included in errno.h)
 enum lisp_errno {
+#if 0
   EPERM = 1,      /* Operation not permitted */
   ENOENT = 2,      /* No such file or directory */
   ESRCH = 3,      /* No such process */
@@ -152,4 +153,6 @@ enum lisp_errno {
   ENOTRECOVERABLE = 131,     /* State not recoverable */
   ERFKILL = 132,     /* Operation not possible due to RF-kill */
   EHWPOISON = 133,     /* Memory page has hardware error */
-}
+#endif 
+  ELISP_STACK_OVERFLOW = 256,
+};

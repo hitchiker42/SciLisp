@@ -56,4 +56,5 @@ sexp lisp_fputs(sexp string,sexp stream);
 sexp c_format(CORD format,int numargs,sexp *args);
 sexp lisp_format(int numargs,sexp *args);
 sexp type_of_tag(sexp_tag tag);
+sexp lisp_fputs(sexp string,sexp stream);
 #endif
