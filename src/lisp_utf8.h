@@ -36,8 +36,8 @@ int utf8_mb_char_len(uint8_t mb_char);
 //and dest is set to NULL for any other error dest is set to NULL
 //errno is set and -1 is returned. otherwise dest is set to the 
 //result and the number of bytes used is returned
-size_t utf8_decode_char(const uint8_t* src, wchar_t *dest, size_t size);
-size_t utf8_encode_char(uint8_t* dest, wchar_t src);
+size_t utf8_decode_char(const uint8_t* src, uint32_t *dest, size_t size);
+size_t utf8_encode_char(uint8_t* dest, uint32_t src);
 typedef struct encode_state utf8_encode_state;
 typedef struct decode_state utf8_decode_state;
 struct decode_state_simple {//indivual char state

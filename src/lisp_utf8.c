@@ -13,18 +13,20 @@ int utf8_isucs4(wchar_t ch){
 int utf8_char_len(uint8_t mb_char){
   if(mb_char<0x80){
     return 1;
-  } else if (mb_char>=0xFE){//invalid leading byte
+  } else if (mb_char>=0xFE || (mb_char > 0x80 && mb_char < 0xC0)){//invalid leading byte
     return -1;
-  } else if (mb_char<=0xCF){
+  } else if (mb_char<0xE0){
     return 2;
-  } else if (mb_char<=0xE0){
+  } else if (mb_char<0xF0){
     return 3;
-  } else if (mb_char<=0xF0){
+  } else if (mb_char<0xF8){
     return 4;
-  } else if (mb_char<=0xF8){
-    return 5;
   } else if (mb_char<0xFC){
+    return 5;
+  } else if (mb_char<0xFE){
     return 6;
+  } else {//to shut up a warning that isn't even valid
+    return 0;
   }
 }
 /*int utf8_mb_char_len(char mb_char){
