@@ -1,6 +1,21 @@
 #include "common.h"
+#define CORD_BUFSZ 256
 #include "ec.h"
 #include "common.h"
+
+//char c=read_char(intput);if(c<0)... would also work
+#define READ_CHAR_MULTIBYTE(input,mb_ptr)       \
+  ({uint8_t c= read_char(input);                \
+    if(c>=0x80){                                \
+      *mb_ptr=1;                                \
+    }                                           \
+    c;})
+//I don't know how I'm going to do input, but for now
+//assume I have functions read_char and unread_char 
+//to get and put back characters, that should be generic
+//enough for anything
+
+//Also I should use a dispatch table rather that switches
 sexp internal_read(char *input,int *pch,int flags){
   char c;
   *pch=0;
@@ -32,13 +47,58 @@ sexp internal_read(char *input,int *pch,int flags){
         sexp val=read_sexp(input);
         return c_list2(Qquote,val);
       }
+      case '|':
+        return read_symbol_verbatim(input);
       case '#':
         return read_sharp(input);
         
     }
   }
 }
-sexp read_integer(char *input,int radix);
+sexp read_bigint(char *input,int radix){
+  int64_t num;
+  char *endptr;
+  errno=0;
+  //two reasons to do this, first if the number will fit
+  //into a normal int64 we can initialize from that rather
+  //than a string, and even if not this will still tell us
+  //how long the number is 
+  num=strtol(input,&endptr,radix);
+  if(errno){
+    if(errno==ERANGE){
+      mpz_t bignum;
+      //mpz expects a null terminated string, so to avoid coping the entire
+      //number (which has to be pretty long) we store the first invalid 
+      //character and then set that location to null, and then
+      //restore it afterword
+      char end=*endptr;
+      *entptr='\0';
+      mpz_init_set_str(bignum,input,radix);
+      *endptr=end;
+      return bigint_sexp(bignum); 
+    }
+    //invalid sequence
+  } else {
+    mpz_t bignum;
+    mpz_init_set_si(bignum,num);
+    return bigint_sexp(bignum);
+  }
+}
+#define twos_compliment(num) (~num+1)
+//abstracted in case for some reason I don't want to use strtol
+sexp read_integer(char *input,int radix){
+  int64_t num;
+  char *endptr;
+  errno=0;
+  num=strtol(input,&endptr,radix);
+  if(errno){
+    current_env->error_num=errno;
+    raise_simple_error(Esystem,"Error in strtol");
+  }
+  return int64_sexp(num);
+}
+
+#endif
 sexp read_sharp(char *input){
   switch(*input++){    
     case '|':{
@@ -62,6 +122,12 @@ sexp read_sharp(char *input){
     case 'x':
     case 'X':
       return read_integer(input,16);
+    case 'Z':
+    case 'z':
+      return read_bigint(input,0);
+    case 'F':
+    case 'f':
+      return read_bigfloat(input,0);
     case '<':{//this already means a read error, but try to get a better description
       char *invalid_end=strchr(input,'>');
       if(!invalid_end){
@@ -180,3 +246,34 @@ uint32_t parse_unicode_escape(uint8_t *input,int udigits){
   }
   return uvalue;
 }
+sexp read_symbol_verbatim(char *input){
+  int i=0;
+  int mb=0;
+  char c;
+  CORD_ec buf;
+  CORD_ec_init(buf);  
+  while(1){
+    c=read_char(input);
+    if(c=='\\'){
+      CORD_ec_append(read_char(input));
+    } else if (c=='|'){
+      break;
+    } else {
+      CORD_ec_append(READ_CHAR_MULTIBYTE(input,&mb));
+    }
+  }
+}
+static inline sexp symbol_from_ec_cord(CORD_ec buf){
+  uint32_t len;
+  if(!buf[0].ec_CORD){
+    len=buf[0].ec_buf-buf[0].ec_bufptr;
+    return c_intern(buf[0].ec_buf,len,current_obarray);
+  } else {
+    CORD name=CORD_ec_to_cord(buf);
+    len=CORD_len(name);
+    return c_intern_no_copy(CORD_to_const_char_star(name),len,current_obarray);
+  }
+  sym_name->len=len;
+  sym_name->multibyte=mb;
+}
+

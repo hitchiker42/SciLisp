@@ -835,8 +835,12 @@ sexp bit_scan_reverse(sexp x){
   return int64_sexp(result);
 }
 #else
-sexp bit_scan(sexp x){
+sexp bit_scan_forward(sexp x){
   //typecheck
-  return int64_sexp((int64_t)ffsl(x.val.int64));
+  return int64_sexp((int64_t)(__builtin_ffsl(x.val.int64)-1));
+}
+sexp bit_scan_reverse(sexp x){
+  //typecheck
+  return int64_sexp((int64_t)(__builtin_clzl(x.val.int64)-1));
 }
 #endif

@@ -16,6 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
+//TODO: Split into env.c/h and obarray.c/h
+//or atleast env.h and env.c/obarray.c
 #ifndef __ENV_H__
 #define __ENV_H__
 //#include "common.h"
@@ -211,15 +213,22 @@ struct obarray {
 #endif
   //32 bits of padding
 };
+/*
+  These need to be modified to have a more consistant interface
+  and allow for specifying a multibyte string, or not
+ */
 symbol* lookup_symbol(const char* name,struct obarray *ob);
 //something like a default arg for lookup_symbol
 #define lookup_symbol_global(name) lookup_symbol(name,global_obarray)
-obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
+obarray *make_obarray(uint32_t size,float gthreshold,float gfactor);
 symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
+symbol* c_intern_no_copy(const char* name,uint32_t len,obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
 symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv);
+symbol_name* make_symbol_name_no_copy(const char *name,uint32_t len,
+                                      uint64_t hashv);
 void c_signal_handler(int signo,siginfo_t *info,void *context_ptr);
 //needs to be in a global header, and xmalloc isn't defined in types.h
 static inline lisp_string *make_string(const char *str){

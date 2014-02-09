@@ -1,60 +1,46 @@
-/* Routines for symbols,obarrays,interning and environments
-
-   Copyright (C) 2013-2014 Tucker DiNapoli
-
-   This file is part of SciLisp.
-
-   SciLisp is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   SciLisp is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "env.h"
-#include "frames.h"
 #include "hash.h"
-#include <ucontext.h>
-thread_local struct obarray *current_obarray;
-thread_local struct environment *current_env;
-symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv){
+static symbol_name* __attribute__((pure))
+  make_symbol_name_maybe_copy(const char *name,uint32_t len,
+                              uint64_t hashv,int mb,int copy){
   if(!len){
     len=strlen(name);
   }
   if(!hashv){
+    //hash_function is a macro, so this isn't examining
+    //global memory
     hashv=hash_function(name,len);
   }
-  //while struct symbol_name technically has a pointer in it
-  //gc obviously won't free it since it's allocated in the same chunk of memory
-  struct symbol_name *retval=xmalloc_atomic(sizeof(struct symbol_name)+len);
-  retval->name=((uint8_t*)retval)+offsetof(struct symbol_name,name);
-  memcpy((char*)retval->name,name,len);
+  struct symbol_name *retval;
+  if(copy){
+    //while struct symbol_name technically has a pointer in it
+    //gc won't free it since it's allocated in the same chunk of memory
+    retval=xmalloc_atomic(sizeof(struct symbol_name)+len);
+    retval->name=((uint8_t*)retval)+offsetof(struct symbol_name,name);
+    memcpy((char*)retval->name,name,len);
+  } else {
+    retval=xmalloc(sizeof(struct symbol_name));
+    retval->name=name;
+  }
+  retval->multibyte=mb;
   //done with name
   retval->hashv=hashv;
   retval->name_len=len;
   return retval;
 }
-symbol_name* make_symbol_name_no_copy
-(const char *name,uint32_t len,uint64_t hashv){
-  if(!len){
-    len=strlen(name);
-  }
-  if(!hashv){
-    hashv=hash_function(name,len);
-  }
-  //while struct symbol_name technically has a pointer in it
-  //gc obviously won't free it since it's allocated in the same chunk of memory
-  struct symbol_name *retval=xmalloc(sizeof(struct symbol_name));
-  retval->name=name;
-  retval->hashv=hashv;
-  retval->name_len=len;
-  return retval;
+//despite calling a non-const function, this is const
+//because it will never take the branch in make_symbol_name
+//that requires examining name
+symbol_name* __attribute__((const)) 
+make_symbol_name_no_copy (const char *name,uint32_t len,
+                          uint64_t hashv,int mb){
+  return make_symbol_name_maybe_copy(name,len,hashv,mb,0);
+}
+symbol_name* __attribute__((pure)) 
+make_symbol_name (const char *name,uint32_t len,
+                          uint64_t hashv,int mb){
+  return make_symbol_name_maybe_copy(name,len,hashv,mb,1);
 }
 symbol *make_symbol(const char *name,uint32_t len){
   struct symbol_name *sym_name=make_symbol_name(name,len,0);
@@ -290,115 +276,3 @@ sexp lisp_intern(sexp sym_name,sexp ob){
   }
   return symref_sexp(c_intern(name,sym_name.val.string->len,ob.val.ob));
 }
-
-//I suppose this fits here
-/*
-sexp lisp_gensym(){
-  symref retval=xmalloc(sizeof(symbol));
-  CORD_sprintf(&retval->name,"#:%ld",global_gensym_counter++);
-  retval->val=UNBOUND;
-  return symref_sexp(retval);
-  }*/
-/*
-void reset_current_env(){
-  //unwind dynamic bindings
-  if(current_env->bindings_index){
-    int i;
-    for(i=current_env->bindings_index-1;i>=0;i--){
-      current_env->bindings_stack[i].sym.val=
-        current_env->bindings_stack[i].prev_val;
-    }
-  }
-  //reset everything else
-  current_env->bindings_ptr=current_env->bindings_stack;
-  current_env->frame_ptr=current_env->frame_stack;
-  current_env->call_ptr=current_env->call_stack;
-  current_env->data_ptr=current_env->data_stack;
-  memset(current_env+offsetof(environment,lex_env),
-         '\0',sizeof(environment)-offsetof(environment,lex_env));
-         }*/
-void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
-  uint32_t lisp_errno=current_env->error_num;
-  if(!lisp_errno){
-    //this was a signal sent from c
-    switch(signo){
-      case SIGSEGV:
-        //        if(!quiet_signals){
-        #if defined(MULTI_THREADED)
-          fprintf(stderr,
-                  "recieved segfault in thread number %ul, printing bactrace\n",
-                  pthread_self());
-        #else
-          fprintf(stderr,"recieved segfault, printing bactrace\n");
-        #endif
-          print_trace();
-          //}
-        exit(1);
-      default://re raise the signal with the default handler,
-        fprintf(stderr,"Signal number %d raised, which is:\n%s"
-                "\nCurrent error_num is %d, which means:\n%s\n",
-                signo,strsignal(signo),current_env->error_num,
-                lisp_strerror(current_env->error_num));
-        //maybe not the best, but it'll do for now
-        signal(signo,SIG_DFL);
-        raise(signo);
-    }
-  } else {
-    switch(lisp_errno){
-      case 1:{
-        ucontext_t *context=(ucontext_t*)context_ptr;
-        setcontext(context);
-      }
-      default:
-        //reset everything and return to the top level
-        fprintf(stderr,"Error: Fatal lisp error, returning to top level\n");
-        unwind_to_frame(current_env,top_level_frame);
-    }
-  }
-}
-int lisp_pthread_create(pthread_t *thread,const pthread_attr_t *attr,
-                       void*(*start_routine)(void*),void *arg){
-  void *new_args[2];
-  new_args[0]=start_routine;
-  new_args[1]=arg;
-  return pthread_create(thread,attr,init_environment_pthread,(void*)new_args);  
-}
-void *init_environment_pthread(void* arg){
-  void** args=(void**)arg;
-  void*(*f)(void*)=args[0];  
-  init_environment();
-  return f(args[1]);
-}
-void init_environment(void){
-  current_env=xmalloc(sizeof(struct environment));
-//set to a new obarray with set_package (or similar)
-  current_obarray=global_obarray;
-  current_env->sigstack=xmalloc_atomic(sizeof(stack_t));
-  current_env->sigstack->ss_sp=xmalloc_atomic(SIGSTKSZ);
-  if(!current_env->sigstack->ss_sp){
-    fprintf(stderr,"error, virtual memory exhausted\n");
-    exit(EXIT_FAILURE);
-  }
-  current_env->sigstack->ss_size=SIGSTKSZ;
-  sigaltstack(current_env->sigstack,NULL);
-  current_env->frame_stack=
-    GC_malloc_ignore_off_page(frame_stack_size);//*sizeof(frame));
-  current_env->frame_ptr=current_env->frame_stack;
-  current_env->frame_top=
-    current_env->frame_ptr+(frame_stack_size);
-  current_env->data_stack=
-    GC_malloc_ignore_off_page(data_stack_size);//*sizeof(sexp));
-  current_env->data_ptr=current_env->data_stack;
-  current_env->data_top=current_env->data_ptr+(data_stack_size);
-  current_env->bindings_stack=
-    GC_malloc_ignore_off_page(bindings_stack_size);//*sizeof(binding));
-  current_env->bindings_ptr=current_env->bindings_stack;
-  current_env->bindings_top=current_env->bindings_ptr+(bindings_stack_size);
-  current_env->call_stack=
-    GC_malloc_ignore_off_page(call_stack_size);
-  current_env->call_ptr=current_env->call_stack;
-  current_env->call_top=current_env->call_ptr+(call_stack_size);
-  //gc sets everything to 0, every other field needs to be 0, so we're done
-  return;
-}
-  

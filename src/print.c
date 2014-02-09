@@ -25,6 +25,8 @@
 #include "hash.h"
 //temporary
 #define lisp_print_length 100
+//rewrite these functinos using arrays 
+//i.e make a char* array with the tag names it in
 #define mk_tag_name(tag,name) case tag: return #name
 const char *tag_name(sexp_tag obj_tag){
   switch(obj_tag){
