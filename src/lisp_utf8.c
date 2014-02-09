@@ -29,13 +29,22 @@ int utf8_char_len(uint8_t mb_char){
     return 0;
   }
 }
-/*int utf8_mb_char_len(char mb_char){
-  if (mb_char>=0xFE){//invalid leading byte
-    return -1;
-  } else {
-    return ffz(mb_char)-1;
+//only call on a character known to be a valid non-ascii leading byte in utf8
+int utf8_mb_char_len(uint8_t mb_char){
+  if (mb_char<0xE0){
+    return 2;
+  } else if (mb_char<0xF0){
+    return 3;
+  } else if (mb_char<0xF8){
+    return 4;
+  } else if (mb_char<0xFC){
+    return 5;
+  } else if (mb_char<0xFE){
+    return 6;
+  } else {//to shut up a warning that isn't even valid
+    return 0;
   }
-  }*/
+}
 //internal use only, really unsafe, need to check
 //for 0xFE/0xFF and >0x80 yourself
 /*static inline int utf8_char_len_unsafe(char mb_char){
@@ -150,6 +159,61 @@ utf8_encode_state *init_encode_state(wchar_t *src,char *dest,int maxchars,int de
   state->maxchars=maxchars;
   return state;
 }
+/*
+  given a string str of length len determine if str is a valid utf8 string
+  if it is return 0 otherwise return the index of the first invalid character
+  or len if str ends on a possibly valid but incomplete sequence
+ */
+int validate_utf8_string(uint8_t *str,uint32_t len){
+  uint64_t i;
+  for(i=0;i<len;i++){
+    switch(UTF8_table[str[i]]){
+      case utf8_null:
+      case utf8_ascii:
+        continue;
+      case utf8_invalid:
+        return 0;
+        //the following all deliberately fall through
+      case utf8_start_6:
+        if(++i>=len){
+          return i;
+        }
+        if(UTF8_table[str[i]] != utf8_cont){
+          return i;
+        }        
+      case utf8_start_5:
+        if(++i>=len){
+          return i;
+        }
+        if(UTF8_table[str[i]] != utf8_cont){
+          return i;
+        }        
+      case utf8_start_4:
+        if(++i>=len){
+          return i;
+        }
+        if(UTF8_table[str[i]] != utf8_cont){
+          return i;
+        }        
+      case utf8_start_3:
+        if(++i>=len){
+          return i;
+        }
+        if(UTF8_table[str[i]] != utf8_cont){
+          return i;
+        }
+      case utf8_start_2:
+        if(++i>=len){
+          return i;
+        }
+        if(UTF8_table[str[i]] != utf8_cont){
+          return i;
+        }  
+    }
+  }
+  return 0;
+}
+
 #if 0
 //INCOMPLETE
 //reentrent, i.e interuptable, state contains the infomation needed
@@ -196,7 +260,7 @@ size_t encode_with_state(utf8_encode_state *state,size_t cur_maxchars){
   }
   if(!state->maxchars){
     state->complete=1;
-    return state->src_offset-initial_offset;  
+    return state->src_offset-initial_offset;
   }
 }
 utf8_decode_state *init_decode_state(char *src,wchar_t *dest,int maxchars,int dest_size);

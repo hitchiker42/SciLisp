@@ -246,11 +246,6 @@ static void *xmemalign(size_t align,size_t sz){
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
 #define type_sexp(type_val) construct_sexp(type_val,sexp_type,sym,1)
 #define uchar_sexp(uchar_val) construct_atom(uchar_val,uchar)
-
-#define CORD_strdup(str) CORD_from_char_star(str)
-#define CORD_append(val,ext) val=CORD_cat(val,ext)
-#define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
-#define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 #define NIL_MACRO() {.tag = -1,.val={.meta = -1}}
 #define format_error_str(format,args...) (CORD_sprintf(&error_str,format,##args))
 #define format_error_sexp(format,args...)       \

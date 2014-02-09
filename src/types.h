@@ -363,22 +363,25 @@ enum subr_type {
 /*
   structure of strings in lisp,
   strings immutable, we use cords for actions that would normally use mutable strings
-  ie sprintf, concatenation, modifying substrings etc
-  strings are kept internally in utf-8 encoding (ie multibyte)
-  // the wide character string part is for representing strings
-  // as arrays of characters(which are currently wide characters)
+  ie sprintf, concatenation, modifying substrings etc, or to store the a string
+  described by a function. i.e to represent a string who's i'th character is i %10;
+  char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten,NULL,<len>);
+  be careful about trying to turn something like this into a standard c string
+
+  strings are kept internally in utf-8 encoding (ie multibyte) and can 
+  contain embedded nul bytes (another reason we keep the length)
 */
 struct lisp_string {
   //kinda a silly union since a CORD is technically a typedef for const char*
   //but it makes code clearer in places
-  //a lisp string is a cord if string[0] == '\0'
+  //no tag bit is needed as a lisp string is a cord if string[0] == '\0'
+  //i guess that kinda raises some issues with embedded nulls...hmmm
   union {
     const char *string;
-    wchar_t *wide_string;//don't know if I'll use this or not but eh
     CORD cord;
   };
   uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t multibyte;//0=no,1=yes(2=widechar if that's ever valid)
+  uint8_t multibyte;//0=no,1=yes
 };
 struct lambda_list {
   cons *arglist;//unmodified arglist
