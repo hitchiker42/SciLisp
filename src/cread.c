@@ -3,6 +3,7 @@
 #include "ec.h"
 #include "common.h"
 #include "extra/read_tables.h"
+//Need to add eof testing in here somewhere
 struct array_stream {
   const char *arr;
   uint32_t index;
@@ -66,6 +67,9 @@ struct array_stream {
 #define generic_get_str(type,obj,len) type##_get_str(obj,len)
 #define generic_eat_line(type,obj) type##_eat_line(obj)
 #define generic_get_line(type,obj) type##_get_line(obj)
+//this is because the actual function used has an awful name
+#define string_scan_chars(string,chars)         \
+  (strpbrk(string,chars))
 /*different possible streams to read from:
   CORDs, using CORD_pos
     also CORDs are used for reading from functions via
@@ -407,4 +411,57 @@ static sexp read_double_quoted_string(char *input){
   retval->len=len;
   retval->multibyte=mb;
   return string_sexp(retval);
+}
+//move these somewhere else 
+//functions to convert an extendable cord to a lisp or c string
+//optimizing the case where less that CORD_BUFSZ chars have
+//been read into the ec cord
+lisp_string *CORD_ec_to_lisp_string(CORD_ec buf,uint32_t len,int mb){
+  lisp_string *retval;
+  if(buf[0].ec_cord){
+    retval=xmalloc(sizeof(lisp_string));
+    retval->cord=CORD_ec_to_cord(buf);
+  } else {
+    retval=xmalloc_atomic(sizeof(lisp_string)+len);
+    retval->string=retval+sizeof(lisp_string);
+    memcpy(retval->string,buf[0].ec_buf,len);
+  }
+  retval->len=len;
+  retval->multibyte=mb;
+  return retval;
+}
+char *CORD_ec_to_char_star(CORD_ec buf){
+  if(buf[0].ec_cord){
+    return CORD_to_const_char_star(CORD_ec_to_cord(buf));
+  } else {
+    int len = buf[0].ec_bufptr-buf[0].ec_buf+1;
+    char *retval=xmalloc_atomic(len);
+    memcpy(retval,buf[0].ec_buf,len);
+    return netval;
+  }
+}
+sexp read_symbol_or_number(char *input){
+  CORD_ec buf;
+  CORD_ec_init(buf);
+  uint8_t c;
+  int len;
+  int mb;
+  while((c==read_char(input))){
+    if(invalid_symbol_char[c]){
+      raise_simple_error_fmt("invalid chararcter %c in symbol",c);
+     }   
+    if(c=='\\'){
+      CORD_ec_append(read_char(input));
+    } else {
+      CORD_ec_append(c);
+    }
+    len++;
+  }
+  char *str;//=CORD_ec_to_char_star(buf);
+  if(string_scan_chars(str,"0123456789")){
+    sexp maybe_num=maybe_read_number(str);
+    if(!NILP(maybe_num)){
+      return maybe_num;
+    }
+  }
 }
