@@ -222,7 +222,7 @@ symbol* lookup_symbol(const char* name,struct obarray *ob);
 #define lookup_symbol_global(name) lookup_symbol(name,global_obarray)
 obarray *make_obarray(uint32_t size,float gthreshold,float gfactor);
 symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
-symbol* c_intern_no_copy(const char* name,uint32_t len,obarray *ob);
+symbol *c_intern_no_copy(const char* name,uint32_t len,obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);

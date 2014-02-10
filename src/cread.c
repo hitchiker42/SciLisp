@@ -94,6 +94,9 @@ struct array_stream {
 //to get and put back characters, that should be generic
 //enough for anything
 
+//I need to write wappers/macros to call internal_read
+//with only one argument (i.e like emacs has read1 and read0)
+
 //Also I should use a dispatch table rather that switches
 sexp internal_read(char *input,int *pch,int flags){
   char c;
@@ -412,7 +415,7 @@ static sexp read_double_quoted_string(char *input){
   retval->multibyte=mb;
   return string_sexp(retval);
 }
-//move these somewhere else 
+//move these somewhere else
 //functions to convert an extendable cord to a lisp or c string
 //optimizing the case where less that CORD_BUFSZ chars have
 //been read into the ec cord
@@ -440,28 +443,165 @@ char *CORD_ec_to_char_star(CORD_ec buf){
     return netval;
   }
 }
+//maybe one day I'll optimize this to not just use
+//strtol/strtod but not today
+/*
+  try to interpret str as a number, first as an integer
+  then as a floating point number, if str is not a valid
+  representation of a number return NIL.
+ */
+sexp string_to_number(char *str){
+  char *endptr;
+  errno=0;
+  //maybe eventually be like common lisp and havo a variable read-base
+  int64_t result=strtol(str,&endptr,10);
+  //if the whole string str is valid (and not null) then endptr is set to '\0'
+  //by virtue of c strings being null terminated
+  if(!(*endptr)){
+    //if(errno){read str as a bigint
+    return int64_sexp(result);
+  }
+  //to have a valid double the next character must be . e or E
+  //as a floating point number is [-+]?[0-9]+(.[0-9]+)?([eE][0-9]+)?
+  if(*endptr == '.' || endptr == 'e' || endptr == 'E'){
+    errno=0;
+    real64_t result=strtod(str,&endptr);
+    if(!(*endptr)){
+      return real64_sexp(result);
+    }
+  }
+  return NIL;
+}
+
+//assumes an initialized CORD_ec buf, a uint8_t c, and ints len and mb
+#define read_symbol_string(input)               \
+  while((c==read_char(input))){                 \
+  if(invalid_symbol_char[c]){                   \
+    break;                                      \
+  }                                             \
+    if(c=='\\'){                                \
+      CORD_ec_append(read_char(input));         \
+    } else {                                    \
+      CORD_ec_append(c);                        \
+    }                                           \
+    len++;                                      \
+  }
+
+//Should the multibyte field of symbol_name be determined by a parameter to 
+//the different symbol/symbol name creating functions or by explicitly
+//setting it if necessary?
 sexp read_symbol_or_number(char *input){
   CORD_ec buf;
   CORD_ec_init(buf);
   uint8_t c;
-  int len;
-  int mb;
-  while((c==read_char(input))){
-    if(invalid_symbol_char[c]){
-      raise_simple_error_fmt("invalid chararcter %c in symbol",c);
-     }   
-    if(c=='\\'){
-      CORD_ec_append(read_char(input));
-    } else {
-      CORD_ec_append(c);
-    }
-    len++;
-  }
-  char *str;//=CORD_ec_to_char_star(buf);
-  if(string_scan_chars(str,"0123456789")){
-    sexp maybe_num=maybe_read_number(str);
+  int len=0,mb=0;
+  read_symbol_string(input);
+  //maybe if(c)==':' goto qualified symbol
+  unread_char(input);
+  char *str=CORD_ec_to_char_star(buf);
+  if(!mb && strchr("0123456789+-",str[0])){
+    sexp maybe_num=string_to_number(str);
     if(!NILP(maybe_num)){
       return maybe_num;
     }
+  }
+  if(read_char(input)==':'){
+    //either the curent symbol is explicitly typed
+    //or the current symbol is a package and we need to read another symbol
+    char c=read_char(input);
+    int require_exported=1;
+    if(c==':'){
+      //code to set type field of symbol
+      //should I call read recursively or just read another string
+      //and see if it's a type?
+    } else if (c=='.'){
+      require_exported=0;
+    } else {
+      unread_char(input);
+    }
+    //this should probably be moved to the evaluator
+    //becasue <non-extant-package>::<symbol-name> is perfectly
+    //valid read syntax, So I need to figure out how
+    //to store qualified symbols then move this 
+    symbol *package_sym=c_intern(str,len,current_obarary);
+    if(mb){package_sym->name.multibyte=1;}
+    if(!PACKAGEP(package_sym->val.tag)){
+      raise_simple_error_fmt(Eundefined,"Error Package %r does not exist",str);
+    }
+    obarray *package_symbol_table=package_sym->val.val.package->symbol_table;
+    CORD_ec_init(buf);
+    len=mb=0;
+    read_symbol_string(input);
+    char *sym_name=CORD_ec_to_char_star(buf);
+    symbol *qualified_sym=
+      obarray_lookup_sym(make_symbol_name_no_copy(sym_name,len,0),
+                         package_symbol_table);
+    if(qualified_sym){
+      if(mb){qualified_sym->name.multibyte=1;}
+      if(qualified_sym->visibility == symbol_externally_visable ||
+         !require_exported){
+        return symref_sexp(qualified_sym);
+      } else {
+      raise_simple_error_fmt(Evisibility,"Symbol %s not externally"
+                             " visable in package %s",sym_name,str);
+      }
+    } else {
+      raise_simple_error_fmt(Eundefined,"Symbol %s not found in package %s",
+                             sym_name,str);
+    }
+  } else {
+    unread_char(input);
+    symbol *retval=c_intern(str,len,mb,current_obarray);
+    if(mb){retval->name.multibyte=1;}
+  }
+}
+//I need to make sure all internal keywords are actually stored with a colon
+sexp read_keyword_symbol(char *input){
+  CORD_ec buf;
+  CORD_ec_init(buf);
+  int mb=0,len=0;
+  uint8_t c;
+  CORD_ec_append(buf,':');
+  read_symbol_string(input);
+  char *keysym_name=CORD_ec_to_char_star(buf);
+  //all keywords are kept in the global obarary
+  symbol *key_sym=c_intern(keysym_name,len,global_obarray);
+  //keywords are just self referental symbols
+  key_sym->val=symref_sexp(key_sym);
+  return symref_sexp(key_sym);
+}
+sexp read_list(char *input){
+  //this implies () == (nil . nil)
+  //l don't know if I want that or not
+  sexp tail=cons_sexp(xmalloc(sizeof(cons)));
+  sexp ls=tail;
+  sexp val;
+  int ch=0;
+  while(1){
+    val=read_internal(input,&ch,0);
+    if(ch){
+      if(ch == ')'){
+        return ls;
+      }
+      if(ch == '.'){
+        ch=0;
+        val=read_internal(intput,&ch);
+        if(ch){
+          raise_simple_error(Eread,"Error, nothing following '.' in list");
+        } else {
+          SET_CDR(tail,val);
+          return ls;
+        }
+      } else {
+        //this can probably be simplified as the only other possible
+        //value of ch is ']' (or '}') and it'll probably stay that way
+        raise_simple_error_fmt(Eread,"Invalalid character %c found in list",ch);
+      }
+    }
+    //since gc sets memory to 0 and nil is defined as {0} the cdr
+    //will always be nil (unless explicitly set)
+    XCDR(ls)=cons_sexp(xmalloc(sizeof(cons)));
+    ls=XCDR(ls);
+    SET_CAR(ls,val);
   }
 }
