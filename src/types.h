@@ -51,7 +51,7 @@ typedef double complex complex64_t;
 #endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
-typedef union lisp_data lisp_data;//core representation of a lisp object
+typedef union data data;//core representation of a lisp object
 typedef union funcall funcall;//type of primitive functions (bad name)
 typedef union ctype_val ctype_val;
 typedef union data data;//actual data for any lisp object(should this be lisp_data?)

@@ -570,7 +570,7 @@ sexp read_keyword_symbol(char *input){
   key_sym->val=symref_sexp(key_sym);
   return symref_sexp(key_sym);
 }
-sexp read_list(char *input){
+sexp read_list(char *input,){
   //this implies () == (nil . nil)
   //l don't know if I want that or not
   sexp tail=cons_sexp(xmalloc(sizeof(cons)));
@@ -605,3 +605,25 @@ sexp read_list(char *input){
     SET_CAR(ls,val);
   }
 }
+sexp read_array(char *input){
+  lisp_array *arr=xmalloc(sizeof(lisp_array));
+  int ch=0,need_realloc=0,arr_type=0;
+  sexp *old_data_ptr=env->data_ptr;  
+  register sexp temp;
+  temp=read_internal(input,&ch,0);
+  if(ch){
+    raise_simple_error_fmt(Eread,"invalid read syntax '[''%c'",ch);
+  }
+  arr_type=temp.tag;
+  if(!try_push_data(temp)){//the stack is already full, for now just bail out
+    raise_simple_error(Efatal,"Data stack overflow");
+  }
+  while(1){
+    temp=read_internal(input,&ch,0);
+    if(ch){
+      if(ch==']'){
+        if(need_realloc){
+          
+      
+  
+        UNTYPED:

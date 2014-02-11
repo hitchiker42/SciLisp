@@ -344,4 +344,24 @@ static const struct sigaction sigusr2_object={.sa_handler=default_condition_hand
 static const struct sigaction *sigusr1_action=&sigusr1_object;
 static const struct sigaction *sigusr2_action=&sigusr2_object;
 void SciLisp_init();
+//copy 64
+static inline uint64_t *memcpy_stride(uint64_t *dest,const uint64_t *src,size_t len,size_t stride){
+  register uint64_t temp1,temp2,temp3,temp4;
+  int i=0,j=0;
+  while((i+4)<len){
+    temp1=src[j];j+=stride;
+    temp2=src[j];j+=stride;
+    temp3=src[j];j+=stride;
+    temp4=src[j];j+=stride;
+
+    dest[i++]=temp1;
+    dest[i++]=temp2;
+    dest[i++]=temp3;
+    dest[i++]=temp4;
+  }
+  while(i<len){
+    dest[i++]=src[j];j+=stride;
+  }
+  return dest;
+}
 #endif

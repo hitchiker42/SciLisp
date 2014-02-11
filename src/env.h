@@ -150,7 +150,7 @@ struct environment {
   subr_call *call_stack;//call stack
   subr_call *call_ptr;//stack pointer
   subr_call *call_top;
-  //holds function arguments mostly
+  //holds function arguments mostly (also used by reader)
   sexp *data_stack;//data/function argument stack
   sexp *data_ptr;//stack ptr
   sexp *data_top;
