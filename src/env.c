@@ -64,6 +64,13 @@ symbol *make_symbol(const char *name,uint32_t len){
   retval->plist=NIL;
   return retval;
 }
+symbol *make_symbol_from_name(symbol_name *sym_name){
+  symbol *retval=xmalloc(sizeof(symbol));
+  retval->name=sym_name;
+  retval->next=NULL;
+  retval->plist=NIL;
+  return retval;
+}
 sexp make_symbol_lisp(sexp sym_name){
   if(!STRINGP(sym_name)){
     raise_simple_error(Etype,"Invalid argument to make-symbol expected a string");

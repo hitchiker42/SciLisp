@@ -344,24 +344,23 @@ static const struct sigaction sigusr2_object={.sa_handler=default_condition_hand
 static const struct sigaction *sigusr1_action=&sigusr1_object;
 static const struct sigaction *sigusr2_action=&sigusr2_object;
 void SciLisp_init();
-//copy 64
-static inline uint64_t *memcpy_stride(uint64_t *dest,const uint64_t *src,size_t len,size_t stride){
-  register uint64_t temp1,temp2,temp3,temp4;
-  int i=0,j=0;
-  while((i+4)<len){
-    temp1=src[j];j+=stride;
-    temp2=src[j];j+=stride;
-    temp3=src[j];j+=stride;
-    temp4=src[j];j+=stride;
+/* Defined externally (uses an optimized assembly version for x86_64)
+   copies size 8 bytes chunks of memory from src to dest, data is taken
+   from src at intervals of stride*8 bytes, thus src should be
+   size*stride*8 bytes large. If stride is 2 then this should be about
+   as fast as a normal memcpy, for larger strides it will be notablely
+   slower (stride 2 is optimized specially).Returns dest.   
 
-    dest[i++]=temp1;
-    dest[i++]=temp2;
-    dest[i++]=temp3;
-    dest[i++]=temp4;
-  }
-  while(i<len){
-    dest[i++]=src[j];j+=stride;
-  }
-  return dest;
-}
+   for example given src [1,2,3,4,5,6,7,8] and some large enough dest 
+   memcpy_stride(dest,src,4,2)==[1,3,5,7] and
+   memcpy_stride(dest,src,2,4)==[1,5] or
+   memcpy_stride(dest,src+1,4,2)==[2,4,6,8]
+
+   In SciLisp the biggest use of this is to copy only the data fields out
+   of an array of sexps, for example:
+   given an sexp* of length 8 and an data* of length 8
+   memcpy_stride(dest,src,8,2); will copy the raw data from src to dest
+*/
+extern void *memcpy_stride
+(void *dest,const void *src,size_t size,size_t stride) __attribute__((leaf));
 #endif

@@ -9,6 +9,7 @@ struct array_stream {
   uint32_t index;
   uint32_t len;
 };
+static int null_ch;//global write only variable
 #define arr_getc(arr) (arr.arr[arr.index++])
 #define arr_peek(arr) (arr.arr[arr.index])
 #define arr_ungetc(arr) (arr.index--)
@@ -89,6 +90,15 @@ struct array_stream {
   (!invalid_symbol_char[(uint8_t)c])
 #define is_invalid_symbol_char(c)               \
   (invalid_symbol_char[(uint8_t)c])
+sexp internal_read(char *input,int *pch,int flags);
+sexp read_0(char *input,int flags){
+  int ch;
+  sexp val=internal_read(input,&ch,flags);
+  if(ch){
+    raise_simple_error_fmt(Eread,"invalid read syntax '%c'",ch);
+  }
+  return val;
+}
 //I don't know how I'm going to do input, but for now
 //assume I have functions read_char and unread_char
 //to get and put back characters, that should be generic
@@ -99,6 +109,7 @@ struct array_stream {
 
 //Also I should use a dispatch table rather that switches
 sexp internal_read(char *input,int *pch,int flags){
+  //flags for now are only for backticks
   char c;
   *pch=0;
   while((c=(read_char(input)))!=EOF){
@@ -132,6 +143,14 @@ sexp internal_read(char *input,int *pch,int flags){
         return read_symbol_verbatim(input);
       case '#':
         return read_sharp(input);
+      case '`':{
+        return c_list2(Qbackquote,read_0(input,flags+1));
+      }
+      case ',':
+        if(!flags){
+          raise_simple_error(Eread,"Error comma not inside a backquote");
+        }
+        return c_list2(Qcomma,read_0(input,flags-1))        
       default:
         return read_symbol_or_number(input);
     }
@@ -181,36 +200,59 @@ sexp read_integer(char *input,int radix){
 }
 
 #endif
+//assumes an initialized CORD_ec buf, a uint8_t c, and ints len and mb
+#define read_symbol_string(input)               \
+  while((c==read_char(input))){                 \
+  if(invalid_symbol_char[c]){                   \
+    break;                                      \
+  }                                             \
+    if(c=='\\'){                                \
+      CORD_ec_append(read_char(input));         \
+    } else {                                    \
+      CORD_ec_append(c);                        \
+    }                                           \
+    len++;                                      \
+  }
 sexp read_sharp(char *input){
-  switch(*input++){
-    case '|':{
+  char c;
+  switch((c=read_char(input))){
+    case '|':{//nested comment, comments delimited by #| and |#
       int comment_depth=1;
       char *pipe_ptr;
-      while(comment_depth){
-        pipe_ptr=strchr(input,'|');
-        if(!pipe_ptr){
-          raise_simple_error(Eread,"Error unterminated comment");
+      while(comment_depth){        
+        while((c=read_char(input)) != '#' && c != '|');
+        //need to do something about eof
+        //should I unread a character and go back to the loop above
+        //or loop here if the next char doesn't make a comment delimiter?
+        if(c=='#'){
+          if((c=read_char(input))=='|'){
+            comment_depth++;
+          } else {
+            unread_char(input);
+          }
+        } else if(c=='|'){
+          if((c==read_char(input)=='#')){
+            comment_depth--;
+          } else {
+            unread_char(input);
+          }
         }
-        if(*(pipe_ptr-1)=='#'){
-          comment_depth++;
-        } else if (*(pipe_ptr+1)=='#'){
-          comment_depth--;
-        }
-        input+pipe_ptr;
       }
     }
-    case 's':
+    case 's'://read a hash table where input is of the form:
+      //(hash-table [prop val]* ([key val]*)) (don't actually put brackets)
       return read_hash_table(input);
-    case 'x':
+    case 'x'://read a hexadecimal integer
     case 'X':
       return read_integer(input,16);
-    case 'Z':
-    case 'z':
+    case 'Z'://read an arbitary precision integer
+    case 'z'://either in base ten or with leading 0x in base 16
       return read_bigint(input,0);
-    case 'F':
+    case 'F'://read an arbitary precison floating point numbel
     case 'f':
       return read_bigfloat(input,0);
-    case '<':{//this already means a read error, but try to get a better description
+    case '<':{//signal a read error
+      //try to read whot exactly is the invalid object, for a better message
       char *invalid_end=strchr(input,'>');
       if(!invalid_end){
         raise_simple_error(Eread,"Error unterminated invalid read");
@@ -222,6 +264,35 @@ sexp read_sharp(char *input){
       }
 
     }
+    case ':':{//uninterned symbol
+      int len,mb;
+      uint8_t c;
+      CORD_ec buf;
+      CORD_ec_init(buf);
+      read_symbol_string(input);
+      const char *name=CORD_ec_to_char_star(buf);
+      symbol *new_sym=make_symbol_from_name(make_symbol_name_no_copy(name,len));
+      new_sym->name->multibyte=mb;
+      return symref_sexp(new_sym);
+    }
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      //in common lisp numbers can be used in two different ways
+      //either for a number of some radix between 2 and 36
+      //using syntax #<num><num>?R<number>
+      //or for reading an n-dimesional array using syntax:
+      //#<num><num>?<num>?A[array...]
+      //I'm not sure what I'll allow, but for now nothing
+    default:
+      raise_simple_error_fmt(Eread,"Invalid read syntax #'%c'",c);
   }
 }
 #define HEXVALUE(c)                                     \
@@ -473,21 +544,8 @@ sexp string_to_number(char *str){
   return NIL;
 }
 
-//assumes an initialized CORD_ec buf, a uint8_t c, and ints len and mb
-#define read_symbol_string(input)               \
-  while((c==read_char(input))){                 \
-  if(invalid_symbol_char[c]){                   \
-    break;                                      \
-  }                                             \
-    if(c=='\\'){                                \
-      CORD_ec_append(read_char(input));         \
-    } else {                                    \
-      CORD_ec_append(c);                        \
-    }                                           \
-    len++;                                      \
-  }
 
-//Should the multibyte field of symbol_name be determined by a parameter to 
+//Should the multibyte field of symbol_name be determined by a parameter to
 //the different symbol/symbol name creating functions or by explicitly
 //setting it if necessary?
 sexp read_symbol_or_number(char *input){
@@ -522,7 +580,7 @@ sexp read_symbol_or_number(char *input){
     //this should probably be moved to the evaluator
     //becasue <non-extant-package>::<symbol-name> is perfectly
     //valid read syntax, So I need to figure out how
-    //to store qualified symbols then move this 
+    //to store qualified symbols then move this
     symbol *package_sym=c_intern(str,len,current_obarary);
     if(mb){package_sym->name.multibyte=1;}
     if(!PACKAGEP(package_sym->val.tag)){
@@ -605,25 +663,119 @@ sexp read_list(char *input,){
     SET_CAR(ls,val);
   }
 }
+//pretty much an arbitary number
+#define min_stack_size 32
+#define push_temp(val) (stack_index>=stack_size?NULL:temp_stack[stack_index++]=val)
 sexp read_array(char *input){
   lisp_array *arr=xmalloc(sizeof(lisp_array));
-  int ch=0,need_realloc=0,arr_type=0;
-  sexp *old_data_ptr=env->data_ptr;  
+  arr->dims=1;//for now only alow literal vectors, not literal arrays
+  //you can have vectors of arrays, but they won't be seen an multidimesional
+  int ch=0,arr_type=0;
+  sexp *old_data_ptr=env->data_ptr;
   register sexp temp;
   temp=read_internal(input,&ch,0);
   if(ch){
     raise_simple_error_fmt(Eread,"invalid read syntax '[''%c'",ch);
   }
+  uint32_t stack_size,stack_index=0;
+  //we never actually adjust the stack pointer
+  sexp *temp_stack;
+  if(current_env->data_top-current_env->data_ptr<min_stack_size){
+    stack_size=min_stack_size;
+    temp_stack = xmalloc(sizeof(sexp)*min_stack_size);
+  } else {
+    stack_size = current_env->data_top-current_env->data_ptr;
+    temp_stack = current_env->data_ptr;
+  }
   arr_type=temp.tag;
-  if(!try_push_data(temp)){//the stack is already full, for now just bail out
-    raise_simple_error(Efatal,"Data stack overflow");
+  //obviously this can't fail
+  push_temp(temp);
+  if(arr_type>sexp_num_tag_max){
+    //if it's a typed array but not an array of atoms
+    //we can't use xmalloc_atomic, so just treat it the
+    //same as an untyped array (for now I might add a
+    //third loop for just this kind of array later)
+    goto UNTYPED;
+  }
+  while(1){
+    temp=read_internal(input,&ch,0);
+    if(temp->tag != arr_type){
+      goto UNTYPED;
+    }
+    if(ch){
+      if(ch==']'){
+        if(!arr->vector){//haven't allocated any memory yet
+          arr->typed_vector=xmalloc_atomic(stack_index);
+          arr->len=stack_index;
+          arr->type=arr_type;
+          //having written the thing I see no reason that this shouldn't work
+          arr->typed_vector=memcpy_stride(arr->typed_vector,
+                                          temp_stack,stack_index,2);
+        } else {
+          //this will trash the current array and overwrite it with 
+          //just the data from it, it should work(I did write memcpy_stride)
+          arr->typed_vector=memcpy_stride(arr->typed_vector,
+                                        arr->vector,arr->len,2);
+          memcpy_stride(arr->typed_vector+arr->len,
+                        temp_stack,stack_index,2);
+          arr->len+=stack_index;
+          arr->type=arr_type;
+        }
+        return array_sexp(arr);
+      } else {
+        raise_simple_error_fmt("invalid character '%c' in vector",ch);
+      }
+    }
+    if(!push_temp(temp)){
+      //don't use realloc, as it'll almost certainly just
+      //be doing malloc followed my memcpy
+      sexp *mem=xmalloc_atomic(sizeof(sexp)*arr->len+stack_size);
+      memcpy(mem,arr->vector,arr->len);
+      //xfree(arr->vector)//maybe?, though it is atomic, so probably not
+      arr->vector=mem;
+      memcpy(arr->vector+arr->len,temp_stack,stack_size);
+      arr->len+=stack_size;
+      stack_index=0;
+      push_temp(temp);
+    }
+  }
+ UNTYPED:
+  //we should only jump here after reading a value that is of a different type
+  arr->type=sexp_sexp;
+  if(arr->vector){
+    //we might as well copy the values on the stack since we're already
+    //reallocating stuff
+    sexp *mem=xmalloc(sizeof(sexp)*arr->len+stack_index);
+    memcpy(mem,arr->vector,arr->len);
+    arr->vector=mem;
+    memcpy(arr->vector+arr->len,temp_stack,stack_index);
+    stack_index=0;
+    push_temp(temp);
   }
   while(1){
     temp=read_internal(input,&ch,0);
     if(ch){
       if(ch==']'){
-        if(need_realloc){
-          
-      
-  
-        UNTYPED:
+        //just acts as xmalloc if arr->vector=NULL
+        arr->vector=xrealloc(arr->vector,arr->len+stack_index);
+        memcpy(arr->vector+arr->len,temp_stack,stack_index);
+        arr->len+=stack_index;
+        return(array_sexp(arr));
+      } else {
+        raise_simple_error_fmt("invalid character '%c' in vector",ch);
+      }
+    }        
+    if(!push_temp(temp)){
+      //don't use realloc, as it'll almost certainly just
+      //be doing malloc followed my memcpy
+      sexp *mem=xmalloc_atomic(sizeof(sexp)*arr->len+stack_size);
+      memcpy(mem,arr->vector,arr->len);
+      //xfree(arr->vector)//maybe?, though it is atomic, so probably not
+      arr->vector=mem;
+      memcpy(arr->vector+arr->len,temp_stack,stack_size);
+      arr->len+=stack_size;
+      stack_index=0;
+      push_temp(temp);
+    }
+  }
+}

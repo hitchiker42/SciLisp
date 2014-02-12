@@ -229,6 +229,7 @@ void c_intern_unsafe(obarray *ob,symbol* new);
 symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv);
 symbol_name* make_symbol_name_no_copy(const char *name,uint32_t len,
                                       uint64_t hashv);
+symbol* make_symbol_from_name(symbol_name *name);
 void c_signal_handler(int signo,siginfo_t *info,void *context_ptr);
 //needs to be in a global header, and xmalloc isn't defined in types.h
 static inline lisp_string *make_string(const char *str){
