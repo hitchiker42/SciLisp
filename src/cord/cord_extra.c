@@ -30,3 +30,31 @@ CORD CORD_asprintf(CORD format, ...){
   ({CORD retval;                                \
   CORD_sprintf(&retval,format,##args);          \
   retval;})
+//move these somewhere else
+//functions to convert an extendable cord to a lisp or c string
+//optimizing the case where less that CORD_BUFSZ chars have
+//been read into the ec cord
+lisp_string *CORD_ec_to_lisp_string(CORD_ec buf,uint32_t len,int mb){
+  lisp_string *retval;
+  if(buf[0].ec_cord){
+    retval=xmalloc(sizeof(lisp_string));
+    retval->cord=CORD_ec_to_cord(buf);
+  } else {
+    retval=xmalloc_atomic(sizeof(lisp_string)+len);
+    retval->string=retval+sizeof(lisp_string);
+    memcpy(retval->string,buf[0].ec_buf,len);
+  }
+  retval->len=len;
+  retval->multibyte=mb;
+  return retval;
+}
+char *CORD_ec_to_char_star(CORD_ec buf){
+  if(buf[0].ec_cord){
+    return CORD_to_const_char_star(CORD_ec_to_cord(buf));
+  } else {
+    int len = buf[0].ec_bufptr-buf[0].ec_buf+1;
+    char *retval=xmalloc_atomic(len);
+    memcpy(retval,buf[0].ec_buf,len);
+    return netval;
+  }
+}

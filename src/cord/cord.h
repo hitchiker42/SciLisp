@@ -351,4 +351,6 @@ CORD_API int CORD_vprintf(CORD format, va_list args);
 
 #endif /* CORD_NO_IO */
 
+#include "ec.h"
+
 #endif /* CORD_H */

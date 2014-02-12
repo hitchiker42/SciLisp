@@ -19,3 +19,4 @@
 #include "cord/cordbscs.c"
 #include "cord/cordprnt.c"
 #include "cord/cordxtra.c"
+#include "cord/cord_extra.c"

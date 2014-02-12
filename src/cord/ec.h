@@ -1,9 +1,9 @@
-# ifndef EC_H
-# define EC_H
+#ifndef EC_H
+#define EC_H
 
-# ifndef CORD_H
-#  include "cord.h"
-# endif
+#ifndef CORD_H
+#include "cord.h"
+#endif
 
 /* Extensible cords are strings that may be destructively appended to.  */
 /* They allow fast construction of cords from characters that are       */
@@ -30,9 +30,9 @@
  * may be replaced by a call to CORD_to_char_star.
  */
 
-# ifndef CORD_BUFSZ
-#   define CORD_BUFSZ 128
-# endif
+#ifndef CORD_BUFSZ
+#define CORD_BUFSZ 128
+#endif
 
 typedef struct CORD_ec_struct {
     CORD ec_cord;
@@ -60,7 +60,7 @@ void CORD_ec_flush_buf(CORD_ec x);
     }*/
 
 /* Convert an extensible cord to a cord. */
-# define CORD_ec_to_cord(x) (CORD_ec_flush_buf(x), (x)[0].ec_cord)
+#define CORD_ec_to_cord(x) (CORD_ec_flush_buf(x), (x)[0].ec_cord)
 
 /* Initialize an extensible cord. */
 #define CORD_ec_init(x) \
@@ -81,5 +81,7 @@ void CORD_ec_append_cord(CORD_ec x, CORD s){
     x[0].ec_cord = CORD_cat(x[0].ec_cord, s);
 }
 */
-
+//return a char* from extensible cord, optimize for the case
+//where less than CORD_BUFSZ chars have been read
+char *CORD_ec_to_char_star(CORD_ec x);
 # endif /* EC_H */

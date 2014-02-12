@@ -20,7 +20,9 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #error "Don't include \"types.h\" directly; use \"common.h\" instead."
 #endif
 
-#include "gc/cord.h"
+//by now I have enough of my own cord functions/macros that
+//it's best to use a custom cord.h
+#include "cord.h"
 #include <string.h>
 #include <setjmp.h>
 #include <wchar.h>

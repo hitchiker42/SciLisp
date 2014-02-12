@@ -2,96 +2,58 @@
 #define CORD_BUFSZ 256
 #include "ec.h"
 #include "common.h"
-#include "extra/read_tables.h"
+#include "cread.h"//function prototypes of external functions
+#include "extra/read_tables.h"//various tables used in the reader
+#include "read_aux.h"//macros used internally in the reader
+#include "read_input.h"//the mess that is how I do input(it's not that bad)
+
 //Need to add eof testing in here somewhere
-struct array_stream {
-  const char *arr;
-  uint32_t index;
-  uint32_t len;
-};
+
 static int null_ch;//global write only variable
-#define arr_getc(arr) (arr.arr[arr.index++])
-#define arr_peek(arr) (arr.arr[arr.index])
-#define arr_ungetc(arr) (arr.index--)
-#define arr_get_str(arr,n)                      \
-  ({char *str=xmalloc_atomic(n);                \
-    memcpy(n,str,MAX(n,arr.len));               \
-    str;})
-//assume null terminated array
-#define arr_eat_line(arr)                           \
-  ({char *endptr=strchr(arr.arr,'\n');              \
-  arr.index=(arr.arr-endptr)+1;                     \
-  arr.arr=endptr+1;                                 \
-  ;})
-#define arr_get_line(arr)                       \
-  ({char *endptr=strchr(arr,'=n');              \
-    char *str=xmalloc_atomic(endptr-arr.arr+1); \
-    memcpy(str,arr,arr,entptr-arr.arr);         \
-    str[endptr-arr.arr]='\0';                   \
-    arr.index=(endptr-arr.arr)+1;               \
-    arr.arr=endptr+1;                           \
-    str;})
 
-#define stream_getc(stream) (getc(stream))
-#define stream_peek(stream)                     \
-  ({char c=getc(stream);                        \
-    ungetc(stream);                             \
-    c;})
-#define stream_ungetc(stream) (ungetc(stream))
-#define stream_get_str(stream,n)                \
-  ({char *str=xmalloc_atomic(n);                \
-    fread(str,n,1,stream);                      \
-    str;})
-#define stream_eat_line(stream)                 \
-  (while(getc(stream)!='\n');)
-//we can't use the libc getline because of gc
-#define stream_get_line(stream)                 \
-  ({uint32_t size=16;                           \
-    int i=0;                                    \
-    char *str=xmalloc_atomic(16);               \
-    char c;                                     \
-  LOOP:for(;i<size;i++){                        \
-      c=str[i++]=getc(stream);                  \
-      if(c=='\n' || c=='\0'){                   \
-        break;                                  \
-      }                                         \
-    }                                           \
-    if(i>=size){                                \
-      str=xrealloc(str,(size*=2));              \
-      goto LOOP;                                \
-    }                                           \
-    str;})
-
-#define generic_getc(type,obj) type##_getc(obj)
-#define generic_peek(type,obj) type##_peek(obj)
-#define generic_ungetc(type,obj) type##_ungetc(obj)
-#define generic_get_str(type,obj,len) type##_get_str(obj,len)
-#define generic_eat_line(type,obj) type##_eat_line(obj)
-#define generic_get_line(type,obj) type##_get_line(obj)
 //this is because the actual function used has an awful name
 #define string_scan_chars(string,chars)         \
   (strpbrk(string,chars))
 /*different possible streams to read from:
   CORDs, using CORD_pos
-    also CORDs are used for reading from functions via
-    CORD_from_fn
+    also used for reading from functions via CORD_from_fn
   FILES, using standard getc/ungetc
   character arrays, using some struct for internal state
  */
-//char c=read_char(intput);if(c<0)... would also work
-#define READ_CHAR_MULTIBYTE(input,mb_ptr)       \
-  ({uint8_t c= read_char(input);                \
-    if(c>=0x80){                                \
-      *mb_ptr=1;                                \
-    }                                           \
-    c;})
+//char c=read_char(intput);if(c<0)... would also work for eof
+read_input *make_cord_input(CORD input){
+  CORD_pos p;
+  CORD_set_pos(p,input,0);
+  read_input *retval=xmalloc(sizeof(read_input));
+  *retval=(read_input){.input=p,.type=cord_read_input};
+  return retval;
+}
+read_input *make_stream_input(FILE *input){
+  read_input *retval=xmalloc(sizeof(read_input));
+  *retval=(read_input){.input=input,.type=stream_read_input};
+  return retval;
+}
+read_input *make_string_input(const char *string){
+  uint32_t len=strlen(string);
+  read_input *retval=xmalloc(sizeof(read_input));
+  array_stream *arr=xmalloc(sizeof(array_stream));
+  *arr=(array_stream){.arr=string,.len=len,.index=0};
+  *retval=(read_input){.input=arr,.type=string_read_input};
+}
+sexp start_read(read_input *input){
+  return read_0(input,0);
+}
+sexp read_from_cord(CORD input){
+  return start_read(make_cord_input(input));
+}
+sexp read_from_stream(FILE *input){
+  return start_read(make_stream_input(input));
+}
+sexp read_from_string(char *input){
+  return start_read(make_string_input(input));
+}
 
-#define is_valid_symbol_char(c)                 \
-  (!invalid_symbol_char[(uint8_t)c])
-#define is_invalid_symbol_char(c)               \
-  (invalid_symbol_char[(uint8_t)c])
-sexp internal_read(char *input,int *pch,int flags);
-sexp read_0(char *input,int flags){
+sexp read_0(read_input *input,int flags){
   int ch;
   sexp val=internal_read(input,&ch,flags);
   if(ch){
@@ -99,16 +61,9 @@ sexp read_0(char *input,int flags){
   }
   return val;
 }
-//I don't know how I'm going to do input, but for now
-//assume I have functions read_char and unread_char
-//to get and put back characters, that should be generic
-//enough for anything
 
-//I need to write wappers/macros to call internal_read
-//with only one argument (i.e like emacs has read1 and read0)
-
-//Also I should use a dispatch table rather that switches
-sexp internal_read(char *input,int *pch,int flags){
+//Also should I use a dispatch table rather than switches?
+sexp internal_read(read_input *input,int *pch,int flags){
   //flags for now are only for backticks
   char c;
   *pch=0;
@@ -120,7 +75,7 @@ sexp internal_read(char *input,int *pch,int flags){
       case '\v':
         continue;
       case ';':
-        eat_line(input);
+        skip_line(input);
         continue;
       case '(':
         return read_list(input);
@@ -150,13 +105,14 @@ sexp internal_read(char *input,int *pch,int flags){
         if(!flags){
           raise_simple_error(Eread,"Error comma not inside a backquote");
         }
-        return c_list2(Qcomma,read_0(input,flags-1))        
+        return c_list2(Qcomma,read_0(input,flags-1))
       default:
         return read_symbol_or_number(input);
     }
   }
+  raise_simple_error(Eread,"Error, encountered EOF while reading");
 }
-sexp read_bigint(char *input,int radix){
+sexp read_bigint(read_input *input,int radix){
   int64_t num;
   char *endptr;
   errno=0;
@@ -185,9 +141,8 @@ sexp read_bigint(char *input,int radix){
     return bigint_sexp(bignum);
   }
 }
-#define twos_compliment(num) (~num+1)
 //abstracted in case for some reason I don't want to use strtol
-sexp read_integer(char *input,int radix){
+sexp read_integer(read_input *input,int radix){
   int64_t num;
   char *endptr;
   errno=0;
@@ -199,27 +154,13 @@ sexp read_integer(char *input,int radix){
   return int64_sexp(num);
 }
 
-#endif
-//assumes an initialized CORD_ec buf, a uint8_t c, and ints len and mb
-#define read_symbol_string(input)               \
-  while((c==read_char(input))){                 \
-  if(invalid_symbol_char[c]){                   \
-    break;                                      \
-  }                                             \
-    if(c=='\\'){                                \
-      CORD_ec_append(read_char(input));         \
-    } else {                                    \
-      CORD_ec_append(c);                        \
-    }                                           \
-    len++;                                      \
-  }
 sexp read_sharp(char *input){
   char c;
   switch((c=read_char(input))){
     case '|':{//nested comment, comments delimited by #| and |#
       int comment_depth=1;
       char *pipe_ptr;
-      while(comment_depth){        
+      while(comment_depth){
         while((c=read_char(input)) != '#' && c != '|');
         //need to do something about eof
         //should I unread a character and go back to the loop above
@@ -248,9 +189,13 @@ sexp read_sharp(char *input){
     case 'Z'://read an arbitary precision integer
     case 'z'://either in base ten or with leading 0x in base 16
       return read_bigint(input,0);
-    case 'F'://read an arbitary precison floating point numbel
-    case 'f':
+    case 'R'://read an arbitary precison floating point number
+    case 'r'://would use #f but thats used for false
       return read_bigfloat(input,0);
+    case 't':
+      return LISP_TRUE;
+    case 'f':
+      return LISP_FALSE;
     case '<':{//signal a read error
       //try to read whot exactly is the invalid object, for a better message
       char *invalid_end=strchr(input,'>');
@@ -275,6 +220,29 @@ sexp read_sharp(char *input){
       new_sym->name->multibyte=mb;
       return symref_sexp(new_sym);
     }
+
+
+    case 'b';
+    case 'B':{
+      return uint64_sexp
+        (read_pow_of_two_base_number
+         (input,binary_char_test,binary_char_extract,1,
+          "Error expected a binary literal following a #b or #B"));
+      uint64_t result=0;
+      uint8_t c='\0';
+      //check first char to insure there's actualy a binary number
+      c=read_char(input);
+      if(c-0x30 > 1){
+        raise-simple_error
+          (Eread,"Error expected a binary literal following a #b or #B");
+      }
+      //unsigned int can't be less that 0, so anything
+      //other that a '0' or '1' will fail this check
+      do {
+        result=(result<<1)+(c-0x30);
+      } while(((c=read_char(input))-0x30)<=1);
+      return uint64_sexp(result);
+    }
     case '0':
     case '1':
     case '2':
@@ -295,10 +263,7 @@ sexp read_sharp(char *input){
       raise_simple_error_fmt(Eread,"Invalid read syntax #'%c'",c);
   }
 }
-#define HEXVALUE(c)                                     \
-  (((c) >= 'a' && (c) <= 'f')                           \
-   ? (c)-'a'+10                                         \
-   : (c) >= 'A' && (c) <= 'F' ? (c)-'A'+10 : (c)-'0')
+
 //large ammounts of this taken from the bash printf builtin
 static inline char parse_simple_escape(char escape_char){
   //shamelessly stolen from emacs out of shear lazyness
@@ -340,29 +305,23 @@ static inline char parse_simple_escape(char escape_char){
   }
 }
 //rewrite to use read_char
-int parse_escape_internal(char *input,char** output,int *outlen){
+int parse_escape_internal(read_input *input,char** output){
   //input is the text immediately following a backslash
-  *output=parse_simple_escape(*input);
+  uint8_t c=read_char(input);
+  *output=parse_simple_escape(c);
   if(*output != ((char)-1)){
-    if(outlen){
-      *outlen=1;
-    }
     return 1;
   }
   int temp=0;
   uint32_t uvalue;
   int udigits=0;
-  char *p=input+1;
-  switch(*input++){
+  switch((c=read_char(input))){
     case 'x':{
       //note to self: --  (prefix or postfix) has higer precidence than &&
-      uvalue=parse_hex_escape(p);
+      uvalue=parse_hex_escape(input);
       //parse_escape raises an error on a malformed escape sequence
       *output=uvalue;
-      if(outlen){
-        *outlen=1;
-      }
-      return p-input;
+      return 1;
     }
     case 'U':
       udigits=8;
@@ -370,46 +329,48 @@ int parse_escape_internal(char *input,char** output,int *outlen){
       if(!udigits){
         udigits=4;
       }
-      uvalue=parse_unicode_escape(p);
+      uvalue=parse_unicode_escape(input);
       //parse_escape raises an error on a malformed escape sequence
       uint64_t utf8_val;
       if(utf8_encode_char((uint8_t*)&utf8_val,uvalue)==(size_t)-1){
         raise_simple_error(Eread,"Invald unicode seqence");
       }
-      if(outlen){
-        outlen=utf8_mb_char_len((uint8_t*)&utf8_val)[0];
-      }
       *(uint64_t**)output=utf8_val;
-      return p-input;
+      return utf8_mb_char_len((uint8_t*)&utf8_val)[0];
     default:
       assert(0);
   }
 }
-char parse_hex_escape(char *input){//sets input to the first character after the escape
-  if(!(isxdigit(*input))){
+char parse_hex_escape(read_input *input){//sets input to the first character after the escape
+  char c=read_char(input);
+  if(!(isxdigit(c))){
     raise_simple_error(Eread,"error lexing char, expected hex digit after \\x\n");
   }
-  if(isxdigit(*input+1)){
-    //pretty sure I can't just use strtol because \x010 is 1, not 10
-    //sets input to input+2 and returns the hexvalue of *input,*input+1
-    return((16*HEXVALUE(*input++))+HEXVALUE(*input++));
+  if(isxdigit(peek_char(input))){
+    return((16*HEXVALUE(c))+HEXVALUE(read_char(input)));
   } else {
-    return (HEXVALUE(*input++));
+    return HEXVALUE(c);
   }
 }
-uint32_t parse_unicode_escape(uint8_t *input,int udigits){
+uint32_t parse_unicode_escape(read_input *input,int udigits){
   uint32_t uvalue;
   temp=udigits;
-  for (uvalue = 0; isxdigit(*input) && --temp; input++){
-    uvalue <<= 4;
-    uvalue += HEXVALUE(*input);
+  uint8_t c=read_char(input);
+  if(!isxdigit(c)){
+    raise_simple_error
+      (Eread,"error lexing char, expected hex digit after \\u or \\U\n");
   }
-  if (temp == udigits){
-    raise_simple_error(Eread,"error lexing char, expected hex digit after \\u or \\U\n");
+  udigits--;
+  do {
+    uvalue <<= 4;
+    uvalue += HEXVALUE(c);
+  } while((--udigits) && (c=read_char(input)) && isxdigit(c));
+  if(udigits){//read less than max chars, so we read an extra char
+    unread_char(input);
   }
   return uvalue;
 }
-sexp read_symbol_verbatim(char *input){
+sexp read_symbol_verbatim(read_input *input){
   int i=0;
   int mb=0;
   char c;
@@ -439,7 +400,7 @@ static inline sexp symbol_from_ec_cord(CORD_ec buf){
   sym_name->len=len;
   sym_name->multibyte=mb;
 }
-static sexp read_double_quoted_string(char *input){
+static sexp read_double_quoted_string(read_input *input){
   CORD_ec buf;
   CORD_ec_init(buf);
   uint8_t c;
@@ -486,34 +447,7 @@ static sexp read_double_quoted_string(char *input){
   retval->multibyte=mb;
   return string_sexp(retval);
 }
-//move these somewhere else
-//functions to convert an extendable cord to a lisp or c string
-//optimizing the case where less that CORD_BUFSZ chars have
-//been read into the ec cord
-lisp_string *CORD_ec_to_lisp_string(CORD_ec buf,uint32_t len,int mb){
-  lisp_string *retval;
-  if(buf[0].ec_cord){
-    retval=xmalloc(sizeof(lisp_string));
-    retval->cord=CORD_ec_to_cord(buf);
-  } else {
-    retval=xmalloc_atomic(sizeof(lisp_string)+len);
-    retval->string=retval+sizeof(lisp_string);
-    memcpy(retval->string,buf[0].ec_buf,len);
-  }
-  retval->len=len;
-  retval->multibyte=mb;
-  return retval;
-}
-char *CORD_ec_to_char_star(CORD_ec buf){
-  if(buf[0].ec_cord){
-    return CORD_to_const_char_star(CORD_ec_to_cord(buf));
-  } else {
-    int len = buf[0].ec_bufptr-buf[0].ec_buf+1;
-    char *retval=xmalloc_atomic(len);
-    memcpy(retval,buf[0].ec_buf,len);
-    return netval;
-  }
-}
+
 //maybe one day I'll optimize this to not just use
 //strtol/strtod but not today
 /*
@@ -548,7 +482,7 @@ sexp string_to_number(char *str){
 //Should the multibyte field of symbol_name be determined by a parameter to
 //the different symbol/symbol name creating functions or by explicitly
 //setting it if necessary?
-sexp read_symbol_or_number(char *input){
+sexp read_symbol_or_number(read_input *input){
   CORD_ec buf;
   CORD_ec_init(buf);
   uint8_t c;
@@ -614,7 +548,7 @@ sexp read_symbol_or_number(char *input){
   }
 }
 //I need to make sure all internal keywords are actually stored with a colon
-sexp read_keyword_symbol(char *input){
+sexp read_keyword_symbol(read_input *input){
   CORD_ec buf;
   CORD_ec_init(buf);
   int mb=0,len=0;
@@ -628,7 +562,7 @@ sexp read_keyword_symbol(char *input){
   key_sym->val=symref_sexp(key_sym);
   return symref_sexp(key_sym);
 }
-sexp read_list(char *input,){
+sexp read_list(read_input *input){
   //this implies () == (nil . nil)
   //l don't know if I want that or not
   sexp tail=cons_sexp(xmalloc(sizeof(cons)));
@@ -665,8 +599,11 @@ sexp read_list(char *input,){
 }
 //pretty much an arbitary number
 #define min_stack_size 32
-#define push_temp(val) (stack_index>=stack_size?NULL:temp_stack[stack_index++]=val)
-sexp read_array(char *input){
+#define push_temp(val) \
+  (stack_index>=stack_size?NULL:temp_stack[stack_index++]=val)
+
+
+sexp read_array(read_char *input){
   lisp_array *arr=xmalloc(sizeof(lisp_array));
   arr->dims=1;//for now only alow literal vectors, not literal arrays
   //you can have vectors of arrays, but they won't be seen an multidimesional
@@ -712,7 +649,7 @@ sexp read_array(char *input){
           arr->typed_vector=memcpy_stride(arr->typed_vector,
                                           temp_stack,stack_index,2);
         } else {
-          //this will trash the current array and overwrite it with 
+          //this will trash the current array and overwrite it with
           //just the data from it, it should work(I did write memcpy_stride)
           arr->typed_vector=memcpy_stride(arr->typed_vector,
                                         arr->vector,arr->len,2);
@@ -764,7 +701,7 @@ sexp read_array(char *input){
       } else {
         raise_simple_error_fmt("invalid character '%c' in vector",ch);
       }
-    }        
+    }
     if(!push_temp(temp)){
       //don't use realloc, as it'll almost certainly just
       //be doing malloc followed my memcpy
