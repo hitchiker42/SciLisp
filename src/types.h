@@ -286,6 +286,7 @@ struct sexp {//96 bits,
   uint8_t meta;//opaque meta data for different things,
   unsigned int is_ptr :1;
   unsigned int padding :7;
+  //probably more padding...
   //i.e, the type of an array, or string, or frame, etc...
 };
 struct cons {//32 bytes

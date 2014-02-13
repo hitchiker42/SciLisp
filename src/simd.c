@@ -54,6 +54,7 @@ LABEL op2 xmm2,xmm1;
       jnz LABEL
 
 */
+#include "simd_types.h"
 /*so many macros, I did this in sml using a lot of parameterized functions
   shame I can't really do that in c, well not as eaisly anyway. (i mean I can 
   paramterize things by function pointers, but then I'm bound to specific types)*/
@@ -140,7 +141,7 @@ void avx_double_arr_map_destructive(double *arr,size_t len,
 #define cmp_nle(a,b) (a>b)
 
 #define simd_n_emulated_horozintal_op(name,fun,type,elements,size)      \
-  simd1##size##_##type simd##size##_##type##_##name(                    \
+  simd##size##_##type simd##size##_##type##_##name(                    \
     simd##size##_##type a,simd##size##_##type b){                       \
     simd##size##_##type c;                                              \
     int i,j;                                                            \
@@ -153,7 +154,7 @@ void avx_double_arr_map_destructive(double *arr,size_t len,
   }
 
 #define simd_n_emulated_binop(name,fun,type,elements,size)              \
-  simd1##size##_##type simd##size##_##type##_##name(                    \
+  simd##size##_##type simd##size##_##type##_##name(                    \
     simd##size##_##type a,simd##size##_##type b){                       \
     simd##size##_##type c;                                              \
     int i;                                                              \
@@ -211,6 +212,18 @@ do_simd128_types_emulated_binop(add);
 do_simd128_types_emulated_binop(sub);
 do_simd128_types_emulated_binop(mul);
 do_simd128_types_emulated_binop(div);
+#ifdef max
+#pragma push_macro("max")
+#undef max
+#endif
+#ifdef min
+#pragma push_macro("min")
+#undef min
+#endif
+#define max MAX
+#define min MIN
+do_simd128_types_emulated_binop(min);
+do_simd128_types_emulated_binop(max);
 #else
 simd_n_real_binops(add,_mm_add,128)
 simd_n_real_binops(sub,_mm_sub,128)

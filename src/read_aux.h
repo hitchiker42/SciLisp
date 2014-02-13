@@ -40,3 +40,19 @@
   (!invalid_symbol_char[(uint8_t)c])
 #define is_invalid_symbol_char(c)               \
   (invalid_symbol_char[(uint8_t)c])
+//forward declarations of internal functions
+sexp read_0(read_input *input,int flags);
+static sexp read_bigint(read_input *input,int radix);
+static sexp read_sharp(char *input);
+static char parse_simple_escape(char escape_char);
+static int parse_escape_internal(read_input *input,char** output);
+static char parse_hex_escape(read_input *input);
+static uint32_t parse_unicode_escape(read_input *input,int udigits);
+static sexp read_symbol_verbatim(read_input *input);
+static sexp symbol_from_ec_cord(CORD_ec buf);
+static sexp read_double_quoted_string(read_input *input);
+static sexp string_to_number(char *str);
+static sexp read_symbol_or_number(read_input *input);
+static sexp read_keyword_symbol(read_input *input);
+static sexp read_list(read_input *input);
+static sexp read_array(read_char *input);

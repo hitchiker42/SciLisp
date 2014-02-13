@@ -1,6 +1,4 @@
-#include "common.h"
 #define CORD_BUFSZ 256
-#include "ec.h"
 #include "common.h"
 #include "cread.h"//function prototypes of external functions
 #include "extra/read_tables.h"//various tables used in the reader
@@ -25,12 +23,14 @@ read_input *make_cord_input(CORD input){
   CORD_pos p;
   CORD_set_pos(p,input,0);
   read_input *retval=xmalloc(sizeof(read_input));
-  *retval=(read_input){.input=p,.type=cord_read_input};
+  *retval=(read_input){.input=p,.input_type=cord_read_input};
   return retval;
 }
 read_input *make_stream_input(FILE *input){
-  read_input *retval=xmalloc(sizeof(read_input));
-  *retval=(read_input){.input=input,.type=stream_read_input};
+  read_input *retval=xmalloc(sizeof(read_input));  
+  read_stream *stream=xmalloc(sizeof(read_stream));
+  stream->stream=input;
+  *retval=(read_input){.input=stream,.input_type=stream_read_input};
   return retval;
 }
 read_input *make_string_input(const char *string){
@@ -38,7 +38,13 @@ read_input *make_string_input(const char *string){
   read_input *retval=xmalloc(sizeof(read_input));
   array_stream *arr=xmalloc(sizeof(array_stream));
   *arr=(array_stream){.arr=string,.len=len,.index=0};
-  *retval=(read_input){.input=arr,.type=string_read_input};
+  *retval=(read_input){.input=arr,.input_type=string_read_input};
+}
+read_input *make_string_input_len(const char *string,uint32_t len){
+  read_input *retval=xmalloc(sizeof(read_input));
+  array_stream *arr=xmalloc(sizeof(array_stream));
+  *arr=(array_stream){.arr=string,.len=len,.index=0};
+  *retval=(read_input){.input=arr,.input_type=string_read_input};
 }
 sexp start_read(read_input *input){
   return read_0(input,0);
@@ -52,7 +58,27 @@ sexp read_from_stream(FILE *input){
 sexp read_from_string(char *input){
   return start_read(make_string_input(input));
 }
-
+//used internally to read files for compilation or evaluation
+sexp read_file(FILE *input){
+  int fd=fileno(input);
+  off_t file_len=lseek(fd,0,SEEK_END);
+  char *buf=xmalloc_atomic(file_len);
+  pread(fd,buf,file_len,0);
+  close(fd);
+  read_input *rd_input=make_string_input_len(buf,file_len);
+  array_stream *arr=(array_stream*)rd_input->input;
+  sexp program=cons_sexp(xmalloc(sizeof(cons)));
+  sexp retval=program;
+  while(1){
+    XCAR(program)=read_0(rd_input,0);
+    if(arr->arr[arr->index] == EOF){
+      break;
+    }
+    XCDR(program)=cons_sexp(xmalloc(sizeof(cons)));
+    program=XCDR(program);
+  }
+  return retval;
+}
 sexp read_0(read_input *input,int flags){
   int ch;
   sexp val=internal_read(input,&ch,flags);
@@ -112,7 +138,7 @@ sexp internal_read(read_input *input,int *pch,int flags){
   }
   raise_simple_error(Eread,"Error, encountered EOF while reading");
 }
-sexp read_bigint(read_input *input,int radix){
+static sexp read_bigint(read_input *input,int radix){
   int64_t num;
   char *endptr;
   errno=0;
@@ -154,7 +180,7 @@ sexp read_integer(read_input *input,int radix){
   return int64_sexp(num);
 }
 
-sexp read_sharp(char *input){
+static sexp read_sharp(read_input *input){
   char c;
   switch((c=read_char(input))){
     case '|':{//nested comment, comments delimited by #| and |#
@@ -189,9 +215,10 @@ sexp read_sharp(char *input){
     case 'Z'://read an arbitary precision integer
     case 'z'://either in base ten or with leading 0x in base 16
       return read_bigint(input,0);
+      /* need to write this first 
     case 'R'://read an arbitary precison floating point number
     case 'r'://would use #f but thats used for false
-      return read_bigfloat(input,0);
+    return read_bigfloat(input,0);*/
     case 't':
       return LISP_TRUE;
     case 'f':
@@ -305,7 +332,7 @@ static inline char parse_simple_escape(char escape_char){
   }
 }
 //rewrite to use read_char
-int parse_escape_internal(read_input *input,char** output){
+static int parse_escape_internal(read_input *input,char** output){
   //input is the text immediately following a backslash
   uint8_t c=read_char(input);
   *output=parse_simple_escape(c);
@@ -341,7 +368,7 @@ int parse_escape_internal(read_input *input,char** output){
       assert(0);
   }
 }
-char parse_hex_escape(read_input *input){//sets input to the first character after the escape
+static char parse_hex_escape(read_input *input){//sets input to the first character after the escape
   char c=read_char(input);
   if(!(isxdigit(c))){
     raise_simple_error(Eread,"error lexing char, expected hex digit after \\x\n");
@@ -352,7 +379,7 @@ char parse_hex_escape(read_input *input){//sets input to the first character aft
     return HEXVALUE(c);
   }
 }
-uint32_t parse_unicode_escape(read_input *input,int udigits){
+static uint32_t parse_unicode_escape(read_input *input,int udigits){
   uint32_t uvalue;
   temp=udigits;
   uint8_t c=read_char(input);
@@ -370,7 +397,7 @@ uint32_t parse_unicode_escape(read_input *input,int udigits){
   }
   return uvalue;
 }
-sexp read_symbol_verbatim(read_input *input){
+static sexp read_symbol_verbatim(read_input *input){
   int i=0;
   int mb=0;
   char c;
@@ -482,7 +509,7 @@ sexp string_to_number(char *str){
 //Should the multibyte field of symbol_name be determined by a parameter to
 //the different symbol/symbol name creating functions or by explicitly
 //setting it if necessary?
-sexp read_symbol_or_number(read_input *input){
+static sexp read_symbol_or_number(read_input *input){
   CORD_ec buf;
   CORD_ec_init(buf);
   uint8_t c;
@@ -548,7 +575,7 @@ sexp read_symbol_or_number(read_input *input){
   }
 }
 //I need to make sure all internal keywords are actually stored with a colon
-sexp read_keyword_symbol(read_input *input){
+static sexp read_keyword_symbol(read_input *input){
   CORD_ec buf;
   CORD_ec_init(buf);
   int mb=0,len=0;
@@ -562,7 +589,7 @@ sexp read_keyword_symbol(read_input *input){
   key_sym->val=symref_sexp(key_sym);
   return symref_sexp(key_sym);
 }
-sexp read_list(read_input *input){
+static sexp read_list(read_input *input){
   //this implies () == (nil . nil)
   //l don't know if I want that or not
   sexp tail=cons_sexp(xmalloc(sizeof(cons)));
@@ -603,7 +630,7 @@ sexp read_list(read_input *input){
   (stack_index>=stack_size?NULL:temp_stack[stack_index++]=val)
 
 
-sexp read_array(read_char *input){
+static sexp read_array(read_char *input){
   lisp_array *arr=xmalloc(sizeof(lisp_array));
   arr->dims=1;//for now only alow literal vectors, not literal arrays
   //you can have vectors of arrays, but they won't be seen an multidimesional

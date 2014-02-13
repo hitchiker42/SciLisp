@@ -58,3 +58,28 @@ char *CORD_ec_to_char_star(CORD_ec buf){
     return netval;
   }
 }
+//analogue of strspn
+size_t CORD_span(CORD s,const char *accept){
+  //create table of 256 bytes with the bytes corrsponding to
+  //characters in accept set to 1 and all others set to 0
+  CORD_pos pos;
+  CORD_set_pos(pos,s,0);
+  return CORD_pos_span(pos,accept);
+}
+size_t CORD_pos_span(CORD_pos pos,char *accept){
+  uint8_t flags[256]={0};
+  size_t len;
+  while(*accept){
+    flags[*accept++]=1;
+  }
+  char c;
+  while(CORD_pos_valid(pos)){
+    if(flags[CORD_pos_fetch(pos)]){
+      CORD_next(pos);
+      len++;
+    } else {
+      break;
+    }
+  }
+  creturn len;
+}

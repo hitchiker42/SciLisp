@@ -48,9 +48,7 @@ int main(){
   //current_env=xmalloc(sizeof(struct environment));
   init_environment();
   //setup global lexer
-  yylex_init(&global_scanner);
-  eval_fun=read_only;
   symbol *lisp_ans_ptr=xmalloc(sizeof(symbol));
   HERE();
-  read_eval_print_loop();
+  readline_repl(eval);
 }
