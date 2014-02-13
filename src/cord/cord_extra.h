@@ -11,13 +11,20 @@
  * modified is included with the above copyright notice.
  */
 //This file is not part of SciLisp, it's just some extra cord macros
+#ifndef CORD_H
+#error "Don't include cord_extra.h directly, use cord.h instead"
+#endif
+
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
-//also defined as a function in cord_extra.c
+//does the same job as the macro below, but in a function
+CORD CORD_asprintf(CORD format, ...);
 #define CORD_asprintf(format,args...)           \
   ({CORD retval;                                \
   CORD_sprintf(&retval,format,##args);          \
   retval;})
 
+size_t CORD_pos_span(CORD_pos pos,char *accept);
+size_t CORD_span(CORD s,const char *accept);

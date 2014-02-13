@@ -1,3 +1,6 @@
+/* Different types of streams, standard libc streams should probably only be
+   used for special files (e.g stdin)
+ */
 typedef struct array_stream array_stream;
 struct array_stream {
   const char *arr;
@@ -80,8 +83,6 @@ static void arr_skip_line(array_stream *input){
   char_arr->index=(char_arr->arr-endptr)+1;
   char_arr->arr=endptr+1;
 }
-#define arr_get_line(char_arr)                       \
-
 static char *arr_read_delim(array_stream *input,char delim){
   char *endptr=strchr(char_arr->arr,delim);
   char *str=xmalloc_atomic(endptr-char_arr->arr+1);
@@ -142,7 +143,18 @@ static char *stream_read_delim(read_stream *stream,char delim){
   }
   return str;
 }
-
+static char *stream_read_span(read_stream *stream,char *accept){
+  uint8_t flags[256]={0};
+  while(*accept){
+    flags[*accept++]=1;
+  }
+  CORD_ec buf;
+  CORD_ec_init(buf);
+  char c;
+  while(accept[(c==getc(stream))]){
+    CORD_ec_append(buf,c);
+  }
+  
 static char(*read_char_funs[3])(void*) ={(char(*)(void*))arr_read_char,
                                          (char(*)(void*))CORD_read_char,
                                          (char(*)(void*))stream_read_char};
@@ -186,4 +198,7 @@ static inline char *read_delim(read_input *input,char delim){
 }
 static inline char *read_line(read_input *input){
   return read_delim(input,'\n');
+}
+static inline char *read_span(read_input *input,char *accept){
+  return read_span_funs[input->input_type](input->input,accept);
 }
