@@ -24,14 +24,13 @@ static void SciLisp_version(int exitCode) __attribute__((noreturn));
 static const char *banner=
   "SciLisp  Copyright (C) 2013-2014 Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+";
-static const char *SciLisp_Banner;
 //globals, but only ever set once in a locked thread (getopt) or read
 static int no_banner=0;
 static int no_copyright=0;
 symbol *lisp_ans_ptr;
 //int parens_matched(const char* line,int parens)__attribute__((pure));
 //int lisp_getline(FILE* outfile,char* filename);
-void repl_simple(sexp(*eval_fun)(sexp,env_ptr)__attribute__((noreturn));
+void repl_simple(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
 //the repl isn't multithreaded (at least for now)
 //static sexp (*eval_fun)(sexp,env_ptr)=NULL;
 /*just to note I didn't write this I got it from
@@ -83,5 +82,6 @@ static void SciLisp_version(int exitCode){
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
-void readline_repl(sexp(*eval_fun)(sexp,env_ptr)__attribute__((noreturn));
+void readline_repl(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
+#endif
 #endif

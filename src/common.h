@@ -230,7 +230,7 @@ static void *xmemalign(size_t align,size_t sz){
 #define ulong_sexp(ulong_val) construct_atom(ulong_val,uint64)
 //#define macro_sexp(macro_val) construct_sexp(macro_val,_macro,mac,1)
 #define meta_sexp(meta_val) construct_atom(meta_val,meta)
-#define obarray_sexp(ob_val) construct_sexp(ob_val(sexp),_obarray,ob,1)
+#define obarray_sexp(ob_val) construct_sexp(ob_val,sexp_obarray,ob,1)
 #define opaque_sexp(opaque_val) construct_ptr(opaque_val,opaque)
 #define re_match_sexp(match_val) construct_ptr(match_val,re_data)
 #define regex_sexp(regex_val) construct_ptr(regex_val,regex)
@@ -246,6 +246,7 @@ static void *xmemalign(size_t align,size_t sz){
 #define tree_sexp(tree_val) construct_ptr(tree_val,tree)
 #define type_sexp(type_val) construct_sexp(type_val,sexp_type,sym,1)
 #define uchar_sexp(uchar_val) construct_atom(uchar_val,uchar)
+#define mb_char_sexp(mb_char_val) construct_sexp(mb_char_val,sexp_mb_char,uint64,0)
 #define NIL_MACRO() {.tag = -1,.val={.meta = -1}}
 #define format_error_str(format,args...) (CORD_sprintf(&error_str,format,##args))
 #define format_error_sexp(format,args...)       \
@@ -273,10 +274,7 @@ static const sexp LISP_EMPTY_STRING_SEXP={.tag=sexp_string,.
 static const cons EmptyList={.car={.val={0}},
                              .cdr={.val={0}}};
 static const sexp LispEmptyList={.tag=sexp_cons,.val={.cons=(cons*)&EmptyList},.is_ptr=1};
-//global variables(not for long)
-//sexp* yylval;
-//FILE* yyin;
-yyscan_t global_scanner;
+//global variables
 static uint64_t gensym_counter=0;//only modify this using atomic fetch and add
 //probably don't need anymore, what with pthread_once
 static int init_prims_flag=1;
@@ -304,7 +302,6 @@ extern sexp lisp_macroexpand(sexp cur_macro,env_ptr env);
 //from parser.c
 extern sexp read_string(CORD code);
 extern sexp lisp_read(sexp code);
-extern sexp yyparse(FILE* input,yyscan_t scanner);
 extern sexp_tag parse_tagname(lisp_string tagname) __attribute__((const));
 extern void initialize_llvm();
 //some of these could be moved to different files,some can't

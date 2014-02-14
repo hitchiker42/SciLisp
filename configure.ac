@@ -22,14 +22,19 @@ AC_CHECK_PROG(HAVE_EMACS,emacs,yes,
   [AC_MSG_WARN([Emacs not found in default PATH, \
  you will be unable to modify SciLisp primitives])] no)
 # Checks for libraries.
+# Required libraries: libpthread, libdl, libm, libgmp, libmpfr
+# Optional libraries: libreadline, libpcre
+# Provided libraries: libgc, libcord, libffi
 dnl AC_CHECK_LIB([clang], [clang_visitChildren])
+dnl I seem to assume these will pass, I should probaly
+dnl fix that, since I kinda need these two libraries
 AC_CHECK_LIB([dl], [dlsym])
+AC_CHECK_LIB([pthread], [pthread_create])
+AC_CHECK_LIB([m], [cos])
 AC_CHECK_LIB([gmp], [__gmpz_add],,
                     [AC_MSG_ERROR([Error, required library gmp not found])])
-AC_CHECK_LIB([m], [cos])
 AC_CHECK_LIB([mpfr], [mpfr_init2],,
                     [AC_MSG_ERROR([Error, required library mpfr not found])])
-AC_CHECK_LIB([pthread], [pthread_create])
 AC_ARG_WITH([readline],
   [AS_HELP_STRING([--with-readline],
     [Use readline for command line editing (default=check)])],
@@ -42,8 +47,24 @@ AS_IF([test "x$with_readline" != xno],
                 [LIBS="$LIBS -lreadline"]])],
     [if test "x$with_readline" != xcheck; then
         AC_MSG_FAILURE(
-          [--with-readline was given, but test for readline failed])
+          [--with-readline was given, but libreadline not found])
      fi])
+AC_ARG_WITH([pcre],
+  [AS_HELP_STRING([--with-pcre],
+    [Enable perl compatiable regular expressions, in additon to default
+    emacs style regular expressions. (default=check)])],
+  [],
+  [with_pcre=check])
+AS_IF([test "x$with_pcre" != xno],
+  [AC_CHECK_LIB([pcre], [pcre_compile],
+     [AC_DEFINE([HAVE_PCRE], [1],
+                [Define if pcre support is enabled])
+                [LIBS="$LIBS -lpcre"]])],
+    [if test "x$with_pcre" != xcheck; then
+        AC_MSG_FAILURE(
+          [--with-pcre was given, but libpcre not found])
+     fi])
+#User specified options
 AC_ARG_WITH([gc-threads],
   [AS_HELP_STRING([--with-gc-threads],
     [enable multithreaded gc (default=yes)])],

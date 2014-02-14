@@ -22,7 +22,7 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 
 //by now I have enough of my own cord functions/macros that
 //it's best to use a custom cord.h
-#include "cord.h"
+#include "cord/cord.h"
 #include <string.h>
 #include <setjmp.h>
 #include <wchar.h>
@@ -53,7 +53,7 @@ typedef double complex complex64_t;
 #endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
-typedef union data data;//core representation of a lisp object
+//typedef union data data;//core representation of a lisp object
 typedef union funcall funcall;//type of primitive functions (bad name)
 typedef union ctype_val ctype_val;
 typedef union data data;//actual data for any lisp object(should this be lisp_data?)
@@ -142,6 +142,7 @@ static const int sexp_seq_tag_max = 30;
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define UINT64P(obj) (obj.tag == sexp_ulong)
 #define UNBOUND(obj) (obj.tag == sexp_unbound)
+#define PACKAGEP(obj) (obj.tag == sexp_package)
 //errors, defined somewhere else
 /*extern symbol *Etype;
 extern symbol *Ekey;
@@ -173,7 +174,7 @@ extern symbol *E*/
 enum sexp_tag {
   //literals 0-20
   sexp_nil = 0,
-  sexp_char = 1, sexp_uchar = 1,  
+  sexp_char = 1, sexp_uchar = 1, sexp_mb_char=1,
   //numbers 2-19
   sexp_byte = 2,sexp_int8 = 2,
   sexp_ubyte = 3,sexp_uint8 = 3,
@@ -198,7 +199,7 @@ enum sexp_tag {
   //sequences 20-30
   sexp_c_str = 20,sexp_c_string=20,//const char *'s, for simple strings
   sexp_str = 21,sexp_string=21,//type of strings, value is cord
-  sexp_array = 22,//type of arrays, pointers to 
+  sexp_array = 22,//type of arrays, pointers to
   sexp_svector = 23,
   sexp_cons = 24,
   sexp_matrix =26,//array for mathematical calculations
@@ -219,6 +220,7 @@ enum sexp_tag {
   sexp_regexp_data=47,sexp_re_data=47,//re match data
   sexp_hash_table=48,sexp_hashtable=48,
   sexp_sfmt=53,//random state
+  sexp_package=54,
   //simd types
   sexp_simd128_real32=60,
   sexp_simd128_real64=61,
@@ -258,6 +260,7 @@ union data {//keep max size at 64 bits
   mpfr_t *bigfloat;
   mpz_t *bigint;
   obarray* ob;
+  package *package;
   real32_t real32;
   real64_t real64;
   regex_t *regex;
@@ -274,7 +277,7 @@ union data {//keep max size at 64 bits
   uint32_t uint32;
   void *opaque;
   wchar_t uchar;
-  char mb_char[8];//multibyte chararacter constant, any unused byte is set 
+  char mb_char[8];//multibyte chararacter constant, any unused byte is set
   //to '\0' so it's generally a string, but if all 8 bytes are used it's not
 };
 //I really want to make this 64 bits, but then I'd need to indrect for pretty much
@@ -371,7 +374,7 @@ enum subr_type {
   char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten,NULL,<len>);
   be careful about trying to turn something like this into a standard c string
 
-  strings are kept internally in utf-8 encoding (ie multibyte) and can 
+  strings are kept internally in utf-8 encoding (ie multibyte) and can
   contain embedded nul bytes (another reason we keep the length)
 */
 struct lisp_string {
@@ -413,7 +416,7 @@ struct subr {
     struct {//lambda function for (lambda (args) body)
       lambda_list *lambda_arglist;//this is args
       cons *lambda_body;//and this is body
-    };    
+    };
   };//16
   lisp_string lname;//lambdas should be #<lambda{number via global counter}> 24
   lisp_string signature;//function signature 40
@@ -494,7 +497,7 @@ struct lisp_array {
     complex32_t *float_complex_matrix;
     complex64_t *double_complex_matrix;
     void *data;//anything else (specificly 3+ dimensional arrays)
-    //    blas_array *matrix;//seperate struct for arrays for use with blas    
+    //    blas_array *matrix;//seperate struct for arrays for use with blas
   };
   union {
     uint64_t len;//1-D
