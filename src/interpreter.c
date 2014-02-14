@@ -328,10 +328,13 @@ sexp lisp_lambda(sexp args,env_ptr env){
     raise_simple_error(Etype,"Maleformed lex binding list");            \
   }
   if(!NILP(XCDR(args))){                                                \
-    return eval(XCDR(args),env);                                        \
+    return eval(XCADR(args),env);                                        \
   } else {                                                              \
     return NIL;                                                         \
   }
+//I think eval XCADR args up above is right,
+//the value forms in let bindings aren't wrapped in
+//implicit progns, but I'm really not sure
 sexp lisp_let(sexp args,env_ptr env){
   let_prefix();
   sexp lex_vars=XCAR(args);
