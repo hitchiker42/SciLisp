@@ -14,14 +14,100 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with SciLisp.  If not, see <http:
-/*Scan a line, subtract 1 from parens for each ")"
- *add 1 to parens for each "(", return -1 if we find a close parenteses
- *without an opening one.
- *parens is an int containing the number of currently open parentheses
- *it could probably be a pointer, but I like to keep functions pure
- */
+   along with SciLisp.  If not, see <http://www.gnu.org*/
+
 #include "frontend.h"
+
+#ifdef HAVE_READLINE
+/* While readline is nice to use, it sure isn't nice to program with
+ */
+CORD get_sexp_readline(){
+  int parens=0,i;
+  char *prompt="SciLisp>";
+  char *line_read=NULL;
+  CORD retval=0;
+ MAIN_LOOP:while(1){
+    line_read = readline(prompt);
+    if (line_read){
+      if (*line_read){
+        add_history (line_read);
+      } else {goto MAIN_LOOP;}
+    } else {puts("\n");exit(0);}
+    for(i=0;i<rl_end;i++){
+      if(line_read[i]==';'){break;}
+      if(line_read[i]==')'){
+        parens--;
+      } else if (line_read[i]=='('){
+        parens++;
+      }
+    }
+    retval=CORD_catn(3,GC_strdup(line_read)," ",retval);
+    free(line_read);
+    if(parens){
+      if(parens<0){
+        fprintf(stderr,"Extra close parentheses\n");
+        retval=0;
+        prompt="SciLisp>"
+        goto MAIN_LOOP;
+      } else {
+        prompt=">";
+        goto MAIN_LOOP;
+      }
+    } else {
+      return retval;
+    }
+  }
+}  
+
+void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
+  read_input *cord_input;
+  CORD readline_output;
+  sexp ast;
+  frame *top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
+  push_frame(current_env,*top_level_frame);
+ REPL:while(1){
+    if(setjmp(top_level_frame->dest)){
+      if(STRINGP(top_level_frame->value)){
+        //should print to lisp stderr 
+        CORD_fprintf(stderr,top_level_frame->value.val.string->cord);
+      } else {
+        CORD_fprintf(stderr,"Recieved lisp error with value",print(top_level_frame->value));
+      }
+    }
+    readline_output=get_sexp_readline();
+    cord_input=make_cord_input(cord_input);
+    ast=start_read(cord_input);
+    if(ast){
+      lisp_ans_ptr->val=eval_fun(ast,current_env);
+      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
+    }
+  }
+}
+#endif /*HAVE_READLINE*/
+void __attribute__((noreturn)) repl_simple(sexp(*eval_fun)(sexp,env_ptr)){
+  read_input *stdin_input=make_stream_input(stdin);
+  sexp ast;
+  frame *top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
+  push_frame(current_env,*top_level_frame);
+ REPL:while(1){
+    if(setjmp(top_level_frame->dest)){
+      if(STRINGP(top_level_frame->value)){
+        //should print to lisp stderr 
+        CORD_fprintf(stderr,top_level_frame->value.val.string->cord);
+      } else {
+        CORD_fprintf(stderr,"Recieved lisp error with value",print(top_level_frame->value));
+      }
+    }
+    fputs("SciLisp>",stdout);
+    ast=start_read(stdin_input);
+    if(ast){
+      lisp_ans_ptr->val=eval_fun(ast,current_env);
+      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
+    }
+  }
+}
+//repl using flex
+#if 0
 
 int parens_matched(const char* line,int parens){
   int i=0;
@@ -76,7 +162,7 @@ int lisp_readline(FILE* outfile,char* filename){
       line_read=readline(">");
       if(line_read == NULL){
         puts("");
-        evalError=1;
+        //        eval_error=1;
         goto MAIN_LOOP;
       }
       if (line_read && *line_read){
@@ -102,6 +188,7 @@ int lisp_getline(FILE* outfile,char* filename){
  MAIN_LOOP:while(1){
     parens=0;
     //makesure readline buffer is NULL
+    HERE();
     if (line_read){
       free (line_read);
       line_read = (char *)NULL;
@@ -126,7 +213,7 @@ int lisp_getline(FILE* outfile,char* filename){
       len=getline(&line_read,NULL,stdin);
       if(line_read == NULL){
         puts("");
-        evalError=1;
+        //        eval_error=1;
         goto MAIN_LOOP;
       }
       parens=parens_matched(line_read,parens);
@@ -148,8 +235,10 @@ void __attribute__((noreturn)) read_eval_print_loop(){
   int fd=mkstemp(tmp_file);
   FILE* my_pipe=fdopen(fd,"w+");
   yyscan_t scanner;
+  HERE();
   yylex_init(&scanner);
   yyset_in(my_pipe,scanner);
+  HERE();
   //  yyin=my_pipe;
   #ifdef HAVE_READLINE
   rl_set_signals();
@@ -157,6 +246,8 @@ void __attribute__((noreturn)) read_eval_print_loop(){
   #endif
   sexp ast;
   sexp *yylval=xmalloc(sizeof(sexp));
+  int last_tok;
+  HERE();
   //toplevel handler which catches any invalid nonlocal exit
   //also used to return to after any fatal lisp error (i.e
   //the lisp stack overflows or something
@@ -172,15 +263,20 @@ void __attribute__((noreturn)) read_eval_print_loop(){
       }
     }
     start_pos=lisp_readline_fun(my_pipe,tmp_file);
+    HERE();
     fseeko(my_pipe,start_pos,SEEK_SET);
-    yyrestart(my_pipe,scanner);
-    ast=c_read(&scanner,yylval,NULL);
+    HERE();
+    //    yyrestart(my_pipe,scanner);
+    HERE();
+    ast=c_read(&scanner,yylval,&last_tok);
+    HERE();
     //print
     if(!NILP(ast)){
       lisp_ans_ptr->val=eval_fun(XCAR(ast),current_env);
-      CORD_printf(CORD_cat(print(lisp_ans_ptr->val).cord,"\n"));
+      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
     } else {
       ;
     }
   }
 }
+#endif

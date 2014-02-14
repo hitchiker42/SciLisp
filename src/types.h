@@ -1,6 +1,6 @@
 /* Declaration and definitions of various structures and unions
 
-Copyright (C) 2014 Tucker DiNapoli
+Copyright (C) 2013-2014 Tucker DiNapoli
 
 This file is part of SciLisp.
 
@@ -20,7 +20,9 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #error "Don't include \"types.h\" directly; use \"common.h\" instead."
 #endif
 
-#include "gc/cord.h"
+//by now I have enough of my own cord functions/macros that
+//it's best to use a custom cord.h
+#include "cord.h"
 #include <string.h>
 #include <setjmp.h>
 #include <wchar.h>
@@ -31,15 +33,27 @@ along with SciLisp.  If not, see <http://www.gnu.org*/
 #include <gmp.h>
 #include <mpfr.h>
 #include <mpf2mpfr.h>
-#ifdef USE_COMPLEX_H
+//currently simd things are unimplemetnted beyond the types
+#include "simd_types.h"
+//I include complex stuff, but for now I'm not actually using it
 #include <complex.h>
 #undef I
-typedef float complex imag32_t;
-typedef double complex imag64_t;
+typedef float complex complex32_t;
+typedef double complex complex64_t;
+//usable a lvalues unlike creal/cimag
+#define realpart(x) (((double*)(&x))[0])
+#define imagpart(x) (((double*)(&x))[1])
+#define realpartf(x) (((float*)(&x))[0])
+#define imagpartf(x) (((float*)(&x))[1])
+//gcc defines __CHAR_UNSIGNED__ if char is unsigned but this is more portable
+#if (CHAR_MIN < 0)
+#define CHAR_SIGNED
+#else
+#define CHAR_UNSIGNED
 #endif
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
-typedef union lisp_data lisp_data;//core representation of a lisp object
+typedef union data data;//core representation of a lisp object
 typedef union funcall funcall;//type of primitive functions (bad name)
 typedef union ctype_val ctype_val;
 typedef union data data;//actual data for any lisp object(should this be lisp_data?)
@@ -63,6 +77,7 @@ typedef struct hash_entry hash_entry;
 typedef struct lisp_condition lisp_condition;//error handling
 typedef struct lisp_string lisp_string;//string/CORD + length
 typedef struct lisp_array lisp_array;//array/typed array/matrix
+typedef struct lisp_simple_vector lisp_svector;
 typedef struct subr subr;//any kind of subroutine(macro,function,special form,etc)
 typedef struct frame frame;//a jmp_buf and information to reinitialize lisp environment
 typedef struct frame *frame_addr;
@@ -73,6 +88,11 @@ typedef float real32_t;
 typedef double real64_t;
 typedef char char8_t;
 typedef wchar_t char32_t;
+//values for the type hierarchy
+static const int sexp_num_tag_min = 2;
+static const int sexp_num_tag_max = 19;
+static const int sexp_seq_tag_min = 20;
+static const int sexp_seq_tag_max = 30;
 //c macros to test for a specific type
 #define ARRAYP(obj) (obj.tag == sexp_array)
 #define AS_ARRAY(obj) (obj.val.array)
@@ -83,7 +103,7 @@ typedef wchar_t char32_t;
 #define AS_SYMBOL(obj) (obj.val.var)
 #define BIGFLOATP(obj) (obj.tag == sexp_bigfloat)
 #define BIGINTP(obj)(obj.tag == sexp_bigint)
-#define BIGNUMP(obj) (obj.tag >= 1 && obj.tag <= 12)
+#define BIGNUMP(obj) (obj.tag >= sexp_num_tag_min && obj.tag <= sexp_num_tag_max)
 #define CDATAP(obj) (obj.tag == sexp_cdata)
 #define CHARP(obj) (obj.tag == sexp_char)
 #define CONSP(obj) (obj.tag == sexp_cons)
@@ -114,8 +134,8 @@ typedef wchar_t char32_t;
 #define REALP(obj) (obj.tag == sexp_double || obj.tag == sexp_float)
 #define REGEXP(obj)(obj.tag == sexp_regex)
 #define RE_MATCHP(obj) (obj.tag == sexp_re_data)
-#define SEQUENCEP(obj) (CONSP(obj) || (ARRAYP(obj) && obj.val.array->dims == 1) || STRINGP(obj))
-#define STREAMP(obj)(obj.tag ==_stream)
+#define SEQUENCEP(obj) (obj.tag >= sexp_seq_tag_min && obj.tag <= sexp_seq_tag_max)
+#define STREAMP(obj)(obj.tag == sexp_stream)
 #define STRINGP(obj) (obj.tag == sexp_str)
 #define SYMBOLP(obj) (obj.tag == sexp_sym)
 #define TYPEP(obj) (obj.tag == sexp_type)
@@ -146,17 +166,15 @@ extern symbol *E*/
 #define const_real32_sexp(real32_val) {.tag=sexp_real32,.val={.real32=real32_val}}
 #define const_int64_sexp(int64_val) {.tag=sexp_int64,.val={.int64=int64_val}}
 #define const_uint64_sexp(uint64_val) {.tag=sexp_uint64,.val={.uint64=uint64_val}}
+
 //key point to this enum is that arithmetic types are numbered in their type
 //hierarchy, ints by size < floats by size < bigint < bigfloat, if you add any
 //new types make sure it fits in the hierarchy correctly
-//TODO:
-//This needs to be cleaned up some, so that all non pointer types (excepting bigint and bigfloat)
-//come before all pointer types, also nil should be 0
 enum sexp_tag {
-  //literals
+  //literals 0-20
   sexp_nil = 0,
-  sexp_char = 1, sexp_uchar = 1,
-  //numbers
+  sexp_char = 1, sexp_uchar = 1,  
+  //numbers 2-19
   sexp_byte = 2,sexp_int8 = 2,
   sexp_ubyte = 3,sexp_uint8 = 3,
   sexp_short = 4,sexp_int16 = 4,
@@ -171,15 +189,23 @@ enum sexp_tag {
   sexp_bigint = 12,sexp_mpz=12,
   sexp_bigfloat = 13,sexp_mpfr=13,
   //end of numbers
-  sexp_c_str = 19,sexp_c_string=19,//const char *'s, for simple strings
-  sexp_str = 20,sexp_string=20,//type of strings, value is cord
-  sexp_array = 21,//type of arrays, element type in meta, vaule is array
-  sexp_regex = 23,//compiled regular expression
-  sexp_stream = 24,sexp_file=24,//type of input/output streams, corresponds to c FILE*
-  sexp_matrix =25,//array for mathematical calculations
-  sexp_cons = 26,//type of lists,value is cons
-  sexp_subr=30,//typo of functions,macros,special forms and builtins
-  sexp_sym = 32,sexp_symbol=32,//type of symbols,value is var
+  //define c_char as int8 or uint8 based on platform
+#ifdef SIGNED_CHAR
+  sexp_c_char = sexp_int8,
+#else
+  sexp_c_char = sexp_uint8,
+#endif
+  //sequences 20-30
+  sexp_c_str = 20,sexp_c_string=20,//const char *'s, for simple strings
+  sexp_str = 21,sexp_string=21,//type of strings, value is cord
+  sexp_array = 22,//type of arrays, pointers to 
+  sexp_svector = 23,
+  sexp_cons = 24,
+  sexp_matrix =26,//array for mathematical calculations
+  sexp_regex = 30,//compiled regular expression
+  sexp_stream = 31,sexp_file=31,//type of input/output streams, corresponds to c FILE*
+  sexp_subr=32,//typo of functions,macros,special forms and builtins
+  sexp_sym = 33,sexp_symbol=33,//type of symbols,value is var
   sexp_type = 35,//type of types
   sexp_env = 38,sexp_environment=38,
   //maybo just a boolean type instead of two
@@ -190,11 +216,25 @@ enum sexp_tag {
   sexp_ctype=44,//c ffi type
   sexp_cdata=45,//c value and typeinfo(includes c pointer types)
   sexp_opaque=46,//generic opaque c struct/union
-  sexp_regexp_data=47,//re match data
+  sexp_regexp_data=47,sexp_re_data=47,//re match data
   sexp_hash_table=48,sexp_hashtable=48,
   sexp_sfmt=53,//random state
+  //simd types
+  sexp_simd128_real32=60,
+  sexp_simd128_real64=61,
+  sexp_simd128_int8=62,
+  sexp_simd128_int16=63,
+  sexp_simd128_int32=64,
+  sexp_simd128_int64=65,
+  sexp_simd256_real32=66,
+  sexp_simd256_real64=67,
+  sexp_simd256_int8=68,
+  sexp_simd256_int16=69,
+  sexp_simd256_int32=70,
+  sexp_simd256_int64=71,
+  sexp_sexp = 0xfc,//supertype of everything else, used mainly to indicate that
+  //something (i.e an array) doesn't have a specific type
   //internal use only
-  sexp_c_char=0xfc,//stupid c standard, why can't char just be signed or unsigned
   sexp_uninterned=0xfd,
   sexp_unbound=0xfe,
   sexp_error=0xff,
@@ -206,7 +246,7 @@ union data {//keep max size at 64 bits
   cons *cons;
   const char *c_string;
   char c_char;//internal use, so strings can be cast to data*
-  ctype *ctype;
+  ctype *ctype;//can this be removed?
   env_ptr env;
   hash_table *hashtable;
   int8_t int8;
@@ -223,14 +263,19 @@ union data {//keep max size at 64 bits
   regex_t *regex;
   re_match_data *re_data;
   lisp_array *array;
+  lisp_svector *svector;
+  simd128 *simd128;//type field determines element type
+  simd256 *simd256;
   subr *subr;
   symbol *sym;
-  sexp_tag type;
+  sexp_tag type;//although types are symbols now
   uint8_t uint8;
   uint16_t uint16;
   uint32_t uint32;
   void *opaque;
   wchar_t uchar;
+  char mb_char[8];//multibyte chararacter constant, any unused byte is set 
+  //to '\0' so it's generally a string, but if all 8 bytes are used it's not
 };
 //I really want to make this 64 bits, but then I'd need to indrect for pretty much
 //every data type except for integers
@@ -241,6 +286,7 @@ struct sexp {//96 bits,
   uint8_t meta;//opaque meta data for different things,
   unsigned int is_ptr :1;
   unsigned int padding :7;
+  //probably more padding...
   //i.e, the type of an array, or string, or frame, etc...
 };
 struct cons {//32 bytes
@@ -265,7 +311,6 @@ enum TOKEN {
   TOK_BACKQUOTE=17,
   TOK_QUOTE=18,
   TOK_QUASI=19,//`
-  TOK_SPECIAL=20,
   TOK_COMMENT_START=21,//#|
   TOK_COMMENT_END=22,//|#
   TOK_DOT=23,
@@ -305,25 +350,6 @@ union funcall{
   sexp(*funevaled)(sexp);//sexp is presumably a list
   sexp(*fspecial)(sexp,env_ptr);
 };
-//for things like map and reduce
-/*static inline sexp call_many_with_2(funcall f,sexp a,sexp b){
-  sexp args[2]={a,b};
-  return f.fmany(2,args);
-}
-static inline sexp  call_many_with_1(funcall f,sexp a){
-  sexp args[1]={a};
-  return f.fmany(1,args);
-}
-static inline sexp call_many_with_2_implicit(sexp a,sexp b){
-  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
-  sexp args[2]={a,b};
-  return f(2,args);
-}
-static inline sexp call_many_with_1_implicit(sexp a,sexp b){
-  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
-  sexp args[1]={a};
-  return f(1,args);
-  }*/
 typedef enum {
   rec_none,
   rec_simple,
@@ -340,24 +366,28 @@ enum subr_type {
 /*
   structure of strings in lisp,
   strings immutable, we use cords for actions that would normally use mutable strings
-  ie sprintf, concatenation, modifying substrings etc
-  strings are kept internally in utf-8 encoding (ie multibyte)
-  the wide character string part is for representing strings
-  as arrays of characters(which are currently wide characters)
+  ie sprintf, concatenation, modifying substrings etc, or to store the a string
+  described by a function. i.e to represent a string who's i'th character is i %10;
+  char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten,NULL,<len>);
+  be careful about trying to turn something like this into a standard c string
+
+  strings are kept internally in utf-8 encoding (ie multibyte) and can 
+  contain embedded nul bytes (another reason we keep the length)
 */
 struct lisp_string {
   //kinda a silly union since a CORD is technically a typedef for const char*
   //but it makes code clearer in places
-  //a lisp string is a cord if string[0] == '\0'
+  //no tag bit is needed as a lisp string is a cord if string[0] == '\0'
+  //i guess that kinda raises some issues with embedded nulls...hmmm
   union {
     const char *string;
-    wchar_t *wide_string;//don't know if I'll use this or not but eh
     CORD cord;
   };
   uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t multibyte;//0=no,1=yes(2=widechar if that's ever valid)
+  uint8_t multibyte;//0=no,1=yes
 };
 struct lambda_list {
+  cons *arglist;//unmodified arglist
   cons *req_args;//( num_req_args . [reqargs ... ])
   cons *opt_args;//( num_opt_args . [(argname . default)...)]
   cons *key_args;//(num_key_args .  [[key . (var . default)]...])
@@ -373,31 +403,33 @@ struct package {
 //or a lisp function(a lambda) or a lisp macro
 struct subr {
   union {
-    struct {
+    struct {//compiled function
       funcall comp;
       uint16_t req_args;//42
       uint16_t opt_args;//num_req_args-num_req_args+num_opt_args 44
       uint16_t keyword_args;//num_opt_args-num_opt_args+num_keyword_args 46
       uint16_t rest_arg;//0 or 1(only one restarg allowed) 48
     };
-    struct {
-      lambda_list *lambda_arglist;
-      cons *lambda_body;
+    struct {//lambda function for (lambda (args) body)
+      lambda_list *lambda_arglist;//this is args
+      cons *lambda_body;//and this is body
     };    
-  };//8
-  lisp_string lname;//lambdas should be #<lambda{number via global counter}> 16
-  lisp_string signature;//function signature 32
-  lisp_string cname;//name in c, and llvm I suppose 40
-  uint32_t maxargs;//52
-  uint8_t subr_type;//53
+  };//16
+  lisp_string lname;//lambdas should be #<lambda{number via global counter}> 24
+  lisp_string signature;//function signature 40
+  lisp_string cname;//name in c, and llvm I suppose 56
+  uint32_t maxargs;//60
+  uint8_t subr_type;//61
+  uint8_t return_type;//useful for things like mapping over typed arrays
   unsigned int rec_fun :2;//0 not-recursive,1 recursive, 2 tail recursive
   unsigned int pure_fun :1;//no change to it's arguments, should be most functions
-  unsigned int const_fun :1;//returns the same result given the same arguments //53.5
+  unsigned int const_fun :1;//returns the same result given the same arguments //61.5
+  unsigned int no_throw :1;//0 if function can raise an error, 1 if not
   int :0;
   //in short it doesn't rely on pointers
 };
-static inline lisp_string get_signature(subr *lisp_subr){
-  return lisp_subr->signature;
+static inline lisp_string *get_signature(subr *lisp_subr){
+  return &(lisp_subr->signature);
 }
 //defines what values are considered false
 //currently, these are false,nil,numerical 0 or a null pointer
@@ -457,13 +489,12 @@ struct lisp_array {
     data *typed_vector;//1-D array of a specific type
     data *array_vector;//2-D array of a specific type
     //mathmatical arrays, for use with blas,lapack,etc
-    double *double_matrix;
-    float *float_matrix;
-#ifdef HAVE_COMPLEX_H
-    float complex *float_complex_matrix;
-    double complex *double_complex_matrix;
-#endif
+    real64_t *double_matrix;
+    real32_t *float_matrix;
+    complex32_t *float_complex_matrix;
+    complex64_t *double_complex_matrix;
     void *data;//anything else (specificly 3+ dimensional arrays)
+    //    blas_array *matrix;//seperate struct for arrays for use with blas    
   };
   union {
     uint64_t len;//1-D
@@ -477,9 +508,58 @@ struct lisp_array {
   uint8_t dims;//max of 256 dimensions, could be enlarged if needed
   int :0;
 };
+enum cblas_type {
+  cblas_float,
+  cblas_double,
+  cblas_complex_float,
+  cblas_complex_double,
+};
+struct blas_array{
+  union {
+    real32_t *real32_array;
+    real64_t *real64_array;
+    complex32_t *complex32_array;
+    complex64_t *complex64_array;
+  };
+  //For these we assume a minimum of 2 dimensions, that is vectors
+  //are really just Nx1 matrices
+  uint32_t N;
+  uint32_t M;
+  uint8_t dims;
+  uint8_t blas_type;
+  uint8_t blas_order;//value of type enum cblas_order
+  uint8_t blas_transpose;//value of type enum cblas_transpose
+  uint8_t blas_uplo;//"" cblas_uplo
+  uint8_t blas_diag;//"" cblas_diag
+  uint8_t blas_side;//"" cblas_side
+};
+//strict substruct of lisp_array
 struct lisp_simple_vector {
-  void *data;
+  union {
+    data *typed_vector;
+    sexp *sexp_vector;
+  };
   uint64_t len;
   uint8_t type;
 };
+//use to be declared inline, but I use get_double_val_unsafe for
+//cases where speed is important, so let gcc decide on inling
+static double get_double_val(sexp x){
+  switch(x.tag){
+    case sexp_real64:
+      return x.val.real64;
+    case sexp_uint64:
+    case sexp_uint32:
+    case sexp_uint16:
+    case sexp_uint8:
+      return (double)x.val.uint64;
+    case sexp_int64:
+    case sexp_int32:
+    case sexp_int16:
+    case sexp_int8:
+      return (double)x.val.int64;
+    default:
+      return NAN;
+  }
+}
 //int type=0;

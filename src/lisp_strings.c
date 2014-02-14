@@ -43,6 +43,118 @@ sexp lisp_substr(sexp str,sexp start,sexp end){
     return string_sexp(retval);
   }
 }
+//convert a string (const char */CORD) to an array of multibyte chars
+//stored as 64 bit integres
+sexp string_to_array(sexp str){
+  //I can't think of an easy way to do this on cords
+  const char *str=CORD_to_const_char_star(str.val.string->cord);
+  int len=str.val.string->len;
+  //makes a pesimistic  guess about the number of characters in str
+  sexp *new_array=xmalloc_atomic(sizeof(sexp)*len);
+  //test if str is multibyte, but I need to make sure I
+  //actually set and propagate the multibyte flag before
+  //I can do that  confidently
+  mbstate_t state;
+  size_t nbytes;
+  memset(&state,'\0',sizeof(mbstate_t));
+  int index=0,arr_index=0;
+  uint64_t mb_char=0;
+  while(index<len){
+    nbytes=mbrlen(str+index,len-index,&state);
+    if(nbytes == (size_t)-1 || nbytes == (size_t)-2){
+      //error
+      raise_simple_error(Efatal,"Error in string to array");
+    }
+    memcpy(&mb_char,str+index,nbytes);
+    index+=nbytes;
+    new_array[arr_index++]=uint64_sexp(mb_char);
+    mb_char=0;
+  }
+  //incomplete
+}
+struct cord_iter_data {
+  union {
+    char *result;//maybe this should be an sexp* ?
+    sexp *sexp_result;
+  };
+  sexp(*f)(sexp);
+  int index;
+};
+//these functions map strings -> general arrays
+static int cord_map_char_sexp(char c,struct cord_iter_data *data){
+  data->sexp_result[data->index]=data->f(c_char_sexp(c));
+  return 0;
+}
+static int cord_map_string_sexp(const char *s,struct cord_iter_data *data){
+  int i=0;
+  do {
+    data->sexp_result[data->index]=data->f(c_char_sexp(s[i]));
+  } while (s[++i]);
+  return 0;
+}
+static sexp cord_map(CORD s,sexp(*f)(sexp),int len){
+  struct cord_iter_data data;
+  data->result=xmalloc_atomic(len);
+  CORD_iter5(s,0,cord_map_char_sexp,cord_map_string_sexp,data);
+  //make a retval
+  return retval;
+}
+sexp string_map_sexp(sexp string,sexp map_fn){
+  assert(0);//fail if actually called, for now
+  //get a fn poiner from map_fn somehow
+  sexp(*f)(sexp)=map_fn.val.subr->comp.f1;
+  const char *str=string.val.string->string;
+  int len=string.val.string->len;
+  if(str[0]){
+    sexp *retval=xmalloc(len*sizeof(sexp));
+    int i;
+    for(i=0;i<len;i++){
+      retval[i]=f(c_char_sexp(str[i]));
+    }
+  } else {
+    return cord_map_string_sexp(str,f,len);
+  }
+}
+//these map strings->strings
+//horrible name but eh
+#define f_of_sexp_to_char(f,c)                  \
+  ((f(c_char_sexp(c))).val.c_char)
+static int cord_map_char(char c,struct cord_iter_data *data){
+  data->result[data->index++]=f_of_sexp_to_char(data->f,c);
+  return 0;
+}
+static int cord_map_string(const char *s,struct cord_iter_data *data){
+  int i=-1;
+  while(s[++i]){
+    data->result[data->index++]=f_of_sexp_to_char(data->f,s[i]);
+  }
+  return 0;
+}
+static lisp_string *cord_map(CORD s,sexp(*f)(sexp),int len){
+  struct cord_iter_data data;
+  data->result=xmalloc_atomic(len);
+  CORD_iter5(s,0,cord_map_char,cord_map_string,data);
+  lisp_string retval=xmalloc(sizeof(lisp_string));
+  retval->string=data->result;
+  retval->len=data->index;
+  return retval;
+}
+sexp string_map(sexp string,sexp map_fn){
+  assert(0);//fail if actually called, for now
+  //get a fn poiner from map_fn somehow
+  sexp(*f)(sexp)=map_fn.val.subr->comp.f1;
+  const char *str=string.val.string->string;
+  int len=string.val.string->len;
+  if(str[0]){
+    char *result=xmalloc_atomic(len);
+    int i;
+    for(i=0;i<len;i++){
+      result[i]=f_of_sexp_to_char;
+    }
+  } else {
+    return string_sexp(cord_map(str,f,len));
+  }
+}
 #if 0
 #includ "gc/ec.h"
 typedef struct CORD_stream *CORD_stream_ptr

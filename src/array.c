@@ -1,10 +1,44 @@
-/*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Functions for arrays, with versions for typed and untyped arrays
+
+Copyright (C) 2013-2014 Tucker DiNapoli
+
+This file is part of SciLisp.
+
+SciLisp is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+SciLisp is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "array.h"
 #include "prim.h"
 #include "unicode.h"
+//this is unsafe and should be used with care
+lisp_simple_vector *sexp_star_to_typed_vector(sexp *arr_data,int len){
+  lisp_simple_vector *retval=xmalloc(sizeof(lisp_simple_vector));
+  uint8_t type=arr_data[0].tag;
+  retval->type=type;
+  retval->len=len;
+  data *new_svector=xmalloc_atomic(sizeof(lisp_data)*len);
+  int i;
+  for(i=0;(i+4)<len;){
+    new_svector[i]=arr_data[i++].val;
+    new_svector[i]=arr_data[i++].val;
+    new_svector[i]=arr_data[i++].val;
+    new_svector[i]=arr_data[i++].val;
+  }    
+  EXCESS:
+  for(;i<len;){
+    new_svector[i]=arr_data[i++].val;
+  }
+  retval->typed_vector=new_svector;
+}
 //not sure how well this will work,unless I convert to a wide character string
 //so for now I will, but I'm not sure if I'll keep it this way or not
 lisp_array *string_to_array_c(lisp_string *string){

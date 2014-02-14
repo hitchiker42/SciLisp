@@ -10,6 +10,7 @@
 #include "cons.h"
 #include "prim.h"
 #include <assert.h>
+CORD lisp_name_to_c_name
 CORD c_codegen(sexp ast);
 CORD llvm_codegen(sexp ast);
 static CORD codegen(sexp ast,enum backend backend){

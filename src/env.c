@@ -1,12 +1,28 @@
-/*****************************************************************
- * Copyright (C) 2013-2014 Tucker DiNapoli                       *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Routines for symbols,obarrays,interning and environments
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "env.h"
 #include "frames.h"
 #include "hash.h"
 #include <ucontext.h>
+thread_local struct obarray *current_obarray;
+thread_local struct environment *current_env;
 symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv){
   if(!len){
     len=strlen(name);
@@ -24,8 +40,31 @@ symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv){
   retval->name_len=len;
   return retval;
 }
-symbol *make_new_symbol(const char *name,uint32_t len){
+symbol_name* make_symbol_name_no_copy
+(const char *name,uint32_t len,uint64_t hashv){
+  if(!len){
+    len=strlen(name);
+  }
+  if(!hashv){
+    hashv=hash_function(name,len);
+  }
+  //while struct symbol_name technically has a pointer in it
+  //gc obviously won't free it since it's allocated in the same chunk of memory
+  struct symbol_name *retval=xmalloc(sizeof(struct symbol_name));
+  retval->name=name;
+  retval->hashv=hashv;
+  retval->name_len=len;
+  return retval;
+}
+symbol *make_symbol(const char *name,uint32_t len){
   struct symbol_name *sym_name=make_symbol_name(name,len,0);
+  symbol *retval=xmalloc(sizeof(symbol));
+  retval->name=sym_name;
+  retval->next=NULL;
+  retval->plist=NIL;
+  return retval;
+}
+symbol *make_symbol_from_name(symbol_name *sym_name){
   symbol *retval=xmalloc(sizeof(symbol));
   retval->name=sym_name;
   retval->next=NULL;
@@ -37,7 +76,7 @@ sexp make_symbol_lisp(sexp sym_name){
     raise_simple_error(Etype,"Invalid argument to make-symbol expected a string");
   }
   return symref_sexp
-    (make_new_symbol
+    (make_symbol
      (CORD_to_const_char_star(sym_name.val.string->cord),
       sym_name.val.string->len));
 }
@@ -47,7 +86,7 @@ sexp gensym(){
   //probably better to include libatomic_ops
   //and do AO_fetch_and_add1full(&gensym_counter)
   snprintf(name,16,"#:G%d",gensym_counter++);
-  return symref_sexp(make_new_symbol(name,strlen(name)));
+  return symref_sexp(make_symbol(name,strlen(name)));
 }
 symbol *copy_symbol(symbol *sym,int copy_props){
   symbol *retval=xmalloc(sizeof(symbol));
@@ -57,7 +96,7 @@ symbol *copy_symbol(symbol *sym,int copy_props){
   retval->val=UNBOUND;
   return retval;
 }
-static obarray* obarray_new_rehash(obarray *ob){
+static obarray* obarray_rehash(obarray *ob){
   PRINT_MSG("Rehashing Obarray");
   uint32_t old_len=ob->size;
 #ifdef OB_POW_OF_2
@@ -98,7 +137,7 @@ static obarray* obarray_new_rehash(obarray *ob){
   }
   return ob;
 }
-obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor){
+obarray *make_obarray(uint32_t size,float gthreshold,float gfactor){
 #ifdef MULTI_THREADED
   obarray *ob=xmalloc(sizeof(struct obarray)+
                                         sizeof(pthread_rwlock_t));
@@ -120,7 +159,7 @@ static inline int maybe_rehash_obarray(obarray *ob){
   ob->entries++;
   ob->capacity+=ob->capacity_inc;
   if(ob->capacity>=ob->gthreshold){
-    obarray_new_rehash(ob);
+    obarray_rehash(ob);
     return 1;
   }
   return 0;
@@ -129,13 +168,13 @@ static inline int maybe_rehash_obarray(obarray *ob){
 //assumes that the symbol argument is not in the obarray already 
 void c_intern_unsafe(obarray *ob,symbol* new){
   uint32_t index=new->name->hashv % ob->size;
-  struct symbol *sym;
-  if(!(new=ob->buckets[index])){
-    ob->buckets[index]=sym;
-    sym->next=0;
+  //  struct symbol *sym;
+  if(!(ob->buckets[index])){
+    ob->buckets[index]=new;
+    new->next=0;
   } else {
-    sym->next=ob->buckets[index];
-    ob->buckets[index]=sym;
+    new->next=ob->buckets[index];
+    ob->buckets[index]=new;
   }
   maybe_rehash_obarray(ob);
   return;
@@ -185,8 +224,12 @@ symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob){
   multithreaded_only(pthread_rwlock_unlock(ob->lock));
   return NULL;
 }
-    
-symbol* c_intern(const char* name,uint32_t len,obarray *ob){
+symbol* lookup_symbol(const char* name,obarray *ob){
+  symbol_name* sym_name=make_symbol_name(name,0,0);
+  return obarray_lookup_sym(sym_name,ob);
+}
+static inline symbol *c_intern_maybe_copy(const char *name,uint32_t len,
+                                          obarray *ob,int copy){
   if(!ob){
     ob=current_obarray;
   }
@@ -213,7 +256,9 @@ symbol* c_intern(const char* name,uint32_t len,obarray *ob){
  make_symbol:
   multithreaded_only(pthread_rwlock_unlock(ob->lock));
   //allocate the name seperately so we can do it atomically(gc atomically)
-  struct symbol_name *new_symbol_name=make_symbol_name(name,len,hashv);
+  struct symbol_name *new_symbol_name = 
+    (copy ? make_symbol_name(name,len,hashv) :
+     make_symbol_name_no_copy(name,len,hashv));
   struct symbol *retval=xmalloc(sizeof(struct symbol));
   retval->interned=1;
   retval->name=new_symbol_name;
@@ -227,6 +272,12 @@ symbol* c_intern(const char* name,uint32_t len,obarray *ob){
   maybe_rehash_obarray(ob);
   multithreaded_only(pthread_rwlock_unlock(ob->lock);)
   return (struct symbol *)retval;
+}
+symbol* c_intern(const char* name,uint32_t len,obarray *ob){
+  return c_intern_maybe_copy(name,len,ob,1);
+}
+symbol* c_intern_no_copy(const char* name,uint32_t len,obarray *ob){
+  return c_intern_maybe_copy(name,len,ob,0);
 }
 //add unintern later
 sexp lisp_intern(sexp sym_name,sexp ob){
@@ -291,6 +342,10 @@ void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
           //}
         exit(1);
       default://re raise the signal with the default handler,
+        fprintf(stderr,"Signal number %d raised, which is:\n%s"
+                "\nCurrent error_num is %d, which means:\n%s\n",
+                signo,strsignal(signo),current_env->error_num,
+                lisp_strerror(current_env->error_num));
         //maybe not the best, but it'll do for now
         signal(signo,SIG_DFL);
         raise(signo);
@@ -322,8 +377,10 @@ void *init_environment_pthread(void* arg){
   return f(args[1]);
 }
 void init_environment(void){
-  current_obarray=global_obarray;//set to a new obarray with set_package (or similar)
-  current_env=xmalloc(sizeof(environment));
+  current_env=xmalloc(sizeof(struct environment));
+//set to a new obarray with set_package (or similar)
+  current_obarray=global_obarray;
+  current_env->sigstack=xmalloc_atomic(sizeof(stack_t));
   current_env->sigstack->ss_sp=xmalloc_atomic(SIGSTKSZ);
   if(!current_env->sigstack->ss_sp){
     fprintf(stderr,"error, virtual memory exhausted\n");
@@ -331,18 +388,23 @@ void init_environment(void){
   }
   current_env->sigstack->ss_size=SIGSTKSZ;
   sigaltstack(current_env->sigstack,NULL);
-  current_env->frame_stack=GC_malloc_ignore_off_page(frame_stack_size);
+  current_env->frame_stack=
+    GC_malloc_ignore_off_page(frame_stack_size);//*sizeof(frame));
   current_env->frame_ptr=current_env->frame_stack;
-  current_env->frame_top=current_env->frame_ptr+(frame_stack_size/sizeof(frame*));
-  current_env->data_stack=GC_malloc_ignore_off_page(data_stack_size);
+  current_env->frame_top=
+    current_env->frame_ptr+(frame_stack_size);
+  current_env->data_stack=
+    GC_malloc_ignore_off_page(data_stack_size);//*sizeof(sexp));
   current_env->data_ptr=current_env->data_stack;
-  current_env->data_top=current_env->data_ptr+(data_stack_size/sizeof(sexp*));
-  current_env->bindings_stack=GC_malloc_ignore_off_page(bindings_stack_size);
+  current_env->data_top=current_env->data_ptr+(data_stack_size);
+  current_env->bindings_stack=
+    GC_malloc_ignore_off_page(bindings_stack_size);//*sizeof(binding));
   current_env->bindings_ptr=current_env->bindings_stack;
-  current_env->bindings_top=current_env->bindings_ptr+(bindings_stack_size/sizeof(binding*));
-  current_env->call_stack=GC_malloc_ignore_off_page(call_stack_size);
+  current_env->bindings_top=current_env->bindings_ptr+(bindings_stack_size);
+  current_env->call_stack=
+    GC_malloc_ignore_off_page(call_stack_size);
   current_env->call_ptr=current_env->call_stack;
-  current_env->call_top=current_env->call_ptr+(call_stack_size/sizeof(subr_call*));
+  current_env->call_top=current_env->call_ptr+(call_stack_size);
   //gc sets everything to 0, every other field needs to be 0, so we're done
   return;
 }

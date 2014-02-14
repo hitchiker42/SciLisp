@@ -9,25 +9,26 @@ COMMON_INCLUDES =common.h debug.h types.h env.h
 #	hash.c hash_fn.c lex.yy.c lisp_macros.c lisp_math.c lisp_system.c \
 #	lisp_types.c parser.c print.c regex.c sequence.c SFMT.a tree.c unicode.c #setf.c
 FRONTEND_SRC = frontend.c
-STD_LIB_SRC = array.c bignum.c c_codegen.c ccall.c cffi.c cons.c env.c emacs_regex.c eval.c \
-	format.c hash.c lex.yy.c interpreter.c lisp_math.c lisp_system.c \
-	lisp_types.c parser.c print.c prim.c regex.c sequence.c tree.c unicode.c #setf.c
-MOSTLYCLEANFILES=lex.yy.c lex.yy.h
+STD_LIB_SRC = array.c bignum.c c_codegen.c ccall.c cffi.c cons.c cord.c env.c\
+	 emacs_regex.c eval.c format.c hash.c lex.yy.c interpreter.c lisp_math.c \
+	lisp_system.c lisp_types.c parser.c print.c prim.c regex.c sequence.c \
+	 tree.c unicode.c #setf.c
+MOSTLYCLEANFILES=read.c read_lex.h
 CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h
-DISTCLEANFILES=$(CLEAN_FILES) fnv_hash
+DISTCLEANFILES=$(CLEAN_FILES) get_hash
 #BACKEND_SRC = c_codegen.c
 INCLUDE_FLAGS = -I$$PWD/include -include $$PWD/../config.h
 #Automake variablesA
 AM_CPPFLAGS=$(INCLUDE_FLAGS) -D_GNU_SOURCE
 #AM_CFLAGS=-rdynamic -fPIC -Wl,-rpath="$$PWD/gc/lib $$PWD/bignum/lib" 
 AM_CFLAGS=-rdynamic -L$$PWD/lib
-BUILT_SOURCES =  fnv_hash prim.c prim.h lex.yy.c lex.yy.h
+BUILT_SOURCES =  get_hash prim.c prim.h read.c read_lex.h
 #BUILT_SOURCES =  fnv_hash prim.c prim.h read.c read.h
 #libffi and gc are subpackages
 SUBDIRS = SFMT gc/bdwgc libffi
 #Things to be built
 bin_PROGRAMS = SciLisp
-read_test_SOURCES = read_test.c env.c cons.c print.c
+read_test_SOURCES = read_test.c env.c cons.c print.c cord.c format.c
 SciLisp_LDADD = SFMT/libSFMT.la libSciLisp.la
 SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)
 #SciLisp_CFLAGS= $(AM_CFLAGS)
@@ -37,7 +38,17 @@ libSciLisp_la_LIBADD = SFMT/libSFMT.la gc/bdwgc/libgc_convenience.la \
 	gc/bdwgc/libcord_convenience.la libffi/libffi_convenience.la
 #libSciLisp_la_includedir=$(includedir)/SciLisp
 #libSciLisp_la_HEADERS = $(SCILISP_INCLUDES)
+
+#Explicit targets
+#make assembly files
+%.s : %.c 
+	$(CC) $(CFLAGS) -fverbose-asm $<
 test: SciLisp_test
+read_test_src := read_test.c env.c read.c print.c 
+read.c: read.lex
+	flex read.lex
+read_test: $(read_test_src:%.c=%.o)
+	$(CC) -std=gnu99 -lgc -lcord -I$$PWD/include $^ -o read_test
 read_test: $(read_test_SOURCES)
 	$(CC) -std=gnu99 $(INCLUDE_FLAGS) $^ -o read_test
 #gc/bdwgc/libcord.la gc/bdwgc/libgc.la: gc/bdwgc/configure

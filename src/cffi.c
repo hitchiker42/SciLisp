@@ -216,3 +216,22 @@ void **make_closure(sexp lambda,sexp fun_env,int numargs){
   }
 }
 #define get_closure_fun(closure) (closure->fun)
+//for things like map and reduce
+/*static inline sexp call_many_with_2(funcall f,sexp a,sexp b){
+  sexp args[2]={a,b};
+  return f.fmany(2,args);
+}
+static inline sexp  call_many_with_1(funcall f,sexp a){
+  sexp args[1]={a};
+  return f.fmany(1,args);
+}
+static inline sexp call_many_with_2_implicit(sexp a,sexp b){
+  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
+  sexp args[2]={a,b};
+  return f(2,args);
+}
+static inline sexp call_many_with_1_implicit(sexp a,sexp b){
+  sexp (*f)(uint64_t,sexp*)=current_env->data_ptr->val.fun->comp.fmany;
+  sexp args[1]={a};
+  return f(1,args);
+  }*/

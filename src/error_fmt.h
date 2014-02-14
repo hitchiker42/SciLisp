@@ -49,7 +49,7 @@
   ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r or %r"    \
                ", but got %r",fun,expected1,expected2,tag_name(got)),   \
-    type_error_str;}}
+    type_error_str;})
 #define format_type_error_opt2_named(fun,name,expected1,expected2,got)  \
   ({CORD type_error_str;                                                \
   CORD_sprintf(&type_error_str,"type error in %r, expected %r,%r or nothing" \

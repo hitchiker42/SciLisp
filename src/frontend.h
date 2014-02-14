@@ -28,14 +28,12 @@ static const char *SciLisp_Banner;
 //globals, but only ever set once in a locked thread (getopt) or read
 static int no_banner=0;
 static int no_copyright=0;
-char *line_read;
 symbol *lisp_ans_ptr;
-int parens_matched(const char* line,int parens)__attribute__((pure));
-int lisp_getline(FILE* outfile,char* filename);
-void read_eval_print_loop();
-void read_eval_print_loop() __attribute__((noreturn));
+//int parens_matched(const char* line,int parens)__attribute__((pure));
+//int lisp_getline(FILE* outfile,char* filename);
+void repl_simple(sexp(*eval_fun)(sexp,env_ptr)__attribute__((noreturn));
 //the repl isn't multithreaded (at least for now)
-static sexp (*eval_fun)(sexp,env_ptr)=NULL;
+//static sexp (*eval_fun)(sexp,env_ptr)=NULL;
 /*just to note I didn't write this I got it from
   http://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=SciLisp*/
 static const char *SciLisp_Banner=
@@ -83,11 +81,7 @@ static void SciLisp_version(int exitCode){
 }
 //static global, because only used in the repl
 #ifdef HAVE_READLINE
-int lisp_readline(FILE* outfile,char* filename);
-static int(*lisp_readline_fun)(FILE*,char*)=lisp_readline;
 #include <readline/readline.h>
 #include <readline/history.h>
-#else
-static int(*lisp_readline_fun)(FILE*,char*)=lisp_getline;
-#endif
+void readline_repl(sexp(*eval_fun)(sexp,env_ptr)__attribute__((noreturn));
 #endif

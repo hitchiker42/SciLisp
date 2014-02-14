@@ -16,6 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
+//TODO: Split into env.c/h and obarray.c/h
+//or atleast env.h and env.c/obarray.c
 #ifndef __ENV_H__
 #define __ENV_H__
 //#include "common.h"
@@ -65,13 +67,15 @@ struct binding {
 */
 //the signaling push/pop macros might need to use a statement expression
 //rather than a ?: operator
-#define push_generic_signal(stack,env,data)                             \
-  ({if(env->stack##_ptr>=env->stack##_top){                             \
-      env->error_num=2;                                                 \
-    raise(SIGUSR1);                                                     \
-    }                                                                   \
-    env->stack##_index++;                                               \
-    *env->stack##_ptr++=data;})
+#define push_generic_signal(stack,env,data)     \
+  ({HERE();                                     \
+    if(env->stack##_ptr>=env->stack##_top){     \
+      env->error_num=2;                         \
+      raise(SIGUSR1);                           \
+    }                                           \
+    HERE();                                     \
+    env->stack##_index++;                       \
+      *(env->stack##_ptr++)=data;})
 #define push_generic_no_signal(stack,env,data)                          \
   (env->stack##_ptr>=env->stack##_top?NULL:                             \
    env->stack##_index++,*env->stack##_ptr++=data,1)
@@ -79,11 +83,11 @@ struct binding {
   (env->stack##_index++,*env->stack##ptr++=data)
 #define pop_generic_signal(stack,env)                                   \
   ({if(env->stack##_ptr<=env->stack##_stack){                           \
-    env->error_num=2;                                                   \
-    raise(SIGUSR1):                                                     \
+      env->error_num=2;                                                 \
+      raise(SIGUSR1);                                                   \
     }                                                                   \
     env->stack##_index--;                                               \
-    *env->stack##_ptr--})
+    *env->stack##_ptr--;})
 #define pop_generic_no_signal(stack,env,data)                           \
   (env->stack##_ptr<=env->stack##_stack?NULL:                           \
    env->stack##_size--,data=*env->stack##_ptr--,1)
@@ -146,7 +150,7 @@ struct environment {
   subr_call *call_stack;//call stack
   subr_call *call_ptr;//stack pointer
   subr_call *call_top;
-  //holds function arguments mostly
+  //holds function arguments mostly (also used by reader)
   sexp *data_stack;//data/function argument stack
   sexp *data_ptr;//stack ptr
   sexp *data_top;
@@ -191,10 +195,6 @@ static void unwind_lex_env(environment *env,uint32_t num_bindings){
   }
   }*/
 obarray *global_obarray;
-//current dynamic environment
-static thread_local struct obarray *current_obarray;
-static thread_local struct environment *current_env;
-static thread_local frame_addr top_level_frame;
 //extern uint64_t bindings_stack_size;
 //extern uint64_t handler_stack_size;
 symbol *copy_symbol(symbol *sym,int copy_props);
@@ -213,17 +213,41 @@ struct obarray {
 #endif
   //32 bits of padding
 };
-symbol* lookup_symbol(struct obarray *ob,const char* name);
-symbol *lookup_symbol_global(char *restrict name);
-obarray *make_obarray_new(uint32_t size,float gthreshold,float gfactor);
+/*
+  These need to be modified to have a more consistant interface
+  and allow for specifying a multibyte string, or not
+ */
+symbol* lookup_symbol(const char* name,struct obarray *ob);
+//something like a default arg for lookup_symbol
+#define lookup_symbol_global(name) lookup_symbol(name,global_obarray)
+obarray *make_obarray(uint32_t size,float gthreshold,float gfactor);
 symbol *c_intern(const char* name,uint32_t len,struct obarray *ob);
+symbol *c_intern_no_copy(const char* name,uint32_t len,obarray *ob);
 symbol *obarray_lookup_sym(symbol_name *sym_name,obarray *ob);
 sexp lisp_intern(sexp sym_or_name,sexp ob);
 void c_intern_unsafe(obarray *ob,symbol* new);
 symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv);
+symbol_name* make_symbol_name_no_copy(const char *name,uint32_t len,
+                                      uint64_t hashv);
+symbol* make_symbol_from_name(symbol_name *name);
+void c_signal_handler(int signo,siginfo_t *info,void *context_ptr);
 //needs to be in a global header, and xmalloc isn't defined in types.h
 static inline lisp_string *make_string(const char *str){
   lisp_string *retval=xmalloc(sizeof(lisp_string));
+  if(str[0] == '\0'){
+    *retval=(lisp_string){.cord=str,.len=(CORD_len(str))};
+  } else {
+    *retval=(lisp_string){.string=str,.len=(strlen(str))};
+  }
+  return retval;
+}
+//should probably make the normal make_string this, but I don't want to
+//go through and replace things right now
+static inline lisp_string *make_string_len(const char *str,uint32_t len){
+ lisp_string *retval=xmalloc(sizeof(lisp_string));
+  if(!len){
+    len=CORD_len(str);
+  }
   if(str[0] == '\0'){
     *retval=(lisp_string){.cord=str,.len=(CORD_len(str))};
   } else {

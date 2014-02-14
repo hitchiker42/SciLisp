@@ -1,7 +1,21 @@
-/*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Header file for lisp hash tables
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #ifndef HASH_H_
 #define HASH_H_
 #include "common.h"
@@ -51,7 +65,16 @@ sexp hashtable_shrink_threshold(sexp ht)__attribute__((pure));
 sexp hashtable_shrink_factor(sexp ht)__attribute__((pure));
 /* If ENTRY matches an entry already in the hash table, return the
    entry from the table.  Otherwise, return NIL.  */
-CORD hashtable_test_fn_name(sexp ht);
+static const char *hashtable_test_fn_name(int test_fn){
+  switch(test_fn){
+    case(hash_eq):
+      return "eq";
+    case(hash_eql):
+      return "eql";      
+    case(hash_equal):
+      return "equal";
+  }
+}
 sexp hashtable_test_fn(sexp ht);
 sexp hashtable_get_entry(sexp ht, sexp key);
 sexp hashtable_add_entry(sexp ht,sexp key,sexp value,sexp add_opt);

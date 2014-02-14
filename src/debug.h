@@ -1,7 +1,22 @@
-/*****************************************************************
- * Copyright (C) 2013 Tucker DiNapoli                            *
- * SciLisp is Licensed under the GNU General Public License V3   *
- ****************************************************************/
+/* Header file defining debug macros, if DEBUG is undefined
+   or NDEBUG is defined the macro are noops
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include <assert.h>
 #include <execinfo.h>
 #if (defined (DEBUG)) && !(defined (NDEBUG))
@@ -24,12 +39,24 @@
 #define LEX_MSG(string)
 #define LEX_FMT(string,fmt...)
 #endif
+
+/*
+  static assert, there's compiler support for static_asserts, but I like 
+  mine, since you can specify something of an error message(as long as
+  your message is a valid c identifier)
+ */
 #ifdef static_assert
 #undef static_assert
 #endif
 #define static_assert(val,error)                \
   ({static const char error[(val)?1:-1];;})
-//this will at least warn of type errors, probably
+/*
+  assert that variable is of the type type, or can be
+  cast to it. I can't really think of a way to prevent
+  implicit casting, but in most use cases (i.e pointer casts)
+  there should at least be a comiler warning
+  
+ */
 #define type_assert(type,variable)              \
   ({type error_test=variable;;})
 #define size_assert(size,value)                 \
@@ -46,6 +73,10 @@ static void print_trace(void){
   }
   free(strings);
 }
+/*
+  The debugging rountines are parameterised by a print function, allowing debugging
+  to be turned off at runtimes (although it won't change the performance)
+ */
 static void CORD_ndebug_printf(CORD fmt __attribute__((unused)),...){
   return;
 }
@@ -64,6 +95,7 @@ static void default_debug_printf(CORD fmt,...){
   vfprintf(stderr,fmt,ap);
   return;
 }
+#include "error.h"
 //not quite debugging but it fits best here
 #define return_errno(fn_name)                                           \
   int ___errsave=errno;                                                 \
@@ -71,4 +103,27 @@ static void default_debug_printf(CORD fmt,...){
   CORD ___errorstr;                                                     \
   CORD_sprintf(&___errorstr,"%s failed with error number %d, %s",fn_name,___errsave,___errmsg); \
   return error_sexp(___errorstr)
+
+static const char * lisp_strerror(int errnum){
+  //I think this works, but I need to test to make sure
+  if(errnum>=1&&errnum<=133){//errnum is aliased to a c errno value
+    char *buf;
+    size_t buflen=0;
+    strerror_r(errnum,buf,buflen);
+    return buf;
+  } else {
+    switch(errnum){
+      case ELISP_STACK_OVERFLOW:
+        return "Lisp stack overflow";
+      default:
+        return "Lisp specific error numbers are currently undocumented";
+    }
+  }
+}
 #define CAT(x,rest...) x##rest
+
+
+
+
+
+

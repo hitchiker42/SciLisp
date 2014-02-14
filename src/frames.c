@@ -18,9 +18,10 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 
 //look for a frame, don't unwind, ignore proctect flags
+#include "common.h"
 frame_addr frame_search(uint64_t tag){
   env_ptr env=current_env;
-  frame_addr ptr=env->frame;
+  frame_addr ptr=env->frame_ptr;
   for(ptr=env->frame_ptr;ptr>=env->frame_stack;ptr--){
     if(ptr->tag == tag){
       return ptr;
@@ -30,10 +31,10 @@ frame_addr frame_search(uint64_t tag){
 }
 #define unwind_stacks(env)                      \
   unwind_bindings(env,(env->bindings_index)-(env->frame_ptr->bindings_index)); \
-  unwind_call_stack(env,(env->call_index-env)-(env->frame_ptr->call_index)); \
+  unwind_call_stack(env,(env->call_index)-(env->frame_ptr->call_index)); \
   env->frame_index=env->frame_ptr->frame_index;
 void __attribute__((noreturn)) unwind_to_frame(env_ptr env,frame_addr fr){
-  while(env->frame_ptr != fr && env->frame_ptr->tag != UNWIND_PROTECT_TAG){
+  while(env->frame_ptr != fr && env->frame_ptr->tag != (uint64_t)UNWIND_PROTECT_TAG){
     env->frame_ptr--;    
   }
   unwind_stacks(env);
@@ -41,7 +42,7 @@ void __attribute__((noreturn)) unwind_to_frame(env_ptr env,frame_addr fr){
 }
 void __attribute__((noreturn)) unwind_to_tag(env_ptr env,uint64_t tag){
   while(env->frame_ptr->tag != tag && 
-        env->frame_ptr != UNWIND_PROTECT_TAG){
+        (uint64_t)env->frame_ptr != (uint64_t)UNWIND_PROTECT_TAG){
     env->frame_ptr--;
   }
   unwind_stacks(env);
@@ -54,7 +55,7 @@ void __attribute__((noreturn)) unwind_with_value(uint64_t tag,sexp value){
 }
 void unwind_call_stack(env_ptr env,uint64_t index){
   env->call_ptr=env->call_ptr-index;
-  env->call_index=env->call_ptr-index;
+  env->call_index=(uint64_t)env->call_ptr-index;
   env->lex_env=env->call_ptr->lex_env;
 }
 void unwind_bindings(env_ptr env,uint64_t n){
