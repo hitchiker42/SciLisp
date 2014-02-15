@@ -44,7 +44,7 @@ static void CORD_skip_line(CORD_pos pos){
   return;
 }
 //takes some advantage of cords, I think
-static char *CORD_read_delim(CORD_pos pos,char delim){
+static const char *CORD_read_delim(CORD_pos pos,char delim){
   CORD str=CORD_pos_to_cord(pos);
   int len;
   while(CORD_pos_valid(pos)){
@@ -57,46 +57,46 @@ static char *CORD_read_delim(CORD_pos pos,char delim){
   str=CORD_substr(str,0,len);
   return CORD_to_const_char_star(str);
 }
-static char *CORD_read_span(CORD_pos pos,char *accept){
+static const char *CORD_read_span(CORD_pos pos,char *accept){
   CORD str=CORD_pos_to_cord(pos);
   size_t len=CORD_pos_span(pos,accept);
   str=CORD_substr(str,0,len);
   return CORD_to_const_char_star(str);
 }
-static char arr_read_char(array_stream *input){
-  return char_arr->arr[char_arr->index++];
+static char arr_read_char(array_stream *arr){
+  return arr->arr[arr->index++];
 }
-static char arr_peek_char(array_stream *input){
-  return char_arr->arr[char_arr->index];
+static char arr_peek_char(array_stream *arr){
+  return arr->arr[arr->index];
 }
-static void arr_unread_char(array_stream *input){
-  char_arr->index--;
+static void arr_unread_char(array_stream *arr){
+  arr->index--;
 }
-static char* arr_read_str(array_stream *input,int n){
+static char* arr_read_str(array_stream *arr,int n){
   char *str=xmalloc_atomic(n);
-  memcpy(str,char_arr->arr,MAX(n,char_arr->len));
+  memcpy(str,arr->arr,MAX(n,arr->len));
   return str;
 }
 //assume null terminated array
-static void arr_skip_line(array_stream *input){
-  char *endptr=strchr(char_arr->arr,'\n');
-  char_arr->index=(char_arr->arr-endptr)+1;
-  char_arr->arr=endptr+1;
+static void arr_skip_line(array_stream *arr){
+  char *endptr=strchr(arr->arr,'\n');
+  arr->index=(arr->arr-endptr)+1;
+  arr->arr=endptr+1;
 }
-static char *arr_read_delim(array_stream *input,char delim){
-  char *endptr=strchr(char_arr->arr,delim);
-  char *str=xmalloc_atomic(endptr-char_arr->arr+1);
-  memcpy(str,char_arr->arr,endptr-char_arr->arr);
-  str[endptr-char_arr->arr]='\0';
-  char_arr->index=(endptr-char_arr->arr)+1;
-  char_arr->arr=endptr+1;
+static char *arr_read_delim(array_stream *arr,char delim){
+  char *endptr=strchr(arr->arr,delim);
+  char *str=xmalloc_atomic(endptr-arr->arr+1);
+  memcpy(str,arr->arr,endptr-arr->arr);
+  str[endptr-arr->arr]='\0';
+  arr->index=(endptr-arr->arr)+1;
+  arr->arr=endptr+1;
   return str;
 }
-static char *arr_read_span(array_stream *input,char *accept){
-  size_t len=strspn(input->arr,accept);
+static char *arr_read_span(array_stream *arr,char *accept){
+  size_t len=strspn(arr->arr,accept);
   char *retval=xmalloc_atomic(len);
-  memcpy(retval,input->arr+input->index,len);
-  intput->index+=len;
+  memcpy(retval,arr->arr+arr->index,len);
+  arr->index+=len;
   return retval;
 }
 typedef struct read_stream {
@@ -132,8 +132,8 @@ static char *stream_read_delim(read_stream *stream,char delim){
   char *str=xmalloc_atomic(16);
   char c;
  LOOP:for(;i<size;i++){
-    c=str[i++]=getc(stream);
-    if(c==delim || c=='\0' || c == EOFk){
+    c=str[i++]=getc(stream->stream);
+    if(c==delim || c=='\0' || c == EOF){
       break;
     }
   }
@@ -151,9 +151,11 @@ static char *stream_read_span(read_stream *stream,char *accept){
   CORD_ec buf;
   CORD_ec_init(buf);
   char c;
-  while(accept[(c==getc(stream))]){
+  while(accept[(c==getc(stream->stream))]){
     CORD_ec_append(buf,c);
   }
+  return CORD_ec_to_char_star(buf);
+}
   
 static char(*read_char_funs[3])(void*) ={(char(*)(void*))arr_read_char,
                                          (char(*)(void*))CORD_read_char,
@@ -170,31 +172,35 @@ static void(*skip_line_funs[3])(void*)  = {(void(*)(void*))arr_skip_line,
 static char*(*read_str_funs[3])(void*,int)={(char*(*)(void*,int))arr_read_str,
                                             (char*(*)(void*,int))CORD_read_str,
                                             (char*(*)(void*,int))stream_read_str};
-static char*(*read_delim_funs[3])(void*)  = {(char*(*)(void*,char))arr_read_line,
-                                             (char*(*)(void*,char))CORD_read_line,
-                                            (char*(*)(void*.char))stream_read_line};
+ static char*(*read_delim_funs[3])(void*,char)  = {(char*(*)(void*,char))arr_read_delim,
+                                             (char*(*)(void*,char))CORD_read_delim,
+                                                   (char*(*)(void*,char))stream_read_delim};
+  static char*(*read_span_funs[3])(void*,char*)  = {(char*(*)(void*,char*))arr_read_span,
+                                             (char*(*)(void*,char*))CORD_read_span,
+                                                   (char*(*)(void*,char*))stream_read_span};
 enum read_input_types {
   string_read_input=0,
   cord_read_input=1,
   stream_read_input=2,
 };
+ 
 static inline char read_char(read_input *input){
-  read_char_funs[input->input_type](input->input);
+  return read_char_funs[input->input_type](input->input);
 }
 static inline void unread_char(read_input *input){
   unread_char_funs[input->input_type](input->input);
 }
 static inline char peek_char(read_input *input){
-  peek_char_funs[input->input_type](input->input);
+  return peek_char_funs[input->input_type](input->input);
 }
 static inline void skip_line(read_input *input){
   skip_line_funs[input->input_type](input->input);
 }
 static inline char *read_str(read_input *input,int n){
-  read_str_funs[input->input_type](input->input,n);
+  return read_str_funs[input->input_type](input->input,n);
 }
 static inline char *read_delim(read_input *input,char delim){
-  read_delim_funs[input->input_type](input->input);
+  return read_delim_funs[input->input_type](input->input,delim);
 }
 static inline char *read_line(read_input *input){
   return read_delim(input,'\n');

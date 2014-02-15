@@ -5,7 +5,7 @@ llvm_value lex_lookup(lex_binding *lex_env,symbol *sym){
     if((*lex_env).sym ==sym){
       return (*lex_env).val;
     }
-    lex_env++;
+    lex_env=lex_env->next;
   }
   return NULL;
 }
@@ -34,8 +34,8 @@ llvm_value llvm_build_atom(sexp expr,llvm_env_ptr env){
     }
   }
 }
-      
-      
+
+
 //(if cond then &rest else)
 llvm_value llvm_build_if(sexp args,llvm_env_ptr env){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){
@@ -86,7 +86,7 @@ llvm_value llvm_build_and(sexp exprs,llvm_env_ptr env){
       llvm_position_at_end_of_bb(env,cur_block);
       cur_value=llvm_build(XCAR(exprs),env);
       exprs=XCDR(exprs);
-      cur_value_is_true=llvm_is_true(cur_val,env);      
+      cur_value_is_true=llvm_is_true(cur_val,env);
       llvm_build_cord_br(env->builder,cur_value_is_true,next_block,end_block);
       phi_vals[i]=llvm_nil;
       phi_blocks=cur_block;
@@ -95,7 +95,7 @@ llvm_value llvm_build_and(sexp exprs,llvm_env_ptr env){
     llvm_position_before_bb(env,cur_block);
     cur_value=llvm_build(XCAR(exprs),env);
     exprs=XCDR(exprs);
-    cur_value_is_true=llvm_is_true(cur_val,env);      
+    cur_value_is_true=llvm_is_true(cur_val,env);
     llvm_build_cond_br(env->builder,cur_value_is_true,next_block,end_block);
     phi_vals[i]=cur_value;
     phi_blocks=cur_block;
@@ -104,7 +104,7 @@ llvm_value llvm_build_and(sexp exprs,llvm_env_ptr env){
     llvm_value retval=llvm_build_phi(env->builder,llvm_sexp,"Result");
     llvm_add_incoming(retval,phi_vals,phi_blocks,len);
     return retval;
-  }     
+  }
 }
 //(while cond body...)
 llvm_val llvm_build_while(sexp args,llvm_env_ptr env){
@@ -132,4 +132,3 @@ llvm_val llvm_build_let(sexp args,llvm_env_ptr env){
     raise_simple_error("Error too few arguments to let form");
   }
 }
-    

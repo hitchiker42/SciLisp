@@ -22,14 +22,19 @@ AC_CHECK_PROG(HAVE_EMACS,emacs,yes,
   [AC_MSG_WARN([Emacs not found in default PATH, \
  you will be unable to modify SciLisp primitives])] no)
 # Checks for libraries.
+# Required libraries: libpthread, libdl, libm, libgmp, libmpfr
+# Optional libraries: libreadline, libpcre
+# Provided libraries: libgc, libcord, libffi
 dnl AC_CHECK_LIB([clang], [clang_visitChildren])
+dnl I seem to assume these will pass, I should probaly
+dnl fix that, since I kinda need these two libraries
 AC_CHECK_LIB([dl], [dlsym])
+AC_CHECK_LIB([pthread], [pthread_create])
+AC_CHECK_LIB([m], [cos])
 AC_CHECK_LIB([gmp], [__gmpz_add],,
                     [AC_MSG_ERROR([Error, required library gmp not found])])
-AC_CHECK_LIB([m], [cos])
 AC_CHECK_LIB([mpfr], [mpfr_init2],,
                     [AC_MSG_ERROR([Error, required library mpfr not found])])
-AC_CHECK_LIB([pthread], [pthread_create])
 AC_ARG_WITH([readline],
   [AS_HELP_STRING([--with-readline],
     [Use readline for command line editing (default=check)])],
@@ -42,8 +47,24 @@ AS_IF([test "x$with_readline" != xno],
                 [LIBS="$LIBS -lreadline"]])],
     [if test "x$with_readline" != xcheck; then
         AC_MSG_FAILURE(
-          [--with-readline was given, but test for readline failed])
+          [--with-readline was given, but libreadline not found])
      fi])
+AC_ARG_WITH([pcre],
+  [AS_HELP_STRING([--with-pcre],
+    [Enable perl compatiable regular expressions, in additon to default
+    emacs style regular expressions. (default=check)])],
+  [],
+  [with_pcre=check])
+AS_IF([test "x$with_pcre" != xno],
+  [AC_CHECK_LIB([pcre], [pcre_compile],
+     [AC_DEFINE([HAVE_PCRE], [1],
+                [Define if pcre support is enabled])
+                [LIBS="$LIBS -lpcre"]])],
+    [if test "x$with_pcre" != xcheck; then
+        AC_MSG_FAILURE(
+          [--with-pcre was given, but libpcre not found])
+     fi])
+#User specified options
 AC_ARG_WITH([gc-threads],
   [AS_HELP_STRING([--with-gc-threads],
     [enable multithreaded gc (default=yes)])],
@@ -66,10 +87,12 @@ AS_IF([test "x$enable_threads" = xyes],
   [AC_DEFINE([MULTI_THREADED], [1], [Define if using threads])])
 AC_ARG_WITH([thread-local-alloc],
   [AS_HELP_STRING([--with-thread-local-alloc],
-    [Use thread local allocation, default no.
+    [Use thread local allocation, default yes if multithreaded.
     Set to force to enable in single threaded programs])],
     [],
-    [with_thread_local_alloc=no])
+    [AS_IF([test "x$enable_threads" = xyes],
+    [with_thread_local_alloc=yes],
+    [with_thread_local_alloc=no])])
 AS_IF([test "x$with_thread_local_alloc" = xforce],
   [AC_DEFINE([GC_THREAD_LOCAL,[1],[Set if using thread local allocation]])],
   [test "x$with_thread_local_alloc" = xyes && "x$enable_threads" = xyes],
@@ -98,7 +121,7 @@ AC_ARG_ENABLE([optimized],
   [enable_optimized=no])
 AS_IF([test "x$enable_optimized" = xyes],
   [CFLAGS="${CFLAGS} -O3 -march=native"])
-AC_CHECK_HEADERS([fcntl.h float.h inttypes.h langinfo.h libintl.h limits.h locale.h stddef.h stdint.h stdlib.h string.h sys/file.h sys/time.h unistd.h wchar.h wctype.h endian.h])
+AC_CHECK_HEADERS([fcntl.h float.h inttypes.h langinfo.h libintl.h limits.h locale.h stddef.h stdint.h stdlib.h string.h sys/file.h sys/time.h unistd.h wctype.h endian.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -115,7 +138,6 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 AC_CHECK_TYPES([ptrdiff_t])
-AC_CHECK_SIZEOF([wchar_t])
 # Checks for library functions.
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK
@@ -124,7 +146,7 @@ AC_FUNC_MBRTOWC
 AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_FUNC_ALLOCA
-AC_CHECK_FUNCS([btowc doprnt floor gettimeofday isascii mbrlen memmove memset nl_langinfo re_comp regcomp strchr strerror strtol strtoumax])
+AC_CHECK_FUNCS([doprnt floor gettimeofday isascii memmove memset nl_langinfo re_comp regcomp strchr strerror strtol strtoumax strspn])
 
 #architecture check (and if cpu == x86_64 check available features)
 AC_MSG_CHECKING([if compiling for x86_64])

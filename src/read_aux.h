@@ -5,9 +5,9 @@
     break;                                      \
   }                                             \
     if(c=='\\'){                                \
-      CORD_ec_append(read_char(input));         \
+      CORD_ec_append(buf,read_char(input));     \
     } else {                                    \
-      CORD_ec_append(c);                        \
+      CORD_ec_append(buf,c);                    \
     }                                           \
     len++;                                      \
   }
@@ -24,11 +24,11 @@
       }                                                                 \
       do {                                                              \
         result = (result<<lg2_base)+extract(c);                         \
-      } while((c=read_char(input)) && test(input));                     \
+      } while((c=read_char(input)) && test(c));                     \
       result;})
-#define binary_char_test(c) (c-0x30 <= 1)
+#define binary_char_test(c) ((c-0x30) <= 1)
 #define binary_char_extract(c) (c-0x30)
-#define oct_char_test(c) (c-0x30 <= 8)
+#define oct_char_test(c) ((c-0x30) <= 8)
 #define oct_char_extract(c) (c-0x30)
 #define READ_CHAR_MULTIBYTE(input,mb_ptr)       \
   ({uint8_t c= read_char(input);                \
@@ -43,7 +43,7 @@
 //forward declarations of internal functions
 sexp read_0(read_input *input,int flags);
 static sexp read_bigint(read_input *input,int radix);
-static sexp read_sharp(char *input);
+static sexp read_sharp(read_input *input);
 static char parse_simple_escape(char escape_char);
 static int parse_escape_internal(read_input *input,char** output);
 static char parse_hex_escape(read_input *input);
@@ -54,5 +54,6 @@ static sexp read_double_quoted_string(read_input *input);
 static sexp string_to_number(char *str);
 static sexp read_symbol_or_number(read_input *input);
 static sexp read_keyword_symbol(read_input *input);
-static sexp read_list(read_input *input);
-static sexp read_array(read_char *input);
+static sexp read_list(read_input *input,int flags);
+static sexp read_array(read_input *input);
+static sexp read_char_literal(read_input *input);

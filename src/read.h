@@ -12,7 +12,7 @@ struct read_input {
   int input_type;
 };
 //the main reading function internaly
-sexp internal_read(char *input,int *pch,int flags);
+sexp internal_read(read_input *input,int *pch,int flags);
 sexp lisp_read(sexp input);//the actual lisp read function
 //return a read_input struct which can be used to call internal read
 //these assume that their input (the CORD,FILE* or char*) will not be
