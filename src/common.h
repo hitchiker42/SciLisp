@@ -19,7 +19,6 @@
 //global includes
 #ifndef __COMMON_H__
 #define __COMMON_H__
-#define VERBOSE_LEXING
 //system includes
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,9 @@
 #include "regex.h"
 #include "cons.h"
+#ifdef HAVE_PCRE
+void*(*pcre_malloc)(size_t)=GC_malloc;
+void(*pcre_free)(void*)=GC_free;
+#endif
 /*should run before any regex stuff
   re_set_syntax(RE_SYNTAX_EMACS);*/
 //(defun re-compile (regex &optional opts))

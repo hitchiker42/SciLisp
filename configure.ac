@@ -8,12 +8,12 @@ AC_CONFIG_HEADERS([src/include/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SUBDIRS([src/gc/bdwgc] [src/libffi])
-AM_INIT_AUTOMAKE([foreign -Wall -Wno-gnu])
+AM_INIT_AUTOMAKE([subdir-objects foreign -Wall -Wno-gnu])
 AM_PROG_AR
+AM_PROG_AS
 LT_INIT
 # Checks for programs.
 AC_PROG_AWK
-AC_PROG_LEX
 AC_PROG_CC
 AC_PROG_CC_C99
 AC_PROG_INSTALL
@@ -99,11 +99,12 @@ AS_IF([test "x$with_thread_local_alloc" = xforce],
   [AC_DEFINE([GC_THREAD_LOCAL,[1],[Set if using thread local allocation]])])
 AC_ARG_ENABLE([debug],
   [AS_HELP_STRING([--enable-debug],
-    [enable debugging messages (current default=yes)])],
+    [enable debugging messages and extra debug information (current default=yes)])],
   [],
   [enable_debug=yes])
 AS_IF([test "x$enable_debug" = xyes],
-  [AC_DEFINE([DEBUG],[1],[Define if debugging is enabled])],
+  [AC_DEFINE([DEBUG],[1],[Define if debugging is enabled])]
+  [CFLAGS="${CFLAGS} -ggdb"],
   [AC_DEFINE([NDEBUG],[1],[Define if debugging is disabled])])
 AC_ARG_ENABLE([link-time-optimization],
   [AS_HELP_STRING([--enable-link-time-optimization],
@@ -119,10 +120,23 @@ AC_ARG_ENABLE([optimized],
     [Enable nonportable optimizations (default=no) (default optimization is -O2)])],
   [],
   [enable_optimized=no])
+#enable some gcc specific flags, do this before optimization flags,
+#so that if optimization is enabled the -O3 flag will take precedence over -Og
+AS_IF([test "x$GCC" = xyes],
+            [CFLAGS="${CFLAGS} -Og -fmax-errors=20"],
+            [])
 AS_IF([test "x$enable_optimized" = xyes],
   [CFLAGS="${CFLAGS} -O3 -march=native"])
-AC_CHECK_HEADERS([fcntl.h float.h inttypes.h langinfo.h libintl.h limits.h locale.h stddef.h stdint.h stdlib.h string.h sys/file.h sys/time.h unistd.h wctype.h endian.h])
 
+AC_CHECK_HEADERS([fcntl.h float.h inttypes.h langinfo.h libintl.h limits.h locale.h stddef.h stdint.h stdlib.h string.h sys/file.h sys/time.h unistd.h wctype.h endian.h])
+AS_IF([test "src/extra/gc_patch.stamp" -ot "src/extra/gc_makefile_am.patch"],
+            [patch -d src/gc/bdwgc -f -p1 <../../extra/gc_makefile_am.patch\
+            && touch extra/gc_patch.stamp],
+            [])
+AS_IF([test "src/extra/ffi_patch.stamp" -ot "src/extra/libffi_makefile_am.patch"],
+            [patch -d src/libffi -f -p1 <../extra/libffi_makefile_am.patch\
+            && touch extra/ffi_patch.stamp],
+            [])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 AC_TYPE_INT16_T
@@ -142,8 +156,6 @@ AC_CHECK_TYPES([ptrdiff_t])
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK
 AC_FUNC_FSEEKO
-AC_FUNC_MBRTOWC
-AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_FUNC_ALLOCA
 AC_CHECK_FUNCS([doprnt floor gettimeofday isascii memmove memset nl_langinfo re_comp regcomp strchr strerror strtol strtoumax strspn])
@@ -165,8 +177,4 @@ dnl[AC_SUBST(SIMD_SET,[-msse2])])
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/SFMT/Makefile])
-#AC_CONFIG_SUBDIRS([bignum/gmp
-#                   bignum/mpfr
-#                   gc/bdwgc
-#                   gc/libatomic_ops])
 AC_OUTPUT

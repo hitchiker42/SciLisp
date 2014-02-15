@@ -2,17 +2,13 @@ diff --git a/Makefile.am b/Makefile.am
 index 2aacca2..0cb84a4 100644
 --- a/Makefile.am
 +++ b/Makefile.am
-@@ -60,6 +60,13 @@ libgc_la_SOURCES = \
+@@ -60,6 +60,9 @@ libgc_la_SOURCES = \
      obj_map.c os_dep.c pcr_interface.c ptr_chck.c real_malloc.c reclaim.c \
      specific.c stubborn.c thread_local_alloc.c typd_mlc.c
  
-+noinst_LTLIBRARIES = libgc_convenience.la libcord_convenience.la
++noinst_LTLIBRARIES = libgc_convenience.la
 +
 +libgc_convenience_la_SOURCES = extra/gc.c
-+libcord_convenience_la_SOURCES = \
-+        cord/cordbscs.c \
-+        cord/cordprnt.c \
-+        cord/cordxtra.c
  # C Library: Architecture Dependent
  # ---------------------------------
  

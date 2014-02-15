@@ -29,7 +29,7 @@ sexp lisp_char_to_string(sexp lisp_char){
   if(!CHARP(lisp_char)){
     return format_type_error("char->string","character",lisp_char.tag);
   } else {
-    c_string retval=c_wchar_to_string(lisp_char.val.uchar);
+    c_string retval=lisp_char.val.uchar;
     if(retval[0] == 'c' && retval[1] != '\0'){
       //I think this should work, because A null character can only be itself
       //and so {'c',!'\0'} has to be an error string
@@ -40,6 +40,7 @@ sexp lisp_char_to_string(sexp lisp_char){
   }
 }
 //pretty much a simplified wrapper to wcrtomb (but returns a vaild c string)
+/*
 c_string c_wchar_to_string(wchar_t lisp_char){
   mbstate_t state;
   size_t nbytes;
@@ -54,12 +55,13 @@ c_string c_wchar_to_string(wchar_t lisp_char){
     return retval;
   }
 }
+*/
 sexp lisp_string_to_char(sexp lisp_str){
   if(!STRINGP(lisp_str)){
     return format_type_error("string->char","string",lisp_str.tag);
   }
   //most common cases:
-  lisp_string *str=lisp_str.val.string;
+  lisp_string *str=lisp_str.val.string;  
   if(str->string_type==str_wstring){
     return uchar_sexp(str->wstring[0]);
   } else if (str->string[0]>0 && str->string<=127){

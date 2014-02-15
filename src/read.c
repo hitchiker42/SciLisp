@@ -86,66 +86,6 @@ sexp read_0(read_input *input,int flags){
   sexp val=internal_read(input,&ch,flags);
   if(ch){
     raise_simple_error_fmt(Eread,"invalid read syntax '%c'",ch);
-<<<<<<< HEAD
-  }
-  return val;
-}
-
-//Also should I use a dispatch table rather than switches?
-sexp internal_read(read_input *input,int *pch,int flags){
-  //flags for now are only for backticks
-  char c;
-  *pch=0;
-  while((c=(read_char(input)))!=EOF){
-    switch(c){
-      case ' ':
-      case '\n':
-      case '\t':
-      case '\v':
-        continue;
-      case ';':
-        skip_line(input);
-        continue;
-      case '(':
-        return read_list(input);
-      case '[':
-        return read_array(input);
-      case ')':
-      case '}':
-      case ']':
-      case '.':
-        *pch=c;
-        return NIL;
-      case '"'
-        return read_double_quoted_string(input);
-      case '?'
-        return read_char_literal(input);
-      case '\'':{
-        return c_list2(Qquote,read_sexp(input));
-      }
-      case '|':
-        return read_symbol_verbatim(input);
-      case '#':
-        return read_sharp(input);
-      case '`':{
-        return c_list2(Qbackquote,read_0(input,flags+1));
-      }
-      case ',':
-        if(!flags){
-          raise_simple_error(Eread,"Error comma not inside a backquote");
-        }
-        return c_list2(Qcomma,read_0(input,flags-1))
-      default:
-        return read_symbol_or_number(input);
-    }
-  }
-  raise_simple_error(Eread,"Error, encountered EOF while reading");
-}
-static sexp read_bigint(read_input *input,int radix){
-  int64_t num;
-  char *endptr;
-  errno=0;
-=======
   }
   return val;
 }
@@ -379,118 +319,7 @@ static sexp read_sharp(read_input *input){
     default:
       raise_simple_error_fmt(Eread,"Invalid read syntax #'%c'",c);
   }
-<<<<<<< HEAD
 }
-
-//large ammounts of this taken from the bash printf builtin
-static inline char parse_simple_escape(char escape_char){
-  //shamelessly stolen from emacs out of shear lazyness
-  switch(escape_char){
-    case 'a':
-      return 0x7;
-    case 'b':
-      return '\b';
-    case 'd':
-      return 0x7f;
-    case 'e':
-      return 0x1b;
-    case 'f':
-      return '\f';
-    case 'n':
-      return '\n';
-    case 'r':
-      return '\r';
-    case 't':
-      return '\t';
-    case 'v':
-      return '\v';
-    case '\\':
-      return '\\';
-    case '0':
-      return '\0';
-    case 'x':
-    case 'u':
-    case 'U':
-      return (char)-1;
-      //\char = char for any non special char, this implictly includes
-      //\? for chars and \" for strings, this does mean however
-      //that \<non ascii unicode char> will cause an error
-    default:
-      if(((uint8_t)c)>0x80){
-        raise_simple_error(Eread,"Illegial unicode character following a \\");
-      }
-      return escape_char;
-  }
-}
-//rewrite to use read_char
-static int parse_escape_internal(read_input *input,char** output){
-  //input is the text immediately following a backslash
-  uint8_t c=read_char(input);
-  *output=parse_simple_escape(c);
-  if(*output != ((char)-1)){
-    return 1;
-  }
-  int temp=0;
-  uint32_t uvalue;
-  int udigits=0;
-  switch((c=read_char(input))){
-    case 'x':{
-      //note to self: --  (prefix or postfix) has higer precidence than &&
-      uvalue=parse_hex_escape(input);
-      //parse_escape raises an error on a malformed escape sequence
-      *output=uvalue;
-      return 1;
-    }
-    case 'U':
-      udigits=8;
-    case 'u':
-      if(!udigits){
-        udigits=4;
-      }
-      uvalue=parse_unicode_escape(input);
-      //parse_escape raises an error on a malformed escape sequence
-      uint64_t utf8_val;
-      if(utf8_encode_char((uint8_t*)&utf8_val,uvalue)==(size_t)-1){
-        raise_simple_error(Eread,"Invald unicode seqence");
-      }
-      *(uint64_t**)output=utf8_val;
-      return utf8_mb_char_len((uint8_t*)&utf8_val)[0];
-    default:
-      assert(0);
-  }
-}
-static char parse_hex_escape(read_input *input){//sets input to the first character after the escape
-  char c=read_char(input);
-  if(!(isxdigit(c))){
-    raise_simple_error(Eread,"error lexing char, expected hex digit after \\x\n");
-  }
-  if(isxdigit(peek_char(input))){
-    return((16*HEXVALUE(c))+HEXVALUE(read_char(input)));
-  } else {
-    return HEXVALUE(c);
-  }
-}
-static uint32_t parse_unicode_escape(read_input *input,int udigits){
-  uint32_t uvalue;
-  temp=udigits;
-  uint8_t c=read_char(input);
-  if(!isxdigit(c)){
-    raise_simple_error
-      (Eread,"error lexing char, expected hex digit after \\u or \\U\n");
-  }
-  udigits--;
-  do {
-    uvalue <<= 4;
-    uvalue += HEXVALUE(c);
-  } while((--udigits) && (c=read_char(input)) && isxdigit(c));
-  if(udigits){//read less than max chars, so we read an extra char
-    unread_char(input);
-  }
-  return uvalue;
-}
-=======
-}
-
 //large ammounts of this taken from the bash printf builtin
 static inline char parse_simple_escape(char escape_char){
   //shamelessly stolen from emacs out of shear lazyness
@@ -631,11 +460,11 @@ static sexp read_symbol_verbatim(read_input *input){
   while(1){
     c=read_char(input);
     if(c=='\\'){
-      CORD_ec_append(read_char(input));
+      CORD_ec_append(buf,read_char(input));
     } else if (c=='|'){
       break;
     } else {
-      CORD_ec_append(READ_CHAR_MULTIBYTE(input,&mb));
+      CORD_ec_append(buf,READ_CHAR_MULTIBYTE(input,&mb));
     }
   }
 }
@@ -851,13 +680,6 @@ static sexp read_list(read_input *input,int flags){
 }
 //pretty much an arbitary number
 #define min_stack_size 32
-<<<<<<< HEAD
-#define push_temp(val) \
-  (stack_index>=stack_size?NULL:temp_stack[stack_index++]=val)
-
-
-static sexp read_array(read_char *input){
-=======
 #define push_temp(val)                          \
   (stack_index>=stack_size?0:((temp_stack[stack_index++]=val),1))
 

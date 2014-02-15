@@ -1,11 +1,12 @@
 #include "lisp_utf8.h"
+#include "extra/read_tables.h"
 //from libutf8
 #define IS_VALID_CONT_BYTE(byte) (((byte) & 0xC0) == 0x80)
 #define IS_INVALID_CONT_BYTE(byte) (((byte) & 0xC0) != 0x80)
 //using binary to make things a bit more clear
 /*#define IS_VALID_CONT_BYTE(byte) ((byte & 0b11000000) == 0b10000000)
   #define IS_INVALID_CONT_BYTE(byte) ((byte & 0b11000000) != 0b10000000)*/
-int utf8_isucs4(wchar_t ch){
+int utf8_isucs4(uint32_t ch){
     return !(ch & (~((wchar_t)0x7FFFFFFF)))
         && (ch < 0xD800 || ch > 0xDFFF)
         && (ch != 0xFFFE) && (ch != 0xFFFF);
@@ -55,7 +56,7 @@ int utf8_mb_char_len(uint8_t mb_char){
   and checks it, which I don't, and the value returned is different, it returns a pointer
   to the dest+bytes_used whereas I just return bytes used
  */
-size_t utf8_encode_char(uint8_t* dest, wchar_t src){
+size_t utf8_encode_char(uint8_t* dest, uint32_t src){
   if(!dest){
     dest = xmalloc_atomic(utf8_len_max);
   }
@@ -97,7 +98,7 @@ size_t utf8_encode_char(uint8_t* dest, wchar_t src){
 /*
   modified from libutf8 in a similar way to encode_char
  */
-size_t utf8_decode_char(const uint8_t* src, wchar_t *dest, size_t size){
+size_t utf8_decode_char(const uint8_t* src, uint32_t *dest, size_t size){
   int i=0;
   wchar_t retval,min;
   //deal with invaid arguments and ascii chars
@@ -141,7 +142,7 @@ size_t utf8_decode_char(const uint8_t* src, wchar_t *dest, size_t size){
   return i;
 }
 #define default_dest_size 64
-utf8_encode_state *init_encode_state(wchar_t *src,char *dest,int maxchars,int dest_size){
+utf8_encode_state *init_encode_state(uint32_t *src,char *dest,int maxchars,int dest_size){
   utf8_encode_state *state=xmalloc_atomic(sizeof(struct encode_state));
   //xmalloc_atomic doesn't 0 data
   memset(state,'\0',sizeof(struct encode_state));
@@ -263,14 +264,14 @@ size_t encode_with_state(utf8_encode_state *state,size_t cur_maxchars){
     return state->src_offset-initial_offset;
   }
 }
-utf8_decode_state *init_decode_state(char *src,wchar_t *dest,int maxchars,int dest_size);
+utf8_decode_state *init_decode_state(char *src,uint32_t *dest,int maxchars,int dest_size);
 //encode characters from src untill either a null character is reached
 //or maxchars chars have been read from src; if maxchars is 0 keep encoding
 //untill a nul character is reached
 //if bufsize is not 0 than it specifies teh max number of bytes to
 //store in dest, if  more bytes are required (size_t)-2 is returned. if bufsize is 0
 //a buffer is allocated which is large enough to hold the result of encoding  src
-size_t utf8_encode_string(char *dest,size_t bufsize,const wchar_t *src,size_t maxchars){
+size_t utf8_encode_string(char *dest,size_t bufsize,const uint32_t *src,size_t maxchars){
   if(!maxchars){
     maxchars=(size_t)-1;//should be equal to SIZE_T_MAX
   }
@@ -300,7 +301,7 @@ size_t utf8_encode_string(char *dest,size_t bufsize,const wchar_t *src,size_t ma
   return j;
 }
 //same as above but ignore nuls
-size_t utf8_encode_mem(char *dest,size_t bufsize,const wchar_t *src,size_t maxchars){
+size_t utf8_encode_mem(char *dest,size_t bufsize,const uint32_t *src,size_t maxchars){
   if(!maxchars){
     return 0;
   }
@@ -329,6 +330,7 @@ size_t utf8_encode_mem(char *dest,size_t bufsize,const wchar_t *src,size_t maxch
   }
   return j;
 }
+
 int utf8_isascii(wchar_t ch){
     return !(ch & ~0x7F);
 }
@@ -362,3 +364,4 @@ int utf8_isutf16(wchar_t ch){
         && (ch < 0xD800 || ch > 0xDFFF);
 }
 #endif
+

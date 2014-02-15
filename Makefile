@@ -282,8 +282,11 @@ AUTOHEADER = ${SHELL} /home/tucker/Repo/SciLisp/build-aux/missing autoheader
 AUTOMAKE = ${SHELL} /home/tucker/Repo/SciLisp/build-aux/missing automake-1.14
 AWK = gawk
 CC = gcc -std=gnu99
+CCAS = gcc
+CCASDEPMODE = depmode=gcc3
+CCASFLAGS = -g -O2
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2 -flto
+CFLAGS = -g -O2 -ggdb -flto -Og -fmax-errors=20
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -308,11 +311,8 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LD = /usr/bin/ld -m elf_x86_64
 LDFLAGS = 
-LEX = flex
-LEXLIB = -lfl
-LEX_OUTPUT_ROOT = lex.yy
 LIBOBJS = 
-LIBS = -lpthread -lmpfr -lm -lgmp -ldl  -lreadline
+LIBS = -lmpfr -lgmp -lm -lpthread -ldl  -lreadline -lpcre
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
@@ -339,7 +339,7 @@ RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
-SIMD_SET = avx
+SIMD_SET = avx2
 STRIP = strip
 VERSION = 0.02-alpha
 abs_builddir = /home/tucker/Repo/SciLisp
@@ -383,7 +383,7 @@ mandir = ${datarootdir}/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /usr/local
+prefix = /home/tucker/usr
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin

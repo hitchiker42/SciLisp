@@ -47,7 +47,7 @@ CORD get_sexp_readline(){
       if(parens<0){
         fprintf(stderr,"Extra close parentheses\n");
         retval=0;
-        prompt="SciLisp>"
+        prompt="SciLisp>";
         goto MAIN_LOOP;
       } else {
         prompt=">";
@@ -75,9 +75,9 @@ void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
       }
     }
     readline_output=get_sexp_readline();
-    cord_input=make_cord_input(cord_input);
+    cord_input=make_cord_input(readline_output);
     ast=start_read(cord_input);
-    if(ast){
+    if(!NILP(ast)){
       lisp_ans_ptr->val=eval_fun(ast,current_env);
       CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
     }
@@ -100,7 +100,7 @@ void __attribute__((noreturn)) repl_simple(sexp(*eval_fun)(sexp,env_ptr)){
     }
     fputs("SciLisp>",stdout);
     ast=start_read(stdin_input);
-    if(ast){
+    if(!NILP(ast)){
       lisp_ans_ptr->val=eval_fun(ast,current_env);
       CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
     }

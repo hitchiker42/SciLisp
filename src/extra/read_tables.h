@@ -7,7 +7,7 @@
 //invalid characters in a symbol
 //any ascii char > 0x20 (all characters < space, contains control chars and ws)
 //or one of " ' ; ( ) [ ] { } ` , # 
-const uint8_t invalid_symbol_char[256]=
+static const uint8_t invalid_symbol_char[256]=
   {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
    1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

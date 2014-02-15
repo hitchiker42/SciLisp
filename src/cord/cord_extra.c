@@ -13,27 +13,29 @@
 //This file is not part of SciLisp, it's just some extra cord functions
 //written along the lines of cordxtra.c
 #include "cord.h"
+#include <stdint.h>
 //equivlent to asprintf, but with cords
+#ifdef CORD_asprintf
+#pragma push_macro("CORD_asprintf")
+#undef CORD_asprintf
 CORD CORD_asprintf(CORD format, ...){
   va_list ap;
   va_start(ap,format);
   CORD retval=0;
-  result = CORD_vsprintf(&retval,format,ap);
+  int result = CORD_vsprintf(&retval,format,ap);
   va_end(ap);
   if(result < 0){
     return NULL;
   }
   return retval;
-}
-  
-#define CORD_asprintf(format,args...)           \
-  ({CORD retval;                                \
-  CORD_sprintf(&retval,format,##args);          \
-  retval;})
+}  
+#pragma pop_macro("CORD_asprintf")
+#endif
 //move these somewhere else
 //functions to convert an extendable cord to a lisp or c string
 //optimizing the case where less that CORD_BUFSZ chars have
 //been read into the ec cord
+/*
 lisp_string *CORD_ec_to_lisp_string(CORD_ec buf,uint32_t len,int mb){
   lisp_string *retval;
   if(buf[0].ec_cord){
@@ -47,15 +49,18 @@ lisp_string *CORD_ec_to_lisp_string(CORD_ec buf,uint32_t len,int mb){
   retval->len=len;
   retval->multibyte=mb;
   return retval;
-}
+  }*/
 char *CORD_ec_to_char_star(CORD_ec buf){
   if(buf[0].ec_cord){
-    return CORD_to_const_char_star(CORD_ec_to_cord(buf));
+    return (char*)CORD_to_const_char_star(CORD_ec_to_cord(buf));
   } else {
     int len = buf[0].ec_bufptr-buf[0].ec_buf+1;
-    char *retval=xmalloc_atomic(len);
+    char *retval=GC_malloc_atomic(len);
+    if(!retval){
+      ABORT("Out of memory");
+    }
     memcpy(retval,buf[0].ec_buf,len);
-    return netval;
+    return retval;
   }
 }
 //analogue of strspn
@@ -66,7 +71,7 @@ size_t CORD_span(CORD s,const char *accept){
   CORD_set_pos(pos,s,0);
   return CORD_pos_span(pos,accept);
 }
-size_t CORD_pos_span(CORD_pos pos,char *accept){
+size_t CORD_pos_span(CORD_pos pos,const char *accept){
   uint8_t flags[256]={0};
   size_t len;
   while(*accept){
@@ -81,5 +86,5 @@ size_t CORD_pos_span(CORD_pos pos,char *accept){
       break;
     }
   }
-  creturn len;
+  return len;
 }

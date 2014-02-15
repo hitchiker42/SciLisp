@@ -20,11 +20,11 @@
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
 //does the same job as the macro below, but in a function
-CORD CORD_asprintf(CORD format, ...);
+//CORD CORD_asprintf(CORD format,...);
 #define CORD_asprintf(format,args...)           \
   ({CORD retval;                                \
-  CORD_sprintf(&retval,format,##args);          \
-  retval;})
+    CORD_sprintf(&retval,format,##args);        \
+    retval;})
 
-size_t CORD_pos_span(CORD_pos pos,char *accept);
+size_t CORD_pos_span(CORD_pos pos,const char *accept);
 size_t CORD_span(CORD s,const char *accept);

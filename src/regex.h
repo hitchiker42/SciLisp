@@ -11,8 +11,6 @@
 #include "emacs_regex.h"
 #ifdef HAVE_PCRE
 #include <pcre.h>
-pcre_malloc=xmalloc;
-pcre_free=xfree
 #define pcre_num_refs(pcre_regex) (pcre_regex->top_bracket)
 typedef struct {
   uint32_t num_regs;
