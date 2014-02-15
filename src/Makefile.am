@@ -43,7 +43,7 @@ libSciLisp_la_LIBADD = SFMT/libSFMT.la gc/bdwgc/libgc_convenience.la \
 #Explicit targets
 #make assembly files
 %.s : %.c 
-	$(CC) $(CFLAGS) -fverbose-asm $<
+	$(CC) $(INCLUDE_FLAGS) -Og -fverbose-asm $<
 test: SciLisp_test
 #gc/bdwgc/libcord.la gc/bdwgc/libgc.la: gc/bdwgc/configure
 #	cd gc/bdwgc && ./configure $(GC_OPTIONS) --disable-gcj-support && $(MAKE)

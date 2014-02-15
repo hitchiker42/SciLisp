@@ -25,7 +25,7 @@
 #include "hash.h"
 //temporary
 #define lisp_print_length 100
-//rewrite these functinos using arrays 
+//rewrite these functinos using arrays
 //i.e make a char* array with the tag names it in
 #define mk_tag_name(tag,name) case tag: return #name
 const char *tag_name(sexp_tag obj_tag){
@@ -135,7 +135,7 @@ CORD print_num_format(sexp obj,CORD format){
     }
     //I use asprintf for gmp and mpfr, but I set them to use
     //gc malloc for allocation, so the memory will get cleaned up
-    else if (BIGINTP(obj)){      
+    else if (BIGINTP(obj)){
       if(format != 0){
         char *temp;
         gmp_asprintf(&temp,format,(*obj.val.bigint));
@@ -165,7 +165,7 @@ inline CORD print_num(sexp obj){
   return print_num_format(obj,0);
 }
 //assume we have a global var *print-level* which
-//determines when to abbrivate things   
+//determines when to abbrivate things
 static inline CORD print_array(sexp *arr,int len){
   int i;
   CORD acc="[";
@@ -175,7 +175,7 @@ static inline CORD print_array(sexp *arr,int len){
   return CORD_catn(3,acc,print(arr[len-1]),"]");
 }
 static inline CORD print_typed_array(data *arr,int len,int type){
-  CORD acc="[[";  
+  CORD acc="[[";
   int i;
   if(type==sexp_uchar){
     mbstate_t state;
@@ -190,7 +190,7 @@ static inline CORD print_typed_array(data *arr,int len,int type){
     return CORD_cat(acc,print_num((sexp){.val=arr[i],.tag=type}));
   }
 }
-    
+
 CORD print(sexp obj){
   CORD retval=CORD_EMPTY,acc=CORD_EMPTY;
   if(obj.tag < 13){//so I don't need to write a case for every numeric type
@@ -221,11 +221,12 @@ CORD print(sexp obj){
     case sexp_sym:
       return obj.val.sym->name->name;
     case sexp_cons:
+      PRINT_MSG("printing cons");
       acc=CORD_cat(acc,"(");
       int i=0;
       do{
         acc=CORD_cat(acc,print(XCAR(obj)));
-        obj=XCDR(obj);        
+        obj=XCDR(obj);
       } while (CONSP(obj) && (acc=CORD_cat_char(acc,' ')));
       if(!NILP(obj)){//cons-cell/improper list
         CORD_sprintf(&retval,"%r . %r)",acc,print(obj));
@@ -270,11 +271,11 @@ CORD print(sexp obj){
       }//if type== char loop printig chars
       //if type <13 loop printing numbers
       //else we would've translated to a sexp array already
-      //(theres not much point of having an array of some non 
+      //(theres not much point of having an array of some non
       //scalar data, the inconvience is far greater than any performance gain)
       acc="[[";
       if(arr->type==sexp_uchar){
-        
+
       return CORD_balance(CORD_cat(acc,"]]"));
       }
     }

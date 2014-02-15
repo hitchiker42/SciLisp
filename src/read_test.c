@@ -50,5 +50,9 @@ int main(){
   //setup global lexer
   symbol *lisp_ans_ptr=xmalloc(sizeof(symbol));
   HERE();
+#ifdef HAVE_READLINE
   readline_repl(eval);
+#else
+  repl_simple(eval);
+#endif
 }

@@ -1,9 +1,9 @@
 //assumes an initialized CORD_ec buf, a uint8_t c, and ints len and mb
 #define read_symbol_string(input)               \
-  while((c==read_char(input))){                 \
-  if(invalid_symbol_char[c]){                   \
-    break;                                      \
-  }                                             \
+  while((c=read_char(input))!=EOF){             \
+    if(invalid_symbol_char[c]){                 \
+      break;                                    \
+    }                                           \
     if(c=='\\'){                                \
       CORD_ec_append(buf,read_char(input));     \
     } else {                                    \

@@ -2,6 +2,12 @@
    used for special files (e.g stdin)
  */
 typedef struct array_stream array_stream;
+//a CORD_pos is a typedef for a struct CORD_Pos[1]
+//and despite what some people think (and admittly what I used to think)
+//arrays and pointers in c are not the same thing, not at all
+//if I use a CORD_pos it won't record changes in state after calls to
+//read_char,etc. So I need to use an actual pointer to the underlying struct
+typedef struct CORD_Pos *CORD_pos_ptr;
 struct array_stream {
   const char *arr;
   uint32_t index;
@@ -12,20 +18,20 @@ struct array_stream {
 //CORD_pos, if it returns eof then I don't need to
 //do anything special, if not I need to check if it's valid
 //then if not return eof
-static char CORD_read_char(CORD_pos pos){
+static char CORD_read_char(CORD_pos_ptr pos){
+  assert(CORD_pos_valid(pos));
   char c=CORD_pos_fetch(pos);
   CORD_next(pos);
   return c;
 }
-static char CORD_peek_char(CORD_pos pos){
+static char CORD_peek_char(CORD_pos_ptr pos){
   return CORD_pos_fetch(pos);
 }
-static void CORD_unread_char(CORD_pos pos){
+static void CORD_unread_char(CORD_pos_ptr pos){
   CORD_prev(pos);
 }
-#define CORD_get_str(pos,n)                     \
 
-static char *CORD_read_str(CORD_pos pos,int n){
+static char *CORD_read_str(CORD_pos_ptr pos,int n){
   char *str=xmalloc_atomic(n);
   int i=0;
   while(i<n && CORD_pos_valid(pos)){
@@ -34,7 +40,7 @@ static char *CORD_read_str(CORD_pos pos,int n){
   }
   return str;
 }
-static void CORD_skip_line(CORD_pos pos){
+static void CORD_skip_line(CORD_pos_ptr pos){
   while(CORD_pos_valid(pos)){
     if(CORD_pos_fetch(pos) == '\n'){
       break;
@@ -44,7 +50,7 @@ static void CORD_skip_line(CORD_pos pos){
   return;
 }
 //takes some advantage of cords, I think
-static const char *CORD_read_delim(CORD_pos pos,char delim){
+static const char *CORD_read_delim(CORD_pos_ptr pos,char delim){
   CORD str=CORD_pos_to_cord(pos);
   int len;
   while(CORD_pos_valid(pos)){
@@ -57,7 +63,7 @@ static const char *CORD_read_delim(CORD_pos pos,char delim){
   str=CORD_substr(str,0,len);
   return CORD_to_const_char_star(str);
 }
-static const char *CORD_read_span(CORD_pos pos,char *accept){
+static const char *CORD_read_span(CORD_pos_ptr pos,char *accept){
   CORD str=CORD_pos_to_cord(pos);
   size_t len=CORD_pos_span(pos,accept);
   str=CORD_substr(str,0,len);

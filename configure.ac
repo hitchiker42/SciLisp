@@ -44,11 +44,11 @@ AS_IF([test "x$with_readline" != xno],
   [AC_CHECK_LIB([readline], [readline],
      [AC_DEFINE([HAVE_READLINE], [1],
                 [Define if readline is enabled])
-                [LIBS="$LIBS -lreadline"]])],
-    [if test "x$with_readline" != xcheck; then
+                [LIBS="$LIBS -lreadline"]],
+     [if test "x$with_readline" != xcheck; then
         AC_MSG_FAILURE(
           [--with-readline was given, but libreadline not found])
-     fi])
+     fi])])
 AC_ARG_WITH([pcre],
   [AS_HELP_STRING([--with-pcre],
     [Enable perl compatiable regular expressions, in additon to default
@@ -59,11 +59,11 @@ AS_IF([test "x$with_pcre" != xno],
   [AC_CHECK_LIB([pcre], [pcre_compile],
      [AC_DEFINE([HAVE_PCRE], [1],
                 [Define if pcre support is enabled])
-                [LIBS="$LIBS -lpcre"]])],
-    [if test "x$with_pcre" != xcheck; then
+                [LIBS="$LIBS -lpcre"]],
+     [if test "x$with_pcre" != xcheck; then
         AC_MSG_FAILURE(
           [--with-pcre was given, but libpcre not found])
-     fi])
+     fi])])
 #User specified options
 AC_ARG_WITH([gc-threads],
   [AS_HELP_STRING([--with-gc-threads],

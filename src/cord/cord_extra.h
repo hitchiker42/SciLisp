@@ -28,3 +28,5 @@
 
 size_t CORD_pos_span(CORD_pos pos,const char *accept);
 size_t CORD_span(CORD s,const char *accept);
+#define CORD_fputs CORD_put
+#define CORD_puts(s) CORD_put(CORD_cat(s,"\n"),stdout)

@@ -62,7 +62,7 @@ CORD get_sexp_readline(){
 void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
   read_input *cord_input;
   CORD readline_output;
-  sexp ast;
+  sexp ast,ans;
   frame *top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
   push_frame(current_env,*top_level_frame);
  REPL:while(1){
@@ -78,15 +78,17 @@ void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
     cord_input=make_cord_input(readline_output);
     ast=start_read(cord_input);
     if(!NILP(ast)){
-      lisp_ans_ptr->val=eval_fun(ast,current_env);
-      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
+      //      lisp_ans_ptr->val=eval_fun(ast,current_env);
+      ans=eval_fun(ast,current_env);
+      //      CORD_puts(print(lisp_ans_ptr->val));
+      CORD_printf(print(ans));
     }
   }
 }
 #endif /*HAVE_READLINE*/
 void __attribute__((noreturn)) repl_simple(sexp(*eval_fun)(sexp,env_ptr)){
   read_input *stdin_input=make_stream_input(stdin);
-  sexp ast;
+  sexp ast,ans;
   frame *top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
   push_frame(current_env,*top_level_frame);
  REPL:while(1){
@@ -101,8 +103,10 @@ void __attribute__((noreturn)) repl_simple(sexp(*eval_fun)(sexp,env_ptr)){
     fputs("SciLisp>",stdout);
     ast=start_read(stdin_input);
     if(!NILP(ast)){
-      lisp_ans_ptr->val=eval_fun(ast,current_env);
-      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
+      //      lisp_ans_ptr->val=eval_fun(ast,current_env);
+      ans=eval_fun(ast,current_env);
+      //      CORD_printf(CORD_cat(print(lisp_ans_ptr->val),"\n"));
+      CORD_puts(print(ans));
     }
   }
 }

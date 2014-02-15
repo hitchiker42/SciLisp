@@ -22,7 +22,7 @@ static int null_ch;//global write only variable
  */
 //char c=read_char(intput);if(c<0)... would also work for eof
 read_input *make_cord_input(CORD input){
-  CORD_pos p;
+  CORD_pos_ptr p=xmalloc(sizeof(struct CORD_Pos));
   CORD_set_pos(p,input,0);
   read_input *retval=xmalloc(sizeof(read_input));
   *retval=(read_input){.input=p,.input_type=cord_read_input};
@@ -89,7 +89,11 @@ sexp read_0(read_input *input,int flags){
   }
   return val;
 }
-
+#if (defined DEBUG) && !(defined NDEBUG)
+#define READ_MESSAGE(msg) fprintf(stderr,msg "\n")
+#else
+#define READ_MESSAGE
+#endif
 //Also should I use a dispatch table rather than switches?
 sexp internal_read(read_input *input,int *pch,int flags){
   //flags for now are only for backticks
@@ -101,40 +105,42 @@ sexp internal_read(read_input *input,int *pch,int flags){
       case '\n':
       case '\t':
       case '\v':
+        PRINT_FMT("Read a whitespace character, code %hhx",c);
         continue;
-      case ';':
+      case ';':READ_MESSAGE("reading single line comment");
         skip_line(input);
         continue;
-      case '(':
+      case '(':READ_MESSAGE("reading list");
         return read_list(input,flags);
-      case '[':
+      case '[':READ_MESSAGE("reading vector");
         return read_array(input);
       case ')':
       case '}':
       case ']':
       case '.':
+        PRINT_FMT("Read a list/vector terminating char, %c",c);
         *pch=c;
         return NIL;
-      case '"':
+      case '"':READ_MESSAGE("reading double quoted string");
         return read_double_quoted_string(input);
-      case '?':
+      case '?':READ_MESSAGE("reading char literal");
         return read_char_literal(input);
-      case '\'':{
+      case '\'':{READ_MESSAGE("reading quoted sexp");
         return c_list2(Qquote_sexp,read_0(input,flags));
       }
-      case '|':
+      case '|':READ_MESSAGE("reading pipe");
         return read_symbol_verbatim(input);
-      case '#':
+      case '#':READ_MESSAGE("reading sharp");
         return read_sharp(input);
-      case '`':{
+      case '`':{READ_MESSAGE("reading backquoted sexp");
         return c_list2(Qbackquote_sexp,read_0(input,flags+1));
       }
-      case ',':
+      case ',':READ_MESSAGE("reading comma");
         if(!flags){
           raise_simple_error(Eread,"Error comma not inside a backquote");
         }
         return c_list2(Qcomma_sexp,read_0(input,flags-1));
-      default:
+      default:READ_MESSAGE("reading symbol or number");
         return read_symbol_or_number(input);
     }
   }
@@ -569,15 +575,18 @@ static sexp read_symbol_or_number(read_input *input){
   uint8_t c;
   int len=0,mb=0;
   read_symbol_string(input);
+  HERE();
   //maybe if(c)==':' goto qualified symbol
   unread_char(input);
   char *str=CORD_ec_to_char_star(buf);
+  HERE();
   if(!mb && strchr("0123456789+-",str[0])){
     sexp maybe_num=string_to_number(str);
-    if(!NILP(maybe_num)){
+    if(!NILP(maybe_num)){READ_MESSAGE("read number");
       return maybe_num;
     }
   }
+  HERE();
   if(read_char(input)==':'){
     //either the curent symbol is explicitly typed
     //or the current symbol is a package and we need to read another symbol
@@ -626,6 +635,7 @@ static sexp read_symbol_or_number(read_input *input){
     unread_char(input);
     symbol *retval=c_intern(str,len,current_obarray);
     if(mb){retval->name->multibyte=1;}
+    return symref_sexp(retval);
   }
 }
 //I need to make sure all internal keywords are actually stored with a colon
