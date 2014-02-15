@@ -19,7 +19,9 @@ struct array_stream {
 //do anything special, if not I need to check if it's valid
 //then if not return eof
 static char CORD_read_char(CORD_pos_ptr pos){
-  assert(CORD_pos_valid(pos));
+  if(!CORD_pos_valid(pos)){
+    return EOF;
+  }
   char c=CORD_pos_fetch(pos);
   CORD_next(pos);
   return c;

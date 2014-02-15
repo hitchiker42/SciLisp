@@ -248,12 +248,14 @@ static inline symbol *c_intern_maybe_copy(const char *name,uint32_t len,
       if(cur_symbol->name->hashv == hashv){
         if(!strcmp(cur_symbol->name->name,name)){
           multithreaded_only(pthread_rwlock_unlock(ob->lock));
+          PRINT_MSG("returning prexisting symbol");
           return cur_symbol;
         }
       }
     }  while((cur_symbol=cur_symbol->next));
   }
  make_symbol:
+  PRINT_MSG("Making new symbol");
   multithreaded_only(pthread_rwlock_unlock(ob->lock));
   //allocate the name seperately so we can do it atomically(gc atomically)
   struct symbol_name *new_symbol_name = 
@@ -271,7 +273,7 @@ static inline symbol *c_intern_maybe_copy(const char *name,uint32_t len,
   ob->buckets[bucket]=retval;
   maybe_rehash_obarray(ob);
   multithreaded_only(pthread_rwlock_unlock(ob->lock);)
-  return (struct symbol *)retval;
+  return retval;
 }
 symbol* c_intern(const char* name,uint32_t len,obarray *ob){
   return c_intern_maybe_copy(name,len,ob,1);

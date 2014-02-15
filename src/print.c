@@ -219,12 +219,14 @@ CORD print(sexp obj){
           raise_simple_error(Eprint,"don't know how to print that type of subr");
       }
     case sexp_sym:
+      PRINT_MSG("printning symbol");
       return obj.val.sym->name->name;
     case sexp_cons:
       PRINT_MSG("printing cons");
       acc=CORD_cat(acc,"(");
       int i=0;
       do{
+        PRINT_MSG(acc);
         acc=CORD_cat(acc,print(XCAR(obj)));
         obj=XCDR(obj);
       } while (CONSP(obj) && (acc=CORD_cat_char(acc,' ')));

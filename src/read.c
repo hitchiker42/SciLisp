@@ -141,6 +141,7 @@ sexp internal_read(read_input *input,int *pch,int flags){
         }
         return c_list2(Qcomma_sexp,read_0(input,flags-1));
       default:READ_MESSAGE("reading symbol or number");
+        unread_char(input);
         return read_symbol_or_number(input);
     }
   }
@@ -168,11 +169,11 @@ static sexp read_bigint(read_input *input,int radix){
         if(!strchr(accept,c)){
           raise_simple_error(Eread,"expected a digit following #Z");
         }
-        unread_char(input);        
+        unread_char(input);
       }
     }
   }
-  char *str=read_span(input,accept);  
+  char *str=read_span(input,accept);
   //two reasons to do this, first if the number will fit
   //into a normal int64 we can initialize from that rather
   //than a string, and even if not this will still tell us
@@ -198,13 +199,26 @@ static sexp read_bigint(read_input *input,int radix){
     return bigint_sexp(bignum);
   }
 }
+//char accept={0,1,2.3,4,5,6,7,8,9,a,A,b,B,c,C,d,D,e,E,f,F,g,G,h,H,j,J,k,K,l,L,
+//m,M,n,N,o,O,p,P,q,Q,r,R,s,S,t,T,u,U,v,V,w,W,x,X,y,Y,z,Z}
 //abstracted in case for some reason I don't want to use strtol
 sexp read_integer(read_input *input,int radix){
   int64_t num;
   char *endptr;
-  char *accept="0123456789";
-  //temporary
-  assert(radix == 0 || radix==10);
+  char *accept;
+  if(radix==16){
+    accept="0123456789aAbBcCdDeEfF";
+  } else if (radix==10) {
+    accept="0123456789";
+  } else {
+    raise_simple_error(Eread,"Unimplemented radix");
+  }
+  /*if(radix<=10){
+    last=10;
+    } else {
+    last=10+((radix-10)*2);
+    }
+   */
   char *str=read_span(input,accept);
   errno=0;
   num=strtol(str,&endptr,radix);
@@ -382,7 +396,7 @@ static int parse_escape_internal(read_input *input,char** output){
       //note to self: --  (prefix or postfix) has higer precidence than &&
       uvalue=parse_hex_escape(input);
       //parse_escape raises an error on a malformed escape sequence
-      **output=uvalue;
+      *(uint32_t*)*output=uvalue;
       return 1;
     }
     case 'U':
@@ -454,8 +468,6 @@ static sexp read_char_literal(read_input *input){
     raise_simple_error(Eread,"Invalid unicode sequence");
   }
 }
-
-
 
 static sexp read_symbol_verbatim(read_input *input){
   int i=0;
@@ -579,7 +591,7 @@ static sexp read_symbol_or_number(read_input *input){
   //maybe if(c)==':' goto qualified symbol
   unread_char(input);
   char *str=CORD_ec_to_char_star(buf);
-  HERE();
+  PRINT_FMT("string read %s",str);
   if(!mb && strchr("0123456789+-",str[0])){
     sexp maybe_num=string_to_number(str);
     if(!NILP(maybe_num)){READ_MESSAGE("read number");
@@ -587,6 +599,12 @@ static sexp read_symbol_or_number(read_input *input){
     }
   }
   HERE();
+  symbol *retval=c_intern(str,len,current_obarray);
+  PRINT_FMT("symbol name = %s",retval->name->name);
+  if(mb){retval->name->multibyte=1;}
+  return symref_sexp(retval);
+}
+  /*
   if(read_char(input)==':'){
     //either the curent symbol is explicitly typed
     //or the current symbol is a package and we need to read another symbol
@@ -632,12 +650,8 @@ static sexp read_symbol_or_number(read_input *input){
                              sym_name,str);
     }
   } else {
-    unread_char(input);
-    symbol *retval=c_intern(str,len,current_obarray);
-    if(mb){retval->name->multibyte=1;}
-    return symref_sexp(retval);
-  }
-}
+  unread_char(input);*/
+
 //I need to make sure all internal keywords are actually stored with a colon
 static sexp read_keyword_symbol(read_input *input){
   CORD_ec buf;
@@ -683,9 +697,9 @@ static sexp read_list(read_input *input,int flags){
     }
     //since gc sets memory to 0 and nil is defined as {0} the cdr
     //will always be nil (unless explicitly set)
-    XCDR(ls)=cons_sexp(xmalloc(sizeof(cons)));
-    ls=XCDR(ls);
-    SET_CAR(ls,val);
+    XCDR(tail)=cons_sexp(xmalloc(sizeof(cons)));
+    tail=XCDR(tail);
+    SET_CAR(tail,val);
   }
 }
 //pretty much an arbitary number

@@ -99,7 +99,7 @@ frame_addr top_level_frame;
   SciLisp allocation routines will set the current environment's error_num
   field to ENOMEM and raise SIGUSR1 which will call a generic error handler
   for lisp errors that use C signals.
- */
+*/
 #ifndef UNSAFE_ALLOCATION
 static inline void *xmalloc(size_t sz){
   void *test=GC_MALLOC(sz);

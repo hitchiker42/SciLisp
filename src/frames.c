@@ -23,7 +23,7 @@ frame_addr frame_search(uint64_t tag){
   env_ptr env=current_env;
   frame_addr ptr=env->frame_ptr;
   for(ptr=env->frame_ptr;ptr>=env->frame_stack;ptr--){
-    if(ptr->tag == tag){
+    if(ptr->tag == tag || ptr->tag == (uint64_t)UNWIND_PROTECT_TAG){
       return ptr;
     }
   }

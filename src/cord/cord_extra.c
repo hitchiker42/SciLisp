@@ -52,14 +52,15 @@ lisp_string *CORD_ec_to_lisp_string(CORD_ec buf,uint32_t len,int mb){
   }*/
 char *CORD_ec_to_char_star(CORD_ec buf){
   if(buf[0].ec_cord){
-    return (char*)CORD_to_const_char_star(CORD_ec_to_cord(buf));
+    return (char*)CORD_to_char_star(CORD_ec_to_cord(buf));
   } else {
-    int len = buf[0].ec_bufptr-buf[0].ec_buf+1;
-    char *retval=GC_malloc_atomic(len);
+    int len = buf->ec_bufptr-buf->ec_buf;
+    char *retval = GC_malloc_atomic(len+1);
     if(!retval){
       ABORT("Out of memory");
     }
     memcpy(retval,buf[0].ec_buf,len);
+    retval[len]='\0';
     return retval;
   }
 }

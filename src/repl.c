@@ -67,6 +67,7 @@ void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
   push_frame(current_env,*top_level_frame);
  REPL:while(1){
     if(setjmp(top_level_frame->dest)){
+      PRINT_MSG("jumped to top level frame");
       if(STRINGP(top_level_frame->value)){
         //should print to lisp stderr 
         CORD_fprintf(stderr,top_level_frame->value.val.string->cord);
@@ -81,7 +82,7 @@ void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
       //      lisp_ans_ptr->val=eval_fun(ast,current_env);
       ans=eval_fun(ast,current_env);
       //      CORD_puts(print(lisp_ans_ptr->val));
-      CORD_printf(print(ans));
+      CORD_puts(print(ans));
     }
   }
 }

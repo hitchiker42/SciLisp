@@ -35,7 +35,8 @@ int main(){
   debug_printf=default_debug_printf;
   CORD_debug_printf=default_CORD_debug_printf;
   #endif
-  sigaction(SIGSEGV,sigsegv_action,NULL);  
+  sigaction(SIGSEGV,sigsegv_action,NULL);
+  sigaction(SIGABRT,sigsegv_action,NULL);  
   sigaction(SIGUSR1,sig_action,NULL);
   sigaction(SIGUSR2,sig_action,NULL);
   GC_set_all_interior_pointers(1);
@@ -50,9 +51,9 @@ int main(){
   //setup global lexer
   symbol *lisp_ans_ptr=xmalloc(sizeof(symbol));
   HERE();
-#ifdef HAVE_READLINE
+  /*#ifdef HAVE_READLINE
   readline_repl(eval);
-#else
+  #else*/
   repl_simple(eval);
-#endif
+  //#endif
 }
