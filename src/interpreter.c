@@ -1,7 +1,34 @@
 #include "common.h"
 #include "prim.h"
 #include "cons.h"
-/* minargs=0,maxarg=1,restarg=1*/
+sexp eval_top(sexp expr,env_ptr env);
+sexp lookup_var (symbol *sym,env_ptr env);
+sexp funcall(subr sub,sexp args,env_ptr env);
+//special forms, and macros reimplemented as special forms for speed
+//these aren't really treated specially, and are just called similarly
+//to functions
+sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env);
+sexy lisp_and(sexp expr,env_ptr env);
+sexy lisp_or(sexp expr,env_ptr env);
+sexy lisp_defun(sexp expr,env_ptr env);
+sexy lisp_defvar(sexp expr,env_ptr env);
+sexy lisp_defmacro(sexp expr,env_ptr env);
+sexy lisp_lambda(sexp expr,env_ptr env);
+sexy lisp_quote(sexp expr,env_ptr env);
+sexp eval(sexp expr,sexp env);
+sexp lisp_progn(sexp args);
+sexp lisp_prog1(sexp args);
+sexp lisp_prog2(sexp args);
+sexp lisp_while(sexp expr,env_ptr env);
+sexp apply(sexp args,env_ptr *env);
+sexp eval(sexp expr,sexp env){
+  if(NILP(env)){
+    return eval_top(expr,current_env);
+  } else {
+    raise_simple_error(Etype,"error eval with non current environment unimplemented");
+  }
+}
+/* minargs=0,maxarg=1,restarg=1...?*/
 sexp eval_top(sexp expr,env_ptr env){
   switch(expr.tag){
     case sexp_sym:
@@ -175,7 +202,7 @@ sexp funcall(subr sub,sexp args,env_ptr env){
   }
 }
 
-#define eval_sub eval
+#define eval_sub eval_top
 sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env){
   /*  int num_args=data_size(env);
   if(num_args < c_fun->req_args){
@@ -514,7 +541,7 @@ sexp lisp_dolist_expander(sexp var,sexp list,sexp body,sexp cur_env_sexp,int exp
   sexp loop=Cons(spec_sexp(_while),Cons(test,Cons(step,Cons(body,NIL))));
   if(expand){
     return loop;
-  } else {
+p  } else {
     return eval(loop,cur_env);
   }
 }
@@ -596,5 +623,6 @@ sexp cond_expand(sexp expr){
     //(test then...)->(test 
     XCDR(cond_case)=Fcons(Qprogn,XCDR(cond_case));
     PUSH(cond_case,Qif);
-
+  }
+}
     
