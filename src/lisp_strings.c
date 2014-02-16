@@ -1,5 +1,10 @@
 #include "common.h"
 #include "lisp_strings.h"
+char *c_char_to_string(uint64_t lisp_char){
+  char str[8]=*(char*)&lisp_char;
+  assort(str[7]=='\0');
+  return str;
+}   
 CORD CORD_cat_lisp_string(CORD acc,lisp_string *str){
   if(!str->string[0]){
     return CORD_cat(acc,str->cord);

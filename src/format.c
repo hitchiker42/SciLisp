@@ -30,6 +30,7 @@ sexp lisp_format(int numargs,sexp *args){
   }
   return c_format(args[0].val.string->cord,numargs,args+1);
 }
+CORD format_binary(uint64_t num,int bits);
 /*
  * Copyright (c) 1993-1994 by Xerox Corporation.  All rights reserved.
  *
@@ -114,11 +115,11 @@ static int extract_conv_spec(CORD_pos source, char *buf,
         break;
       case 'l':
       case 'L':
-        *long_arg = 1;
+        *long_arg += 1;
         current_number = 0;
         break;
       case 'h':
-        *long_arg = -1;
+        *long_arg -= 1;
         current_number = 0;
         break;
       case ' ':
@@ -147,7 +148,9 @@ static int extract_conv_spec(CORD_pos source, char *buf,
       case 'S':
       case 'p':
         //all specifiers above are default c specifiers
+        
       //case 'n': removed from lisp
+      case 'b'://binary format
       case 'r'://cords
       case 'a'://added for lisp
         //bignum specifiers
@@ -184,8 +187,8 @@ static int extract_conv_spec(CORD_pos source, char *buf,
     }                                                                   \
     if(!typecheck(args[0])){                                            \
       raise_simple_error(Etype,                                         \
-                         format_type_error_rest(                        \
-                           "format",expected,XCAR(args[0])));           \
+                         format_type_error_rest                         \
+                         ("format",expected,args[0]));                  \
     }                                                                   \
     *args++;})
 //defininion of function in cordprnt.c
@@ -255,16 +258,23 @@ sexp c_format(CORD format,int numargs,sexp *args){
             CORD_ec_append_cord(result, arg);
             goto done;
           case 'c':
+            //FIXME: THIS needs to be changed to use multibyte chars
             if (width == NONE && prec == NONE) {
               register char c;
               register const char *str = 
-                c_wchar_to_string(va_typecheck(args,CHARP,"character").val.uchar);
+                c_char_to_string(va_typecheck(args,CHARP,"character").val.uchar);
               while((c = *str++)){
                 CORD_ec_append(result, c);
               }
               goto done;
             }
             break;
+          case 'b':{
+            //needs to deal with width and precision at some point
+            //Don't typecheck, allow binary floats/pointes
+            CORD_ec_append_cord(result,format_binary(*args++,64));
+            goto done;
+          }
           case 's':
             if(args && (STRINGP(args[0]))){
               //handle strings faster for %s
@@ -408,4 +418,23 @@ sexp c_format(CORD format,int numargs,sexp *args){
   //  count = ec_len(result);
   CORD retval=CORD_balance(CORD_ec_to_cord(result));
   return cord_sexp(retval);
+}
+static const char* binary_nibbles[16]=
+  {"0000","0001","0010","0011",
+   "0100","0101","0110","0111",
+   "1000","1001","1010","1011",
+   "1100","1101","1110","1111"};
+//assume this only gets called from format/printf so
+//that bits is determined by the format spec, and
+//so we know it's either 8,16,32 or 64
+CORD format_binary(uint64_t num,int bits){
+  int i;
+  CORD result=0;
+  for(i=0;i<(bits/8);i++){    
+    result=CORD_cat(binary_nibbles[num&0xf],result);
+    CORD_printf("binary_nibbles[%x]=%r\n",(num&0xf),
+                binary_nibbles[num&0xf]);
+    num>>=4;
+  }
+  return result;
 }
