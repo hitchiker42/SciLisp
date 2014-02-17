@@ -22,37 +22,17 @@
 #ifdef MULTI_THREADED
 static pthread_mutex_t getenv_mutex=PTHREAD_MUTEX_INITALIZER;
 #endif
-//(defun cat (&rest strings)
-sexp lisp_cat(sexp string,sexp rest){
-  if(!STRINGP(string)){
-    if(NILP(string)){
-      return LISP_EMPTY_STRING;
-    } else {
-      goto CAT_ERR;
-    }
-  }
-  CORD retval = string.val.cord;
-  while(CONSP(rest)){
-    if(!STRINGP(XCAR(rest))){goto CAT_ERR;}
-    retval=CORD_cat(retval,XCAR(rest).val.cord);
-    rest=XCDR(rest);
-  }
-  return (sexp){.tag = _str,.val={.cord=retval}};
-  CAT_ERR:
-  return 
-    format_type_error_rest("cat","strings",XCAR(rest));
-}
-//(defun cwd ())
-sexp lisp_getcwd(){
-  //probabaly not the most efficent way to do this
+//return a string containing the current directory name
+//the string is allocated using GC_malloc_atomic
+char *gc_getcwd(){
   uint64_t size=128;
   char *buf
   while(1){
-    buf=xmalloc(size);
+    buf=xmalloc_atomic(size);
     if(getcwd(buf,size)==buf){
       //It might be faster to keep track of the last
       //value of size and use that, but probably not
-      return string_sexp(make_string_len(buf,0));
+      return buf;
     }
     if(errno != ERANGE){
       raise_simple_error(Esystem,lisp_strerror(errno));
@@ -60,6 +40,11 @@ sexp lisp_getcwd(){
     size*=2;
   }
 }
+//(defun cwd ())
+sexp lisp_getcwd(){
+  return make_string_len(gc_getcwd(),0);
+}
+//just a wrapper around the c system function
 sexp lisp_system_simple(sexp command){
   if(!STRINGP(command)){
     raise_simple_error(Etype,format_type_error("system","string",command.tag));
@@ -213,7 +198,14 @@ sexp expand_pathname(sexp pathname_str,sexp default_directory){
   if(c != '/'){
     if(c == '~'){
       CORD_ec_append_cord(expanded_pathname,getenv_r("$HOME"));
-    
+    } else if (c == '.'){
+      char *current_dir=gc_getcwd;
+      CORD_next(p);
+      c=CORD_pos_fetch(p);
+      if(c=='.'){
+      }
+    }
+  }
   
   for(;CORD_pos_valid(pos); CORD_next(pos)){
     c=CORD_pos_fetch(p);
