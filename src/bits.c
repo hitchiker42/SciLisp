@@ -60,6 +60,8 @@ sexp lisp_lognot(sexp x){
     return long_sexp(~x.val.uint64);
   }
 }
+static const uint8_t bitmasks[8]={0x1,0x2,0x4,0x8,0x10,0x20,0x40,0x80};
+
 /* Assume for boolean operations we have two operands A and B and each is either true (1) or false (0)
    there are thus 4 possible conditons, forming the following table
    |B=1|B=0|
@@ -155,6 +157,12 @@ sexp bit_rotate(sexp x,sexp y){
         "c"((uint8_t)(labs(y.val.int64)%64)));
   }
   return uint64_sexp(result);
+}
+sexp bit_test(sexp x,sexp y){
+  //typecheck
+  uint8_t offset=y.val.uint8;
+  asm("btq %[bits],%[offset]\n\tsetc %[offset]"
+      : [offset] "+g" (offset) : [bits] "g" (x.val.uint64));
 }
 #else
 sexp bit_scan_forward(sexp x){

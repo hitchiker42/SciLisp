@@ -41,7 +41,7 @@
 #endif
 
 /*
-  static assert, there's compiler support for static_asserts, but I like 
+  static assert, there's compiler support for static_asserts, but I like
   mine, since you can specify something of an error message(as long as
   your message is a valid c identifier)
  */
@@ -55,7 +55,7 @@
   cast to it. I can't really think of a way to prevent
   implicit casting, but in most use cases (i.e pointer casts)
   there should at least be a comiler warning
-  
+
  */
 #define type_assert(type,variable)              \
   ({type error_test=variable;;})
@@ -120,10 +120,21 @@ static const char * lisp_strerror(int errnum){
     }
   }
 }
-#define CAT(x,rest...) x##rest
-
-
-
-
-
-
+static CORD get_gc_info(){
+  struct GC_prof_stats_s* stats=alloca(sizeof(struct GC_prof_stats_s));
+  GC_get_prof_stats(stats,sizeof(struct GC_prof_stats_s));
+  CORD stats_str;
+  CORD_sprintf(&stats_str,"GC Stats:\nHeap Size: %lu\nFree Bytes %lu\n"
+               "Unmapped Bytes: %lu\nBytes Allocated Since Last GC: %lu\n"
+               "Bytes Allocated Before Last GC: %lu\nNon GC Bytes: %lu\n"
+               "GC Cycle Number: %lu\nGC Marker Threads: %lu\n"
+               "Bytes Reclaimed By Last GC:%lu\n"
+               "Bytes Reclaimed Before Last GC: %lu", stats->heapsize_full,
+               stats->free_bytes_full,stats->unmapped_bytes,
+               stats->bytes_allocd_since_gc,stats->allocd_bytes_before_gc,
+               stats->non_gc_bytes,stats->gc_no,stats->markers_m1,
+               stats->bytes_reclaimed_since_gc,
+               stats->reclaimed_bytes_before_gc);
+  return stats_str;
+}
+#define PRINT_GC_INFO() (CORD_debug_printf(get_gc_info()))

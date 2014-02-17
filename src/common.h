@@ -1,4 +1,4 @@
-/* Global header file for standard includes and macros
+o/* Global header file for standard includes and macros
 
    Copyright (C) 2013-2014 Tucker DiNapoli
 
@@ -132,7 +132,7 @@ static inline void *xmalloc_atomic(size_t sz){
 //near the page size and  all_interiror_pointers
 //is true (which it is, if I change that I'll need to change this)
 //get default alignment
-#include "gc/gc_tiny_fl.h"
+#include "gc/gc_tiny_fl.h"//for GC_GRANULE_BYTES
 #define DEFAULT_ALIGNMENT GC_GRANULE_BYTES
 static void *xmemalign(size_t align,size_t sz){
   void *result;
@@ -223,7 +223,7 @@ static void *xmemalign(size_t align,size_t sz){
 #define uint64_sexp(uint64_val) uint_n_sexp(uint64_val,64)
 #define keyword_sexp(keyword_val) construct_atom(keyword_val,keyword)
 #define list_sexp(list_val) construct_sexp(list_val,sexp_cons,cons,1)
-#define list_len_sexp(list_val,_len)                    \
+#define list_len_sexp(plist_val,_len)                    \
   construct_sexp_len(list_val,_list,cons,1,_len);
 #define long_sexp(long_val) construct_atom(long_val,int64)
 #define ulong_sexp(ulong_val) construct_atom(ulong_val,uint64)

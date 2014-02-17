@@ -222,8 +222,7 @@ sexp mapcar(sexp ls,sexp map_fn){
   }
   return result;
 }
-static sexp len_acc(sexp ls,long n) __attribute__((pure));
-static sexp len_acc(sexp ls,long n){
+static __attribute__((pure,leaf,nothrow)) sexp len_acc(sexp ls,long n){
   if(!CONSP(ls)){
     //PRINT_FMT("length = %d",n);
     return long_sexp(n);
@@ -231,7 +230,7 @@ static sexp len_acc(sexp ls,long n){
     return len_acc(XCDR(ls),++n);
   }
 }
-sexp cons_length(sexp ls) {
+sexp __attribute__((pure,leaf,nothrow)) cons_length(sexp ls) {
   return len_acc(ls,0);
 }
 sexp cons_take(sexp ls,sexp num){

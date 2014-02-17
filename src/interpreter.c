@@ -1,3 +1,21 @@
+/* Lisp interpreter and special forms
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "prim.h"
 #include "cons.h"
@@ -8,19 +26,28 @@ sexp funcall(subr sub,sexp args,env_ptr env);
 //these aren't really treated specially, and are just called similarly
 //to functions
 sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env);
-sexy lisp_and(sexp expr,env_ptr env);
-sexy lisp_or(sexp expr,env_ptr env);
-sexy lisp_defun(sexp expr,env_ptr env);
-sexy lisp_defvar(sexp expr,env_ptr env);
-sexy lisp_defmacro(sexp expr,env_ptr env);
-sexy lisp_lambda(sexp expr,env_ptr env);
-sexy lisp_quote(sexp expr,env_ptr env);
+sexp lisp_and(sexp expr);
+sexp lisp_or(sexp expr);
+sexp lisp_defun(sexp expr);
+sexp lisp_defvar(sexp expr);
+sexp lisp_defmacro(sexp expr);
+sexp lisp_lambda(sexp expr,env_ptr env);
+sexp lisp_quote(sexp expr);
+sexp lisp_setq(sexp expr,env_ptr env);
 sexp eval(sexp expr,sexp env);
-sexp lisp_progn(sexp args);
-sexp lisp_prog1(sexp args);
-sexp lisp_prog2(sexp args);
-sexp lisp_while(sexp expr,env_ptr env);
-sexp apply(sexp args,env_ptr *env);
+sexp lisp_progn(sexp args);//special form
+sexp lisp_prog1(sexp args);//specail form
+sexp lisp_prog2(sexp args);//macro
+sexp lisp_while(sexp expr,env_ptr env);//special form implementing looping
+sexp lisp_if(sexp expr);//special form implementing conditionals
+sexp lisp_do(sexp expr);//macro
+sexp lisp_dolist(sexp expr);//macro
+sexp lisp_let(sexp args,env_ptr env);
+sexp lisp_let_star(sexp args,env_ptr env);
+sexp lisp_flet(sexp args,env_ptr env);
+sexp lisp_flet_star(sexp args,env_ptr env);
+sexp apply(uint64_t numargs,sexp *args);//function
+static sexp get_symbol_value(symbol *sym,env_ptr env);
 sexp eval(sexp expr,sexp env){
   if(NILP(env)){
     return eval_top(expr,current_env);
@@ -32,32 +59,13 @@ sexp eval(sexp expr,sexp env){
 sexp eval_top(sexp expr,env_ptr env){
   switch(expr.tag){
     case sexp_sym:
-      if(!NILP(env->lex_env)){//if there is a lexical environment search it first
-        sexp lex_binding=c_assq(env->lex_env,expr.val.sym);
-        if(!NILP(lex_binding)){
-          return XCDR(lex_binding);
-        }
-      }
-      if(UNBOUND(expr.val.sym->val)){
-        raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
-      } else {
-        return expr.val.sym->val;
-      }
+      //if(expr.val.sym->special){return expr.val.sym->val;}
+      return get_symbol_value(expr.val.sym);
     case cons_sym:
       if(!SYMBOLP(XCAR(expr))){
         raise_simple_error_fmt(Etype,"Invalid function %r",print(XCAR(expr)).str);
       }
-      sexp subr_var;
-      if(!NILP(env->lex_env)){//if there is a lexical environment search it first
-        sexp lex_binding=c_assq(env->lex_env,XCAR(expr).val.sym);
-        if(!NILP(lex_binding)){
-          subr_var=XCDR(lex_binding);
-        }
-      }
-      subr_var=XCAR(expr).val.sym->val
-      if(UNBOUND(subr_var)){
-        raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
-      }
+      sexp subr_var=get_symbol_value(expr.val.sym);
       if(!SUBRP(subr_var)){
         raise_simple_error_fmt(Etype,"Invalid function %r",print(XCAR(expr)).str);
       }
@@ -83,6 +91,23 @@ sexp lookup_var (symbol *sym,env_ptr env){
     return symref_sexp(sym);
   }
 }
+/* search current lexical environment (if any) for sym, and return
+   the value if found, if not found raise an error if sym is undefined
+   otherwise return the value of sym
+ */
+static inline sexp get_symbol_value(symbol *sym,env_ptr env){
+  if(!NILP(env->lex_env)){//if there is a lexical environment search it first
+    sexp lex_binding=c_assq(env->lex_env,sym);
+    if(!NILP(lex_binding)){
+      return XCDR(lex_binding);
+    }
+  }
+  if(UNBOUND(sym->val)){
+    raise_simple_error_fmt(Eunbound,"Error undefined variable %r",sym->name->name);
+  } else {
+    return sym->val;
+  }
+}
 //shortcut for evaluating arguments, assuming
 //enough arguments are symbols or literals to make
 //this worthwhile
@@ -98,113 +123,12 @@ sexp lookup_var (symbol *sym,env_ptr env){
   argval;})
 
 //not sure where to ultimately put this but I want to write it now
-sexp funcall(subr sub,sexp args,env_ptr env){
-  switch(sub->subr_type){
-    case subr_compiled:{
-      int numargs,maxargs;
-      int minargs=sub->minargs;
-      if(sub->rest_arg){
-        maxargs=data_stack_size/sizeof(sexp);
-      } else {
-        maxargs=sub->maxargs;
-      }
-      while(CONSP(args)){
-        sexp arg=POP(args);
-        if(!CONSP(arg) && !SYMBOLP(arg)){
-          push_data(arg);
-        } if(SYMBOLP(arg)){
-          push_data(lookup_var(arg,env));
-        } else {
-          push_data(eval(arg,env));
-        }
-        //only call eval if we have to(i.e. if arg is a cons cell
 
-        numargs++;
-        if(numargs>maxargs){
-          raise_simple_error_fmt(Eargs,"Excess args passed to %s",sym->name->name);
-        }
-      }
-      if(numargs<minargs){
-        raise_simple_error_fmt(Eargs,"Too few args passed to %s",sym->name->name);
-      }
-      return lisp_c_funcall(sub,namargs,env);
-    }
-    case subr_compiler_macro:
-      return subr->comp.funevaled(args);
-    case subr_special_form:
-      return subr->comp.fspecial(args,env);
-    case subr_lambda
-    case subr_closure:{
-      cons *lambda=sub->lambda_body;
-      sexp fun_env=NIL;
-      if(lambda->car.val.uint64 == (uint64_t)Qclosure){
-        fun_env=Fcons(XCAR(lambda->cdr),NIL);
-        lambda=lambda->cdr.val.cons->cdr.val.cons;
-      } else {
-        lambda=lambda->cdr.val.cons;
-      }
-      lambda_list arglist=*(sub->lambda_arglist);
-      int num_reqargs = arglist->req_args->car.val.int64;
-      symbol *req_arg_names= arglist->req_args->cdr.sym;
-      int num_optargs = arglist->opt_args->car.val.int64;
-      cons*opt_arg_names= arglist->opt_args->cdr.sym;//array of conses
-      int num_keyargs = arglist->key_args->car.val.int64;
-      cons *key_arg_names= arglist->key_args->cdr.sym;//array of conses
-      /*
-      cons *opt_arg_names= opt_args->cdr.sym;
-      if(num_optargs){
-        //push the defaulats, if any optional arguments
-        //get passed they get pushed on top of these
-        //and the defaults never get seen
-        PUSH(cons_sexp(opt_arg_names),fun_env);
-        }*/
-      int i;
-      for(i=0;i<num_reqargs;i++){
-        if(!CONSP(args)){
-          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname->cord);
-        } else {
-          PUSH(Fcons(req_arg_names[i],eval_arg(POP(args),env)));
-        }
-      }
-      for(i=0;i<num_optargs;i++){
-        if(!CONSP(args)){
-          while(i<num_optargs){
-            PUSH(cons_sexp(&opt_arg_names[i++]),fun_env);
-          }
-          break;
-        } else {
-          PUSH(Fcons(opt_arg_names[i].car,eval_arg(POP(args),fun_env)));
-        }
-      }
-      /*      for(i=0;i<num_keyargs;i++){
-        if(!CONSP(args)){
-          while(i<num_keyargs){
-            PUSH(key_arg_names[i++].cdr,fun_env);
-          }
-          break;
-        } else {
-          sexp key = POP(args);
-          if(!SYMBOL(key)){
-            raise_simple_error_fmt(Etype,"Invaild keyword %s, expected a symbol",
-                                   print(key).cord);
-          } else {
-          while*/
-      CALL:{
-        subr_call fcall=(subr_call){.lex_env=env->lex_env,.lisp_subr=sub,
-                                    .bindings_index=env->bindings_index};
-        push_call(env,fcall);
-        env->lex_env=Fcons(fun_env,env->lex_env);
-        sexp retval=eval(sub->lambda,env);
-        env->lex_env=pop_call(env).lex_env;
-        return retval;
-      }
-    }
-  }
-}
 
 #define eval_sub eval_top
 sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env){
-  /*  int num_args=data_size(env);
+  /*Already delt with in general funcall
+    int num_args=data_size(env);
   if(num_args < c_fun->req_args){
     return format_error_sexp("too few args passed to %s",c_fun->lname->string);
   }
@@ -252,6 +176,7 @@ sexp lisp_and(sexp exprs){
   }
   return retval;
 }
+//this isn't really atomic, fix that
 sexp lisp_defvar(sexp args){
   sexp var,val,docstr=NIL;
   var=XCAR(args);
@@ -261,6 +186,7 @@ sexp lisp_defvar(sexp args){
     docstr=XCADR(args);
   }
   if(var.val.sym->val == UNBOUND){
+    var.val.sym->special=1;
     var.val.sym->val=eval(val,current_env);
     if(!NILP(docstr)){
       var.val.sym->plist=Cons(Qdocstring,Cons(docstr,var.val.sym->plist));
@@ -280,17 +206,41 @@ sexp lisp_defun(sexp args){
   sexp arglist=XCAR(args);
   sexp body=XCADR(args);
   //defun overwrites any existing defination
-  var.val.sym->Val=Cons(Qlambda,Cons(arglist,Cons(body,NIL)));
+  var.val.sym->val=Cons(Qlambda,Cons(arglist,Cons(body,NIL)));
+  var.val.sym->special=1;
   return var;
 }
-sexp lisp_setq(sexp args){
-  if(!CONSP(args)|!CONSP(XCDR(args))){
-    return error_sexp("too few arguments to setq");
+//I think that this counts as atomic, single writes
+//should be atomic
+sexp lisp_setq(sexp args,env_ptr env){
+  //(setq [place form]*)
+  if(NILP(args)){
+    return NIL;
   }
-  sexp var=XCAR(args);
-  sexp val=XCADR(args);
-  val.var.sym->val=eval(val,current_env);
-  return var;
+  //we need to make sure we have an even number of args first
+  //otherwise we might set some values and  not others
+  uint32_t len=cons_len(args);
+  if(args%2){
+    raise_simple_error(Eargs,"uneven number of arguments to setq");
+  }
+  sexp var,val=NIL;
+  while(CONSP(args)){
+    var=XCAR(args);
+    val=eval(XCADR(args),env);
+    args=XCDDR(args);
+    //should (setq <undefined symbol> val) set the value of the symbol
+    //in the current lexical environment, of set the global value of symbol?
+    if(!NILP(env->lex_env)){
+      sexp lex_var=c_assq(env->lex_env,var);
+      if(!NILP(lex_var)){
+        //don't modify lexical environments, just push on a new value
+        PUSH(env->lex_env,Fcons(var,val));
+        continue;
+      }
+    }
+    val.var.sym->val=val;
+  }
+  return val;
 }
 sexp lisp_defmacro(sexp args){
 }
@@ -313,7 +263,7 @@ sexp lisp_when(sexp args){
   return lisp_progn(args);
 }
 //(if cond then &rest else)
-sexp lisp_if(sexp args){
+sexp lisp_if(sexp args,env_ptr env){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){
     return error_sexp("too few arguments passed to if");
   }
@@ -451,7 +401,7 @@ sexp flet_macroexpand(sexp args,env_ptr env){
   if(!CONSP(args)){
     raise_simple_error(Eargs,format_arg_error("let","1 or more","0"));
   } else if(!CONSP(XCAR(args))){
-    return args;//macro expansion I guess doesn't check types 
+    return args;//macro expansion I guess doesn't check types
   }
   code_ptr=XCAR(code_ptr);
   sexp cur_var=POP(code_ptr);
@@ -465,7 +415,7 @@ sexp flet_star_macroexpand(sexp args,env_ptr env){
   if(!CONSP(args)){
     raise_simple_error(Eargs,format_arg_error("let","1 or more","0"));
   } else if(!CONSP(XCAR(args))){
-    return args;//macro expansion I guess doesn't check types 
+    return args;//macro expansion I guess doesn't check types
   }
   code_ptr=XCAR(code_ptr);
   sexp cur_var=POP(code_ptr);
@@ -595,18 +545,7 @@ sexp lisp_incf_expander(sexp sym_sexp,env *cur_env){
                  Cons(eval_sub(sym_sexp,cur_env),NIL));
   sexp code=Cons(spec_sexp(_setq),Cons(sym_sexp,Cons(body,NIL)));
 }
-sexp apply(sexp args,envrionment *env){
-  sexp fun_sym=XCAR(args).val.sym;
-  if(!FUNCTIONP(sym->val)){
-    return error_sexp
-      (CORD_cat_const_char_star("No function ",sym->name->name,sym->name->len));
-  }
-  function fun=fun_sym->val;
-
-}
 //sexp c_apply(function *fun,environment *env){
-
-
 void unwind_bindings(binding *bindings,int len){
   int i;
   binding cur_binding;
@@ -620,9 +559,117 @@ sexp cond_expand(sexp expr){
   sexp retval=expr;
   sexp cond_case;
   while(!NILP((cond_case=POP(expr)))){
-    //(test then...)->(test 
+    //(test then...)->(test
     XCDR(cond_case)=Fcons(Qprogn,XCDR(cond_case));
     PUSH(cond_case,Qif);
   }
 }
-    
+sexp apply(uint64_t numargs,sexp *args){
+  sexp fun_sym=*args++;
+  if(!FUNCTIONP(fun_sym.val.sym->val)){
+    return error_sexp
+      (CORD_cat_const_char_star("No function ",sym->name->name,sym->name->len));
+  }
+}
+sexp funcall(subr sub,sexp args,env_ptr env){
+  switch(sub->subr_type){
+    case subr_compiled:{
+      int numargs,maxargs;
+      int minargs=sub->minargs;
+      if(sub->rest_arg){
+        maxargs=data_stack_size/sizeof(sexp);
+      } else {
+        maxargs=sub->maxargs;
+      }
+      while(CONSP(args)){
+        sexp arg=POP(args);
+        if(!CONSP(arg) && !SYMBOLP(arg)){
+          push_data(arg);
+        } if(SYMBOLP(arg)){
+          push_data(lookup_var(arg,env));
+        } else {
+          push_data(eval(arg,env));
+        }
+        //only call eval if we have to(i.e. if arg is a cons cell
+        numargs++;
+        if(numargs>maxargs){
+          raise_simple_error_fmt(Eargs,"Excess args passed to %s",sym->name->name);
+        }
+      }
+      if(numargs<minargs){
+        raise_simple_error_fmt(Eargs,"Too few args passed to %s",sym->name->name);
+      }
+      return lisp_c_funcall(sub,namargs,env);
+    }
+    case subr_compiler_macro:
+      return subr->comp.funevaled(args);
+    case subr_special_form:
+      return subr->comp.fspecial(args,env);
+    case subr_lambda
+    case subr_closure:{
+      cons *lambda=sub->lambda_body;
+      sexp fun_env=NIL;
+      if(lambda->car.val.uint64 == (uint64_t)Qclosure){
+        fun_env=Fcons(XCAR(lambda->cdr),NIL);
+        lambda=lambda->cdr.val.cons->cdr.val.cons;
+      } else {
+        lambda=lambda->cdr.val.cons;
+      }
+      lambda_list arglist=*(sub->lambda_arglist);
+      int num_reqargs = arglist->req_args->car.val.int64;
+      symbol *req_arg_names= arglist->req_args->cdr.sym;
+      int num_optargs = arglist->opt_args->car.val.int64;
+      cons*opt_arg_names= arglist->opt_args->cdr.sym;//array of conses
+      int num_keyargs = arglist->key_args->car.val.int64;
+      cons *key_arg_names= arglist->key_args->cdr.sym;//array of conses
+      /*
+      cons *opt_arg_names= opt_args->cdr.sym;
+      if(num_optargs){
+        //push the defaulats, if any optional arguments
+        //get passed they get pushed on top of these
+        //and the defaults never get seen
+        PUSH(cons_sexp(opt_arg_names),fun_env);
+        }*/
+      int i;
+      for(i=0;i<num_reqargs;i++){
+        if(!CONSP(args)){
+          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname->cord);
+        } else {
+          PUSH(Fcons(req_arg_names[i],eval_arg(POP(args),env)));
+        }
+      }
+      for(i=0;i<num_optargs;i++){
+        if(!CONSP(args)){
+          while(i<num_optargs){
+            PUSH(cons_sexp(&opt_arg_names[i++]),fun_env);
+          }
+          break;
+        } else {
+          PUSH(Fcons(opt_arg_names[i].car,eval_arg(POP(args),fun_env)));
+        }
+      }
+      /*      for(i=0;i<num_keyargs;i++){
+        if(!CONSP(args)){
+          while(i<num_keyargs){
+            PUSH(key_arg_names[i++].cdr,fun_env);
+          }
+          break;
+        } else {
+          sexp key = POP(args);
+          if(!SYMBOL(key)){
+            raise_simple_error_fmt(Etype,"Invaild keyword %s, expected a symbol",
+                                   print(key).cord);
+          } else {
+          while*/
+      CALL:{
+        subr_call fcall=(subr_call){.lex_env=env->lex_env,.lisp_subr=sub,
+                                    .bindings_index=env->bindings_index};
+        push_call(env,fcall);
+        env->lex_env=Fcons(fun_env,env->lex_env);
+        sexp retval=eval(sub->lambda,env);
+        env->lex_env=pop_call(env).lex_env;
+        return retval;
+      }
+    }
+  }
+}

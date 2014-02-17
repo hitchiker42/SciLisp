@@ -351,7 +351,7 @@ union funcall{
   //more can be added if/when needed
   sexp(*fmany)(uint64_t,sexp*);
   sexp(*funevaled)(sexp);//sexp is presumably a list
-  sexp(*fspecial)(sexp,env_ptr);
+  sexp(*fspecial)(sexp,env_ptr);//not all special forms called like this
 };
 typedef enum {
   rec_none,
