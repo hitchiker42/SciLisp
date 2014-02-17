@@ -89,3 +89,72 @@ size_t CORD_pos_span(CORD_pos pos,const char *accept){
   }
   return len;
 }
+/* Closer analogues to strchr/strrchr than CORD_chr/CORD_rchr,
+   the versions which act on positions allow for searching from
+   arbitary positinons, and the versions which act on CORDs are
+   just shortcuts
+ */
+CORD CORD_pos_strchr(CORD_pos p,char c){
+  while(CORD_pos_valid(p)){
+    if(CORD_pos_fetch(s) == c){
+      break;
+    }
+    CORD_next(p);
+  }
+  if(CORD_pos_valid(p)){
+    return CORD_pos_to_cord(p);
+  } else {
+    return 0;
+  }
+}
+    
+CORD CORD_pos_strrchr(CORD_pos p,char c){
+  while(CORD_pos_valid(p)){
+    if(CORD_pos_fetch(s) == c){
+      break;
+    }
+    CORD_prev(p);
+  }
+  if(CORD_pos_valid(p)){
+    return CORD_pos_to_cord(p);
+  } else {
+    return 0;
+  }
+}
+CORD CORD_strchr(CORD s,char c){
+  CORD_pos p;
+  CORD_set_pos(p,s,0);
+  return CORD_pos_strchr(p,c):
+}
+CORD CORD_strrchr(CORD s,char c){
+  CORD_pos p;
+  CORD_set_pos(p,s,CORD_len(s));
+  return CORD_pos_strchr(p,c):
+}
+CORD CORD_strip(CORD s){
+  CORD_pos p;
+  CORD_set_pos(p,s,0);
+  while(CORD_pos_valid(p)){
+    if(!isspace((CORD_pos_fetch(p)))){
+      break;
+    } else {
+      CORD_next(p);
+    }
+  }                
+  if(!CORD_pos_valid(p)){
+    return 0;
+  }
+  size_t start=CORD_pos_to_index(p);
+  CORD_set_pos(p,s,CORD_len(s));
+  size_t len=start+1;
+  while(CORD_pos_valid(p)){
+    if(!isspace(CORD_pos_fetch(p))){
+      len=CORD_pos_to_index(p);//maybe +1;
+      break;
+    } else {
+      CORD_next(p);
+    }
+  }
+  return CORD_substr(s,start,len-start);
+}
+    

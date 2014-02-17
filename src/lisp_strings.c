@@ -160,6 +160,8 @@ sexp string_map(sexp string,sexp map_fn){
     return string_sexp(cord_map(str,f,len));
   }
 }
+const char* c_string_strip(const char *s,size_t *len){}
+  
 #if 0
 #includ "gc/ec.h"
 typedef struct CORD_stream *CORD_stream_ptr
