@@ -43,7 +43,6 @@ sexp mklist(sexp head,...){
   retval.tag=sexp_cons;
   cons *next=retval.val.cons=xmalloc(sizeof(cons));
   cons *trail=next;
-  int i=0;
   next->car=head;
   va_start(ap,head);
   while(!NILP((cur_loc=va_arg(ap,sexp)))){
@@ -51,11 +50,9 @@ sexp mklist(sexp head,...){
     next->cdr=cons_sexp(xmalloc(sizeof(cons)));
     trail=next;
     next=next->cdr.val.cons;
-    i++;
   }
   trail->cdr=NIL;
   retval.is_ptr=1;
-  retval.len=i;
   return retval;
 }
 sexp mkImproper(sexp head,...){
@@ -164,11 +161,9 @@ sexp nappend(sexp conses){
   }
   cons* retval=XCAR(conses).val.cons;
   cons* cur_cell=retval;
-  int len=XCAR(conses).len;
   while(CONSP(XCDR(conses))){
     XCDR(last(XCAR(conses)))=XCAR(XCDR(conses));
     conses=XCDR(conses);
-    len+=conses.len;
   }
   return cons_sexp(retval);
 }
@@ -243,7 +238,8 @@ sexp cons_take(sexp ls,sexp num){
 }
 sexp cons_drop(sexp ls,sexp num){
   if(!CONSP(ls) || !INTP(num)){
-    return format_type_error2("drop","list",ls.tag,"integer",num.tag);
+    raise_simple_error(Etype,format_type_error2("drop","list",ls.tag,
+                                                "integer",num.tag));
   } else {
     int64_t i=num.val.int64;
     while(i>0 && CONSP(ls)){
@@ -252,7 +248,6 @@ sexp cons_drop(sexp ls,sexp num){
     }
     if(i>0){
       raise_simple_error(Ebounds,"error in drop, index out of bounds");
-      return error_sexp("error in drop, index out of bounds");
     } else {
       return ls;
     }
@@ -403,13 +398,14 @@ sexp c_merge_sort(sexp ls,sexp sort_fn){
 }
 sexp cons_merge_sort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNCTIONP(sort_fn)){
-    return format_type_error2("merge sort","list",ls.tag,"funciton",sort_fn.tag);
+    raise_simple_error(Etype,format_type_error2("merge sort","list",
+                                                ls.tag,"funciton",sort_fn.tag));
   }
   return _merge_sort(ls,sort_fn);
 }
 sexp cons_qsort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNCTIONP(sort_fn)){
-    return error_sexp("qsort sort_fn type error");
+    raise_simple_error(Etype,"qsort sort_fn type error");
   }
   sexp(*f)(sexp,sexp);
   int have_closure=0;
@@ -434,7 +430,7 @@ sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
     if(NILP(ls)){
       return NIL;
     }
-    return error_sexp("merge-sort type error, expected a cons cell");
+    raise_simple_error(Etype,"merge-sort type error, expected a cons cell");
     return ls;
   } else if(len <= 1){
     return ls;
@@ -537,8 +533,19 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
 }
 //this needs to be rethought
 //(defun list (&rest args))
-sexp lisp_list(sexp args){
-  return args;
+sexp lisp_list(uint64_t numargs,sexp *args){
+  cons *new_list=xmalloc(numargs*sizeof(cons));
+  sexp retval=cons_sexp(new_list);
+  cons *ptr=retval;
+  int i;
+  for(i=0;i<numargs-1;i++){
+    ptr->car=args[i];
+    ptr->cdr=cons_sexp(ptr+1);
+    ptr=ptr->cdr.val.cons;
+  }
+  ptr->car=args[i];
+  ptr->cdr=NIL;
+  return retval;
 }
 //recursively copy a list
 //any non list/cons data structures are not
@@ -701,5 +708,54 @@ sexp queue_peek(sexp queue){
     return format_type_error("queue-peek","queue (aka list)",queue.tag);
   } else {
     return XCAAR(queue);
+  }
+}
+//probably faster than iterative version, but uses unbounded stack space
+sexp flatten_acc(sexp x,sexp y,int start){
+  if(NILP(x)){
+    if(start){
+      return nreverse(y);
+    } else {
+      return y;
+    }
+  } else if (CONSP(XCAR(x))) {
+    return flatten_acc(XCDR(x),flatten_acc(XCAR(x),y),0);
+  } else {
+    flatten_acc(XCDR(x),Fcons(XCAR(x),y));
+  }
+}
+sexp recursive_flatten(sexp x){
+  //typecheck for cons
+  sexp y=cons_sexp(xmalloc(sizeof(cons)));
+  return flatten_acc(x,y,1);
+}
+
+//currently destructive, eaisly made non destructive
+//by copying x before the first iteration
+sexp iterative_flatten(sexp x){
+  //naieve and unoptimized but it should work
+  //loop over input list flattening it by one level each iteration
+  //test after each iteration if the list is flattened, if not repeat
+  sexp y=cons_sexp(xmalloc(sizeof(cons)));
+  while(1){
+  LOOP:
+    if(NILP(x)){
+      sexp ptr=y;
+      while(CONSP(ptr)){
+        if(CONSP(XCAR(ptr))){
+          x=y;
+          goto LOOP;
+        }
+        ptr=XCDR(ptr);
+      }
+      return nreverse(y);
+    } else if(CONSP(XCAR(x))){
+      XCDR(last(XCAR(x)))=XCAR(y);
+      y=XCAR(x);
+      x=XCDR(x);
+    } else {
+      y=Fcons(XCAR(x),y);
+      x=XCDR(x);
+    }
   }
 }

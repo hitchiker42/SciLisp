@@ -40,6 +40,8 @@ typedef struct CORD_ec_struct {
     char ec_buf[CORD_BUFSZ+1];
 } CORD_ec[1];
 
+typedef struct CORD_ec_struct *CORD_ec_ptr;
+
 /* This structure represents the concatenation of ec_cord with  */
 /* ec_buf[0 ... (ec_bufptr-ec_buf-1)]                           */
 

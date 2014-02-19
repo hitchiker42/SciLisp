@@ -3,6 +3,7 @@
 /* Different types of streams, standard libc streams should probably only be
    used for special files (e.g stdin)
  */
+typedef union lisp_stream lisp_stream;
 typedef struct string_stream string_stream;
 typedef struct CORD_stream CORD_steam;
 typedef struct libc_stream libc_stream;
@@ -42,10 +43,10 @@ struct string_stream {
    the current position isn't the end of the file) might
    be rather slow
  */
-
+//this is really more of a cord input stream only
 struct CORD_stream {
-  CORD cord;
-  CORD_pos pos;
+  CORD cord;//maybe make this an ec cord
+  struct CORD_Pos *pos;
 #ifdef MULTI_THREADED
   pthreads_mutex_t lock[1];
 #endif
@@ -67,7 +68,7 @@ struct libc_stream {
 };
 /* Most flexable stream, but also the least user friendly, it's pretty
    must a direct interfate to the actual file descriptor, so any buffering
-   needs to be done manually
+   needs to be done manually (add a void* buffer field?)
  */
 struct file_stream {
   int fd;

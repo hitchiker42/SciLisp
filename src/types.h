@@ -65,7 +65,6 @@ typedef struct symbol symbol;//generic symbol type
 typedef struct symbol_name symbol_name;
 typedef struct environment environment;//generic symbol namespace
 typedef struct package package;//lisp packages/modules
-typedef struct scoped_sexp scoped_sexp;//an sexp and it's containing environment
 typedef struct obarray obarray;//obarrays, actually hash tables for symbols
 typedef struct ctype ctype;
 typedef struct c_data c_data;
@@ -79,6 +78,7 @@ typedef struct lisp_string lisp_string;//string/CORD + length
 typedef struct lisp_array lisp_array;//array/typed array/matrix
 typedef struct lisp_simple_vector lisp_svector;
 typedef struct subr subr;//any kind of subroutine(macro,function,special form,etc)
+typedef struct lisp_record lisp_record;
 typedef struct frame frame;//a jmp_buf and information to reinitialize lisp environment
 typedef struct frame *frame_addr;
 typedef environment *env_ptr;
@@ -86,8 +86,6 @@ typedef symbol *symref;//type of generic symbol references
 //typedefs akin to the ones in stdint.h and sml
 typedef float real32_t;
 typedef double real64_t;
-typedef char char8_t;
-typedef wchar_t char32_t;
 //values for the type hierarchy
 static const int sexp_num_tag_min = 2;
 static const int sexp_num_tag_max = 19;
@@ -198,27 +196,28 @@ enum sexp_tag {
 #endif
   //sequences 20-30
   sexp_c_str = 20,sexp_c_string=20,//const char *'s, for simple strings
-  sexp_str = 21,sexp_string=21,//type of strings, value is cord
-  sexp_array = 22,//type of arrays, pointers to
-  sexp_svector = 23,
-  sexp_cons = 24,
-  sexp_matrix =26,//array for mathematical calculations
+  sexp_str = 21,sexp_string=21,//type of lisp_strings
+  sexp_array = 22,//type of arrays
+  sexp_svector = 23,//array subtype, 1-D arrays
+  sexp_matrix =24,//array subtype, 2-D arrays
+  sexp_cons = 26,
   sexp_regex = 30,//compiled regular expression
-  sexp_stream = 31,sexp_file=31,//type of input/output streams, corresponds to c FILE*
+  sexp_stream = 31,sexp_file=31,//type of input/output streams
   sexp_subr=32,//typo of functions,macros,special forms and builtins
   sexp_sym = 33,sexp_symbol=33,//type of symbols,value is var
   sexp_type = 35,//type of types
   sexp_env = 38,sexp_environment=38,
-  //maybo just a boolean type instead of two
+  //maybe just a boolean type instead of two
   sexp_false = 40,//#f, singular value
   sexp_true = 41,//#t, singular value
   sexp_obarray = 42,
-  sexp_frame = 43,
+  sexp_frame = 43,//internal type
   sexp_ctype=44,//c ffi type
   sexp_cdata=45,//c value and typeinfo(includes c pointer types)
   sexp_opaque=46,//generic opaque c struct/union
   sexp_regexp_data=47,sexp_re_data=47,//re match data
   sexp_hash_table=48,sexp_hashtable=48,
+  sexp_record=49,//simple records (basicallly assoicative arrays)
   sexp_sfmt=53,//random state
   sexp_package=54,
   //simd types
@@ -239,7 +238,7 @@ enum sexp_tag {
   //internal use only
   sexp_uninterned=0xfd,
   sexp_unbound=0xfe,
-  sexp_error=0xff,
+  sexp_error=0xff,//don't think I need this anymore
 };
 union data {//keep max size at 64 bits
   uint64_t uint64;//just so this is the default type
@@ -338,6 +337,29 @@ enum TOKEN {
   TOK_MAT_CLOSE=59,//"|]", close """"
   TOK_ERR=60,
 };
+/*
+  structure of strings in lisp,
+  strings immutable, we use cords for actions that would normally use mutable strings
+  ie sprintf, concatenation, modifying substrings etc, or to store the a string
+  described by a function. i.e to represent a string who's i'th character is i %10;
+  char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten,NULL,<len>);
+  be careful about trying to turn something like this into a standard c string
+
+  strings are kept internally in utf-8 encoding (ie multibyte) and can
+  contain embedded nul bytes (another reason we keep the length)
+*/
+struct lisp_string {
+  //kinda a silly union since a CORD is technically a typedef for const char*
+  //but it makes code clearer in places
+  //no tag bit is needed as a lisp string is a cord if string[0] == '\0'
+  //i guess that kinda raises some issues with embedded nulls...hmmm
+  union {
+    const char *string;
+    CORD cord;
+  };
+  uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
+  uint8_t multibyte;//0=no,1=yes
+};
 //this is almost exactly the way emacs does builtin functions
 union funcall{
   sexp(*f0)(void);
@@ -366,41 +388,12 @@ enum subr_type {
     subr_special_form,
     subr_macro,
 };
-/*
-  structure of strings in lisp,
-  strings immutable, we use cords for actions that would normally use mutable strings
-  ie sprintf, concatenation, modifying substrings etc, or to store the a string
-  described by a function. i.e to represent a string who's i'th character is i %10;
-  char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten,NULL,<len>);
-  be careful about trying to turn something like this into a standard c string
-
-  strings are kept internally in utf-8 encoding (ie multibyte) and can
-  contain embedded nul bytes (another reason we keep the length)
-*/
-struct lisp_string {
-  //kinda a silly union since a CORD is technically a typedef for const char*
-  //but it makes code clearer in places
-  //no tag bit is needed as a lisp string is a cord if string[0] == '\0'
-  //i guess that kinda raises some issues with embedded nulls...hmmm
-  union {
-    const char *string;
-    CORD cord;
-  };
-  uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t multibyte;//0=no,1=yes
-};
 struct lambda_list {
   cons *arglist;//unmodified arglist
   cons *req_args;//( num_req_args . [reqargs ... ])
   cons *opt_args;//( num_opt_args . [(argname . default)...)]
   cons *key_args;//(num_key_args .  [[key . (var . default)]...])
   symbol *rest_arg;
-};
-struct package {
-  lisp_string name;
-  lisp_string documentation;
-  package *uses;
-  obarray *symbol_table;
 };
 //lisp subroutine, either a builtin function, a special form, a compilier macro
 //or a lisp function(a lambda) or a lisp macro
@@ -425,15 +418,23 @@ struct subr {
   uint8_t subr_type;//61
   uint8_t return_type;//useful for things like mapping over typed arrays
   unsigned int rec_fun :2;//0 not-recursive,1 recursive, 2 tail recursive
-  unsigned int pure_fun :1;//no change to it's arguments, should be most functions
-  unsigned int const_fun :1;//returns the same result given the same arguments //61.5
+  unsigned int pure_fun :1;//no change to it's arguments
+  //Most functions should be pure, perhaps this should be impure instead
+  unsigned int const_fun :1;//returns the same result given the same arguments
+  //in short it doesn't rely on pointers //61.5
   unsigned int no_throw :1;//0 if function can raise an error, 1 if not
   int :0;
-  //in short it doesn't rely on pointers
+
 };
 static inline lisp_string *get_signature(subr *lisp_subr){
   return &(lisp_subr->signature);
 }
+struct package {
+  lisp_string name;
+  lisp_string documentation;
+  package *uses;
+  obarray *symbol_table;
+};
 //defines what values are considered false
 //currently, these are false,nil,numerical 0 or a null pointer
 #define is_true(x)                               \
@@ -485,17 +486,26 @@ sexp lisp_bigfloat_0;
 sexp lisp_bigfloat_1;
 extern sexp get_type_from_string(CORD typestring);
 /* structure for arrays, typed arrays, matrices and vectors */
+struct generic_array {
+  void *data;
+  union {
+    uint64_t len;
+    struct {
+      uint32_t N;
+      uint32_t M;
+    };
+    uint32_t *dimensions;
+  };
+  uint8_t type;
+};
 struct lisp_array {
   union {
     sexp *vector;//1-D array of sexps
-    sexp *array;//2-D array of sexps
     data *typed_vector;//1-D array of a specific type
-    data *array_vector;//2-D array of a specific type
+    sexp *array;//2-D array of sexps
+    data *typed_array;//2-D array of a specific type
     //mathmatical arrays, for use with blas,lapack,etc
-    real64_t *double_matrix;
-    real32_t *float_matrix;
-    complex32_t *float_complex_matrix;
-    complex64_t *double_complex_matrix;
+    void *matrix;//blas matrix
     void *data;//anything else (specificly 3+ dimensional arrays)
     //    blas_array *matrix;//seperate struct for arrays for use with blas
   };
@@ -517,7 +527,7 @@ enum cblas_type {
   cblas_complex_float,
   cblas_complex_double,
 };
-struct blas_array{
+struct blas_array{//rename lisp_matrix ?
   union {
     real32_t *real32_array;
     real64_t *real64_array;
@@ -528,6 +538,7 @@ struct blas_array{
   //are really just Nx1 matrices
   uint32_t N;
   uint32_t M;
+  uint8_t type;
   uint8_t dims;
   uint8_t blas_type;
   uint8_t blas_order;//value of type enum cblas_order
@@ -565,4 +576,113 @@ static double get_double_val(sexp x){
       return NAN;
   }
 }
-//int type=0;
+/*
+  Type Heirarchy:
+  Abstract Types:
+  sexp - supertype of everything
+  atom - any object that is not a cons
+  cons - any object that is not an atom ;kind of a joke this is
+  sequence - Any cons, vector (or 1-D array), or string
+  self-evaluating - Any object obj such that (eq obj (eval obj)) is true
+      More literally any object that is not a cons or a non-keyword symbol
+  number - any numberic type, not a great defination I know
+  direct - any object not represented by a pointer in c
+  indirect - any object represented by a pointer in c
+  literal - any `read`able object, i.e a string,vector,cons,etc..
+    examples of non literal objects are streams, random-state, regular
+    expression data and compiled functions
+  opaque - any object which is completly opaque to the user, that is
+     it can not be manipulated or modified by the user, and any iternal
+     fields can not be accessed. ex. random-state, regexp-data.
+  Mutualy Exclusive Types: ;any object can only be one of these
+    Bignum ;supertype of numbers
+    Character ;single character literal
+    Subr   ;supertype of functions/macros/special-forms
+    Symbol ;Includes special symbols like #t and #f ... maybe
+    Cons
+    Array
+    Stream
+    Hash-Table
+    Boolean ;#t or #f...unless I make these symbols
+    nil   ;nil is two things, the end of list value and the null value
+          ;nil is not a list/cons, the empty list is (nil . nil)
+    Type ;literal types (types are values)
+    ; More later
+
+  Numeric Types:
+  Number:
+    Integer:
+      Int64
+      UInt64
+      Int32
+      UInt32
+      Int16
+      UInt16
+      Int8
+      UInt8
+    Real:
+      Real64
+      Real32
+      Integer
+    Float:
+      Real64
+      Real32
+  Bignum:
+    Number
+    BigInt
+    BigFloat
+
+  Vector Types:
+  Simple_Vector: ;1-D
+    untyped svector
+    typed svector
+  Blas_Matrix: ;Compatable with blas/lapack routines, 2-D
+    real32_blas_matrix
+    real64_blas_matrix
+    complex32_blas_matrix
+    complex64_blas_matrix
+  Matrix: ;2-D only
+    Blas_Matrix
+    typed_matrix
+    untyped_matrix
+  Array: ;N-D
+    Vector
+    Matrix
+    untyped-array
+    typed-array
+
+  Sequence Types:
+    Vector
+    Cons
+    String
+  Stream Type:
+  ;Mutuially inclusive catagories
+    ;Direction
+    Input Stream
+    Output Stream
+    Input-Output Stream
+    ;Type
+    String Stream
+    File Stream ;A stream backed by a normal file
+    ;not sure of the best name for this (stdout,/dev/*,stdin,etc type streams)
+    Interactive Stream / Special Stream ;A stream backed by a special file
+    Null Stream ;Special stream, discards any output, returns EOF for any input
+    ;maybe Composite Streams, special streams ala common lisp
+  Subr Type: ;Subroutine type
+    Function:
+      Compiled Function
+      Lambda Function
+        Closure
+    Macro
+    Special-Form
+  Symbol
+    Keyword Symbol ;self evaluating symbol
+    ;;maybe
+    :#t
+    ;#f
+  Type
+  Hash-Table
+  Character
+  ;To be added
+  Structure/Record
+ */

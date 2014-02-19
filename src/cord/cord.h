@@ -108,6 +108,7 @@ CORD_API CORD CORD_cat(CORD x, CORD y);
 /* length is known, it can be faster.                                   */
 /* The string y is shared with the resulting CORD.  Hence it should     */
 /* not be altered by the caller.                                        */
+/* y does not need to be null terminated,unless x == 0                  */
 CORD_API CORD CORD_cat_char_star(CORD x, const char * y, size_t leny);
 
 /* Compute the length of a cord */
@@ -285,7 +286,7 @@ CORD_API CORD CORD_from_file_lazy(FILE * f);
 /* Turn a cord into a C string. The result shares no structure with     */
 /* x, and is thus modifiable.                                           */
 CORD_API char * CORD_to_char_star(CORD x);
-
+v
 /* Turn a C string into a CORD.  The C string is copied, and so may     */
 /* subsequently be modified.                                            */
 CORD_API CORD CORD_from_char_star(const char *s);
