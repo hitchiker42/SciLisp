@@ -91,7 +91,7 @@
 (define SciLisp-special-forms ;prefix Q
   (list "lambda" "closure" "nil" "let" "let_star" "while" "tagbody" "go"
         "throw" "catch" "setq" "unwind_protect" "if" "progv" "progn"
-        "return_from" "block" "quote" "comma" "backquote"))
+        "return_from" "block" "quote" "comma" "quasiquote"))
 (define SciLisp-errors;prefix E
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
         "undefined" "unbound" "math" "eof" "io" "overflow" "range" "const"

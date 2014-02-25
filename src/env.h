@@ -58,6 +58,8 @@ struct symbol {
 //we need to search through the bindings stack, this is likely less
 //efficent for single threaded programs than rebinding the symbol value
 //in the obarray, but it lets me do the same thing regardless of threads
+//there is only one way to rebind dynamic variables, which is the progv
+//special form
 typedef struct binding binding;
 typedef struct subr_call subr_call;
 struct binding {

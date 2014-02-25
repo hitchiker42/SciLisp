@@ -1,3 +1,21 @@
+/* The reader
+
+Copyright (C) 2013-2014 Tucker DiNapoli
+
+This file is part of SciLisp.
+
+SciLisp is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+SciLisp is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with SciLisp.  If not, see <http://www.gnu.org*/
 #define CORD_BUFSZ 256
 #include "common.h"
 #include "cons.h"
@@ -133,13 +151,15 @@ sexp internal_read(read_input *input,int *pch,int flags){
       case '#':READ_MESSAGE("reading sharp");
         return read_sharp(input);
       case '`':{READ_MESSAGE("reading backquoted sexp");
-        return c_list2(Qbackquote_sexp,read_0(input,flags+1));
+        return c_list2(Qquasiquote_sexp,read_0(input,flags+1));
       }
       case ',':READ_MESSAGE("reading comma");
         if(!flags){
           raise_simple_error(Eread,"Error comma not inside a backquote");
         }
         return c_list2(Qcomma_sexp,read_0(input,flags-1));
+      case '\'':READ_MESSAGE("reading quote");
+        return c_list2(Qquote_sexp,expr);
       default:READ_MESSAGE("reading symbol or number");
         unread_char(input);
         return read_symbol_or_number(input);
@@ -228,7 +248,11 @@ sexp read_integer(read_input *input,int radix){
   }
   return int64_sexp(num);
 }
-
+/*reader macros, some are special(reading hash tables) while some
+  are just normal syntax (comments, hex, binary,...). I think
+  the special things might be able to be turned off (they can
+  in common lisp)
+*/
 static sexp read_sharp(read_input *input){
   char c;
   switch((c=read_char(input))){

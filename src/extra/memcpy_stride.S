@@ -83,6 +83,7 @@ L(1):
         movq %rdi,RETVAL(%rsp)
         cmpq $2, %rcx
         je L(stride2)
+/*Copy with stride > 2*/
 L(strideN):
         xorq %rax,%rax
 /*copy up to 3 blocks to make size a multiple of 4*/
@@ -158,9 +159,13 @@ L(1exit):
         ret
         .p2align 4
 L(stride2):
+/*rcx is the stride, since we know it's a constant 2, we can reuse it*/
+/*so we use it to keep the remanining size, so we have the orignial size*/
+/*in rdx which we test aganist */
+        movq %rdx,%rcx
 /* deal with excess bytes, so we can copy 64 byte chunks in the main loop*/
 L(2a):
-        testq $1, %rdx
+        testq $1, %rcx
         jz L(2b)
 
         movq 0(%rsi),%r8
@@ -168,9 +173,10 @@ L(2a):
 
         addq $16,%rsi
         addq $8,%rdi
-        decq %rdx
+
+        decq %rcx
 L(2b):
-        testq $2, %rdx
+        testq $2, %rcx
         jz L(2c)
 
         movq 0(%rsi),%r8
@@ -180,10 +186,11 @@ L(2b):
 
         addq $32,%rsi
         addq $16,%rdi
-        subq $2,%rdx
+
+        subq $2,%rcx
 L(2c):
 /*zero out the last 2 bits from the size parameter (we just dealt with them)*/
-        andq   $-4,%rdx
+        andq   $-4,%rcx
         jz L(2exit)
 
 /*handle blocks up to 1KB (copy 64 bytes a loop, no need to save/restore
@@ -206,7 +213,7 @@ L(2loop):
         leaq 64(%rsi),%rsi
         leaq 32(%rdi),%rdi
 
-        decq %rdx
+        decq %rcx
         jz L(2exit)
 
         movq 0(%rsi),%r8
@@ -222,7 +229,7 @@ L(2loop):
         leaq 64(%rsi),%rsi
         leaq 32(%rdi),%rdi
 
-        decq %rdx
+        decq %rcx
         jnz L(2loop)
 L(2exit):
         movq RETVAL(%rsp),%rax
@@ -232,7 +239,6 @@ L(2exit):
 L(stride2Big):
         /*save rbx,r12,r13,r14 and r15 in the red zone*/
 
-        save_registers
 /*what memcpy does is test size against 1/2 the l1 cache size (approx 256k)
   and uses movs to do copying via fast string ops (which I can't do)
   if size is >1/2 l1 but <1/2 l2 it loops prefetching memory during each iteration
@@ -262,11 +268,19 @@ L(3a): /*make size a multiple of 8, it should already be a multiple of 4
         leaq 64(%rsi),%rsi
         leaq 32(%rdi),%rdi
 
-        subq $4,%rdx
+        subq $4,%rcx
 L(3b):
-        andq $-8,%rdx
+        andq $-8,%rcx
+        /*jmp to nontemporal loop if size>512kB*/
+        cmpq $524288,%rdx
+        ja L(NT)
         /*set rcx to rcx/8, then we can just do decq rcx once for every 64 bytes*/
-        shrq $3,%rdx
+        shrq $3,%rcx
+        /*jmp to prefetch loop if size>128kB*/
+        cmpq $131072,%rdx
+        ja L(preloop)
+
+/*handle 1-128 kb 128 bytes a loop, no prefeching */
 L(3loop):
 
         movq 0(%rsi),%rax
@@ -277,10 +291,6 @@ L(3loop):
         movq 80(%rsi),%r11
         movq 96(%rsi),%r12
         movq 112(%rsi),%r13
-/* I'm not sure why 896, but that's what memcpy uses
-	prefetcht0	896 +  0(%rsi)
-	prefetcht0	896 + 128(%rsi)
-*/
 
         movq %rax,0(%rdi)
         movq %rbx,8(%rdi)
@@ -306,10 +316,6 @@ L(3loop):
         movq 80(%rsi),%r11
         movq 96(%rsi),%r12
         movq 112(%rsi),%r13
-/* I'm not sure why 896, but that's what memcpy uses
-	prefetcht0	896 +  0(%rdi)
-	prefetcht0	896 + 64(%rdi)
-*/
 
         movq %rax,0(%rdi)
         movq %rbx,8(%rdi)
@@ -334,12 +340,106 @@ L(3exit):
         retq
 
         .p2align 4
-/*for really big blocks (> 512k) avoid poluting the cache
+
+L(preloop):
+
+        movq 0(%rsi),%rax
+        movq 16(%rsi),%rbx
+        movq 32(%rsi),%r8
+        movq 48(%rsi),%r9
+        movq 64(%rsi),%r10
+        movq 80(%rsi),%r11
+        movq 96(%rsi),%r12
+        movq 112(%rsi),%r13
+/* I'm not sure why 896, but that's what memcpy uses*/
+	prefetcht0	896 +  0(%rsi)
+	prefetcht0	896 + 128(%rsi)
+
+        movq %rax,0(%rdi)
+        movq %rbx,8(%rdi)
+        movq %r8,16(%rdi)
+        movq %r9,24(%rdi)
+        movq %r10,32(%rdi)
+        movq %r11,40(%rdi)
+        movq %r12,48(%rdi)
+        movq %r13,52(%rdi)
+
+
+        leaq 128(%rsi),%rsi
+        leaq 64(%rdi),%rdi
+
+        decq %rcx
+        jz L(3exit)
+
+        movq 0(%rsi),%rax
+        movq 16(%rsi),%rbx
+        movq 32(%rsi),%r8
+        movq 48(%rsi),%r9
+        movq 64(%rsi),%r10
+        movq 80(%rsi),%r11
+        movq 96(%rsi),%r12
+        movq 112(%rsi),%r13
+/* I'm not sure why 896, but that's what memcpy uses*/
+	prefetcht0	896 +  0(%rdi)
+	prefetcht0	896 + 64(%rdi)
+
+        movq %rax,0(%rdi)
+        movq %rbx,8(%rdi)
+        movq %r8,16(%rdi)
+        movq %r9,24(%rdi)
+        movq %r10,32(%rdi)
+        movq %r11,40(%rdi)
+        movq %r12,48(%rdi)
+        movq %r13,52(%rdi)
+
+        leaq 128(%rsi),%rsi
+        leaq 64(%rdi),%rdi
+
+        decq %rcx
+        jnz L(3loop)
+L(preexit):
+
+        restore_registers
+
+        movq RETVAL(%rsp), %rax
+
+        retq
+
+        .p2align 4
+/*for really big blocks (> 512k) avoid poluting the cache*/
 L(NT):
-        L(NT):					/* non-temporal 128-byte /
- HERE I need to put it code to make rdx a multiple of 16
-        andq  $-128, %rdx
-	shrq	 $7, %rdx
+
+L(NTa): /*make size a multiple of 16, it should already be a multiple of 8
+        so just test if 8 is set or not*/
+        testq $8,%rcx
+        jz L(NT)
+
+        movq 0(%rsi),%rax
+        movq 16(%rsi),%rbx
+        movq 32(%rsi),%r8
+        movq 48(%rsi),%r9
+        movq 64(%rsi),%r10
+        movq 80(%rsi),%r11
+        movq 96(%rsi),%r12
+        movq 112(%rsi),%r13
+
+        movq %rax,0(%rdi)
+        movq %rbx,8(%rdi)
+        movq %r8,16(%rdi)
+        movq %r9,24(%rdi)
+        movq %r10,32(%rdi)
+        movq %r11,40(%rdi)
+        movq %r12,48(%rdi)
+        movq %r13,52(%rdi)
+
+        leaq 128(%rsi),%rsi
+        leaq 64(%rdi),%rdi
+
+        subq $8,%rcx
+L(NTb):
+/*this might be wrong, since I just took if from memcpy*/
+        andq  $-128, %rcx
+	shrq	 $7, %rcx
 
        .p2align 4
 
@@ -347,7 +447,7 @@ L(NTloop):
 	prefetchnta	768(%rsi)
 	prefetchnta	896(%rsi)
 
-	decq	%rdx
+	decq	%rcx
 
 	movq	  (%rsi), %rax
 	movq	16(%rsi), %r8
@@ -366,7 +466,7 @@ L(NTloop):
 	movntiq	%r12, 40(%rdi)
 	movntiq	%r13, 48(%rdi)
 	movntiq	%r14, 56(%rdi)
-necessary to fit displacement in 8 bits
+/*necessary to fit displacement in 8 bits*/
 	leaq	128(%rsi), %rsi
 
 	movq	  (%rsi), %rax
@@ -377,6 +477,9 @@ necessary to fit displacement in 8 bits
 	movq	80(%rsi), %r12
 	movq	96(%rsi), %r13
 	movq    112(%rsi), %r14
+
+	prefetchnta	768(%rdi)
+	prefetchnta	896(%rdi)
 
 	movntiq	%rax,  64(%rdi)
 	movntiq	 %r8,  72(%rdi)
@@ -392,28 +495,13 @@ necessary to fit displacement in 8 bits
 
 	jnz	L(NTloop)
 
-	sfence				/* serialize memory stores /
-
-	movq	SAVE2(%rsp), %r12
-	cfi_restore (%r12)
-	movq	SAVE1(%rsp), %r13
-	cfi_restore (%r13)
-	movq	SAVE0(%rsp), %r14
-	cfi_restore (%r14)
+	sfence				/* serialize memory stores */
+        
+        restore_registers
 
 L(NTskip):
-	andl	$127, %edx		/* check for left overs /
-#ifdef USE_AS_MEMPCPY
-	jnz	L(1)
 
-	movq	%rdi, %rax
-#else
 	movq	RETVAL(%rsp), %rax
-	jnz	L(1)
-
-	rep
-#endif
-	retq				/* exit /
-*/
+	retq				/* exit */
 
 END memcpy_stride

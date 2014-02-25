@@ -127,6 +127,7 @@ some failed.
 @menu
 * Atoms::
 * Cons::
+* Special Forms::
 * Functions::
 * Macros::
 @end menu
@@ -236,6 +237,26 @@ represent the end of a list, or a non-existent value. The symbol nil
 in SciLisp only represents a null value, the value '() represents the
 empty list and #f represents falsity. In boolean contexts nil evaluates
 to #f, but nil itself is not a boolean value. 
+@node Special Forms
+@section Special Forms
+Special Forms are unique lisp operations that implement core features
+that could not be implemented with functions or macros. While one of the
+important aspects of lisp is that there should be no significant
+difference between user code and built in code there are some core
+features that must be implemented specially, these are special forms.
+The special form of Scilisp are as follows:
+@defspec progn forms...
+@code(progn) evaluates each of the @var(forms) and returns the result of
+the last form
+@defspec prog1 form forms...
+@code(prog1) evaluates form and then all of the @var(forms) in
+succession. The value of form 
+@defspec if condition then-form else-forms...
+The if special form implements conditional code execution. first
+condition is evaluated if the result is false (defined as #f,nil or 0)
+execute else-forms and return the result of the last form,  otherwise
+execute then-form and return the result. The else-forms are wrapped in
+an implicit progn.
 @node Functions
 @section Functions
 @node Macros

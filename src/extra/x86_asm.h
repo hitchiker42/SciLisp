@@ -181,6 +181,13 @@ lose:									      \
 #define JUMPTARGET(name)	name
 #endif
 
+#undef FUNCALL
+#ifdef PIC
+#define FUNCALL(name) call name##@PLT
+#else
+#define FUNCALL(name) call name
+#endif
+
 /* Local label name for asm code. */
 #ifndef L
 /* ELF-like local names start with `.L'.  */
@@ -303,5 +310,54 @@ lose:									      \
         cfi_restore (%r13)              \
         movq	SAVE0(%rsp), %r14       \
         cfi_restore (%r14)
+/*this doesn't need to be valid c, all we're doing is including it in an
+  assembly file, so these are assembly macros
+*/
+.macro save_registers
+        movq	%r14, SAVE0(%rsp)
+        .cfi_rel_offset %r14, SAVE0
+        movq    %r13, SAVE1(%rsp)
+        .cfi_rel_offset %r13, SAVE1
+        movq	%r12, SAVE2(%rsp)
+        .cfi_rel_offset %r12, SAVE2
+        movq	%rbx, SAVE3(%rsp)
+        .cfi_rel_offset %rbx, SAVE3
+.endm
+.macro restore_registers
+        movq	SAVE3(%rsp), %rbx
+        .cfi_restore %rbx
+        movq	SAVE2(%rsp), %r12
+        .cfi_restore %r12
+        movq	SAVE1(%rsp), %r13
+        .cfi_restore %r13
+        movq	SAVE0(%rsp), %r14
+        .cfi_restore %r14
+.endm
+.macro save_rbx
+        movq  %rbx, SAVE0(%rsp)
+        .cfi_rel_offset %rbx, $SAVE0
+.endm
+.macro restore_rbx
+        movq  SAVE0(%rsp),%rbx
+        .cfi_restore %rbx
+.endm
+.macro CALL_MCOUNT
+        pushq %rbp;
+        .cfi_adjust_cfa_offset 8;
+        movq %rsp, %rbp;
+        .cfi_def_cfa_register %rbp;
+.endm
+.macro ENTRY name
+        .globl \name;
+        .type \name,@function;
+        .p2align 4
+\name\():
+        .cfi_startproc
+.endm
+
+.macro END name
+.cfi_endproc
+.size \name, .-\name
+.endm
 #endif /* __ASSEMBLER__ */
 #endif	/* _X86_64_SYSDEP_H */

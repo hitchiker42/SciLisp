@@ -1,0 +1,60 @@
+SciLisp scoping rules:
+
+Top level dynamic scope:
+    -determined by current package
+    -held in thread local variable current_obarray
+    -symbols resolved at runtime
+Package specific dynamic scopes:
+    -Uses the obarray of an explicitly specified package
+    -syntax is <package>:[.]<symbol>
+    -the package is resolved dynamically as a symbol in the top level scope
+    -without the extra '.' only explicitly exported symbols are available
+    -with the '.' any dynamic symbol can be accessed
+Arbitarly nested lexical scopes:
+    -represented by an alist of the form ((symbol . value)... . nil)
+    -a symbol can appear any number of times with different values, only the
+      latest instace of a symbol is used, that is the first time a symbol is
+      found in the list it is used
+    -symbols are resolved at compile time
+
+Symbol Resolution:
+    -symbols defined using defun,defvar,defconst or defmacro
+      are defined as dynamic variables
+    -symbols defined using setq,def,define,let,let*,flet,flet*, or any
+      other way are placed into the current lexical scope
+    -the progv special form defines symbols with lexical scope but dynamic
+     extent, that is to say the value is resolved at runtime but only during
+     the lexical extent of the form
+    -when a symbol is encountered at compile time the current lexical
+      environment is searched and if found replaced by it's value. if
+      the symbol is not located in the lexical environment it is replaced
+      my a runtime symbol lookup
+    -optionally a compile time option can be specified that requires all
+      variables to be declared/defined before use, in this case dynamic
+      variables are still resolved at runtime but if a symbol is not located
+      in the lexical environment the current dynamic environment is checked
+      to insure the variable has been declared, resulting in faster runtime
+      symbol resolution. It is a compile time error if a symbol is not declared
+      when this option is used
+
+example:
+ (defun foo (a b) (+ a b foobar))
+ (defvar bar 5)
+ (progv ((foobar 9))
+   (print (foo 1 2)))
+ ;prints 12, the reference to foobar in foo is resolved via the progv
+ (print (foo 1 2))
+ ;results in an variable not found error, foobar is no longer in scope
+ (let ((foobar 9))
+   (print (foo 1 2)))
+ ;again results in a variable not found error, the lexical binding of foobar
+ ;is not visable in foo
+ (progv ((bar 6))
+   (let ((bar 7))
+     (let ((bar 8))
+     (print bar))
+   (print bar))
+  (print bar))
+  (print bar)
+  ;prints 8 7 6 5, only the innermost binding, lexical or dynamic is visable
+
