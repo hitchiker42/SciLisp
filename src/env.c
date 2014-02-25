@@ -165,7 +165,7 @@ static inline int maybe_rehash_obarray(obarray *ob){
   return 0;
 }
 //use only to initialize primitives at startup, run within pthread_once
-//assumes that the symbol argument is not in the obarray already 
+//assumes that the symbol argument is not in the obarray already
 void c_intern_unsafe(obarray *ob,symbol* new){
   uint32_t index=new->name->hashv % ob->size;
   //  struct symbol *sym;
@@ -258,7 +258,7 @@ static inline symbol *c_intern_maybe_copy(const char *name,uint32_t len,
   PRINT_MSG("Making new symbol");
   multithreaded_only(pthread_rwlock_unlock(ob->lock));
   //allocate the name seperately so we can do it atomically(gc atomically)
-  struct symbol_name *new_symbol_name = 
+  struct symbol_name *new_symbol_name =
     (copy ? make_symbol_name(name,len,hashv) :
      make_symbol_name_no_copy(name,len,hashv));
   struct symbol *retval=xmalloc(sizeof(struct symbol));
@@ -326,7 +326,8 @@ void reset_current_env(){
   memset(current_env+offsetof(environment,lex_env),
          '\0',sizeof(environment)-offsetof(environment,lex_env));
          }*/
-void c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
+
+void __attribute__((noreturn)) c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
   uint32_t lisp_errno=current_env->error_num;
   if(!lisp_errno){
     //this was a signal sent from c
@@ -370,11 +371,11 @@ int lisp_pthread_create(pthread_t *thread,const pthread_attr_t *attr,
   void *new_args[2];
   new_args[0]=start_routine;
   new_args[1]=arg;
-  return pthread_create(thread,attr,init_environment_pthread,(void*)new_args);  
+  return pthread_create(thread,attr,init_environment_pthread,(void*)new_args);
 }
-void *init_environment_pthread(void* arg){
+void *init_environment_pthread(void* arg){//I think this should be static
   void** args=(void**)arg;
-  void*(*f)(void*)=args[0];  
+  void*(*f)(void*)=args[0];
   init_environment();
   return f(args[1]);
 }
@@ -390,11 +391,15 @@ void init_environment(void){
   }
   current_env->sigstack->ss_size=SIGSTKSZ;
   sigaltstack(current_env->sigstack,NULL);
+  //can I allocate all the stacks at once?
   current_env->frame_stack=
     GC_malloc_ignore_off_page(frame_stack_size);//*sizeof(frame));
   current_env->frame_ptr=current_env->frame_stack;
   current_env->frame_top=
     current_env->frame_ptr+(frame_stack_size);
+  current_env->protect_frame=
+    make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
+  push_frame(current_env,*protect_frame);
   current_env->data_stack=
     GC_malloc_ignore_off_page(data_stack_size);//*sizeof(sexp));
   current_env->data_ptr=current_env->data_stack;
@@ -410,4 +415,29 @@ void init_environment(void){
   //gc sets everything to 0, every other field needs to be 0, so we're done
   return;
 }
-  
+static void init_signal_handlers_internal();
+#ifdef MULTI_THREADED
+//this really should happen by default
+#define sigprocmask GC_pthread_sigmask
+void init_signal_handlers(){
+  pthread_once(&signal_handlers_initialized,init_signal_handlers_internal);
+}
+#else
+void init_signal_handlers(){
+  init_signal_handlers_internal();
+}
+#endif
+static inline void init_signal_handlers_internal(){
+  //block all signals to insure that all signal handlers get installed
+  //we probably don't need to do this, but better safe than sorry
+  sigset_t set,*oldset;
+  sigfillset(&set);
+  sigprocmask(SIG_BLOCK,&set,oldset);
+  //for abort and segfault print a backtrace and exit
+  sigaction(SIGSEGV,fatal_action_ptr,NULL);
+  sigaction(SIGABRT,fatal_action_ptr,NULL);
+  //sigusr1/2 are used to implement internal lisp signals
+  sigaction(SIGUSR1,signal_action_ptr,NULL);
+  sigaction(SIGUSR2,signal_action_ptr,NULL);
+  sigprocmask(SIG_SETMASK,oldmask,NULL);
+}

@@ -24,11 +24,19 @@ read_input *make_string_input(const char *input);
 //general entry point for reading from a read_input object
 //the input object keep's it's own state so this function is re-entrent
 //(acutally I might need to do a bit of work to make it totally reentrent)
-sexp start_read(read_input *input);
+//it also should probably be reneamed, maybe
+sexp start_read(read_input *input);//depricated
+
+//read the next sexp from input, mostly for interactive input
+sexp read_sexp(read_input *input);
+//return a list of all sexps read from input, mostly for non-interactive input
+sexp read_full(read_input *input);
 //non-re-entrent convenience functions 
 //these are literally implemented by running make_???_input and passing
 //the return value to start_read
 sexp read_from_cord(CORD input);
 sexp read_from_stream(FILE *stream);
 sexp read_from_string(char *string);
+//convience function to call read_full on a file
+sexp read_file(FILE *input)
 #endif

@@ -62,12 +62,12 @@ sexp eval_top(sexp expr,env_ptr env){
       //if(expr.val.sym->special){return expr.val.sym->val;}
       return get_symbol_value(expr.val.sym);
     case sexp_cons:
-      if(!symbolp(xcar(expr))){
-        raise_simple_error_fmt(etype,"invalid function %r",print(xcar(expr)).str);
+      if(!symbolp(XCAR(expr))){
+        raise_simple_error_fmt(etype,"invalid function %r",print(XCAR(expr)).str);
       }
       sexp subr_var=get_symbol_value(expr.val.sym);
       if(!subrp(subr_var)){
-        raise_simple_error_fmt(etype,"invalid function %r",print(xcar(expr)).str);
+        raise_simple_error_fmt(etype,"invalid function %r",print(XCAR(expr)).str);
       }
       return funcall(subr_var.val.subr,xcddr(expr),env);
       //it might be a good idea to dispatch on special forms via switching
@@ -82,7 +82,7 @@ sexp lookup_var (symbol *sym,env_ptr env){
   if(env->lex_env){
     sexp lex_binding=lex_assq(env->lex_env,sym);
     if(!nilp(lex_binding)){
-      return xcdr(lex_binding):
+      return XCDR(lex_binding):
     }
   }
   if(unbound(sym->val)){
@@ -99,7 +99,7 @@ static inline sexp get_symbol_value(symbol *sym,env_ptr env){
   if(!nilp(env->lex_env)){//if there is a lexical environment search it first
     sexp lex_binding=c_assq(env->lex_env,sym);
     if(!nilp(lex_binding)){
-      return xcdr(lex_binding);
+      return XCDR(lex_binding);
     }
   }
   if(unbound(sym->val)){
@@ -113,7 +113,7 @@ static inline sexp get_symbol_value(symbol *sym,env_ptr env){
 //this worthwhile
 #define eval_arg(arg,env)                       \
   ({sexp argval;                                \
-  if(!consp(arg) && !symbolp(arg)){             \
+  if(!CONSP(arg) && !symbolp(arg)){             \
     argval=arg;                                 \
   } if(symbolp(arg)){                           \
     argval=lookup_arg(arg,env);                 \
@@ -167,11 +167,11 @@ sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env){
 }
 sexp lisp_and(sexp exprs){
   sexp retval=lisp_true;
-  while(consp(exprs)){
-    if(!(istrue(eval(xcar(exprs),cur_env)))){
+  while(CONSP(exprs)){
+    if(!(istrue(eval(XCAR(exprs),cur_env)))){
       return lisp_false;
     } else {
-      exprs=xcdr(exprs);
+      exprs=XCDR(exprs);
     }
   }
   return retval;
@@ -179,10 +179,10 @@ sexp lisp_and(sexp exprs){
 //this isn't really atomic, fix that
 sexp lisp_defvar(sexp args){
   sexp var,val,docstr=nil;
-  var=xcar(args);
-  args=xcdr(args);
-  val=(consp(args)?xcar(args):nil);
-  if(consp(xcdr(args))){
+  var=XCAR(args);
+  args=XCDR(args);
+  val=(CONSP(args)?XCAR(args):nil);
+  if(CONSP(XCDR(args))){
     docstr=xcadr(args);
   }
   if(var.val.sym->val == unbound){
@@ -195,15 +195,15 @@ sexp lisp_defvar(sexp args){
   return var;
 }
 sexp lisp_defun(sexp args){
-  sexp var=xcar(args);
-  args=xcdr(args);
-  if(!consp(args) || !consp(xcdr(args))){
+  sexp var=XCAR(args);
+  args=XCDR(args);
+  if(!CONSP(args) || !CONSP(XCDR(args))){
     return error_sexp("malformed defun");
   }
-  if(!cons_or_nil(xcar(args))){
+  if(!cons_or_nil(XCAR(args))){
     return error_sexp("malformed argument list");
   }
-  sexp arglist=xcar(args);
+  sexp arglist=XCAR(args);
   sexp body=xcadr(args);
   //defun overwrites any existing defination
   var.val.sym->val=cons(qlambda,cons(arglist,cons(body,nil)));
@@ -224,8 +224,8 @@ sexp lisp_setq(sexp args,env_ptr env){
     raise_simple_error(eargs,"uneven number of arguments to setq");
   }
   sexp var,val=nil;
-  while(consp(args)){
-    var=xcar(args);
+  while(CONSP(args)){
+    var=XCAR(args);
     val=eval(xcadr(args),env);
     args=xcddr(args);
     //should (setq <undefined symbol> val) set the value of the symbol
@@ -234,7 +234,7 @@ sexp lisp_setq(sexp args,env_ptr env){
       sexp lex_var=c_assq(env->lex_env,var);
       if(!nilp(lex_var)){
         //don't modify lexical environments, just push on a new value
-        push(env->lex_env,fcons(var,val));
+        push(env->lex_env,Fcons(var,val));
         continue;
       }
     }
@@ -247,30 +247,30 @@ sexp lisp_defmacro(sexp args){
 
 sexp lisp_or(sexp exprs){
   sexp retval=lisp_false;
-  while(consp(exprs)){
-    if(istrue(eval(xcar(exprs),currrent_env))){
+  while(CONSP(exprs)){
+    if(istrue(eval(XCAR(exprs),currrent_env))){
       return lisp_true;
     } else {
-      exprs=xcdr(exprs);
+      exprs=XCDR(exprs);
     }
   }
   return retval;
 }
 //(when cond &rest then)
 sexp lisp_when(sexp args){
-  sexp cond=xcar(args);
-  args=xcdr(args);
+  sexp cond=XCAR(args);
+  args=XCDR(args);
   return lisp_progn(args);
 }
 //(if cond then &rest else)
 sexp lisp_if(sexp args,env_ptr env){
-  if(!consp(args) || !(consp(xcdr(args)))){
+  if(!CONSP(args) || !(CONSP(XCDR(args)))){
     return error_sexp("too few arguments passed to if");
   }
-  sexp cond=xcar(args);
-  args=xcdr(args);
-  sexp then_br=xcar(args);
-  args=xcdr(args);
+  sexp cond=XCAR(args);
+  args=XCDR(args);
+  sexp then_br=XCAR(args);
+  args=XCDR(args);
   sexp else_br=args;
   sexp test_result=eval(cond,current_env);
   if(errorp(cond)){
@@ -283,12 +283,12 @@ sexp lisp_if(sexp args,env_ptr env){
   }
 }
 sexp lisp_lambda(sexp args,env_ptr env){
-  if(!consp(xcadr(args))){
+  if(!CONSP(xcadr(args))){
     return error_sexp("lambda missing argument list");
   }
   if(!nilp(env->lex_env)){
     sexp closure=cons(qclosure,env->lex_env);
-    return cons(closure,xcdr(args));
+    return cons(closure,XCDR(args));
   } else {
     return args;
   }
@@ -297,57 +297,68 @@ sexp lisp_lambda(sexp args,env_ptr env){
 //checks argumens and deals with trivial cases (i.e (let() ...)
 //needs a better error message  for (let (<atom>))(ie not (let (<cons>*))
 #define let_prefix()                                                    \
-  args=xcdr(args);                                                      \
-  if(!consp(args)){                                                     \
+  args=XCDR(args);                                                      \
+  if(!CONSP(args)){                                                     \
     raise_simple_error(eargs,format_arg_error("let","1 or more","0"));  \
-  } else if (!consp(xcar(args))){                                       \
-  if(!nilp(xcar(args))){                                                \
-    raise_simple_error(etype,"maleformed lex binding list");            \
-  }
-  if(!nilp(xcdr(args))){                                                \
-    return eval(xcadr(args),env);                                        \
-  } else {                                                              \
-    return nil;                                                         \
+  } else if (!CONSP(XCAR(args))){                                       \
+    if(!nilp(XCAR(args))){                                              \
+      raise_simple_error(etype,"maleformed lex binding list");          \
+    }                                                                   \
+    if(!nilp(XCDR(args))){                                              \
+      return eval(xcadr(args),env);                                     \
+    } else {                                                            \
+      return nil;                                                       \
+    }                                                                   \
   }
 //i think eval xcadr args up above is right,
 //the value forms in let bindings aren't wrapped in
 //implicit progns, but i'm really not sure
 sexp lisp_let(sexp args,env_ptr env){
   let_prefix();
-  sexp lex_vars=xcar(args);
+  sexp lex_vars=XCAR(args);
   sexp cur_var=pop(lex_vars);
   //i do this since the way things are you can't do push(val,nil)
   //without dereferencing a null pointer
-  sexp lex_env=c_list1(fcons(xcar(cur_var),eval(xcdr(cur_var,env))));
-  while(consp(lex_vars) && (cur_var=pop(lex_vars))){
+  sexp lex_env=c_list1(Fcons(XCAR(cur_var),eval(XCDR(cur_var,env))));
+  while(CONSP(lex_vars) && (cur_var=pop(lex_vars))){
   //maybe check if cdr is nil before calling eval ?
-    push(lex_env,fcons(xcar(cur_var),eval(xcdr(cur_var,env))));
+    push(lex_env,Fcons(XCAR(cur_var),eval(XCDR(cur_var,env))));
   }
   if(!nilp(lex_vars)){
     raise_simple_error(etype,"maleformed lex binding list");
   }
   sexp old_lex_env=env->lex_env;
   env->lex_env=append(lex_env,env->lex_env);
-  sexp retval=eval(xcdr(args),env);
+  sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
 }
+/* in common lisp/elisp progv is 
+   (progv symbols values &rest body
+   presumably so that symbols and values can be built seperately, but
+   in scilisp progv takes the same syntax as let
+   to emulate the common lisp form one could do
+   (defmacro progv-common-lisp (symbols values &rest body)
+   `(progv ,(mapcar 'list symbols values) ,@body))
+ */
 sexp lisp_progv(sexp args,env_ptr env){
+  let_prefix();
+  sexp dyn_vars=XCAR(args)
 }
 sexp lisp_let_star(sexp args,env_ptr env){
   let_prefix();
-  sexp lex_vars=xcar(args);
-  sexp cur_var=pop(lex_vars);
+  sexp lex_vars=XCAR(args);
+  sexp cur_var=POP(lex_vars);
   sexp old_lex_env=env->lex_env;
   //maybe check if cdr is nil before calling eval ?
   do {
-    push(env->lex_env,fcons(xcar(cur_var),eval(xcdr(cur_var,env))));
-  } while (consp(lex_vars) && (cur_var=pop(lex_vars)));
-  if(!nilp(lex_vars)){
+    PUSH(env->lex_env,Fcons(XCAR(cur_var),eval(XCDR(cur_var,env))));
+  } while (CONSP(lex_vars) && (cur_var=POP(lex_vars)));
+  if(!NILP(lex_vars)){
     env->lex_env=old_lex_env;
     raise_simple_error(etype,"maleformed lex binding list");
   }
-  sexp retval=eval(xcdr(args),env);
+  sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
 }
@@ -361,69 +372,69 @@ sexp lisp_let_star(sexp args,env_ptr env){
  */
 //flet needs to use closures to prevent the bound functions from seeing themselves
 #define flet_expand_sub(lex_var)                                        \
-  (fcons(xcar(lex_var),fcons2(qclosure,env->lex_env,xcdr(lex_var))))
+  (Fcons(XCAR(lex_var),Fcons2(Qclosure,env->lex_env,XCDR(lex_var))))
 #define flet_star_expand_sub(lex_var)                                   \
-  (fcons(xcar(lex_var),fcons(qlambda,xcdr(lex_var))))
+  (Fcons(XCAR(lex_var),Fcons(Qlambda,XCDR(lex_var))))
 sexp lisp_flet(sexp args,env_ptr env){
   lex_prefix();
-  sexp lex_vars=xcar(args);
-  sexp cur_var=pop(lex_vars);
+  sexp lex_vars=XCAR(args);
+  sexp cur_var=POP(lex_vars);
   sexp lex_env=c_list1(flet_expand_sub(cur_var));
-  while(consp(lex_vars) && (cur_var=pop(lex_vars))){
-    push(lex_env,flet_expand_sub(cur_var));
+  while(CONSP(lex_vars) && (cur_var=POP(lex_vars))){
+    PUSH(lex_env,flet_expand_sub(cur_var));
   }
-  if(!nilp(lex_vars)){
+  if(!NILP(lex_vars)){
     raise_simple_error(etype,"maleformed lex binding list");
   }
   sexp old_lex_env=env->lex_env;
   env->lex_env=append(lex_env,env->lex_env);
-  sexp retval=eval(xcdr(args),env);
+  sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
 }
 sexp lisp_flet_star(sexp args,env_ptr env){
   let_prefix();
-  sexp lex_vars=xcar(args);
-  sexp cur_var=pop(lex_vars);
+  sexp lex_vars=XCAR(args);
+  sexp cur_var=POP(lex_vars);
   sexp old_lex_env=env->lex_env;
   //maybe check if cdr is nil before calling eval ?
   do {
-    push(env->lex_env,flet_star_expand_sub(cur_var));
-  } while (consp(lex_vars) && (cur_var=pop(lex_vars)));
-  if(!nilp(lex_vars)){
+    PUSH(env->lex_env,flet_star_expand_sub(cur_var));
+  } while (CONSP(lex_vars) && (cur_var=pop(lex_vars)));
+  if(!NILP(lex_vars)){
     env->lex_env=old_lex_env;
     raise_simple_error(etype,"maleformed lex binding list");
   }
-  sexp retval=eval(xcdr(args),env);
+  sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
 }
 sexp flet_macroexpand(sexp args,env_ptr env){
-  sexp code_ptr=xcdr(args);
-  if(!consp(args)){
+  sexp code_ptr=XCDR(args);
+  if(!CONSP(args)){
     raise_simple_error(eargs,format_arg_error("let","1 or more","0"));
-  } else if(!consp(xcar(args))){
+  } else if(!CONSP(XCAR(args))){
     return args;//macro expansion i guess doesn't check types
   }
-  code_ptr=xcar(code_ptr);
-  sexp cur_var=pop(code_ptr);
+  code_ptr=XCAR(code_ptr);
+  sexp cur_var=POP(code_ptr);
   do {
-    set_cdr(cur_var,fcons2(qclosure,env->lex_env,xcdr(lex_var)));
-  } while (consp(code_ptr) && (cur_var=pop(code_ptr)));
+    SET_CDR(cur_var,Fcons2(Qclosure,env->lex_env,XCDR(lex_var)));
+  } while (CONSP(code_ptr) && (cur_var=pop(code_ptr)));
   return args;
 }
 sexp flet_star_macroexpand(sexp args,env_ptr env){
-  sexp code_ptr=xcdr(args);
-  if(!consp(args)){
+  sexp code_ptr=XCDR(args);
+  if(!CONSP(args)){
     raise_simple_error(eargs,format_arg_error("let","1 or more","0"));
-  } else if(!consp(xcar(args))){
+  } else if(!CONSP(XCAR(args))){
     return args;//macro expansion i guess doesn't check types
   }
-  code_ptr=xcar(code_ptr);
-  sexp cur_var=pop(code_ptr);
+  code_ptr=XCAR(code_ptr);
+  sexp cur_var=POP(code_ptr);
   do {
-    set_cdr(cur_var,fcons(qlambda,xcdr(lex_var)));
-  } while (consp(code_ptr) && (cur_var=pop(code_ptr)));
+    SET_CDR(cur_var,Fcons(Qlambda,XCDR(lex_var)));
+  } while (CONSP(code_ptr) && (cur_var=POP(code_ptr)));
   return args;
 }
 sexp lisp_macrolet(sexp args,env_ptr env){}
@@ -431,37 +442,37 @@ sexp lisp_macrolet(sexp args,env_ptr env){}
 //(while cond &rest body)
 sexp lisp_while(sexp cond,sexp body){
   sexp result;
-  while(istrue(eval(cond,current_env))){
+  while(is_true(eval(cond,current_env))){
     result=eval(body,current_envrionment);
   }
   return result;
 }
 sexp lisp_progn(sexp args){
   sexp result=nil;
-  while(consp(args)){
-    result=eval(xcar(args),current_env);
-    args=xcdr(args);
+  while(CONSP(args)){
+    result=eval(XCAR(args),current_env);
+    args=XCDR(args);
   }
   return result;
 }
 sexp lisp_prog1(sexp expr,sexp args){
   sexp result=eval(expr,current_env);
-  while(consp(args)){
-    eval(xcar(args),current_envrionment);
+  while(CONSP(args)){
+    eval(XCAR(args),current_envrionment);
   }
   return result;
 }
 sexp lisp_prog2(sexp expr1,sexp expr2,sexp args){
   eval(expr1,current_env);
   sexp result=eval(expr2,current_env);
-  while(consp(args)){
-    eval(xcar(args),current_envrionment);
+  while(CONSP(args)){
+    eval(XCAR(args),current_envrionment);
   }
   return result;
 }
 //(do (var init [step])(end-test) body..)
 sexp lisp_do_expander(sexp args){
-  if(!consp(args) || !consp(xcdr(args))){
+  if(!consp(args) || !consp(XCDR(args))){
     return error_sexp("too few args passed to do");
   }
   sexp binding=xcar(args);
@@ -485,12 +496,12 @@ sexp lisp_dotimes_expander(sexp var,sexp times,sexp body,sexp cur_env_sexp,int e
 sexp lisp_dolist_expander(sexp var,sexp list,sexp body,sexp cur_env_sexp,int expand){
   env *cur_env=cur_env_sexp.val.cur_env;
   sexp test=cons(function_sexp(&lisp_consp_call),cons(list,nil));
-  sexp var_step=cons(spec_sexp(_setq),
-                     cons(var,cons(function_sexp(&car_call),cons(list,nil))));
-  sexp list_step=cons(spec_sexp(_setq),
+  sexp var_step=Fcons(spec_sexp(_setq),
+                     Fcons(var,cons(function_sexp(&car_call),cons(list,nil))));
+  sexp list_step=Fcons(spec_sexp(_setq),
                       cons(list,cons(function_sexp(&cdr_call),cons(list,nil))));
-  sexp step=cons(spec_sexp(_progn),cons(var_step,cons(list_step,nil)));
-  sexp loop=cons(spec_sexp(_while),cons(test,cons(step,cons(body,nil))));
+  sexp step=Fcons(spec_sexp(_progn),cons(var_step,cons(list_step,nil)));
+  sexp loop=Fcons(spec_sexp(_while),cons(test,cons(step,cons(body,nil))));
   if(expand){
     return loop;
 p  } else {
@@ -519,7 +530,7 @@ sexp lisp_dec_ref(sexp sym_sexp,sexp cur_env_sexp){
   eval(code,cur_env_sexp.val.cur_env);
   }*/
 sexp lisp_inc_ref(sexp sym_sexp,sexp cur_env_sexp){
-  if(!symbolp(sym_sexp)){
+  if(!SYMBOLP(sym_sexp)){
     return format_type_error("incf","symbol",sym_sexp.tag);
   }
   env *cur_env=cur_env_sexp.val.cur_env;
@@ -528,7 +539,7 @@ sexp lisp_inc_ref(sexp sym_sexp,sexp cur_env_sexp){
     return format_error_sexp("undefined variable %r",sym->name);
   }
   sexp temp=lisp_inc(sym->val);
-  if(errorp(temp)){
+  if(ERRORP(temp)){
     return temp;
   } else {
     sym->val=temp;
@@ -543,9 +554,9 @@ sexp lisp_incf_expander(sexp sym_sexp,env *cur_env){
   symref inc_symbol=xmalloc(sizeof(symbol));
   inc_symbol->name="++";
   inc_symbol->val=unbound;
-  sexp body=cons(symref_sexp(inc_symbol),
-                 cons(eval_sub(sym_sexp,cur_env),nil));
-  sexp code=cons(spec_sexp(_setq),cons(sym_sexp,cons(body,nil)));
+  sexp body=Fcons(symref_sexp(inc_symbol),
+                 Fcons(eval_sub(sym_sexp,cur_env),nil));
+  sexp code=Fcons(spec_sexp(_setq),Fcons(sym_sexp,cons(body,nil)));
 }
 //sexp c_apply(function *fun,environment *env){
 void unwind_bindings(binding *bindings,int len){
@@ -562,7 +573,7 @@ sexp cond_expand(sexp expr){
   sexp cond_case;
   while(!nilp((cond_case=pop(expr)))){
     //(test then...)->(test
-    xcdr(cond_case)=fcons(qprogn,xcdr(cond_case));
+    XCDR(cond_case)=Fcons(Qprogn,XCDR(cond_case));
     push(cond_case,qif);
   }
 }

@@ -86,6 +86,8 @@ typedef symbol *symref;//type of generic symbol references
 //typedefs akin to the ones in stdint.h and sml
 typedef float real32_t;
 typedef double real64_t;
+typedef uint32_t word32;
+typedef uint64_t word64;
 //values for the type hierarchy
 static const int sexp_num_tag_min = 2;
 static const int sexp_num_tag_max = 19;

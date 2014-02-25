@@ -69,6 +69,9 @@ read_input *make_string_input_len(const char *string,uint32_t len){
 sexp start_read(read_input *input){
   return read_0(input,0);
 }
+sexp read_sexp(read_input *input){
+  return read_0(input,0);
+}
 sexp read_from_cord(CORD input){
   return start_read(make_cord_input(input));
 }
@@ -79,6 +82,19 @@ sexp read_from_string(char *input){
   return start_read(make_string_input(input));
 }
 //used internally to read files for compilation or evaluation
+sexp read_full(read_input *input){
+  sexp program=cons_sexp(xmalloc(sizeof(cons)));
+  sexp retval=program;
+  while(1){
+    XCAR(program)=read_0(input,0);
+    if(read_char(input)== EOF){
+      break;
+    }
+    XCDR(program)=cons_sexp(xmalloc(sizeof(cons)));
+    program=XCDR(program);
+  }
+  return retval;
+}
 sexp read_file(FILE *input){
   int fd=fileno(input);
   off_t file_len=lseek(fd,0,SEEK_END);

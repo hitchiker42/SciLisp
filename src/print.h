@@ -57,4 +57,9 @@ sexp c_format(CORD format,int numargs,sexp *args);
 sexp lisp_format(int numargs,sexp *args);
 sexp type_of_tag(sexp_tag tag);
 sexp lisp_fputs(sexp string,sexp stream);
+static const char *tag_names[]=
+  {"nil","char","int8","uint8","int16","uint16","int32","uint32","int64",
+   "uint64","real32","real64","bigint","bigfloat","","","","","","",
+   "c_string","string","array","simple vector","matrix","","cons","",
+   "","","regex","stream","subr","symbol","","type","","","environment"};//not done
 #endif

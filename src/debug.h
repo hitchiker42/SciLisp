@@ -20,13 +20,14 @@
 #include <assert.h>
 #include <execinfo.h>
 #if (defined (DEBUG)) && !(defined (NDEBUG))
+#define debug_init
 #define HERE() debug_printf("here at %s,line %d\n",__FILE__,__LINE__)
 #define HERE_MSG(string) debug_printf("here at %s,line %d\n%s\n"\
                                  ,__FILE__,__LINE__,string)
 #define HERE_FMT(string,fmt...) debug_printf(string "\n",##fmt);HERE()
 #define PRINT_MSG(string) CORD_debug_printf(CORD_cat(string,"\n"))
 #define PRINT_FMT(string,fmt...) CORD_debug_printf(CORD_cat(string,"\n"),##fmt)
-#else
+#else 
 #define HERE()
 #define HERE_MSG(string)
 #define PRINT_MSG(string)

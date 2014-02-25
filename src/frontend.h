@@ -21,16 +21,18 @@
 #include "common.h"
 static void SciLisp_help(int exitCode) __attribute__((noreturn));
 static void SciLisp_version(int exitCode) __attribute__((noreturn));
+static void SciLisp_getopt(int argc,char *argv[]);
 static const char *banner=
   "SciLisp  Copyright (C) 2013-2014 Tucker DiNapoli\n"
-  "SciLisp is free software licensed under the GNU GPL V3+";
+  "SciLisp is free software licensed under the GNU GPL V3+\n";
 //globals, but only ever set once in a locked thread (getopt) or read
+static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
 static int no_banner=0;
 static int no_copyright=0;
 symbol *lisp_ans_ptr;
 //int parens_matched(const char* line,int parens)__attribute__((pure));
 //int lisp_getline(FILE* outfile,char* filename);
-void repl_simple(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
+void simple_repl(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
 //the repl isn't multithreaded (at least for now)
 //static sexp (*eval_fun)(sexp,env_ptr)=NULL;
 /*just to note I didn't write this I got it from
@@ -40,7 +42,7 @@ static const char *SciLisp_Banner=
 "   / __/____ (_)/ /   (_)___  ___ \n"
 "  _\\ \\ / __// // /__ / /(_-< / _ \\\n"
 " /___/ \\__//_//____//_//___// .__/\n"
-"                           /_/     ";
+"                           /_/     \n";
 static CORD Make_SciLisp_verson_string(const char *Version_no){
   CORD version_string;
   CORD_sprintf(&version_string,"SciLisp %s",PACKAGE_VERSION);
@@ -83,5 +85,7 @@ static void SciLisp_version(int exitCode){
 #include <readline/readline.h>
 #include <readline/history.h>
 void readline_repl(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
-#endif
+#define read_eval_print_loop readline_repl
+#else
+#define read_eval_print_loop simple_repl
 #endif

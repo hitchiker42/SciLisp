@@ -46,6 +46,7 @@ o/* Global header file for standard includes and macros
 #ifdef MULTI_THREADED
 #include <pthread.h>
 static pthread_once_t pthread_prims_initialized=PTHREAD_ONCE_INIT;
+static pthread_once_t signal_handlers_initialized=PTHREAD_ONCE_INIT;
 //generic global lock, in case it's needed
 static pthread_mutex_t global_lock=PTHREAD_MUTEX_INITIALIZER;
 #define thread_local __thread
@@ -56,6 +57,11 @@ static pthread_mutex_t global_lock=PTHREAD_MUTEX_INITIALIZER;
 #define LISP_RWLOCK_UNLOCK(env) (pthread_rwlock_unlock(env->lock))
 #define LOCK_GLOBAL_LOCK() (pthread_mutex_lock(&global_lock))
 #define UNLOCK_GLOBAL_LOCK() (pthread_mutex_unlock(&global_lock))
+#define pthread_create_checked(thread,attr,start_routine,arg)         \
+  (if((pthread_create(thread,attr,start_routine,arg))){               \
+    perror("Program error, exiting:\nthread creation failed");        \
+    exit(4);                                                          \
+  })                                                                  \
 #else
 #define thread_local
 #define multithreaded_only(code)
@@ -90,7 +96,7 @@ static const sexp NIL={.val={0}};//NIL is all 0s
 //current dynamic environment
 extern thread_local struct obarray *current_obarray;
 extern thread_local struct environment *current_env;
-frame_addr top_level_frame;
+#define top_level_frame current_env->protect_fraem
 //temporary, bulitin_symbols.h should be generated and placed in the src dir
 #include "prim.h"
 #include "frames.h"

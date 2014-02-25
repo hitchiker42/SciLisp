@@ -140,6 +140,7 @@ struct environment {
   package *current_package;//contains current obarray and
   //c thread local data
   stack_t *sigstack;//alternative stack for signals
+  //(this is by default thread local) so I don't think I need this
   //stacks
   binding *bindings_stack;//dynamic bindings stack
   binding *bindings_ptr;//stack pointer
@@ -148,6 +149,8 @@ struct environment {
   frame *frame_stack;//stack of jump points (returns, catches, handlers)
   frame *frame_ptr;//stack pointer
   frame *frame_top;
+  frame *protect_frame;//should be initialized to an unwind protect frame 
+  //when the environment is initialized, and then pushed onto the frame stack
   //records function calls
   //also holds the lexical environment
   subr_call *call_stack;//call stack
@@ -233,7 +236,7 @@ symbol_name* make_symbol_name(const char *name,uint32_t len,uint64_t hashv);
 symbol_name* make_symbol_name_no_copy(const char *name,uint32_t len,
                                       uint64_t hashv);
 symbol* make_symbol_from_name(symbol_name *name);
-void c_signal_handler(int signo,siginfo_t *info,void *context_ptr);
+void c_signal_handler(int signo,siginfo_t *info,void *context_ptr) __attribute__((noreturn));
 //needs to be in a global header, and xmalloc isn't defined in types.h
 static inline lisp_string *make_string(const char *str){
   lisp_string *retval=xmalloc(sizeof(lisp_string));
@@ -257,5 +260,29 @@ static inline lisp_string *make_string_len(const char *str,uint32_t len){
     *retval=(lisp_string){.string=str,.len=(strlen(str))};
   }
   return retval;
+}    
+//signal handler for fatal errors, prints the error name and thread number
+//if applicable, and if enabled prints a backtrace to help debugging
+static const struct sigaction fatal_action_object={.sa_handler=&handle_fatal};
+static const struct sigaction* restrict fatal_action_ptr=&action_object;
+static const struct sigaction signal_action_object={.sa_handler=&handle_fatal};
+static const struct sigaction* restrict signal_action_ptr=&action_object;
+static void __attribute__((noreturn)) handle_fatal(int signal){
+  //if I used strsignal here it would require an additonial
+  //function call inside of a signal handler, so avoid that 
+#if defined(MULTI_THREADED)
+  fprintf(stderr,
+          "recieved %s signal in thread number %ul\n",
+          sys_siglist[signal],pthread_self());
+#else
+  fprintf(stderr,
+          "recieved %s signal, printing bactrace\n",
+          sys_siglist[signal]);
+#endif
+  if(!quiet_signals){
+    print_trace();
+  }
+  exit(1);
 }
+void init_signal_handlers();
 #endif
