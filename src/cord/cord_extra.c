@@ -28,7 +28,7 @@ CORD CORD_asprintf(CORD format, ...){
     return NULL;
   }
   return retval;
-}  
+}
 #pragma pop_macro("CORD_asprintf")
 #endif
 //move these somewhere else
@@ -107,7 +107,7 @@ CORD CORD_pos_strchr(CORD_pos p,char c){
     return 0;
   }
 }
-    
+
 CORD CORD_pos_strrchr(CORD_pos p,char c){
   while(CORD_pos_valid(p)){
     if(CORD_pos_fetch(s) == c){
@@ -131,16 +131,20 @@ CORD CORD_strrchr(CORD s,char c){
   CORD_set_pos(p,s,CORD_len(s));
   return CORD_pos_strchr(p,c):
 }
-CORD CORD_strip(CORD s){
-  CORD_pos p;
+CORD CORD_trim(CORD s,char *remove){
+  uint8_t flags[256]={0};
+  while(*remove){
+    flags[*remove++]=1;
+  }
+ CORD_pos p;
   CORD_set_pos(p,s,0);
   while(CORD_pos_valid(p)){
-    if(!isspace((CORD_pos_fetch(p)))){
+    if(flags[CORD_pos_fetch(p)]){
       break;
     } else {
       CORD_next(p);
     }
-  }                
+  }
   if(!CORD_pos_valid(p)){
     return 0;
   }
@@ -148,7 +152,7 @@ CORD CORD_strip(CORD s){
   CORD_set_pos(p,s,CORD_len(s));
   size_t len=start+1;
   while(CORD_pos_valid(p)){
-    if(!isspace(CORD_pos_fetch(p))){
+    if(flags[CORD_pos_fetch(p)]){
       len=CORD_pos_to_index(p);//maybe +1;
       break;
     } else {
@@ -157,4 +161,118 @@ CORD CORD_strip(CORD s){
   }
   return CORD_substr(s,start,len-start);
 }
-    
+CORD CORD_strip(CORD s){
+  return CORD_trim(s," \t\n");
+}
+#define ascii_upcase(c) ({char _c = c;          \
+      (_c>=0x61&&_c<=0x7A)?_c-0x20:_c;})
+#define ascii_downcase(c) ({char _c = c;        \
+      (_c>=0x41&&_c<=0x5A)?_c+0x20:_c;})
+struct cord_iter_data {
+  char *result;
+  uint32_t index;
+  //  char(*f)(char);
+};
+int upcase_iter(char c,void *client_data){
+  struct cord_iter_data *data=(struct cord_iter_data *)client_data;
+  data->result[data->index++]=ascii_upcase(c);
+  return 0;
+}
+int upcase_batched_iter(char *s,void *client_data){
+  struct cord_iter_data *data=(struct cord_iter_data *)client_data;
+  int i=data->index;
+  while(*s){
+    data->result[i++]=ascii_upcase(*s++);
+  }
+  data->index=i;
+  return 0;
+}
+int downcase_iter(char c,void *client_data){
+  struct cord_iter_data *data=(struct cord_iter_data *)client_data;
+  data->result[data->index++]=ascii_downcase(c);
+  return 0;
+}
+int downcase_batched_iter(char *s,void *client_data){
+  struct cord_iter_data *data=(struct cord_iter_data *)client_data;
+  int i=data->index;
+  while(*s){
+    data->result[i++]=ascii_downcase(*s++);
+  }
+  data->index=i;
+  return 0;
+}
+#define CORD_stream_bufsize 128
+
+#if 0
+//flush current buf into cord and refil buf
+void CORD_stream_rw_flush_buf(CORD_stream_rw *x){
+    register size_t len = x->bufptr - x->buf;
+    char * s;
+    if (len == 0) return;
+    s = GC_MALLOC_ATOMIC(len+1);
+    memcpy(s, x->buf, len);
+    s[len] = '\0';
+    CORD start=CORD_substr(x->cord,0,x->buf_start);
+    CORD end=CORD_substr(x->cord,x->index,CORD_len(x->cord)-s->index);
+    x->cord = CORD_cat_char_star(start, s, len);
+    x->cord = CORD_cat(x->cord,end);
+    x->bufptr = x->buf;
+}
+void CORD_stream_rw_refill_buf(CORD_stream_rw *x){
+    register size_t len = x->bufptr - x->buf;
+    char * s;
+    if (len == 0) return;
+    s = GC_MALLOC_ATOMIC(len+1);
+    memcpy(s, x->buf, len);
+    s[len] = '\0';
+    CORD start=CORD_substr(x->cord,0,x->buf_start);
+    CORD end=CORD_substr(x->cord,x->index,CORD_len(x->cord)-s->index);
+    x->cord = CORD_cat_char_star(start, s, len);
+    x->cord = CORD_cat(x->cord,end);
+    x->bufptr = x->buf;
+    int bufsize=MAX(CORD_stream_bufsize,CORD_len(end));
+    memcpy(x->buf,CORD_to_char_star(CORD_substr(end,0,bufsize)),
+           CORD_stream_bufsize);
+    memset(x->buf+bufsize,'\0',CORD_stream_bufsize-bufsize);
+    s->buf_start=x->index;
+}
+struct CORD_stream_rw {
+  CORD cord;
+  char *bufptr;
+  char buf[CORD_stream_bufsize+1];
+  uint32_t index;//always refers to current index in actual cord
+  uint32_t buf_start;//index that the current buffer starts at
+  int fd;//possible backing file
+};
+#define maybe_refill_buf(s)                             \
+  (s->bufptr-s->buf>=CORD_stream_bufsize?               \
+   CORD_stream_rw_refill_buf(s),0:0)
+char CORD_stream_rw_read_char(CORD_stream_rw *s){
+  maybe_refill_buf(s);
+  return s->bufptr[s->index++];
+}
+void CORD_stream_rw_write_char(CORD_stream_rw *s,char c){
+  maybe_refill_buf(s);
+  s->bufptr[s->index++]=c;
+}
+void CORD_stream_rw_write(CORD_stream_rw *s,char *buf,size_t sz){
+  CORD_stream_rw_flush_buf(s);
+  register size_t len = s->bufptr - s->buf;
+  char * str;
+  if (len == 0) return;
+  str = GC_MALLOC_ATOMIC(len+1);
+  memcpy(str, s->buf, len);
+  CORD start=CORD_substr(s->cord,0,s->buf_start);
+  if(s->index+sz>=CORD_len(s->cord)){
+    s->cord=CORD_cat_char_star(start,str,len);
+    s->cord=CORD_cat_char_star(s->cord,buf,sz);
+  } else {
+    CORD end=CORD_substr(s->cord,s->index+sz,CORD_len(s->cord));
+    s->cord=CORD_cat_char_star(start,str,len);
+    s->cord=CORD_cat_char_star(s->cord,buf,sz);
+    s->cord=CORD_cat(s->cord,end);
+  }
+}
+
+  
+#endif

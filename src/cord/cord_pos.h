@@ -54,6 +54,8 @@ typedef struct CORD_Pos {
                                         /* from function node.          */
 } CORD_pos[1];
 
+typedef struct CORD_Pos *CORD_pos_ptr;
+
 /* Extract the cord from a position:    */
 CORD_API CORD CORD_pos_to_cord(CORD_pos p);
 
