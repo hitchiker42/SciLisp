@@ -267,16 +267,11 @@ sexp lisp_if(sexp args,env_ptr env){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){
     return error_sexp("too few arguments passed to if");
   }
-  sexp cond=XCAR(args);
-  args=XCDR(args);
-  sexp then_br=XCAR(args);
-  args=XCDR(args);
+  sexp cond=POP(args);
+  sexp then_br=POP(args);
   sexp else_br=args;
   sexp test_result=eval(cond,current_env);
-  if(errorp(cond)){
-    return cond;
-  }
-  if(istrue(test_result)){
+  if(is_true(test_result)){
     return eval(then_br,current_env);
   } else {
     return lisp_progn(else_br);
@@ -343,7 +338,7 @@ sexp lisp_let(sexp args,env_ptr env){
  */
 sexp lisp_progv(sexp args,env_ptr env){
   let_prefix();
-  sexp dyn_vars=XCAR(args)
+  sexp dyn_vars=XCAR(args);  
 }
 sexp lisp_let_star(sexp args,env_ptr env){
   let_prefix();
