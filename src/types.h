@@ -285,9 +285,9 @@ union data {//keep max size at 64 bits
 //every data type except for integers
 struct sexp {//96 bits,
   data val;//                             | 128
-  uint16_t simple_len;
   uint8_t tag;
   uint8_t meta;//opaque meta data for different things,
+  uint16_t simple_len;
   unsigned int is_ptr :1;
   unsigned int padding :7;
   //probably more padding...
@@ -529,6 +529,7 @@ enum cblas_type {
   cblas_complex_float,
   cblas_complex_double,
 };
+//move to a different file
 struct blas_array{//rename lisp_matrix ?
   union {
     real32_t *real32_array;
@@ -550,7 +551,7 @@ struct blas_array{//rename lisp_matrix ?
   uint8_t blas_side;//"" cblas_side
 };
 //strict substruct of lisp_array
-struct lisp_simple_vector {
+struct lisp_simple_vector {//rename to lisp_vector
   union {
     data *typed_vector;
     sexp *sexp_vector;

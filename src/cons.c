@@ -79,7 +79,7 @@ sexp mkImproper(sexp head,...){
 }
 static inline sexp _cons_reverse(sexp ls){
   sexp cons_ptr=cons_sexp(xmalloc(sizeof(cons)));
-  sexp trail=cons_ptr;
+  //  sexp trail=cons_ptr;
   XCDR(cons_ptr)=NIL;
   while(1){
     XCAR(cons_ptr)=XCAR(ls);
@@ -89,8 +89,8 @@ static inline sexp _cons_reverse(sexp ls){
       break;
     }
     cons_ptr=cons_sexp(xmalloc(sizeof(cons)));
-    XCDR(cons_ptr)=trail;
-    trail=cons_ptr;
+    //    XCDR(cons_ptr)=trail;
+    //    trail=cons_ptr;
   }
   return cons_ptr;
 }
@@ -758,4 +758,74 @@ sexp iterative_flatten(sexp x){
       x=XCDR(x);
     }
   }
+}
+sexp c_cons_search(sexp list,sexp elt,sexp (*test_fn)(sexp)){
+  while(CONSP(list)){
+    if(is_true(test_fn(POP(list),elt))){
+      return elt;
+    }
+  }
+  return NIL;
+}
+
+//return true if elt is contained in list(decided by test),
+//otherwise returns false
+sexp cons_exists(sexp list,sexp elt,sexp test){
+  if(!CONSP(list)){
+    raise_simple_error(Etype,format_type_error("cons-exists","cons",list.tag));
+  }
+  sexp *test_fn(sexp);
+  if(NILP(test)){
+    test_fn=lisp_eq;
+  } else {
+    raise_simple_error(Etype,"selectable test functions unimplemented");
+  }
+  while(CONSP(list)){
+    if(is_true(test_fn(POP(list),elt))){
+        return LISP_TRUE;
+      }
+  }
+  return LISP_FALSE;
+}
+
+//return elt if elt is contained in list(decided by test),
+//otherwise return nil
+sexp cons_contains(sexp list,sexp elt,sexp test){
+  if(!CONSP(list)){
+    raise_simple_error(Etype,format_type_error("cons-contains","cons",list.tag));
+  }
+  sexp *test_fn(sexp);
+  if(NILP(test)){
+    test_fn=lisp_eq;
+  } else {
+    raise_simple_error(Etype,"selectable test functions unimplemented");
+  }
+  while(CONSP(list)){
+    if(is_true(test_fn(POP(list),elt))){
+      return elt;
+    }
+  }
+  return NIL;
+}
+//if elt is found in list return the list starting with elt
+//if elt is not found return nil
+//for example (member '(1 2 3 4 5) 3) -> '(3 4 5)
+//and (member '(1 2 3 4 5) 5) -> '(5)
+sexp cons_member(sexp list,sexp elt,sexp test){
+  if(!CONSP(list)){
+    raise_simple_error(Etype,format_type_error("member","cons",list.tag));
+  }
+  sexp *test_fn(sexp);
+  if(NILP(test)){
+    test_fn=lisp_eq;
+  } else {
+    raise_simple_error(Etype,"selectable test functions unimplemented");
+  }
+  while(CONSP(list)){
+    if(is_true(test_fn(XCAR(list),elt))){
+      return list;
+    }
+    list=XCDR(list);
+  }
+  return NIL;
 }

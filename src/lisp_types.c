@@ -66,6 +66,10 @@ MK_PREDICATE(errorp,_error);
 MK_PREDICATE(functionp,_fun);
 MK_PREDICATE(streamp,_stream);
 MK_PREDICATE2(booleanp,_true,_false);
+//This differs from common lisp and elisp where eq tests for identical objects
+//eql in addition checks for numerical equality(only for the same types)
+//equal in addition compares conses and strings elementwise
+//equalp in addition compares numbers ignoring type and arrays elementwise
 sexp lisp_eq(sexp obj1,sexp obj2){
   if(BIGNUMP(obj1) && BIGNUMP(obj2)){
     if(NUMBERP(obj1) && NUMBERP(obj2)){
@@ -78,65 +82,53 @@ sexp lisp_eq(sexp obj1,sexp obj2){
   if(obj1.tag != obj2.tag){
     return LISP_FALSE;
   }
-  switch(obj1.tag){
-    case _cons:
-    case _list:
-    case _sym:
-    case _array:
-    case _str:
-    case _lenv:
-    case _funarg:
-    case _keyword:
-      return (obj1.val.int64 == obj2.val.int64 ? LISP_TRUE : LISP_FALSE);
-    case _type:
-    case _special:
-      return (obj1.val.meta == obj2.val.meta ? LISP_TRUE : LISP_FALSE);
-      //these are singleton values so if they have the same tag they must be eq
-    case _nil:
-    case _true:
-    case _false:
-      return LISP_TRUE;    
-    default:
-      return LISP_FALSE;
-  }
+  return (obj1.val.uint64 == obj2.val.uint64 ? LISP_TRUE : LISP_FALSE);
 }
-sexp lisp_eql(sexp obj1,sexp obj2){
+sexp lisp_identical(sexp obj1,sexp obj2){//same as common lisp eq
   if(obj1.tag != obj2.tag){
-    return LISP_FALSE;
-  }
-  if(STRINGP(obj1) && STRINGP(obj2)){
-    return (CORD_cmp(obj1.val.cord,obj2.val.cord)==0?LISP_TRUE : LISP_FALSE);
+    return lisp_false;
   } else {
-    return lisp_eq(obj1,obj2);
+    return (obj1.val.uint64 == obj2.val.uint64 ? LISP_TRUE : LISP_FALSE);
+sexp lisp_eql(sexp obj1,sexp obj2){
+  if(EQ(obj1,obj2)){//make simple equaiity fast
+    return LISP_TRUE;
   }
+  //eql adds string equality
+  if(STRINGP(obj1) && STRINGP(obj2)){
+    return lisp_string_equal(obj1,obj2);
+  }
+  return LISP_FALSE;
 } 
 sexp lisp_equal(sexp obj1,sexp obj2){
+  if(EQ(obj1,obj2)){//make simple equaiity fast
+    return LISP_TRUE;
+  }
   if(obj1.tag != obj2.tag){
     return LISP_FALSE;
   }
   switch(obj1.tag){
-    case _cons:
-    case _list:
-    case _dpair:
+    case sexp_cons:
       if(cons_length(obj1).val.int64 != cons_length(obj2).val.int64){
         return LISP_FALSE;
       } else {
         return cons_equal(obj1,obj2);
       }
-    case _array:
+    case sexp_array:
       if(obj1.len != obj2.len){
         return LISP_FALSE;
       } else {
         int i;
         for(i=0;i<obj1.len;i++){
-          if(!isTrue(lisp_equal(XAREF(obj1,i),XAREF(obj2,i)))){
+          if(!is_true(lisp_equal(XAREF(obj1,i),XAREF(obj2,i)))){
             return LISP_FALSE;
           }
         }
         return LISP_TRUE;
       }
+    case sexp_string:
+      return (CORD_cmp(obj1.val.cord,obj2.val.cord)==0 ? LISP_TRUE : LISP_FALSE);
     default:
-    return lisp_eql(obj1,obj2);
+      return LISP_FALSE;
   }
 }
 sexp lisp_not_eq(sexp obj1,sexp obj2){

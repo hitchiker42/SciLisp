@@ -201,40 +201,80 @@ int downcase_batched_iter(char *s,void *client_data){
   data->index=i;
   return 0;
 }
+//slightly different than CORD_cmp, assumes one of str1 or str2
+//isn't a c string so we need to use cord positions, and assumes
+//str1 and str2 are non null, finally returns 1 if equal and 0 othrewise
+uint32_t CORD_equal(CORD str1,CORD str2){
+  CORD_pos xpos;
+  CORD_pos ypos;
+  register size_t avail, yavail;
+  CORD_set_pos(xpos, x, 0);
+  CORD_set_pos(ypos, y, 0);
+  for(;;) {
+    if (!CORD_pos_valid(xpos)) {
+      if (CORD_pos_valid(ypos)) {
+        return 0;
+      } else {
+        return 1;
+      }
+    }
+    if (!CORD_pos_valid(ypos)) {
+      return 0;
+    }
+    if ((avail = CORD_pos_chars_left(xpos)) <= 0
+        || (yavail = CORD_pos_chars_left(ypos)) <= 0) {
+      register char xcurrent = CORD_pos_fetch(xpos);
+      register char ycurrent = CORD_pos_fetch(ypos);
+      if (xcurrent != ycurrent) return(0);
+      CORD_next(xpos);
+      CORD_next(ypos);
+    } else {
+      /* process as many characters as we can */
+      register int result;
+
+      if (avail > yavail) avail = yavail;
+      result = strncmp(CORD_pos_cur_char_addr(xpos),
+                       CORD_pos_cur_char_addr(ypos), avail);
+      if (result != 0) return(0);
+      CORD_pos_advance(xpos, avail);
+      CORD_pos_advance(ypos, avail);
+    }
+  }
+}
 #define CORD_stream_bufsize 128
 
 #if 0
 //flush current buf into cord and refil buf
 void CORD_stream_rw_flush_buf(CORD_stream_rw *x){
-    register size_t len = x->bufptr - x->buf;
-    char * s;
-    if (len == 0) return;
-    s = GC_MALLOC_ATOMIC(len+1);
-    memcpy(s, x->buf, len);
-    s[len] = '\0';
-    CORD start=CORD_substr(x->cord,0,x->buf_start);
-    CORD end=CORD_substr(x->cord,x->index,CORD_len(x->cord)-s->index);
-    x->cord = CORD_cat_char_star(start, s, len);
-    x->cord = CORD_cat(x->cord,end);
-    x->bufptr = x->buf;
+  register size_t len = x->bufptr - x->buf;
+  char * s;
+  if (len == 0) return;
+  s = GC_MALLOC_ATOMIC(len+1);
+  memcpy(s, x->buf, len);
+  s[len] = '\0';
+  CORD start=CORD_substr(x->cord,0,x->buf_start);
+  CORD end=CORD_substr(x->cord,x->index,CORD_len(x->cord)-s->index);
+  x->cord = CORD_cat_char_star(start, s, len);
+  x->cord = CORD_cat(x->cord,end);
+  x->bufptr = x->buf;
 }
 void CORD_stream_rw_refill_buf(CORD_stream_rw *x){
-    register size_t len = x->bufptr - x->buf;
-    char * s;
-    if (len == 0) return;
-    s = GC_MALLOC_ATOMIC(len+1);
-    memcpy(s, x->buf, len);
-    s[len] = '\0';
-    CORD start=CORD_substr(x->cord,0,x->buf_start);
-    CORD end=CORD_substr(x->cord,x->index,CORD_len(x->cord)-s->index);
-    x->cord = CORD_cat_char_star(start, s, len);
-    x->cord = CORD_cat(x->cord,end);
-    x->bufptr = x->buf;
-    int bufsize=MAX(CORD_stream_bufsize,CORD_len(end));
-    memcpy(x->buf,CORD_to_char_star(CORD_substr(end,0,bufsize)),
-           CORD_stream_bufsize);
-    memset(x->buf+bufsize,'\0',CORD_stream_bufsize-bufsize);
-    s->buf_start=x->index;
+  register size_t len = x->bufptr - x->buf;
+  char * s;
+  if (len == 0) return;
+  s = GC_MALLOC_ATOMIC(len+1);
+  memcpy(s, x->buf, len);
+  s[len] = '\0';
+  CORD start=CORD_substr(x->cord,0,x->buf_start);
+  CORD end=CORD_substr(x->cord,x->index,CORD_len(x->cord)-s->index);
+  x->cord = CORD_cat_char_star(start, s, len);
+  x->cord = CORD_cat(x->cord,end);
+  x->bufptr = x->buf;
+  int bufsize=MAX(CORD_stream_bufsize,CORD_len(end));
+  memcpy(x->buf,CORD_to_char_star(CORD_substr(end,0,bufsize)),
+         CORD_stream_bufsize);
+  memset(x->buf+bufsize,'\0',CORD_stream_bufsize-bufsize);
+  s->buf_start=x->index;
 }
 struct CORD_stream_rw {
   CORD cord;
@@ -244,8 +284,8 @@ struct CORD_stream_rw {
   uint32_t buf_start;//index that the current buffer starts at
   int fd;//possible backing file
 };
-#define maybe_refill_buf(s)                             \
-  (s->bufptr-s->buf>=CORD_stream_bufsize?               \
+#define maybe_refill_buf(s)                     \
+  (s->bufptr-s->buf>=CORD_stream_bufsize?       \
    CORD_stream_rw_refill_buf(s),0:0)
 char CORD_stream_rw_read_char(CORD_stream_rw *s){
   maybe_refill_buf(s);
@@ -272,7 +312,5 @@ void CORD_stream_rw_write(CORD_stream_rw *s,char *buf,size_t sz){
     s->cord=CORD_cat_char_star(s->cord,buf,sz);
     s->cord=CORD_cat(s->cord,end);
   }
-}
-
-  
+}  
 #endif

@@ -16,6 +16,10 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
+
+/* Currently sequences are proper lists, vectors(not multidimensional arrays),
+   and strings
+ */
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 #include "cons.h"

@@ -1,10 +1,40 @@
 #include "common.h"
 #include "lisp_strings.h"
+//returns 1 if str1 and str2 are elementwise equal, 0 otherwise
+uint32_t c_string_equal(const char *str1,const char *str2){
+  return !strcmp(str1,str2);
+}
+//return 1 if str1 is elementwise equal to str2, otherwise return 0
+//takes advantage of the fact that lisp strings store length to
+//return quickly if str1 and str2 are of different lengths
+uint32_t lisp_string_equal(lisp_string str1,lisp_string str2){
+  if(str1.len != str2.len){
+    return 0;
+  }
+  if(str1.string[0]=='\0' && str2.string[0]=='\0'){
+    return !strcmp(str1.string,str2.string);
+  } else {
+    return CORD_equal(str1.val.cord,str2.val.cord);
+  }
+}
+    
+  
+sexp sexp_string_equal(sexp obj1,sexp obj2){
+  if(!STRINGP(obj1) || !STRINGP(obj2)){
+    raise_simple_error(Etype,format_type_error2("string-equal","string",
+                                                obj1.tag,"string",obj2.tag));
+  }
+  if(STRING_EQ(obj1.val.string,ojb2.val.string)){
+    return LISP_TRUE;
+  } else {
+    return LISP_FALSE;
+  }
+}
 char *c_char_to_string(uint64_t lisp_char){
   char str[8]=*(char*)&lisp_char;
   assort(str[7]=='\0');
   return str;
-}   
+}
 CORD CORD_cat_lisp_string(CORD acc,lisp_string *str){
   if(!str->string[0]){
     return CORD_cat(acc,str->cord);
