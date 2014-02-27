@@ -77,10 +77,15 @@
 ;;I guess I'll do types (at least in emacs) as a list whith the last element being
 ;;the return value
 (cl-defun mk-prim-subr
-    (lname cname value minargs &key (optargs 0) (keyargs 0) (type '(nil . nil))
-           (rettype "sexp")(restarg 0) (sig "()") (doc "") (const 2))
-  (let ((maxargs (+ minargs optargs keyargs restarg)))
-    `((:lname . ,lname) (:cname . ,cname) (:value . ,value)
+    (lname cname value minargs &key (optargs 0) (keyargs 0) (type '(nil . nil)) 
+           cargs (rettype "sexp")(restarg 0) (sig "()") (doc "") (const 2))
+  (let* ((maxargs (+ minargs optargs keyargs restarg))
+        (cargs (if (not (null cargs))
+                   cargs
+                 (if (> restarg 0)
+                     'many
+                   maxargs))))
+    `((:lname . ,lname) (:cname . ,cname) (:value . ,value) (:cargs . ,cargs)
       (:minargs . ,minargs) (:maxargs . ,maxargs) (:type . ,type)
       (:optargs . ,optargs) (:keyargs . ,keyargs) (:restarg . ,restarg)
       (:rettype . ,rettype)(:sig . ,sig) (:doc . ,doc) (:const . ,const))))
@@ -109,10 +114,10 @@
         "end2" "export" "import" "test" ;"import-from" "initial-contents" "initial-element" 
         "key" "size" "start" "start2" "use"))
 (define SciLisp-globals;prefix G (lisp prefix/postfix *)
-  (mapcar (lambda (x) (apply #'mk-global x))
-          '(("stdin" "lisp_stdin"  "STDIN_FILENO")
-            ("stdout" "lisp_stdout"  "STDOUT_FILENO")
-            ("stderr" "lisp_stderr"  "STDERR_FILENO"))))
+   (mapcar (lambda (x) (apply #'mk-global x))
+           '(("stdin" "lisp_stdin"  "STDIN_FILENO")
+             ("stdout" "lisp_stdout"  "STDOUT_FILENO")
+             ("stderr" "lisp_stderr"  "STDERR_FILENO"))))
 (define builtin-symbols
   (append
    (mapcar (lambda (x) (concat "Q" x)) SciLisp-special-forms)
@@ -125,17 +130,19 @@
 ;subroutines prefix S
 (define SciLisp-predicates
   (append
-   (mapcar (lambda (x) (list (concat x "?") (concat "lisp_" x "p")
+   (mapcar (lambda (x) (list (concat x "?") (concat "S" x "p") (concat "lisp_" x "p")
                              1 :sig "(object)" :type '(:sexp . :bool)))
            '("array" "cons" "number" "integer" "function"
              "string" "stream" "sequence" "real" "bignum" "bigint" "bigfloat"
-             "hashtable" "macro" "special-form"))
-   '(("eq" "lisp_eq" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
-    ("eql" "lisp_eql" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
-    ("equal" "lisp_equal" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
-    ("even?" "lisp_evenp" 1 :sig "(integer)" :type '(:int :int . :bool))
-    ("odd?" "lisp_oddp" 1 :sig "(integer)" :type '(:int :int . :bool))
-    ("zero?" "lisp_zerop" 1 :sig "(number)" :type '(:num  :num . :bool)))))
+             "hashtable" "macro"))
+   '(("special-form?" "Sspecial_formp" "lisp_special_formp"
+      1 :sig "(object)" :type '(:sexp . :bool))
+     ("eq" "Seq" "lisp_eq" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
+     ("eql" "Seql" "lisp_eql" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
+     ("equal" "Sequal" "lisp_equal" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
+     ("even?" "Sevenp" "lisp_evenp" 1 :sig "(integer)" :type '(:int :int . :bool))
+     ("odd?" "Soddp" "lisp_oddp" 1 :sig "(integer)" :type '(:int :int . :bool))
+     ("zero?" "Szerop" "lisp_zerop" 1 :sig "(number)" :type '(:num  :num . :bool)))))
 (define SciLisp-math-funs
   '(("!=" "Sne" "lisp_numne" 2 :sig "(num1 num2)" :type '(:number :number . :bool))
    ("*"  "Smul" "lisp_mul_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
@@ -157,20 +164,20 @@
    ("mod" "Smod" "lisp_mod" 2 :type '(:number :number . :number))
    ("pow" "Spow" "lisp_pow_driver" 1 :restarg 1 :type '(&rest :numbers . :number))
    ("sin" "Ssin" "lisp_sin" 1 :sig "(number)" :type '(:number . :number))
-   ("tan" "Stan" "lisp_tan" 1 :sig "(number)") :type '(:number . :number)))
+   ("tan" "Stan" "lisp_tan" 1 :sig "(number)" :type '(:number . :number))))
 (define SciLisp-cons-funs
     '(("assoc" "Sassoc" "lisp_assoc" 2 :sig ("key list" "Skey list"))
     ("assq" "Sassq" "lisp_assq" 2 :sig ("key list" "Skey list"))
     ("cons" "Scons" "Cons" 2 :sig "(car cdr)")
-    ("copy-tree" "Scopy-tree" "copy_tree" 1 :sig "(cell)")
+    ("copy-tree" "Scopy_tree" "copy_tree" 1 :sig "(cell)")
     ("drop" "Sdrop" "cons_drop" 2 :sig "(list n)")
     ("last" "Slast" "lisp_last" 1 :sig "(list)")
-    ("rand-list" "Srand-list" "rand_list" 1 :optargs 1)
+    ("rand-list" "Srand_list" "rand_list" 1 :optargs 1)
     ("rassoc" "Srassoc" "lisp_rassoc" 2 :sig ("key list" "Skey list"))
     ("rassq" "Srassq" "lisp_rassq" 2 :sig ("key list" "Skey list"))
     ("push!" "Spush" "push_cons" 2 :sig "(new-val place)")
     ("reduce" "Sreduce" "cons_reduce" 2 :optargs 1 :sig "(seq function)")
-    ("reverse!" "Sreverse!" "cons_nreverse" 1 :sig "(seq)")
+    ("reverse!" "Snreverse" "cons_nreverse" 1 :sig "(seq)")
     ("reverse" "Sreverse" "cons_reverse" 1 :sig "(seq)")
     ("set-car!" "Sset_car" "set_car" 2 :sig "(cell new-val)")
     ("set-cdr!" "Sset_cdr" "set_cdr" 2 :sig "(cell new-val)")
@@ -178,14 +185,14 @@
     ("take" "Stake" "cons_take" 2 :sig "(list n)")))
 (define SciLisp-array-funs
   '(("aref" "Saref" "aref" 2 :sig "(array index)")
-   ("array-map!" "Sarray-map!" "array_nmap" 2 :sig "(array map-fn)")
-   ("array-map" "Sarray-map" "array_map" 2 :sig "(array map-fn)")
-   ("array-qsort" "Sarray-qsort" "array_qsort" 2 :optargs 1
+   ("array-map!" "Sarray_mapn" "array_nmap" 2 :sig "(array map-fn)")
+   ("array-map" "Sarray_map" "array_map" 2 :sig "(array map-fn)")
+   ("array-qsort" "Sarray_qsort" "array_qsort" 2 :optargs 1
     :sig "(array predicate &optional in-place)")
-   ("array-reduce" "Sarray-reduce" "array_reduce" 2 :optargs 1
+   ("array-reduce" "Sarray_reduce" "array_reduce" 2 :optargs 1
     :sig "(array function &optional init)")
-   ("array-reverse!" "Sarray-reverse!" "array_nreverse" 1 :sig "(array)")
-   ("array-reverse" "Sarray-reverse" "array_reverse" 1 :sig "(array)")))
+   ("array-reverse!" "Sarray_reversen" "array_nreverse" 1 :sig "(array)")
+   ("array-reverse" "Sarray_reverse" "array_reverse" 1 :sig "(array)")))
 (define SciLisp-io-funs)
 (define SciLisp-sequence-funs
    '(("map")
@@ -365,17 +372,36 @@
                         ;;if needed (replace-regexp-in-string "-" "_" err)
                         (concat "K" keyword) keyword (length keyword) 
                         (get-hash keyword))
-;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
-(make-SciLisp-something subr "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,{0},%d);\n"
-                        (assq-val :fname subr) (assq-val :lname subr)
-                        (length (assq-val :lname subr))
-                        (get-hash (assq-val :lname subr)) (assq-val :cname subr)
-                        (assq-val :const subr))
+;;#define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) 
+;;#define PRIM_DEFSUBR(l_name,c_name,reqargs,optargs,keyargs,             \
+;;                restarg,max_args,fieldname,arglist,type)
+(defun get-field-name (cargs)
+  (if (symbolp cargs)
+      (concat "f" (symbol-name cargs))
+    (if (numberp cargs)
+        (string ?f (+ cargs #X30)))))
+(make-SciLisp-something subr "PRIM_DEFSUBR(\"%s\",%s,%d,%d,%d,%d,%d,%s,\"%s\",%s);\n"
+                        (assq-val :lname subr) (assq-val :cname subr)
+                        (assq-val :minargs subr) (assq-val :optargs subr)
+                        (assq-val :keyargs subr) (assq-val :restarg subr)
+                        (assq-val :maxargs subr)
+                        (get-field-name (assq-val :cargs subr))
+                        (assq-val :sig subr) "subr_compiled")
+                                                           
 (make-SciLisp-something global "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,{0},%d);\n"
                         (assq-val :cname global) (assq-val :lname global )
                         (length (assq-val :lname global))
                         (get-hash (assq-val :lname global)) (assq-val :value global)
                         (assq-val :const global))
+(defun make-subr-symbols (subrs &optional buf)
+  (if (null buf) (setq buf (current-buffer)))
+  (with-current-buffer buf
+    (dolist (subr subrs)
+      (insert (format "MAKE_SYMBOL(%s,\"%s\",%d,%s,%s,{0},%d);\n"
+                      (assq-val :cname subr) (assq-val :lname subr )
+                      (length (assq-val :lname subr))
+                      (get-hash (assq-val :lname subr)) (assq-val :value subr)
+                      (assq-val :const subr))))))
 (defun make-c-array (name type list)
   (with-output-to-string
     (princ (format "static const %s %s[%d]={" type name (length list)))
@@ -452,9 +478,6 @@ static void init_global_obarray(){
 (defun declare-SciLisp-global (name)
   (concat "extern symbol *" name ";\n" 
           "extern sexp " name "_sexp;\n"))
-(defun declare-SciLisp-subr (name numargs)
-  (concat "sexp " name " " (gethash defun-args numargs) ";\n" ;declares teh function
-          "extern subr " name "_fun;\n"))
 (defun make-self-quoting-symbol (name)
   (format 
    (concat "symbol_name " name "_name={.hashv=%s,.is_const=1,.name_len=%d,.name=\""name "\"};\n"
@@ -463,20 +486,32 @@ static void init_global_obarray(){
            "symbol *"name"=&"name"_val;\n"
            "sexp "name"_sexp=const_symref_sexp(&"name"_val);\n")
    (get-hash name) (length name)))
-  
+(intern "current-subrs")
+(setq current-subrs
+     (mapcar (lambda (x) (apply #'mk-prim-subr x))
+             (append SciLisp-predicates SciLisp-math-funs SciLisp-cons-funs)))
+(define SciLisp-subrs current-subrs)
 ;I love lisp symbol names
 (defun make-prim.h ()
   (with-temp-file prim.h-filename
     (insert-file-contents (concat script-dir-name "prim_new.h"))
     (goto-char (point-max))
+    (insert "/*Declaration of default Symbols, and their corrsponding sexps*/\n")
+    (insert "/*Error Symbols*/\n")
     (dolist (err SciLisp-errors)
       (insert (declare-SciLisp-global (concat "E" err))))
+    (insert "/*Type Symbols*/\n")
     (dolist (type SciLisp-types)
       (insert (declare-SciLisp-global (concat "T" type))))
+    (insert "/*Special Form Symbols*/\n")
     (dolist (form SciLisp-special-forms)
       (insert (declare-SciLisp-global (concat "Q" form))))
+    (insert "/*Keyword Symbols*/\n")
     (dolist (key SciLisp-keywords)
       (insert (declare-SciLisp-global (concat "K" key))))
+    (insert "/*Subroutine Symbols*/\n")
+    (dolist (subr current-subrs)
+      (insert (declare-SciLisp-global (assq-val :cname subr))))
     (insert "#endif\n")))
 (defsubst make-intern-prim (cname)
   (format "c_intern_unsafe(global_obarray,%s);\n" cname)) 
@@ -488,6 +523,8 @@ static void init_global_obarray(){
     (make-SciLisp-globals (current-buffer))
     (make-SciLisp-keywords (current-buffer))
     (make-SciLisp-special-forms (current-buffer))
+    (make-subr-symbols SciLisp-subrs (current-buffer))
+    (make-SciLisp-subrs (current-buffer))
     (insert prim.c-suffix)
     (dolist (sym builtin-symbols)
       (insert (make-intern-prim sym)))
