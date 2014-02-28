@@ -1,5 +1,9 @@
 /* The reader
-
+NOTE: MAKE THIS EXTENSABLE
+(I want an extensable reader in clojure, but there isn't one
+aso I should have one)
+use readtables to dispatch on characters as we read
+look at how ecl does it
 Copyright (C) 2013-2014 Tucker DiNapoli
 
 This file is part of SciLisp.

@@ -128,16 +128,17 @@ static const uint64_t(*bool_dispatch_table[16])(uint64_t,uint64_t) =
   }
 
 #ifdef __x86_64__
+//this is kinda silly, I'm pretty sure gcc knows to use these
 sexp bit_scan_forward(sexp x){
   //typecheck?
   int64_t result;
-  asm ("bsfq %1,%0": "=g" (result) : "g" (x.val.int64));
+  asm ("tzcntq %1,%0": "=g" (result) : "g" (x.val.int64));
   return int64_sexp(result);
 }
 sexp bit_scan_reverse(sexp x){//aka clz
   //typecheck?
   int64_t result;
-  asm("bsrq %1,%0": "=g" (result) : "g" (x.val.int64));
+  asm("lzcntq %1,%0": "=g" (result) : "g" (x.val.int64));
   return int64_sexp(result);
 }
 sexp population_count(sexp x){
@@ -167,11 +168,11 @@ sexp bit_test(sexp x,sexp y){
 #else
 sexp bit_scan_forward(sexp x){
   //typecheck
-  return int64_sexp((int64_t)(__builtin_ffsl(x.val.int64)-1));
+  return int64_sexp((int64_t)(__builtin_ffsl(x.val.int64)));
 }
 sexp bit_scan_reverse(sexp x){
   //typecheck
-  return int64_sexp((int64_t)(__builtin_clzl(x.val.int64)-1));
+  return int64_sexp((int64_t)(__builtin_clzl(x.val.int64)));
 }
 sexp population_count(sexp x){
   //typecheck

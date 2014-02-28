@@ -482,15 +482,6 @@ sexp lisp_assoc(sexp obj,sexp ls,sexp eq_fn){
 sexp assq(sexp ls, sexp obj){
   return assoc(ls,obj,function_sexp(&lisp_eq_call));
 }
-sexp c_assq(sexp ls,sexp obj){
-  while(CONSP(ls)){
-    if(EQ(XCAAR(ls),obj)){
-      return XCAR(ls);
-    }
-    ls=XCDR(ls);
-  }
-  return NIL;
-}
 sexp lisp_assq(sexp ls, sexp obj){
   return lisp_assoc(ls,obj,NIL);
 }

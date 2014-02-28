@@ -299,4 +299,14 @@ sexp lisp_dequeue(sexp queue,sexp noerror);
 sexp queue_empty(sexp queue);
 sexp queue_peek(sexp queue);
 sexp cons_merge_sort(sexp ls,sexp sort_fn);
+//I need this in places I don't necessarly need the rest of cons.c
+static sexp c_assq(sexp ls,void *obj){
+  while(CONSP(ls)){
+    if(XCAAR(ls).val.uint64==(uint64_t)obj){
+      return XCAR(ls);
+    }
+    ls=XCDR(ls);
+  }
+  return NIL;
+}
 #endif

@@ -16,6 +16,8 @@ static const uint8_t invalid_symbol_char[256]=
    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1};
 
+//static void *default_readtable[128]=//only dispatch on ascii chars
+//  {
 enum utf8_char_catagory {
   utf8_null,
   utf8_ascii,

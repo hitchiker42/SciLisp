@@ -142,7 +142,7 @@ static const int sexp_seq_tag_max = 30;
 #define TYPEP(obj) (obj.tag == sexp_type)
 #define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
 #define UINT64P(obj) (obj.tag == sexp_ulong)
-#define UNBOUND(obj) (obj.tag == sexp_unbound)
+#define UNBOUNDP(obj) (obj.tag == sexp_unbound)
 #define PACKAGEP(obj) (obj.tag == sexp_package)
 //errors, defined somewhere else
 /*extern symbol *Etype;
@@ -153,12 +153,16 @@ extern symbol *Efile;
 extern symbol *Eread;
 extern symbol *Eundefined;
 extern symbol *E*/
-#define NUM_EQ(obj1,obj2)                       \
-  ((obj1.tag<=8?obj1.val.uint64:obj1.val.real64)== \
-    (obj2.tag<=8?obj2.val.uint64:obj2.val.real64)
-#define EQ(obj1,obj2)                                                   \
-  ((NUMBERP(obj1) && NUMBERP(obj2))?NUM_EQ(obj1,obj2):                  \
-   ((obj1.tag==obj2.tag) && (obj1.val.uint64 == obj.val.uint64)))
+#define NUM_EQ(obj1,obj2)                               \
+  ({sexp x=obj1;                                        \
+    sexp y=obj2;                                        \
+    ((x.tag<=8?x.val.uint64:x.val.real64)==    \
+     (y.tag<=8?y.val.uint64:y.val.real64));})
+#define EQ(obj1,obj2)                           \
+  ({sexp x=obj1;                                                        \
+    sexp y=obj2;                                                        \
+    ((NUMBERP(x) && NUMBERP(y))?NUM_EQ(x,y):                            \
+     ((x.tag==y.tag) && (x.val.uint64 == y.val.uint64)));})
 //more defined in cons,h, but these are so common I need them even in headers
 #define XCAR(cell) cell.val.cons->car
 #define XCDR(cell) cell.val.cons->cdr
