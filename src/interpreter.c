@@ -21,7 +21,7 @@
 #include "cons.h"
 sexp eval_top(sexp expr,env_ptr env);
 sexp lookup_var (symbol *sym,env_ptr env);
-sexp funcall(subr sub,sexp args,env_ptr env);
+sexp funcall(subr *sub,sexp args,env_ptr env);
 //special forms, and macros reimplemented as special forms for speed
 //these aren't really treated specially, and are just called similarly
 //to functions
@@ -35,7 +35,6 @@ sexp lisp_defmacro(sexp expr);
 sexp lisp_lambda(sexp expr,env_ptr env);
 sexp lisp_quote(sexp expr);
 sexp lisp_setq(sexp expr,env_ptr env);
-sexp eval(sexp expr,sexp env);
 sexp lisp_progn(sexp args);//special form
 sexp lisp_prog1(sexp args);//specail form
 sexp lisp_prog2(sexp args);//macro
@@ -50,7 +49,7 @@ sexp lisp_flet(sexp args,env_ptr env);
 sexp lisp_flet_star(sexp args,env_ptr env);
 sexp apply(uint64_t numargs,sexp *args);//function
 static sexp get_symbol_value(symbol *sym,env_ptr env);
-sexp eval(sexp expr,sexp env){
+sexp lisp_eval(sexp expr,sexp env){
   if(NILP(env)){
     return eval_top(expr,current_env);
   } else {
@@ -63,16 +62,16 @@ sexp eval_top(sexp expr,env_ptr env){
   switch(expr.tag){
     case sexp_sym:
       //if(expr.val.sym->special){return expr.val.sym->val;}
-      return get_symbol_value(expr.val.sym);
+      return get_symbol_value(expr.val.sym,env);
     case sexp_cons:
-      if(!symbolp(XCAR(expr))){
-        raise_simple_error_fmt(etype,"invalid function %r",print(XCAR(expr)).str);
+      if(!SYMBOLP(XCAR(expr))){
+        raise_simple_error_fmt(Etype,"invalid function %r",print(XCAR(expr)));
       }
-      sexp subr_var=get_symbol_value(expr.val.sym);
-      if(!subrp(subr_var)){
-        raise_simple_error_fmt(etype,"invalid function %r",print(XCAR(expr)).str);
+      sexp subr_var=get_symbol_value(expr.val.sym,env);
+      if(!SUBRP(subr_var)){
+        raise_simple_error_fmt(Etype,"invalid function %r",print(XCAR(expr)));
       }
-      return funcall(subr_var.val.subr,xcddr(expr),env);
+      return funcall(subr_var.val.subr,XCDDR(expr),env);
       //it might be a good idea to dispatch on special forms via switching
       //on the symbol before looking it up and calling funcall
       //being as it would only add 1 extra comparison and a jump
@@ -82,14 +81,14 @@ sexp eval_top(sexp expr,env_ptr env){
   }
 }
 sexp lookup_var (symbol *sym,env_ptr env){
-  if(env->lex_env){
+  if(!NILP(env->lex_env)){
     sexp lex_binding=lex_assq(env->lex_env,sym);
-    if(!nilp(lex_binding)){
-      return XCDR(lex_binding):
+    if(!NILP(lex_binding)){
+      return XCDR(lex_binding);
     }
   }
-  if(unbound(sym->val)){
-      raise_simple_error_fmt(eunbound,"error undefined variable %r",sym->name->name);
+  if(UNBOUNDP(sym->val)){
+      raise_simple_error_fmt(Eunbound,"error undefined variable %r",sym->name->name);
   } else {
     return symref_sexp(sym);
   }
@@ -99,14 +98,14 @@ sexp lookup_var (symbol *sym,env_ptr env){
    otherwise return the value of sym
  */
 static inline sexp get_symbol_value(symbol *sym,env_ptr env){
-  if(!nilp(env->lex_env)){//if there is a lexical environment search it first
+  if(!NILP(env->lex_env)){//if there is a lexical environment search it first
     sexp lex_binding=c_assq(env->lex_env,sym);
-    if(!nilp(lex_binding)){
+    if(!NILP(lex_binding)){
       return XCDR(lex_binding);
     }
   }
-  if(unbound(sym->val)){
-    raise_simple_error_fmt(eunbound,"error undefined variable %r",sym->name->name);
+  if(UNBOUNDP(sym->val)){
+    raise_simple_error_fmt(Eunbound,"error undefined variable %r",sym->name->name);
   } else {
     return sym->val;
   }
@@ -116,9 +115,9 @@ static inline sexp get_symbol_value(symbol *sym,env_ptr env){
 //this worthwhile
 #define eval_arg(arg,env)                       \
   ({sexp argval;                                \
-  if(!CONSP(arg) && !symbolp(arg)){             \
+  if(!CONSP(arg) && !SYMBOLP(arg)){             \
     argval=arg;                                 \
-  } if(symbolp(arg)){                           \
+  } if(SYMBOLP(arg)){                           \
     argval=lookup_arg(arg,env);                 \
   } else {                                      \
     argval=eval(arg,env);                       \
@@ -169,10 +168,10 @@ sexp lisp_c_funcall(subr *c_fun,int num_args,env_ptr env){
   }
 }
 sexp lisp_and(sexp exprs){
-  sexp retval=lisp_true;
+  sexp retval=LISP_TRUE;
   while(CONSP(exprs)){
-    if(!(istrue(eval(XCAR(exprs),cur_env)))){
-      return lisp_false;
+    if(!(is_true(eval(XCAR(exprs),cur_env)))){
+      return LISP_FALSE;
     } else {
       exprs=XCDR(exprs);
     }

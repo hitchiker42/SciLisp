@@ -409,25 +409,3 @@ sexp array_insertion_sort(sexp* arr,int len,sexp(*f)(sexp,sexp)){
    -for any index i, the right child is at index 2i+1, left child at 2i-1
      and parent at floor((i-1)/2)
 */
-sexp c_vector_search(lisp_array *vec,sexp elt,sexp (*test_fn)(sexp)){
-  if(vec->type == sexp_sexp){
-    int i;
-    for(i=0;i<vec->len;i++){
-      if(is_true(test_fn(vec->sexp_vector[i],elt))){
-        return elt;
-      }
-    }
-    return NIL;
-  } else {
-    if(elt.tag != vec->type){//may need to do a seperate case for numeric types
-      return NIL;
-    }
-    int i;
-    for(i=0;i<vec->len;i++){
-      if(is_true(test_fn((sexp){.tag=vec->type,.val=vec->typed_vector},elt))){
-        return elt;
-      }
-    }
-    return NIL;
-  }
-}

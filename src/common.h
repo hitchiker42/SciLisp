@@ -1,4 +1,4 @@
-o/* Global header file for standard includes and macros
+/* Global header file for standard includes and macros
 
    Copyright (C) 2013-2014 Tucker DiNapoli
 
@@ -61,7 +61,7 @@ static pthread_mutex_t global_lock=PTHREAD_MUTEX_INITIALIZER;
   (if((pthread_create(thread,attr,start_routine,arg))){               \
     perror("Program error, exiting:\nthread creation failed");        \
     exit(4);                                                          \
-  })                                                                  \
+  })                                                                  
 #else
 #define thread_local
 #define multithreaded_only(code)
@@ -84,7 +84,11 @@ static void *xmalloc(size_t sz)__attribute__ ((warn_unused_result));
 static void *xrealloc(void *ptr,size_t sz)__attribute__ ((warn_unused_result));
 static void *xmalloc_atomic(size_t sz)__attribute__ ((warn_unused_result));
 #endif
+//current dynamic environment
+extern thread_local struct obarray *current_obarray;
+extern thread_local struct environment *current_env;
 //includes from SciLisp files
+#include "debug.h"
 #include "read.h"
 #include "print.h"
 #include "bignum.h"
@@ -93,14 +97,10 @@ static void *xmalloc_atomic(size_t sz)__attribute__ ((warn_unused_result));
 //we need NIL in env.h
 static const sexp NIL={.val={0}};//NIL is all 0s
 #include "env.h"
-//current dynamic environment
-extern thread_local struct obarray *current_obarray;
-extern thread_local struct environment *current_env;
 #define top_level_frame current_env->protect_fraem
 //temporary, bulitin_symbols.h should be generated and placed in the src dir
 #include "prim.h"
 #include "frames.h"
-#include "debug.h"
 /*actually define allocation routines
   SciLisp allocation routines will set the current environment's error_num
   field to ENOMEM and raise SIGUSR1 which will call a generic error handler
@@ -338,9 +338,7 @@ static void __attribute__((noreturn))default_condition_handler(int signum){
                      CORD_asprintf("Received signal number %d:\n%s",
                                    signum,strsignal(signum)));
 }
-static sexp lisp_eval(sexp obj,sexp env){
-  return eval(obj,current_env);
-}
+sexp lisp_eval(sexp obj,sexp env);
 static const struct sigaction sigusr1_object={.sa_handler=default_condition_handler};
 static const struct sigaction sigusr2_object={.sa_handler=default_condition_handler};
 static const struct sigaction *sigusr1_action=&sigusr1_object;

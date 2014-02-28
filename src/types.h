@@ -54,7 +54,7 @@ typedef double complex complex64_t;
 typedef enum sexp_tag sexp_tag;//different types of a lisp object
 typedef enum TOKEN TOKEN;//type of values returned from yylex
 //typedef union data data;//core representation of a lisp object
-typedef union funcall funcall;//type of primitive functions (bad name)
+typedef union c_funcall c_funcall;//type of primitive functions (bad name)
 typedef union ctype_val ctype_val;
 typedef union data data;//actual data for any lisp object(should this be lisp_data?)
 typedef struct sexp sexp;//type of all lisp objects
@@ -77,6 +77,7 @@ typedef struct lisp_condition lisp_condition;//error handling
 typedef struct lisp_string lisp_string;//string/CORD + length
 typedef struct lisp_array lisp_array;//array/typed array/matrix
 typedef struct lisp_simple_vector lisp_svector;
+typedef struct lisp_simple_vector lisp_vector;
 typedef struct subr subr;//any kind of subroutine(macro,function,special form,etc)
 typedef struct lisp_record lisp_record;
 typedef struct frame frame;//a jmp_buf and information to reinitialize lisp environment
@@ -363,7 +364,7 @@ struct lisp_string {
   uint8_t multibyte;//0=no,1=yes
 };
 //this is almost exactly the way emacs does builtin functions
-union funcall{
+union c_funcall{
   sexp(*f0)(void);
   sexp(*f1)(sexp);
   sexp(*f2)(sexp,sexp);
@@ -402,7 +403,7 @@ struct lambda_list {
 struct subr {
   union {
     struct {//compiled function
-      funcall comp;
+      c_funcall comp;
       uint16_t req_args;//42
       uint16_t opt_args;//num_req_args-num_req_args+num_opt_args 44
       uint16_t keyword_args;//num_opt_args-num_opt_args+num_keyword_args 46

@@ -261,12 +261,9 @@ static inline lisp_string *make_string_len(const char *str,uint32_t len){
   }
   return retval;
 }    
+int quiet_signals;
 //signal handler for fatal errors, prints the error name and thread number
-//if applicable, and if enabled prints a backtrace to help debugging
-static const struct sigaction fatal_action_object={.sa_handler=&handle_fatal};
-static const struct sigaction* restrict fatal_action_ptr=&action_object;
-static const struct sigaction signal_action_object={.sa_handler=&handle_fatal};
-static const struct sigaction* restrict signal_action_ptr=&action_object;
+//if applicable, and if enabled prints a backtrace to help debugging;
 static void __attribute__((noreturn)) handle_fatal(int signal){
   //if I used strsignal here it would require an additonial
   //function call inside of a signal handler, so avoid that 
@@ -284,5 +281,9 @@ static void __attribute__((noreturn)) handle_fatal(int signal){
   }
   exit(1);
 }
+static const struct sigaction fatal_action_object={.sa_handler=&handle_fatal};
+static const struct sigaction* restrict fatal_action_ptr=&fatal_action_object;
+static const struct sigaction signal_action_object={.sa_handler=&handle_fatal};
+static const struct sigaction* restrict signal_action_ptr=&signal_action_object;
 void init_signal_handlers();
 #endif

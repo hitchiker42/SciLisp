@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2013-2014 Tucker DiNapoli
  *
@@ -14,7 +15,7 @@
 #ifndef CORD_H
 #error "Don't include cord_extra.h directly, use cord.h instead"
 #endif
-
+#include <stdint.h>
 #define CORD_strdup(str) CORD_from_char_star(str)
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")

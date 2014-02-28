@@ -38,5 +38,5 @@ sexp read_from_cord(CORD input);
 sexp read_from_stream(FILE *stream);
 sexp read_from_string(char *string);
 //convience function to call read_full on a file
-sexp read_file(FILE *input)
+sexp read_file(FILE *input);
 #endif

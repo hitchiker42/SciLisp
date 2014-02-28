@@ -286,7 +286,7 @@ CORD_API CORD CORD_from_file_lazy(FILE * f);
 /* Turn a cord into a C string. The result shares no structure with     */
 /* x, and is thus modifiable.                                           */
 CORD_API char * CORD_to_char_star(CORD x);
-v
+
 /* Turn a C string into a CORD.  The C string is copied, and so may     */
 /* subsequently be modified.                                            */
 CORD_API CORD CORD_from_char_star(const char *s);
