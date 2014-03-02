@@ -109,7 +109,7 @@ struct binding {
 #define pop_frame(env) pop_generic_signal(frame,env)
 #define push_call(env,data) push_generic_signal(call,env,data)
 #define pop_call(env) pop_generic_signal(call,env)
-#define push_data(env,data) push_generic_signal(data,env,data)
+#define push_data(env,data_val) push_generic_signal(data,env,data_val)
 #define pop_data(env) pop_generic_signal(data,env)
 
 #define try_push_binding(env,data) push_generic_no_signal(binding,env,data)

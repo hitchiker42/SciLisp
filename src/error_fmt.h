@@ -2,7 +2,7 @@
   ({CORD err_str;                                                       \
     CORD_sprintf(&err_str,"invalid number of arguments passed to %r,"   \
                  "expected %s but got %s",name,got,expected);           \
-    err_str})
+    err_str;})
 #define format_type_error_va(fun,format,args...)                        \
   ({CORD type_error_str;                                                \
     CORD_sprintf(&type_error_str,"type error in %r, ",fun);             \

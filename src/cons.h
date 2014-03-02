@@ -89,7 +89,7 @@ static sexp unsafe_last(sexp ls);
 #define POP(list)                               \
   ({sexp val=XCAR(list);                        \
     list=XCDR(list);                            \
-    value;})
+    val;})
 #define PUSH(obj,list)                          \
   ({XCDR(list)=list;                            \
     XCAR(list)=obj;})

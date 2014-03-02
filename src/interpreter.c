@@ -38,7 +38,7 @@ sexp lisp_setq(sexp expr,env_ptr env);
 sexp lisp_progn(sexp args);//special form
 sexp lisp_prog1(sexp args);//specail form
 sexp lisp_prog2(sexp args);//macro
-sexp lisp_progv(sexp args);//special form
+sexp lisp_progv(sexp args,env_ptr env);//special form
 sexp lisp_while(sexp expr,env_ptr env);//special form implementing looping
 sexp lisp_if(sexp expr);//special form implementing conditionals
 sexp lisp_do(sexp expr);//macro
@@ -187,11 +187,11 @@ sexp lisp_defvar(sexp args){
   if(CONSP(XCDR(args))){
     docstr=XCADR(args);
   }
-  if(var.val.sym->val == UNBOUND){
+  if(UNBOUNDP(var.val.sym->val)){
     var.val.sym->special=1;
     var.val.sym->val=eval(val,current_env);
-    if(!NILP(docstr)){
-      var.val.sym->plist=Fcons(Qdocstring,Fcons(docstr,var.val.sym->plist));
+    if(!NILP(docstr)){//To be added
+      //var.val.sym->plist=Fcons(Qdocstring,Fcons(docstr,var.val.sym->plist));
     }
   }
   return var;
@@ -209,7 +209,7 @@ sexp lisp_defun(sexp args){
   sexp arglist=XCAR(args);
   sexp body=XCADR(args);
   //defun overwrites any existing defination
-  var.val.sym->val=Fcons(Qlambda,Fcons(arglist,cons(body,nil)));
+  var.val.sym->val=Fcons(Qlambda_sexp,Fcons(arglist,Fcons(body,NIL)));
   var.val.sym->special=1;
   return var;
 }
@@ -218,12 +218,12 @@ sexp lisp_defun(sexp args){
 sexp lisp_setq(sexp args,env_ptr env){
   //(setq [place form]*)
   if(NILP(args)){
-    return nil;
+    return NIL;
   }
   //we need to make sure we have an even number of args first
   //otherwise we might set some values and not others
-  uint32_t len=cons_len(args);
-  if(args%2){
+  uint32_t len=cons_length(args).val.uint64;
+  if(len%2){
     raise_simple_error(Eargs,"uneven number of arguments to setq");
   }
   sexp var,val=NIL;
@@ -234,14 +234,14 @@ sexp lisp_setq(sexp args,env_ptr env){
     //should (setq <undefined symbol> val) set the value of the symbol
     //in the current lexical environment, of set the global value of symbol?
     if(!NILP(env->lex_env)){
-      sexp lex_var=c_assq(env->lex_env,var);
+      sexp lex_var=c_assq(env->lex_env,var.val.sym);
       if(!NILP(lex_var)){
         //don't modify lexical environments, just push on a new value
         PUSH(env->lex_env,Fcons(var,val));
         continue;
       }
     }
-    val.var.sym->val=val;
+    val.val.sym->val=val;
   }
   return val;
 }
@@ -251,7 +251,7 @@ sexp lisp_defmacro(sexp args){
 sexp lisp_or(sexp exprs){
   sexp retval=LISP_FALSE;
   while(CONSP(exprs)){
-    if(is_true(eval(XCAR(exprs),currrent_env))){
+    if(is_true(eval(XCAR(exprs),current_env))){
       return LISP_TRUE;
     } else {
       exprs=XCDR(exprs);
@@ -266,7 +266,7 @@ sexp lisp_when(sexp args){
   return lisp_progn(args);
 }
 //(if cond then &rest else)
-sexp lisp_if(sexp args,env_ptr env){
+sexp lisp_if(sexp args){
   if(!CONSP(args) || !(CONSP(XCDR(args)))){
     raise_simple_error(Eargs,"too few arguments passed to if");
   }
@@ -285,7 +285,7 @@ sexp lisp_lambda(sexp args,env_ptr env){
     raise_simple_error(Eargs,"lambda missing argument list");
   }
   if(!NILP(env->lex_env)){
-    sexp closure=Fcons(Qclosure,env->lex_env);
+    sexp closure=Fcons(Qclosure_sexp,env->lex_env);
     return Fcons(closure,XCDR(args));
   } else {
     return args;
@@ -297,13 +297,13 @@ sexp lisp_lambda(sexp args,env_ptr env){
 #define let_prefix()                                                    \
   args=XCDR(args);                                                      \
   if(!CONSP(args)){                                                     \
-    raise_simple_error(eargs,format_arg_error("let","1 or more","0"));  \
+    raise_simple_error(Eargs,format_arg_error("let","1 or more","0"));  \
   } else if (!CONSP(XCAR(args))){                                       \
     if(!NILP(XCAR(args))){                                              \
       raise_simple_error(Etype,"Malformed lex binding list");           \
     }                                                                   \
     if(!NILP(XCDR(args))){                                              \
-      return eval(xcadr(args),env);                                     \
+      return eval(XCADR(args),env);                                     \
     } else {                                                            \
       return NIL;                                                       \
     }                                                                   \
@@ -317,16 +317,19 @@ sexp lisp_let(sexp args,env_ptr env){
   sexp cur_var=POP(lex_vars);
   //i do this since the way things are you can't do push(val,nil)
   //without dereferencing a null pointer
-  sexp lex_env=c_list1(Fcons(XCAR(cur_var),eval(XCDR(cur_var,env))));
-  while(CONSP(lex_vars) && (cur_var=POP(lex_vars))){
+  sexp lex_env=c_list1(Fcons(XCAR(cur_var),eval(XCDR(cur_var),env)));
+  cons* lex_last=lex_env.val.cons;
+  while(CONSP(lex_vars)){
+    cur_var=POP(lex_vars);
   //maybe check if cdr is nil before calling eval ?
-    PUSH(lex_env,Fcons(XCAR(cur_var),eval(XCDR(cur_var,env))));
+    PUSH(lex_env,Fcons(XCAR(cur_var),eval(XCDR(cur_var),env)));
   }
   if(!NILP(lex_vars)){
-    raise_simple_error(etype,"maleformed lex binding list");
+    raise_simple_error(Etype,"maleformed lex binding list");
   }
   sexp old_lex_env=env->lex_env;
-  env->lex_env=append(lex_env,env->lex_env);
+  lex_last->cdr=env->lex_env;//append current lex env to let bindings
+  env->lex_env=lex_env;
   sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
@@ -346,15 +349,16 @@ sexp lisp_progv(sexp args,env_ptr env){
 sexp lisp_let_star(sexp args,env_ptr env){
   let_prefix();
   sexp lex_vars=XCAR(args);
-  sexp cur_var=POP(lex_vars);
+  sexp cur_var;
   sexp old_lex_env=env->lex_env;
   //maybe check if cdr is nil before calling eval ?
-  do {
-    PUSH(env->lex_env,Fcons(XCAR(cur_var),eval(XCDR(cur_var,env))));
-  } while (CONSP(lex_vars) && (cur_var=POP(lex_vars)));
+  while (CONSP(lex_vars)){
+    cur_var=POP(lex_vars);
+    PUSH(env->lex_env,Fcons(XCAR(cur_var),eval(XCDR(cur_var),env)));
+  } 
   if(!NILP(lex_vars)){
     env->lex_env=old_lex_env;
-    raise_simple_error(etype,"maleformed lex binding list");
+    raise_simple_error(Etype,"maleformed lex binding list");
   }
   sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
@@ -370,22 +374,25 @@ sexp lisp_let_star(sexp args,env_ptr env){
  */
 //flet needs to use closures to prevent the bound functions from seeing themselves
 #define flet_expand_sub(lex_var)                                        \
-  (Fcons(XCAR(lex_var),Fcons2(Qclosure,env->lex_env,XCDR(lex_var))))
+  (Fcons(XCAR(lex_var),Fcons2(Qclosure_sexp,env->lex_env,XCDR(lex_var))))
 #define flet_star_expand_sub(lex_var)                                   \
-  (Fcons(XCAR(lex_var),Fcons(Qlambda,XCDR(lex_var))))
+  (Fcons(XCAR(lex_var),Fcons(Qlambda_sexp,XCDR(lex_var))))
 sexp lisp_flet(sexp args,env_ptr env){
-  lex_prefix();
+  let_prefix();
   sexp lex_vars=XCAR(args);
   sexp cur_var=POP(lex_vars);
   sexp lex_env=c_list1(flet_expand_sub(cur_var));
-  while(CONSP(lex_vars) && (cur_var=POP(lex_vars))){
+  cons* lex_last=lex_env.val.cons;
+  while(CONSP(lex_vars)){
+    cur_var=POP(lex_vars);
     PUSH(lex_env,flet_expand_sub(cur_var));
   }
   if(!NILP(lex_vars)){
-    raise_simple_error(etype,"maleformed lex binding list");
+    raise_simple_error(Etype,"maleformed lex binding list");
   }
   sexp old_lex_env=env->lex_env;
-  env->lex_env=append(lex_env,env->lex_env);
+  lex_last->cdr=env->lex_env;
+  env->lex_env=lex_env;
   sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
@@ -393,20 +400,22 @@ sexp lisp_flet(sexp args,env_ptr env){
 sexp lisp_flet_star(sexp args,env_ptr env){
   let_prefix();
   sexp lex_vars=XCAR(args);
-  sexp cur_var=POP(lex_vars);
+  sexp cur_var;
   sexp old_lex_env=env->lex_env;
   //maybe check if cdr is nil before calling eval ?
-  do {
+  while (CONSP(lex_vars)){
+    cur_var=POP(lex_vars);
     PUSH(env->lex_env,flet_star_expand_sub(cur_var));
-  } while (CONSP(lex_vars) && (cur_var=pop(lex_vars)));
+  }
   if(!NILP(lex_vars)){
     env->lex_env=old_lex_env;
-    raise_simple_error(etype,"maleformed lex binding list");
+    raise_simple_error(Etype,"maleformed lex binding list");
   }
   sexp retval=eval(XCDR(args),env);
   env->lex_env=old_lex_env;
   return retval;
 }
+/*
 sexp flet_macroexpand(sexp args,env_ptr env){
   sexp code_ptr=XCDR(args);
   if(!CONSP(args)){
@@ -417,7 +426,7 @@ sexp flet_macroexpand(sexp args,env_ptr env){
   code_ptr=XCAR(code_ptr);
   sexp cur_var=POP(code_ptr);
   do {
-    SET_CDR(cur_var,Fcons2(Qclosure,env->lex_env,XCDR(lex_var)));
+    SET_CDR(cur_var,Fcons2(Qclosure_sexp,env->lex_env,XCDR(lex_var)));
   } while (CONSP(code_ptr) && (cur_var=POP(code_ptr)));
   return args;
 }
@@ -435,71 +444,72 @@ sexp flet_star_macroexpand(sexp args,env_ptr env){
   } while (CONSP(code_ptr) && (cur_var=POP(code_ptr)));
   return args;
 }
+*/
 sexp lisp_macrolet(sexp args,env_ptr env){}
 //simple looping construct
 //(while cond &rest body)
-sexp lisp_while(sexp cond,sexp body){
+sexp lisp_while(sexp args,env_ptr env){
   sexp result;
+  //I should have at least ensured that args is a cons cell
+  sexp cond=XCAR(args);
+  sexp body=XCDR(args);
   while(is_true(eval(cond,current_env))){
     result=eval(body,current_env);
   }
   return result;
 }
 sexp lisp_progn(sexp args){
-  sexp result=nil;
+  sexp result=NIL;
   while(CONSP(args)){
     result=eval(XCAR(args),current_env);
     args=XCDR(args);
   }
   return result;
 }
-sexp lisp_prog1(sexp expr,sexp args){
+sexp lisp_prog1(sexp args){
+  //typecheck
+  sexp expr=POP(args);  
   sexp result=eval(expr,current_env);
   while(CONSP(args)){
     eval(XCAR(args),current_env);
   }
   return result;
 }
-sexp lisp_prog2(sexp expr1,sexp expr2,sexp args){
+sexp lisp_prog2(sexp args){
+  //typecheck
+  sexp expr1=POP(args);
+  sexp expr2=POP(args);
   eval(expr1,current_env);
   sexp result=eval(expr2,current_env);
   while(CONSP(args)){
-    eval(XCAR(args),current_envrionment);
+    eval(XCAR(args),current_env);
   }
   return result;
 }
 
 //sexp c_apply(function *fun,environment *env){
-void unwind_bindings(binding *bindings,int len){
-  int i;
-  binding cur_binding;
-  for (i=0;i<len;i++){
-    cur_binding=bindings[i];
-    binding->sym.val=binding.prev_val;
-  }
-}
 //rought sketch of how to do this
 sexp cond_expand(sexp expr){
   sexp retval=expr;
   sexp cond_case;
-  while(!nilp((cond_case=pop(expr)))){
+  while(!NILP((cond_case=POP(expr)))){
     //(test then...)->(test
-    XCDR(cond_case)=Fcons(Qprogn,XCDR(cond_case));
-    PUSH(cond_case,qif);
+    XCDR(cond_case)=Fcons(Qprogn_sexp,XCDR(cond_case));
+    PUSH(cond_case,Qif_sexp);
   }
 }
 sexp apply(uint64_t numargs,sexp *args){
   sexp fun_sym=*args++;
-  if(!FUNCTIONP(fun_sym.val.sym->val)){
+  if(!SUBRP(fun_sym.val.sym->val)){
     raise_simple_error(Eundefined,
-                       (CORD_cat(sym->name->name," is not a function"));
+                       (CORD_cat(fun_sym.val.sym->name->name," is not a function")));
   }
 }
-sexp funcall(subr sub,sexp args,env_ptr env){
+sexp funcall(subr *sub,sexp args,env_ptr env){
   switch(sub->subr_type){
     case subr_compiled:{
       int numargs,maxargs;
-      int minargs=sub->minargs;
+      int minargs=sub->req_args;
       if(sub->rest_arg){
         maxargs=data_stack_size/sizeof(sexp);
       } else {
@@ -508,28 +518,28 @@ sexp funcall(subr sub,sexp args,env_ptr env){
       while(CONSP(args)){
         sexp arg=POP(args);
         if(!CONSP(arg) && !SYMBOLP(arg)){
-          push_data(arg);
+          push_data(current_env,arg);
         } if(SYMBOLP(arg)){
-          push_data(lookup_var(arg,env));
+          push_data(current_env,lookup_var(arg.val.sym,env));
         } else {
-          push_data(eval(arg,env));
+          push_data(current_env,eval(arg,env));
         }
         //only call eval if we have to(i.e. if arg is a cons cell
         numargs++;
         if(numargs>maxargs){
-          raise_simple_error_fmt(Eargs,"Excess args passed to %s",sym->name->name);
+          raise_simple_error_fmt(Eargs,"Excess args passed to %s",sub->lname.string);
         }
       }
       if(numargs<minargs){
-        raise_simple_error_fmt(Eargs,"Too few args passed to %s",sym->name->name);
+        raise_simple_error_fmt(Eargs,"Too few args passed to %s",sub->lname.string);
       }
-      return lisp_c_funcall(sub,namargs,env);
+      return lisp_c_funcall(sub,numargs,env);
     }
     case subr_compiler_macro:
-      return subr->comp.funevaled(args);
+      return sub->comp.funevaled(args);
     case subr_special_form:
-      return subr->comp.fspecial(args,env);
-    case subr_lambda
+      return sub->comp.fspecial(args,env);
+    case subr_lambda:
     case subr_closure:{
       cons *lambda=sub->lambda_body;
       sexp fun_env=NIL;
@@ -540,12 +550,12 @@ sexp funcall(subr sub,sexp args,env_ptr env){
         lambda=lambda->cdr.val.cons;
       }
       lambda_list arglist=*(sub->lambda_arglist);
-      int num_reqargs = arglist->req_args->car.val.int64;
-      symbol *req_arg_names= arglist->req_args->cdr.sym;
-      int num_optargs = arglist->opt_args->car.val.int64;
-      cons*opt_arg_names= arglist->opt_args->cdr.sym;//array of conses
-      int num_keyargs = arglist->key_args->car.val.int64;
-      cons *key_arg_names= arglist->key_args->cdr.sym;//array of conses
+      int num_reqargs = arglist.req_args->car.val.int64;
+      symbol *req_arg_names= arglist.req_args->cdr.val.sym;
+      int num_optargs = arglist.opt_args->car.val.int64;
+      cons*opt_arg_names= arglist.opt_args->cdr.val.cons;//array of conses
+      int num_keyargs = arglist.key_args->car.val.int64;
+      cons *key_arg_names= arglist.key_args->cdr.val.cons;//array of conses
       /*
       cons *opt_arg_names= opt_args->cdr.sym;
       if(num_optargs){
@@ -555,11 +565,13 @@ sexp funcall(subr sub,sexp args,env_ptr env){
         PUSH(cons_sexp(opt_arg_names),fun_env);
         }*/
       int i;
+      //LOOK AT THIS WHEN I'M less tired
       for(i=0;i<num_reqargs;i++){
         if(!CONSP(args)){
-          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname->cord);
+          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname.cord);
         } else {
-          PUSH(Fcons(req_arg_names[i],eval_arg(POP(args),env)));
+          //I think push data is what this should be
+          push_data(Fcons(req_arg_names[i],eval_arg(POP(args),env)),env);
         }
       }
       for(i=0;i<num_optargs;i++){
