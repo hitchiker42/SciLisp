@@ -16,13 +16,15 @@
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
 //bitwise primitives
+#include "common.h"
 #define lop_to_fun(op,op_name)                                          \
   sexp lisp_unchecked_##op_name (sexp x,sexp y){                        \
     return long_sexp(x.val.int64 op y.val.int64);                       \
   }                                                                     \
   sexp lisp_##op_name(sexp x,sexp y){                                   \
-  if(!INT_ANYP(x) || !INT_ANYP(y)){                                             \
-    return format_type_error2(#op_name,"integer",x.tag,"integer",y.tag); \
+  if(!INT_ANYP(x) || !INT_ANYP(y)){                                     \
+    raise_simple_error                                                  \
+      (Etype,format_type_error2(#op_name,"integer",x.tag,"integer",y.tag)); \
   } else {                                                              \
     return long_sexp(x.val.uint64 op y.val.uint64);                     \
   }                                                                     \
@@ -40,7 +42,7 @@ sexp ash(sexp x,sexp y){
   } else if(y.val.int64>=0){
     return int64_sexp(x.val.int64>>y.val.int64);
   } else {
-    return int64_sexp(x<<(y.val.int64&(labs(x.val.int64))));
+    return int64_sexp(x.val.int64<<(y.val.int64&(labs(x.val.int64))));
   }
 }
 sexp lsh(sexp x,sexp y){
@@ -55,7 +57,7 @@ sexp lsh(sexp x,sexp y){
 }
 sexp lisp_lognot(sexp x){
   if(!INTP(x)){
-    return format_type_error("lognot","integer",x.tag);
+    raise_simple_error(Etype,format_type_error("lognot","integer",x.tag));
   } else {
     return long_sexp(~x.val.uint64);
   }
@@ -93,15 +95,15 @@ enum bool_ops {
   bool_true=0xf,//1 regardless of A and B
 };
 //functions which take 2 integers and return lisp_true or lisp_false
-#define c_bool(name,conditional)             \
-  uint64_t c_bool_##name(uint64_t A,uint64_t B){         \
-    return conditional;                                  \
+#define c_bool(name,conditional)                                        \
+  uint64_t __attribute__((const))c_bool_##name(uint64_t A,uint64_t B){  \
+    return conditional;                                                 \
   } 
 c_bool(false,0)//damnit emacs, false isn't a keyword
 c_bool(and,(A&B))
 c_bool(A_only,(A&(~B)))
 c_bool(A,(A))
-c_bool(B_only(B&(~A)))
+c_bool(B_only,(B&(~A)))
 c_bool(B,(B))
 c_bool(xor,(A^B))
 c_bool(ior,(A|B))
@@ -114,7 +116,7 @@ c_bool(A_or_not_B,(A|~B))
 c_bool(nand,(~(A&B)))
 c_bool(true,(uint64_t)-1)//easer than writing 0xf...f
 
-static const uint64_t(*bool_dispatch_table[16])(uint64_t,uint64_t) = 
+static uint64_t(*bool_dispatch_table[16])(uint64_t,uint64_t) = 
 {c_bool_false,c_bool_and,c_bool_A_only,c_bool_A,c_bool_B_only,c_bool_B,
  c_bool_xor,c_bool_ior,c_bool_nor,c_bool_eqv,c_bool_not_B,c_bool_not_A_or_B,
  c_bool_not_A,c_bool_A_or_not_B,c_bool_nand,c_bool_true};
@@ -164,6 +166,7 @@ sexp bit_test(sexp x,sexp y){
   uint8_t offset=y.val.uint8;
   asm("btq %[bits],%[offset]\n\tsetc %[offset]"
       : [offset] "+g" (offset) : [bits] "g" (x.val.uint64));
+  return uint64_sexp(offset);
 }
 #else
 sexp bit_scan_forward(sexp x){
