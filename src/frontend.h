@@ -89,3 +89,4 @@ void readline_repl(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
 #else
 #define read_eval_print_loop simple_repl
 #endif
+#endif

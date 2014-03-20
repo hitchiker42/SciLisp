@@ -34,7 +34,7 @@ enum  frame_type {//might not use this
     unwind_protect_frame=0x80,//catches anythings
 };
 struct frame {
-  uint64_t tag;//a pointer to a symbol or an integer
+  uint64_t tag;//a pointer to a symbol (or maybe later an integer)
   sexp value;//for throw or return
   uint32_t bindings_index;//used to unwind bindings
   uint32_t call_index;//used to unwind lex env/call stack
@@ -71,5 +71,6 @@ void unwind_bindings(env_ptr env,uint64_t n);
 #define raise_simple_error_fmt(tag,format,args...)                      \
   unwind_with_value((uint64_t)tag,                                      \
                     string_sexp(make_string(CORD_asprintf(format,##args))))
-
+#define raise_type_error(value) raise_simple_error(Etype,value)
+#define raise_type_error_fmt(format,args...) raise_simple_error_format(Etype,format,args)
 #endif

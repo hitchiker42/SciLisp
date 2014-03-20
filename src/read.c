@@ -127,6 +127,10 @@ sexp read_0(read_input *input,int flags){
   }
   return val;
 }
+void read_whitespace(read_input *input){
+  while(isspace(read_char(input)));
+  unread_char(input);
+}
 #if (defined DEBUG) && !(defined NDEBUG)
 #define READ_MESSAGE(msg) fprintf(stderr,msg "\n")
 #else
@@ -273,32 +277,46 @@ sexp read_integer(read_input *input,int radix){
   the special things might be able to be turned off (they can
   in common lisp)
 */
+void read_nested_comment(read_input *input){
+  int comment_depth=1;
+  char *pipe_ptr;
+  char c;
+  while(comment_depth){
+    while((c=read_char(input)) != '#' && c != '|');
+    //need to do something about eof
+    //should I unread a character and go back to the loop above
+    //or loop here if the next char doesn't make a comment delimiter?
+    if(c=='#'){
+      if((c=read_char(input))=='|'){
+        comment_depth++;
+      } else {
+        unread_char(input);
+      }
+    } else if(c=='|'){
+      if((c==read_char(input)=='#')){
+        comment_depth--;
+      } else {
+        unread_char(input);
+      }
+    }
+  }
+}
+sexp read_uninterned_symbol(read_input *input){
+  int len,mb;
+  uint8_t c;
+  CORD_ec buf;
+  CORD_ec_init(buf);
+  read_symbol_string(input);
+  const char *name=CORD_ec_to_char_star(buf);
+  symbol *new_sym=make_symbol_from_name(make_symbol_name_no_copy(name,len,0));
+  new_sym->name->multibyte=mb;
+  return symref_sexp(new_sym);
+}
 static sexp read_sharp(read_input *input){
   char c;
   switch((c=read_char(input))){
-    case '|':{//nested comment, comments delimited by #| and |#
-      int comment_depth=1;
-      char *pipe_ptr;
-      while(comment_depth){
-        while((c=read_char(input)) != '#' && c != '|');
-        //need to do something about eof
-        //should I unread a character and go back to the loop above
-        //or loop here if the next char doesn't make a comment delimiter?
-        if(c=='#'){
-          if((c=read_char(input))=='|'){
-            comment_depth++;
-          } else {
-            unread_char(input);
-          }
-        } else if(c=='|'){
-          if((c==read_char(input)=='#')){
-            comment_depth--;
-          } else {
-            unread_char(input);
-          }
-        }
-      }
-    }
+    case '|'://nested comment, comments delimited by #| and |#
+      read_nested_comment(input);
     case 's'://read a hash table where input is of the form:
       //(hash-table [prop val]* ([key val]*)) (don't actually put brackets)
       return NIL;//for now
@@ -330,19 +348,8 @@ static sexp read_sharp(read_input *input){
       }
 
     }
-    case ':':{//uninterned symbol
-      int len,mb;
-      uint8_t c;
-      CORD_ec buf;
-      CORD_ec_init(buf);
-      read_symbol_string(input);
-      const char *name=CORD_ec_to_char_star(buf);
-      symbol *new_sym=make_symbol_from_name(make_symbol_name_no_copy(name,len,0));
-      new_sym->name->multibyte=mb;
-      return symref_sexp(new_sym);
-    }
-
-
+    case ':'://uninterned symbol
+      read_uninterned_symbol(input);
     case 'b':
     case 'B':{
       return uint64_sexp
@@ -489,6 +496,7 @@ static uint32_t parse_unicode_escape(read_input *input,int udigits){
   }
   return uvalue;
 }
+//char literals should be uints
 static sexp read_char_literal(read_input *input){
   uint8_t c=read_char(input);
   char retval[8]={0};
@@ -664,7 +672,7 @@ static sexp read_symbol_or_number(read_input *input){
       unread_char(input);
     }
     //this should probably be moved to the evaluator
-    //becasue <non-extant-package>::<symbol-name> is perfectly
+    //becasue <non-existant-package>::<symbol-name> is perfectly
     //valid read syntax, So I need to figure out how
     //to store qualified symbols then move this
     symbol *package_sym=c_intern(str,len,current_obarray);
@@ -864,4 +872,6 @@ static sexp read_array(read_input *input){
       push_temp(temp);
     }
   }
+}
+sexp read_hash_table(read_input *input){
 }

@@ -66,8 +66,6 @@ void unwind_bindings(env_ptr env,uint64_t n){
 }
   
 /*
-  typedef struct frame frame[1]
-  #define make_frame(tag,type){.tag=tag,.frame_type=type}
   various non local exits:
   blocks:
   (block name &rest body)
@@ -124,6 +122,7 @@ void unwind_bindings(env_ptr env,uint64_t n){
   return;
     (return form)
     return the value of form from the nearest enclosing block with a tag of nil
+    generally this means return from the current enclosing function
   return-from:
     (return-from tag form)
     return the value of form from the nearest enclosing block with
@@ -132,6 +131,28 @@ void unwind_bindings(env_ptr env,uint64_t n){
     (unwind-protect protected cleanup*)
     establish a handler to catch any nonlocal exit from protected
     then evaluate protected followed by cleanup, regardless of how
-    protected is exited, return value of protected
+    protected is exited. return value of protected
     
+  condition-case:
+  (condition-case var body &rest handlers)
+  handlers should each have the form (condition-name body...)
+  conditon name can be <name to be determined> to catch any error
+//  or can be a list of conditions to catch (later)
+  from user side:
+    run body if an error is raised scan handlerrs for a matching condition 
+    bind the error to var and run the body code for the contiton
+    if no error return the value of body, otherwise nil
+  actual programming:
+    First parse the list of handlers for correct syntax, then push them
+    onto the handler stack and initialize their dest's, this should be 
+    done in reverse order so the first handler should be on the top of the stack
+    at the end
+  question:
+    will this work?
+      while(CONSP(handlers)){
+      frame handler=make_frame(XCAR(handlers),simple_error_frame);
+      if(setjmp(frame->dest)){
+        eval(XCDR(handlers),current_env);
+      }
+      }
  */

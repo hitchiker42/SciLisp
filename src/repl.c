@@ -62,7 +62,7 @@ void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
   read_input *cord_input;
   CORD readline_output;
   sexp ast,ans;
-  frame *top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
+  top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
   push_frame(current_env,*top_level_frame);
  REPL:while(1){
     if(setjmp(top_level_frame->dest)){

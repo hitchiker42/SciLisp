@@ -174,37 +174,37 @@ uint64_t hash_sexp(sexp key,sexp hash_fun){
       return hash_fn(key.val.opaque,8);
   }
 }
-static uint64_t _hash_sexp(sexp key,sexp hash_fn){
+static uint64_t internal_hash_sexp(sexp key,sexp hash_fn){
   //temporary untill I actually implement selectable hash functions
   //  hash_table *ht=ht_sexp.val.hashtable;
   uint64_t(*hash_fp)(const void*,int);
-  hash_fp=fnv_hash;
+  hash_fp=hash_function;
   switch(key.tag){
-    case _cord:
+    case sexp_cord:
       return hash_fp(key.val.cord,CORD_len(key.val.cord));
-    case _symbol:
+    case sexp_symbol:
       //symbols should hash the same regardless of the kind of symbol, so
       //use only the bits common to all symbols
       return hash_fp(key.val.var,sizeof(symbol));
-    case _list:
-    case _cons:
+    case sexp_list:
+    case sexp_cons:
       return hash_fp(key.val.cons,sizeof(cons));
     default:
       return hash_fp(&key.val.uint64,sizeof(void*));
   }
 }
 sexp lisp_hash_sexp(sexp obj){
-  return uint64_sexp(_hash_sexp(obj,NIL));
+  return uint64_sexp(internal_hash_sexp(obj,NIL));
 }
-static hash_entry *_get_entry(hashtable *ht,sexp key){
-  uint64_t hashv=_hash_sexp(key,hashtable_sexp(ht));
+static hash_entry *internal_get_entry(hashtable *ht,sexp key){
+  uint64_t hashv=internal_hash_sexp(key,hashtable_sexp(ht));
   uint64_t index=hashv%ht->size;
   hash_entry *bucket_head=ht->buckets[index];
   if(!bucket_head){
     return NULL;
   } else {
     while(bucket_head && bucket_head != bucket_head->next){
-      if(isTrue(ht->hash_cmp(bucket_head->key,key))){
+      if(is_true(ht->hash_cmp(bucket_head->key,key))){
         return bucket_head;
       } else {
         bucket_head=bucket_head->next;
@@ -215,7 +215,7 @@ static hash_entry *_get_entry(hashtable *ht,sexp key){
 }
 sexp hashtable_get_entry(sexp ht_sexp,sexp key){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("gethash","hashtable",ht_sexp.tag);
+    raise_simple_error(Etype,format_type_error("gethash","hashtable",ht_sexp.tag));
   }
   hash_table *ht=ht_sexp.val.hashtable;
   hash_entry *entry=_get_entry(ht,key);
@@ -225,7 +225,7 @@ sexp hashtable_get_entry(sexp ht_sexp,sexp key){
     return entry->val;
   }
 }
-static uint64_t _delete_entry(hash_table *ht,hash_entry *entry){
+static uint64_t internal_delete_entry(hash_table *ht,hash_entry *entry){
   if(!entry->prev){//first entry in the bucket
     uint64_t index=entry->hashv%ht->size;
     ht->buckets[index]=entry->next;
@@ -246,28 +246,22 @@ static uint64_t _delete_entry(hash_table *ht,hash_entry *entry){
 }
 sexp hashtable_delete_key(sexp ht_sexp,sexp key){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("hash-table-delete-key","hashtable",ht_sexp.tag);
+    raise_simple_error(Etype,format_type_error("hash-table-delete-key","hashtable",ht_sexp.tag));
   }
   hash_entry *entry=_get_entry(ht_sexp.val.hashtable,key);
   if(!entry){
     return LISP_FALSE;
   } else {
-    return uint64_sexp(_delete_entry(ht_sexp.val.hashtable,entry));
+    return uint64_sexp(internal_delete_entry(ht_sexp.val.hashtable,entry));
   }
 } 
-sexp hashtable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
+sexp hashtable_add_entry(sexp ht_sexp,sexp key,sexp val){
   if(!HASHTABLEP(ht_sexp)){
-    return format_type_error("addhash","hashtable",ht_sexp.tag);
+    raise_simple_error(Etype,format_type_error("addhash","hashtable",ht_sexp.tag));
   }
   hash_table *ht=ht_sexp.val.hashtable;
-  uint64_t hashv=_hash_sexp(key,ht_sexp);
+  uint64_t hashv=internal_hash_sexp(key,ht_sexp);
   uint64_t index=hashv%ht->size;
-  enum add_option conflict_opt;
-  if(NILP(add_opt)){
-    conflict_opt=_update;
-  } else {
-    conflict_opt=_update;//implement later
-  }
   if(ht->capacity>=ht->gthresh){
     ht_sexp=hashtable_sexp(hashtable_rehash(ht));
   }
@@ -280,12 +274,9 @@ sexp hashtable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
     ht->capacity+=ht->capacity_inc;
     return val;
   }
-  hash_entry *existing_entry=_get_entry(ht,key);
-  if(conflict_opt==_overwrite){
-    _delete_entry(ht,existing_entry);
-    existing_entry=NULL;
-  }
-  if(!existing_entry || conflict_opt==_ignore){
+  //this is a bit wasteful as we recalculate the hashv in get_entry
+  hash_entry *existing_entry=internal_get_entry(ht,key);
+  if(!existing_entry){
     hash_entry *cur_head=ht->buckets[index];
     hash_entry *new_entry=xmalloc(sizeof(hash_entry));
     new_entry->val=val;
@@ -299,13 +290,8 @@ sexp hashtable_add_entry(sexp ht_sexp,sexp key,sexp val,sexp add_opt){
     ht->capacity+=ht->capacity_inc;
     return val;
   } else {
-    switch(conflict_opt){
-      case _update:
-        existing_entry->val=val;//key is the same, I hope
-        return val;
-      case _use_current:
-        return existing_entry->val;
-    }
+    existing_entry->val=val;//key is the same, I hope
+    return val;
   }
 }
 static hash_table* hashtable_rehash(hash_table *ht){
@@ -364,19 +350,45 @@ sexp hashtable_lisp_rehash(sexp ht){
     return hashtable_sexp(hashtable_rehash(ht.val.hashtable));
   }
 }
-CORD hashtable_test_fn_name(sexp ht){
-  switch(ht.val.hashtable->test_fn){
-    case _heq:
-      return "eq";
-    case _heql:
-      return "eql";
-    case _hequal:
-      return "equal";
-  }
-}
 sexp hashtable_test_fn(sexp ht){
   if(!HASHTABLEP(ht)){
     return format_type_error("hashtable-test-fn","hashtable",ht.tag);
   }
-  return cord_sexp(hashtable_test_fn_name(ht));
+  return string_sexp(make_string_len(ht->test_fn->name.name,
+                                     ht->test_fn->name.len));
+}
+//use when initializing a hash table with a set of key/value pairs
+void hashtable_add_entry_unsafe(hash_table *ht,sexp key,sexp val){
+  uint64_t hashv=_hash_sexp(key,ht_sexp);
+  uint64_t index=hashv%ht->size;
+  if(!ht->buckets[index]){
+    ht->buckets[index]=xmalloc(sizeof(hash_entry));
+    *ht->buckets[index]=(hash_entry)
+      {.prev=NULL,.next=NULL,.key=key,.val=val,.hashv=hashv};
+    ht->used++;
+    return;
+  } else {
+    hash_entry *cur_head=ht->buckets[index];
+    /* hash_entry *temp=cur_head;
+       while(temp){
+       if(temp->hashv == hashv){
+       if(is_true(ht->hash_cmp(temp->key,key))){
+       temp->val=val;
+       return;
+       }
+       }
+       temp=temp->next;
+       }
+     */
+    hash_entry *new_entry=xmalloc(sizeof(hash_entry));
+    *new_entry=(hash_entry){.val=val,.key=key,.hashv=hashv};
+    new_entry->key=key;
+    new_entry->hashv=hashv;
+    //insert new entry at head of list
+    cur_head->prev=new_entry;
+    new_entry->next=cur_head;
+    ht->buckets[index]=new_entry;
+  }
+  ht->entries++;
+  ht->capacity+=ht->capacity_inc;
 }

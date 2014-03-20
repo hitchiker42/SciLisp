@@ -97,7 +97,7 @@ extern thread_local struct environment *current_env;
 //we need NIL in env.h
 static const sexp NIL={.val={0}};//NIL is all 0s
 #include "env.h"
-#define top_level_frame current_env->protect_fraem
+#define top_level_frame current_env->protect_frame
 //temporary, bulitin_symbols.h should be generated and placed in the src dir
 #include "prim.h"
 #include "frames.h"

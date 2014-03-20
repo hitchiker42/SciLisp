@@ -44,11 +44,7 @@ struct hash_table {
   //  float sfactor;
   uint64_t (*hash_fn)(const void*,int);
   sexp (*hash_cmp)(sexp,sexp);
-  enum {
-    hash_eq,
-    hash_eql,
-    hash_equal,
-  } test_fn;
+  symbol *test_fn;
 };
 /* return the total number of buckets in the hash table */
 sexp hashtable_size(sexp ht) __attribute__((pure));
