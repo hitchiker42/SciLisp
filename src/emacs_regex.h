@@ -17,14 +17,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+//Modified by Tucker DiNapoli for inclusion in SciLisp
 #ifndef _EMACS_REGEX_H
 #define _EMACS_REGEX_H 1
-
-/* Allow the use in C++ code.  */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* POSIX says that <sys/types.h> must be included (by the caller) before
    <regex.h>.  */
 
@@ -165,7 +160,7 @@ typedef unsigned long int reg_syntax_t;
    stored in the pattern buffer, so changing this does not affect
    already-compiled regexps.  */
 extern reg_syntax_t re_syntax_options;
-
+
 /* Define combinations of the above bits for the standard possibilities.
    (The [[[ comments delimit what gets put into the Texinfo file, so
    don't delete them!)  */
@@ -235,7 +230,7 @@ extern reg_syntax_t re_syntax_options;
    | RE_NO_BK_PARENS        | RE_NO_BK_REFS				\
    | RE_NO_BK_VBAR	    | RE_UNMATCHED_RIGHT_PAREN_ORD)
 /* [[[end syntaxes]]] */
-
+
 /* Maximum number of duplicates an interval can allow.  Some systems
    (erroneously) define this in other header files, but we want our
    value, so remove any previous define.  */
@@ -311,7 +306,7 @@ typedef enum
   REG_ERPAREN,		/* Unmatched ) or \); not returned from regcomp.  */
   REG_ERANGEX		/* Range striding over charsets.  */
 } reg_errcode_t;
-
+
 /* This data structure represents a compiled pattern.  Before calling
    the pattern compiler, the fields `buffer', `allocated', `fastmap',
    `translate', and `no_sub' can be set.  After the pattern has been
@@ -391,7 +386,7 @@ struct re_pattern_buffer
 };
 
   //typedef struct re_pattern_buffer regex_t;
-
+
 /* Type for byte offsets within the string.  POSIX mandates this to be an int,
    but the Open Group has signaled its intention to change the requirement to
    be that regoff_t be at least as wide as ptrdiff_t and ssize_t.  Current
@@ -521,11 +516,6 @@ extern size_t regerror (int __errcode, const regex_t * __preg,
 
 extern void regfree (regex_t *__preg);
 
-
-#ifdef __cplusplus
-}
-#endif	/* C++ */
-
 /* For platform which support the ISO C amendment 1 functionality we
    support user defined character classes.  */
 #if WIDE_CHAR_SUPPORT
@@ -575,4 +565,4 @@ extern void re_set_whitespace_regexp (const char *regexp);
 #endif /* not WIDE_CHAR_SUPPORT */
 
 #endif /* regex.h */
-
+

@@ -363,4 +363,7 @@ void SciLisp_init();
 */
 extern void *memcpy_stride
 (void *dest,const void *src,size_t size,size_t stride) __attribute__((leaf));
+//same as above but with 32 bit chunks
+extern void *memcpy_stride_32
+(void *dest,const void *src,size_t size,size_t stride) __attribute__((leaf));
 #endif

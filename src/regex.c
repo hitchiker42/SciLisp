@@ -1,3 +1,21 @@
+/* Regular expressions, searching, matching and replacing
+
+   Copyright (C) 2013-2014 Tucker DiNapoli
+
+   This file is part of SciLisp.
+
+   SciLisp is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   SciLisp is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "regex.h"
 #include "cons.h"
 #ifdef HAVE_PCRE
@@ -9,12 +27,12 @@ void(*pcre_free)(void*)=GC_free;
 //(defun re-compile (regex &optional opts))
 sexp lisp_re_compile(sexp regex,sexp opts){
   if(!STRINGP(regex)){
-    return format_type_error("re-compile","string",regex.tag);
+    raise_simple_error(Etype,
+                       format_type_error("re-compile","string",regex.tag));
   }  
   char* error_string;
-  const char* pattern=CORD_to_const_char_star(regex.val.cord);
-  size_t length=CORD_len(regex.val.cord);
-
+  const char* pattern=CORD_to_const_char_star(regex.val.string->cord);
+  size_t length=regex.val.string->len;
 #ifdef HAVE_PCRE
   pcre *re_buffer=xmalloc(sizeof(pcre));
   int err_offset;
@@ -38,7 +56,8 @@ sexp lisp_re_compile(sexp regex,sexp opts){
 }
 sexp lisp_re_optimize(sexp regex){
   if(!REGEXP(regex)){
-    return format_type_error("re-optimize","regex",regex.tag);
+    raise_simple_error(Etype,
+                       format_type_error("re-optimize","regex",regex.tag));
   }
 #if HAVE_PCRE
   void** pcre_pattern=(void**)regex.val.regex;
@@ -48,35 +67,37 @@ sexp lisp_re_optimize(sexp regex){
   if(!pcre_error){
     return regex_sexp(pcre_pattern);
   } else {
-    return error_sexp(pcre_error);
+    raise_simple_error(Einternal,"Internal error in pcre_study");
   }
 #else
   if(re_compile_fastmap(regex.val.regex)){
-    return error_sexp("error optimizing regexp");
+    raise_simple_error(Einternal,"Internal error in re_compile_fastmap");
   } else {
     return regex;
   }
 }
 //(defun re-match (re string &optional start no-subexprs t-or-f-only))
 sexp lisp_re_match(sexp re,sexp string,sexp start,sexp opts){
-  if((!REGEXP(re) && !STRINGP(re))){
-    return format_type_error_opt2("re-match","string","regex",re.tag);
+  //typecheck and compile re if necessary
+  if(!REGEXP(re) && !STRINGP(re)){
+    raise_simple_error(Etype,format_type_error_opt2("re-match","string","regex",re.tag));
   } if(!STRINGP(string)){
-    return format_type_error_named("re-match","string","string",string.tag);
+    raise_simple_error(Etype,format_type_error_named("re-match","string","string",string.tag));
   }
   if(STRINGP(re)){
     re=lisp_re_compile(re,NIL);
   }
+  //get starting index
   uint64_t int_start;
   if(NILP(start)){
     int_start=0;
   } else if(!INTP(start)){
-    return format_type_error_opt("re-match","integer",start.tag);
+    raise_simple_error(Etype,format_type_error_opt("re-match","integer",start.tag));
   } else {
     int_start=start.val.int64;
   }
-  const char *str_to_match=CORD_to_const_char_star(string.val.cord);
-  int len=CORD_len(string.val.cord);
+  const char *str_to_match=CORD_to_const_char_star(string.val.string->cord);
+  int len=string.val.string->len;
   int64_t match_len;
   //test if we want registers, not yet implemented;
   if(0){//isTrue(dont_return_matches) || isTrue(only_true_or_false)){
@@ -89,12 +110,16 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,sexp opts){
   } else {
     struct re_registers *match_data=xmalloc(sizeof(struct re_registers));
 #if HAVE_PCRE
+    /*pcre_exec
+      Returns:    > 0 => success; value is the number of elements filled in
+                  = 0 => success, but offsets is not big enough
+                   -1 => failed to match
+                 < -1 => some kind of unexpected problem*/
     pcre* pcre_regexp=(pcre*)re.val.opaque[0];
     pcre_extra *pcre_studied=(pcre_extra*)re.val.opaque[1];
-    int *pcre_regs=xmalloc(3*prce_num_refs(pcre_regexp)*sizeof(int));
-    pcre_
-    match_len=pcre_exec(pcre_regexp,pcre_studied,str_to_match,
-                        len,start.val.uint64,pcre_regs,pcre_num_refs(pcre_regexp));
+    int *pcre_regs=alloca(3*prce_num_refs(pcre_regexp)*sizeof(int));
+    int num_matches=pcre_exec(pcre_regexp,pcre_studied,str_to_match,
+                              len,start.val.uint64,pcre_regs,pcre_num_refs(pcre_regexp));
     
 #else
     match_len=re_match(re.val.regex,str_to_match,len,0,match_data);
@@ -111,6 +136,20 @@ sexp lisp_re_match(sexp re,sexp string,sexp start,sexp opts){
     }
   }
 }
+#ifdef HAVE_PCRE
+pcre_registers *get_pcre_regs(int *pcre_ovector,int num_matches){
+  pcre_registers *regs=xmalloc(sizeof(pcre_registers)+
+                               num_matches*(sizeof(int)*2));
+  regs->num_regs=num_matches;
+  regs->pcre_start=(void*)regs+sizeof(pcre_registers);
+  regs->pcre_end=((void*)regs+sizeof(pcre_registers)+num_matches*sizeof(int));
+  regs->pcre_start= 
+    memcpy_stride_32(regs->prce_start,pcre_ovector,num_matches,2);
+  regs->pcre_end=
+    memcpy_stride_32(regs->prce_end,pcre_ovector+1,num_matches,2);
+  return regs;
+}
+#endif
 //(defun re-subexpr (match-data ref-num))
 sexp lisp_get_re_backref(sexp match_data,sexp ref_num){
   if(!RE_MATCHP(match_data) || !INTP(ref_num)){
@@ -134,16 +173,15 @@ sexp lisp_re_replace(sexp regex,sexp string){
   if(STRINGP(regex)){
     regex=lisp_re_compile(regex);
   } else if(!REGEXP(regex)){
-    return format_type_error_opt2("re-replace","regex","string",regex.tag);
+    raise_simple_error(Etype,format_type_error_opt2("re-replace","regex","string",regex.tag));
   }
   if(!STRINGP(string)){
-    return format_type_error_named("re-replace","string","string",string.tag);
+    raise_simple_error(Etype,format_type_error_named("re-replace","string","string",string.tag));
   }
   int length = CORD_len(string.val.cord);
   struct re_registers *back_refs;
   
   
-
 
 //snippet from emacs replace match 
   if (!NILP (string))
