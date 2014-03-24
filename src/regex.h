@@ -16,7 +16,9 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
-/*SciLisp interface to emacs regex (also possibly pcre if I add in 
+/* NOTE: eventually I should have a dynamic variable for regex syntax
+*/
+/*SciLisp interface to emacs regex (also possibly pcre if I add in
  *support for that)*/
 #ifndef _REGEX_H_
 #define _REGEX_H_
@@ -27,63 +29,82 @@
 //define this as a macro because it needs to use the internal structure
 //and we want to make sure as little as possible depends on that
 #define pcre_num_refs(pcre_regex) (pcre_regex->top_bracket)
-typedef struct {
+typedef struct pcre_registers re_registers;
+struct pcre_registers {
   uint32_t num_regs;
   union {
     int *pcre_start;
-    regoff_t *start;
+    regoff_t *start;//regoff_t is ssize_t
   };
   union {
     int *pcre_end;
     regoff_t *end;
   };
-} pcre_registers;
+};
+enum {
+  EMACS_REGEX_SYNTAX,
+  PCRE_REGEX_SYNTAX,
+  BASIC_POSIX_REGEX_SYNTAX,
+  EXTENDED_POSIX_REGEX_SYNTAX,
+};
+#else 
+typedef struct re_registers re_registers;
 #endif
+struct regex_struct {
+  union {
+    regex_t *emacs_regex;
+    pcre *pcre_regex;
+  };p
+  uint8_t optimized;
+  uint8_t syntax;//uses enum values above
+};
 //Either make a struct  re_search_data or modify this and/or modify the re functions
 //so that it's possible get the next match in a string by passing the match/search data
 //back to the match/search function
 struct re_match_data {
-  const char *re_string;
-  struct re_registers *match_data;    
+  const uint8_t *re_string;
+  re_registers *match_data;
   regex_t *matched_re;
-  int matched_len;
-  int total_len;
+  uint32_t matched_len;
+  uint32_t total_len;
+};
+struct re_search_data {
+  const uint8_t *re_string;
+  re_registers *match_data;
+  regex_t *matched_re;
+  uint32_t match_start;
+  uint32_t match_end;
+  uint32_t string_len;
+  uint32_t total_matches;
 };
 sexp lisp_re_compile(sexp regex,sexp opts);
 sexp lisp_re_optimize(sexp regex);
 sexp lisp_re_match(sexp regex,sexp string,sexp start,sexp opts);
 sexp lisp_get_re_backref(sexp match_data,sexp ref_num);
 sexp lisp_re_replace(sexp regex,sexp replacement,sexp string);
-/*
-struct re_registers
-{
-  unsigned num_regs;
-  regoff_t *start;
-  regoff_t *end;
-  };*/
 #endif
 /*pcre regex struct
   typedef struct real_pcre8_or_16 {
   pcre_uint32 magic_number;
-  pcre_uint32 size;               // Total that was malloced 
-  pcre_uint32 options;            // Public options 
-  pcre_uint32 flags;              // Private flags 
-  pcre_uint32 limit_match;        // Limit set from regex 
-  pcre_uint32 limit_recursion;    // Limit set from regex 
-  pcre_uint16 first_char;         // Starting character 
-  pcre_uint16 req_char;           // This character must be seen 
-  pcre_uint16 max_lookbehind;     // Longest lookbehind (characters) 
-  pcre_uint16 top_bracket;        // Highest numbered group 
-  pcre_uint16 top_backref;        // Highest numbered back reference 
-  pcre_uint16 name_table_offset;  // Offset to name table that follows 
-  pcre_uint16 name_entry_size;    // Size of any name items 
-  pcre_uint16 name_count;         // Number of name items 
-  pcre_uint16 ref_count;          // Reference count 
-  pcre_uint16 dummy1;             // To ensure size is a multiple of 8 
-  pcre_uint16 dummy2;             // To ensure size is a multiple of 8 
-  pcre_uint16 dummy3;             // To ensure size is a multiple of 8 
-  const pcre_uint8 *tables;       // Pointer to tables or NULL for std 
-  void             *nullpad;      // NULL padding 
+  pcre_uint32 size;               // Total that was malloced
+  pcre_uint32 options;            // Public options
+  pcre_uint32 flags;              // Private flags
+  pcre_uint32 limit_match;        // Limit set from regex
+  pcre_uint32 limit_recursion;    // Limit set from regex
+  pcre_uint16 first_char;         // Starting character
+  pcre_uint16 req_char;           // This character must be seen
+  pcre_uint16 max_lookbehind;     // Longest lookbehind (characters)
+  pcre_uint16 top_bracket;        // Highest numbered group
+  pcre_uint16 top_backref;        // Highest numbered back reference
+  pcre_uint16 name_table_offset;  // Offset to name table that follows
+  pcre_uint16 name_entry_size;    // Size of any name items
+  pcre_uint16 name_count;         // Number of name items
+  pcre_uint16 ref_count;          // Reference count
+  pcre_uint16 dummy1;             // To ensure size is a multiple of 8
+  pcre_uint16 dummy2;             // To ensure size is a multiple of 8
+  pcre_uint16 dummy3;             // To ensure size is a multiple of 8
+  const pcre_uint8 *tables;       // Pointer to tables or NULL for std
+  void             *nullpad;      // NULL padding
 } real_pcre8_or_16;*/
 /*
 struct re_pattern_buffer {
@@ -112,10 +133,28 @@ struct re_pattern_buffer {
   unsigned fastmap_accurate : 1;
   unsigned no_sub : 1; //If set, don't return information about subexpressions.
   //If set, a beginning-of-line anchor doesn't match at the
-  //beginning of the string.  
+  //beginning of the string.
   unsigned not_bol : 1;
   unsigned not_eol : 1;//Similarly for an end-of-line anchor.
   //If true, the compilation of the pattern had to look up the syntax table,
   //so the compiled pattern is only valid for the current syntax table.
   unsigned used_syntax : 1;
 };*/
+
+
+/*
+RE_SYNTAX_EMACS
+RE_SYNTAX_AWK
+RE_SYNTAX_GNU_AWK
+RE_SYNTAX_POSIX_AWK
+RE_SYNTAX_GREP
+RE_SYNTAX_EGREP
+RE_SYNTAX_POSIX_EGREP
+RE_SYNTAX_ED
+RE_SYNTAX_SED
+_RE_SYNTAX_POSIX_COMMON
+RE_SYNTAX_POSIX_BASIC
+RE_SYNTAX_POSIX_MINIMAL_BASIC
+RE_SYNTAX_POSIX_EXTENDED
+RE_SYNTAX_POSIX_MINIMAL_EXTENDED
+*/
