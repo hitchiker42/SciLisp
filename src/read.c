@@ -312,6 +312,42 @@ sexp read_uninterned_symbol(read_input *input){
   new_sym->name->multibyte=mb;
   return symref_sexp(new_sym);
 }
+/*
+  Ideas for additions, need to make sure things work first
+  #([([reg_args*] [&optional optargs*] [&rest restarg])] [body])
+  equvilent to a lambda expression with some exceptions.
+  if there is an argument list then this is completely equilvlent 
+    to a lambda expression
+  if there is no argument then there are specal rules for arguments.
+  arguments take the form of %<N> or %&, %<N> (i.e. %1,%3,etc) represent
+  required arguments, %& represents the rest argument. Without an argument 
+  list the function will always take N required arguments and a rest argument
+  where N is the largest number used in the function body.
+
+  Implementation wise if there is an argument list then 
+  #(arglist body) just translates to (lambda arglist body)
+  if there is no argument list then we use the awesomeness of lisp
+  for N used arguments it becomes (lambda (%1 ... %N &rest %&) body)
+  since % is a perfectly acceptable symbol character
+
+  
+  #{} for hashtable literals and struct literals
+  syntax #{ :<type> (options) key val*}
+  type is either hashtable or struct
+  options depend or the type, 
+  for struct options are (:name <name> [:default <default>])
+  for the struct name and the default value (normally nil)
+  for hashtable options are just :<key> <value> 
+  where keys are the typical hashtable options
+
+  the key value pairs are just any key and value for a hash table
+  for a struct the key should be a symbol (maybe a keyword) that
+    indicates the struct field, and value is just any value
+
+  #" should either be a regexp literal, a string with a different escape
+  (# instead of \), or a string literal matching (#"(?:[^#]|#(?!"))*)
+  (ie anything other than another #")
+ */
 static sexp read_sharp(read_input *input){
   char c;
   switch((c=read_char(input))){
