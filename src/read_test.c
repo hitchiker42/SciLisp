@@ -39,6 +39,6 @@ int main(){
   /*#ifdef HAVE_READLINE
   readline_repl(eval);
   #else*/
-  repl_simple(eval);
+  simple_repl(eval);
   //#endif
 }

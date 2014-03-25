@@ -96,7 +96,7 @@ size_t CORD_pos_span(CORD_pos pos,const char *accept){
  */
 CORD CORD_pos_strchr(CORD_pos p,char c){
   while(CORD_pos_valid(p)){
-    if(CORD_pos_fetch(s) == c){
+    if(CORD_pos_fetch(p) == c){
       break;
     }
     CORD_next(p);
@@ -110,7 +110,7 @@ CORD CORD_pos_strchr(CORD_pos p,char c){
 
 CORD CORD_pos_strrchr(CORD_pos p,char c){
   while(CORD_pos_valid(p)){
-    if(CORD_pos_fetch(s) == c){
+    if(CORD_pos_fetch(p) == c){
       break;
     }
     CORD_prev(p);
@@ -124,12 +124,12 @@ CORD CORD_pos_strrchr(CORD_pos p,char c){
 CORD CORD_strchr(CORD s,char c){
   CORD_pos p;
   CORD_set_pos(p,s,0);
-  return CORD_pos_strchr(p,c):
+  return CORD_pos_strchr(p,c);
 }
 CORD CORD_strrchr(CORD s,char c){
   CORD_pos p;
   CORD_set_pos(p,s,CORD_len(s));
-  return CORD_pos_strchr(p,c):
+  return CORD_pos_strchr(p,c);
 }
 CORD CORD_trim(CORD s,char *remove){
   uint8_t flags[256]={0};
@@ -208,8 +208,8 @@ uint32_t CORD_equal(CORD str1,CORD str2){
   CORD_pos xpos;
   CORD_pos ypos;
   register size_t avail, yavail;
-  CORD_set_pos(xpos, x, 0);
-  CORD_set_pos(ypos, y, 0);
+  CORD_set_pos(xpos, str1, 0);
+  CORD_set_pos(ypos, str2, 0);
   for(;;) {
     if (!CORD_pos_valid(xpos)) {
       if (CORD_pos_valid(ypos)) {

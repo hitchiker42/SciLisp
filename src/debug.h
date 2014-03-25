@@ -139,3 +139,5 @@ static CORD get_gc_info(){
   return stats_str;
 }
 #define PRINT_GC_INFO() (CORD_debug_printf(get_gc_info()))
+#define GCC_UNREACHABLE() __builtin_unreachable()
+#define GCC_EXPECT(exp,c) __builtin_expect(exp,c)

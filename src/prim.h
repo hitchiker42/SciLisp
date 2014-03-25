@@ -191,6 +191,8 @@ extern symbol *Evisibility;
 extern sexp Evisibility_sexp;
 extern symbol *Eilseq;
 extern sexp Eilseq_sexp;
+extern symbol *Einternal;
+extern sexp Einternal_sexp;
 /*Type Symbols*/
 extern symbol *Tint8;
 extern sexp Tint8_sexp;

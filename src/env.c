@@ -327,7 +327,8 @@ void reset_current_env(){
          '\0',sizeof(environment)-offsetof(environment,lex_env));
          }*/
 
-void __attribute__((noreturn)) c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
+void __attribute__((noreturn)) 
+c_signal_handler(int signo,siginfo_t *info,void *context_ptr){
   uint32_t lisp_errno=current_env->error_num;
   if(!lisp_errno){
     //this was a signal sent from c
@@ -365,6 +366,7 @@ void __attribute__((noreturn)) c_signal_handler(int signo,siginfo_t *info,void *
         unwind_to_frame(current_env,top_level_frame);
     }
   }
+  GCC_UNREACHABLE();
 }
 int lisp_pthread_create(pthread_t *thread,const pthread_attr_t *attr,
                        void*(*start_routine)(void*),void *arg){
@@ -392,6 +394,8 @@ void init_environment(void){
   current_env->sigstack->ss_size=SIGSTKSZ;
   sigaltstack(current_env->sigstack,NULL);
   //can I allocate all the stacks at once?
+  //it might reqire some weird pointer arithmatic because
+  //of the different sizes of things
   current_env->frame_stack=
     GC_malloc_ignore_off_page(frame_stack_size);//*sizeof(frame));
   current_env->frame_ptr=current_env->frame_stack;
@@ -399,7 +403,7 @@ void init_environment(void){
     current_env->frame_ptr+(frame_stack_size);
   current_env->protect_frame=
     make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
-  push_frame(current_env,*protect_frame);
+  push_frame(current_env,*(current_env->protect_frame));
   current_env->data_stack=
     GC_malloc_ignore_off_page(data_stack_size);//*sizeof(sexp));
   current_env->data_ptr=current_env->data_stack;
@@ -439,5 +443,5 @@ static inline void init_signal_handlers_internal(){
   //sigusr1/2 are used to implement internal lisp signals
   sigaction(SIGUSR1,signal_action_ptr,NULL);
   sigaction(SIGUSR2,signal_action_ptr,NULL);
-  sigprocmask(SIG_SETMASK,oldmask,NULL);
+  sigprocmask(SIG_SETMASK,oldset,NULL);
 }

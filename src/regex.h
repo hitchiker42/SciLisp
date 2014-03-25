@@ -54,7 +54,7 @@ struct regex_struct {
   union {
     regex_t *emacs_regex;
     pcre *pcre_regex;
-  };p
+  };
   uint8_t optimized;
   uint8_t syntax;//uses enum values above
 };

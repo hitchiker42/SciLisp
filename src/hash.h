@@ -61,7 +61,7 @@ sexp hashtable_shrink_threshold(sexp ht)__attribute__((pure));
 sexp hashtable_shrink_factor(sexp ht)__attribute__((pure));
 /* If ENTRY matches an entry already in the hash table, return the
    entry from the table.  Otherwise, return NIL.  */
-static const char *hashtable_test_fn_name(int test_fn){
+/*static const char *hashtable_test_fn_name(int test_fn){
   switch(test_fn){
     case(hash_eq):
       return "eq";
@@ -70,7 +70,7 @@ static const char *hashtable_test_fn_name(int test_fn){
     case(hash_equal):
       return "equal";
   }
-}
+  }*/
 sexp hashtable_test_fn(sexp ht);
 sexp hashtable_get_entry(sexp ht, sexp key);
 sexp hashtable_add_entry(sexp ht,sexp key,sexp value,sexp add_opt);

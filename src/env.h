@@ -130,6 +130,7 @@ static uint32_t frame_stack_size=2<<15;//max size of an signed short
 static uint32_t data_stack_size=2<<14;
 static uint32_t bindings_stack_size=2<<14;
 static uint32_t call_stack_size=2<<15;
+static uint32_t total_stack_size=(2<<16)+(2<<15);
 void init_environment(void);
 void *init_environment_pthread(void*);
 int lisp_pthread_create(pthread_t *thread,const pthread_attr_t *attr,
@@ -150,6 +151,8 @@ struct environment {
   frame *frame_ptr;//stack pointer
   frame *frame_top;
   frame *protect_frame;//should be initialized to an unwind protect frame 
+
+  //I might merge the Call stack and data stack
   //when the environment is initialized, and then pushed onto the frame stack
   //records function calls
   //also holds the lexical environment

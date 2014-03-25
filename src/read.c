@@ -182,8 +182,6 @@ sexp internal_read(read_input *input,int *pch,int flags){
           raise_simple_error(Eread,"Error comma not inside a backquote");
         }
         return c_list2(Qcomma_sexp,read_0(input,flags-1));
-      case '\'':READ_MESSAGE("reading quote");
-        return c_list2(Qquote_sexp,expr);
       default:READ_MESSAGE("reading symbol or number");
         unread_char(input);
         return read_symbol_or_number(input);
