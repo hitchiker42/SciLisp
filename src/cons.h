@@ -66,8 +66,10 @@ sexp cons_qsort(sexp ls,sexp sort_fn);
 //general assoication function, look for an object in ls that is equal to obj
 //according to eq_fn, default eq
 sexp assoc(sexp ls,sexp obj,sexp eq_fn);
+//sexp rassoc(sexp ls,sexp obj,sexp eq_fn);
 //assoc with eq_fn explictly set to eq
 sexp assq(sexp ls, sexp obj);
+//sexp rassq(sexp ls, sexp obj);
 //recursively copy ls
 sexp copy_cons(sexp ls);
 //return a cons cell containing a copy of the first num elements
@@ -78,6 +80,7 @@ sexp cons_split(sexp ls,sexp num);
 sexp cons_take(sexp ls,sexp num);
 //return the list starting at the num'th element of ls
 sexp cons_drop(sexp ls,sexp num);
+sexp rand_list(sexp len,sexp type);
 //return the last cons cell in a list, or nil if given nil
 static sexp last(sexp ls);
 //same as above but uses XCDR insstead of cdr

@@ -70,7 +70,7 @@ void init_prims();
 #define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
   symbol_name cname##_name={.hashv=sym_hashv,                           \
                             .name_len=sym_len,.name=lname};             \
-  symbol cname##_val={.val=sym_val,.name=&cname##_name,                 \
+  symbol cname##_val={.val=sym_val,.name=&cname##_name,          \
                       .constant=const_sym,.plist=proplist,.next=NULL};  \
   symbol *cname=&cname##_val;                                           \
   sexp cname##_sexp=const_symref_sexp(&cname##_val)

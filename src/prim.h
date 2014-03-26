@@ -70,7 +70,7 @@ void init_prims();
 #define MAKE_SYMBOL(cname,lname,sym_len,sym_hashv,sym_val,proplist,const_sym) \
   symbol_name cname##_name={.hashv=sym_hashv,                           \
                             .name_len=sym_len,.name=lname};             \
-  symbol cname##_val={.val=sym_val,.name=&cname##_name,                 \
+  symbol cname##_val={.val=sym_val,.name=&cname##_name,          \
                       .constant=const_sym,.plist=proplist,.next=NULL};  \
   symbol *cname=&cname##_val;                                           \
   sexp cname##_sexp=const_symref_sexp(&cname##_val)
@@ -379,8 +379,8 @@ extern symbol *Slt;
 extern sexp Slt_sexp;
 extern symbol *Sle;
 extern sexp Sle_sexp;
-extern symbol *Seq;
-extern sexp Seq_sexp;
+extern symbol *Snum_eq;
+extern sexp Snum_eq_sexp;
 extern symbol *Sgt;
 extern sexp Sgt_sexp;
 extern symbol *Sge;
@@ -409,18 +409,12 @@ extern symbol *Sassq;
 extern sexp Sassq_sexp;
 extern symbol *Scons;
 extern sexp Scons_sexp;
-extern symbol *Scopy_tree;
-extern sexp Scopy_tree_sexp;
 extern symbol *Sdrop;
 extern sexp Sdrop_sexp;
 extern symbol *Slast;
 extern sexp Slast_sexp;
 extern symbol *Srand_list;
 extern sexp Srand_list_sexp;
-extern symbol *Srassoc;
-extern sexp Srassoc_sexp;
-extern symbol *Srassq;
-extern sexp Srassq_sexp;
 extern symbol *Spush;
 extern sexp Spush_sexp;
 extern symbol *Sreduce;

@@ -312,7 +312,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     dstep=getDoubleVal(step);
     if(dstep == 0) return NIL;
   }
-  if(start.tag==stop.tag && stop.tag==step.tag && step.tagf == sexp_int64){
+  if(start.tag==stop.tag && stop.tag==step.tag && step.tag == sexp_int64){
   int64_t j=start.val.int64;
   int64_t jstep=(int64_t)dstep;
   int64_t imax=abs((stop.val.int64-j)/jstep);

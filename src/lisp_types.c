@@ -41,6 +41,8 @@ MK_PREDICATE(sequencep,SEQUENCEP)
 MK_PREDICATE(streamp,STREAMP)
 MK_PREDICATE(stringp,STRINGP)
 MK_PREDICATE(hashtablep,HASHTABLEP)
+MK_PREDICATE(integerp,INT_ANYP)
+MK_PREDICATE(numberp,NUMBERP)
 //This differs from common lisp and elisp where eq tests for identical objects
 //eql in addition checks for numerical equality(only for the same types)
 //equal in addition compares conses and strings elementwise

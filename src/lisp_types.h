@@ -18,11 +18,13 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 sexp lisp_arrayp(sexp obj);
 sexp lisp_consp(sexp obj);
+sexp lisp_numberp(sexp obj);
 sexp lisp_bigintp(sexp obj);
 sexp lisp_bigfloatp(sexp obj);
 sexp lisp_bignump(sexp obj);
 sexp lisp_subrp(sexp obj);
 sexp lisp_intp(sexp obj);
+sexp lisp_integerp(sexp obj);
 sexp lisp_nilp(sexp obj);
 sexp lisp_sequencep(sexp obj);
 sexp lisp_streamp(sexp obj);

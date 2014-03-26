@@ -244,6 +244,8 @@ static void *xmemalign(size_t align,size_t sz){
 //#define spec_sexp(spec_tag) construct_atom(spec_tag,special)
 #define stream_sexp(stream_val) construct_ptr(stream_val,stream)
 #define string_sexp(string_val) construct_ptr(string_val,string)
+#define subr_sexp(subr_val) construct_ptr(subr_val,subr)
+#define const_subr_sexp(subr_val) construct_const_sexp(subr_val,sexp_subr,subr,1)
 //
 #define c_string_sexp(c_string_val) construct_ptr(c_string_val,c_string)
 #define symref_sexp(symref_val) construct_ptr(symref_val,sym)
