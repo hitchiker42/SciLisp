@@ -112,7 +112,8 @@
 (define SciLisp-keywords;prefix K (lisp prefix ':")  
   (list "end" "start1" "count" "documentation" "end1" ;"element-type" 
         "end2" "export" "import" "test" ;"import-from" "initial-contents" "initial-element" 
-        "key" "size" "start" "start2" "use"))
+        "key" "size" "start" "start2" "use"
+        "round" "floor" "ceil" "trunc"))
 (define SciLisp-globals;prefix G (lisp prefix/postfix *)
    (mapcar (lambda (x) (apply #'mk-global x))
            '(("stdin" "lisp_stdin"  "STDIN_FILENO")
@@ -166,8 +167,8 @@
    ("sin" "Ssin" "lisp_sin" 1 :sig "(number)" :type '(:number . :number))
    ("tan" "Stan" "lisp_tan" 1 :sig "(number)" :type '(:number . :number))))
 (define SciLisp-cons-funs
-    '(("assoc" "Sassoc" "assoc" 2 :sig ("key list" "Skey list"))
-    ("assq" "Sassq" "assq" 2 :sig ("key list" "Skey list"))
+    '(("assoc" "Sassoc" "assoc" 2 :optargs 1 :sig "(key list &optional test-fn)")
+    ("assq" "Sassq" "assq" 2 :sig "key list")
     ("cons" "Scons" "Fcons" 2 :sig "(car cdr)")
 ;    ("copy-tree" "Scopy_tree" "copy_tree" 1 :sig "(cell)")
     ("drop" "Sdrop" "cons_drop" 2 :sig "(list n)")

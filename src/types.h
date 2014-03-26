@@ -112,7 +112,8 @@ static const int sexp_seq_tag_max = 30;
 #define ERRORP(obj)(obj.tag == sexp_error)
 #define FLOATP(obj) (obj.tag == sexp_double)
 #define SUBRP(obj) (obj.tag == sexp_subr)
-#define FUNP(obj) (obj.tag == sexp_subr && obj.val.subr->type == sexp_compiled_fun)
+#define FUNP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type == subr_compiled)
+#define FUNCTIONP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type <= subr_compiled)
 #define FUN_N_P(obj,n) (FUNP(obj) && obj.val.fun->args->max_args==n)
 #define HASHTABLEP(obj) (obj.tag == sexp_hashtable)
 #define INT16P(obj) (obj.tag == sexp_short)
@@ -122,9 +123,9 @@ static const int sexp_seq_tag_max = 30;
 #define INTP(obj) (obj.tag == sexp_long || obj.tag== sexp_ulong)
 #define INT_ANYP(obj)(obj.tag >=1 && obj.tag <= 8)
 #define IS_POINTER(obj) (obj.is_ptr == 1)
-#define LAMBDAP(obj) (obj.tag == sexp_subr && obj.val.subr->type == sexp_lambda_fun)
+#define LAMBDAP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type == subr_lambda)
 #define LITERALP(obj) (obj.is_ptr == 0)
-#define MACROP(obj) (obj.tag == sexp_macro)
+#define MACROP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type == subr_macro)
 #define NILP(obj) (obj.tag == sexp_nil)
 #define NUMBERP(obj) (obj.tag>=1 && obj.tag<=10)
 #define OPAQUEP(obj) (obj.tag == sexp_opaque)
@@ -384,14 +385,14 @@ typedef enum {
   rec_none,
   rec_simple,
   rec_tail,
-} recursion_type;
+p} recursion_type;
 enum subr_type {
-    subr_lambda,
-    subr_closure,
-    subr_compiled,
-    subr_compiler_macro,
-    subr_special_form,
-    subr_macro,
+    subr_lambda=1,
+    subr_closure=2,
+    subr_compiled=3,
+    subr_compiler_macro=4,
+    subr_special_form=5,
+    subr_macro=6,
 };
 struct lambda_list {
   cons *arglist;//unmodified arglist
@@ -444,6 +445,9 @@ struct package {
 //currently, these are false,nil,numerical 0 or a null pointer
 #define is_true(x)                               \
   (x.val.uint64 == 0 || x.tag == sexp_real64 && x.val.real64 == 0.0)
+#define is_true_once(x)                         \
+  ({sexp val=x;                                 \
+    is_true(x);})
 //possible compiler backends
 enum backend{
   c_backend=0,

@@ -43,7 +43,10 @@ sexp lisp_init_rand(sexp seed);
 sexp lisp_init_randr(sexp seed);
 sexp lisp_randint(sexp sfmt,sexp un_signed);
 sexp lisp_randfloat(sexp sfmt,sexp scale);
-
+sexp lisp_add_num(sexp x, sexp y);
+sexp lisp_sub_num(sexp x, sexp y);
+sexp lisp_mul_num(sexp x, sexp y);
+sexp lisp_div_num(sexp x, sexp y);
 sexp ash(sexp x,sexp y);
 sexp lisp_sll(sexp x, sexp y);//<<
 sexp lisp_sar(sexp x, sexp y);//>>

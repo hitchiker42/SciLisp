@@ -313,7 +313,7 @@ sexp typed_array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   }
   data *sorted_array;
   int(*f)(data,data);
-  if(isTrue(in_place)){
+  if(is_true(in_place)){
     sorted_array=arr.val.typed_array;
   } else {
     sorted_array=xmalloc(sizeof(data)*arr.len);
@@ -329,7 +329,7 @@ static int array_qsort_partition
   int i;
   int store=left;
   for(i=left;i<right;i++){
-    if(isTrue(f(arr[i],pivot_val))){
+    if(is_true(f(arr[i],pivot_val))){
       ARR_SWAP(arr,i,store);
       store++;
     }
@@ -365,11 +365,11 @@ sexp array_qsort(sexp arr,sexp comp_fun,sexp in_place){
   return array_sexp(sorted_array,arr.len);
 }
 void slow_sort_acc(sexp *arr,int i,int j,sexp(*f)(sexp,sexp)){
-  if(isTrue(f(arr[i],arr[j]))){return;}
+  if(is_true(f(arr[i],arr[j]))){return;}
   int m=(i+j)/2;
   slow_sort_acc(arr,i,m,f);
   slow_sort_acc(arr,m+1,j,f);
-  if(isTrue(f(arr[m],arr[j]))){
+  if(is_true(f(arr[m],arr[j]))){
     ARR_SWAP(arr,m,j);
   }
   slow_sort_acc(arr,i,j-1,f);
@@ -387,7 +387,7 @@ sexp array_insertion_sort(sexp* arr,int len,sexp(*f)(sexp,sexp)){
   sexp obj;
   for(i=1;i<len;i++){
     for(j=i-1;j>0;j++){
-      if(isTrue(f(arr[j],arr[i]))){
+      if(is_true(f(arr[j],arr[i]))){
         ARR_SWAP(arr,i,j);
         break;
       }

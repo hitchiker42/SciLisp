@@ -324,6 +324,14 @@ extern symbol *Kstart2;
 extern sexp Kstart2_sexp;
 extern symbol *Kuse;
 extern sexp Kuse_sexp;
+extern symbol *Kround;
+extern sexp Kround_sexp;
+extern symbol *Kfloor;
+extern sexp Kfloor_sexp;
+extern symbol *Kceil;
+extern sexp Kceil_sexp;
+extern symbol *Ktrunc;
+extern sexp Ktrunc_sexp;
 /*Subroutine Symbols*/
 extern symbol *Sarrayp;
 extern sexp Sarrayp_sexp;

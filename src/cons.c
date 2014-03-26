@@ -18,6 +18,7 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
 #include "cons.h"
+#include "lisp_types.h"
 //#include "prim.h"
 //I tried to simplify this a bit, but it broke things, so it stays like it is
 /*
@@ -73,11 +74,10 @@ sexp mkImproper(sexp head,...){
   }
   cur_loc=va_arg(ap,sexp);
   next->cdr=cur_loc;
-  retval.len=i;
   retval.is_ptr=1;
   return retval;
 }
-static inline sexp _cons_reverse(sexp ls){
+static inline sexp internal_cons_reverse(sexp ls){
   sexp cons_ptr=cons_sexp(xmalloc(sizeof(cons)));
   //  sexp trail=cons_ptr;
   XCDR(cons_ptr)=NIL;
@@ -95,13 +95,13 @@ static inline sexp _cons_reverse(sexp ls){
   return cons_ptr;
 }
 sexp c_cons_reverse(sexp ls){
-  return _cons_reverse(ls);
+  return internal_cons_reverse(ls);
 }
 sexp cons_reverse(sexp ls){
   if(!CONSP(ls)){
-    return format_type_error("reverse","cons",ls.tag);
+    raise_simple_error(Etype,format_type_error("reverse","cons",ls.tag));
   }
-  return _cons_reverse(ls);
+  return internal_cons_reverse(ls);
 }
 
 sexp c_cons_split(sexp ls,sexp num){
@@ -110,7 +110,7 @@ sexp c_cons_split(sexp ls,sexp num){
     return(Fcons(NIL,ls));
   }
   if(i<0 || i > cons_length(ls).val.int64){
-    return error_sexp("error in split, index out of bounds");
+    raise_simple_error(Ebounds,("error in split, index out of bounds"));
   }
   sexp left,left_retval;
   left=left_retval=cons_sexp(xmalloc(sizeof(cons)));
@@ -126,12 +126,12 @@ sexp c_cons_split(sexp ls,sexp num){
 }
 sexp cons_split(sexp ls,sexp num){
   if(!CONSP(ls)){
-    return format_type_error("split","list",ls.tag);
+    raise_simple_error(Etype,format_type_error("split","list",ls.tag));
   } if (NILP(num)){
     num=long_sexp(cons_length(ls).val.int64/2);//actually >>1,but gcc can do that
   }
   if(!INTP(num)){
-    return format_type_error("split","integer",num.tag);
+    raise_simple_error(Etype,format_type_error("split","integer",num.tag));
   }
   return c_cons_split(ls,num);
 }
@@ -151,13 +151,13 @@ sexp nreverse(sexp ls){
 }
 sexp cons_nreverse(sexp ls){
   if(!CONSP(ls)){
-    return format_type_error("reverse!","cons",ls.tag);
+    raise_simple_error(Etype,format_type_error("reverse!","cons",ls.tag));
   }
   return nreverse(ls);
 }
 sexp nappend(sexp conses){
   if(!CONSP(XCAR(conses))){
-    return format_type_error("append!","list of sequences",conses.tag);
+    raise_simple_error(Etype,format_type_error("append!","list of sequences",conses.tag));
   }
   cons* retval=XCAR(conses).val.cons;
   cons* cur_cell=retval;
@@ -169,7 +169,7 @@ sexp nappend(sexp conses){
 }
 sexp cons_reduce(sexp ls,sexp reduce_fn,sexp start){
   if(!CONSP(ls) || !SUBRP(reduce_fn)){
-    return format_type_error2("reduce","list",ls.tag,"function",reduce_fn.tag);
+    raise_simple_error(Etype,format_type_error2("reduce","list",ls.tag,"function",reduce_fn.tag));
   }
   if(NILP(start)){
     start=long_sexp(0);
@@ -177,7 +177,7 @@ sexp cons_reduce(sexp ls,sexp reduce_fn,sexp start){
   sexp result=start;
   //NEEDS TO BE FIXED
   sexp(*f)(sexp,sexp);
-  f=reduce_fn.val.fun->comp.f2;
+  f=reduce_fn.val.subr->comp.f2;
   while(CONSP(ls)){
     result=f(XCAR(ls),result);
     ls=XCDR(ls);
@@ -186,7 +186,8 @@ sexp cons_reduce(sexp ls,sexp reduce_fn,sexp start){
 }
 sexp mapcar(sexp ls,sexp map_fn){
   if(!CONSP(ls) || !FUNCTIONP(map_fn)){
-    return format_type_error2("mapcar","list",ls.tag,"function",map_fn.tag);
+    raise_simple_error(Etype,format_type_error2("mapcar","list",
+                                                ls.tag,"function",map_fn.tag));
   }
   //NEEDS TO BE FIXED
   sexp result;
@@ -195,15 +196,15 @@ sexp mapcar(sexp ls,sexp map_fn){
   cons* cur_cell=result.val.cons=xmalloc(sizeof(cons));
   result.tag=sexp_cons;
   sexp(*f)(sexp);
-  if(FUNP(map_fn)){
-    f=map_fn.val.fun->comp.f1;
-  } else if(LAMBDAP(map_fn)){
-    closure=make_closure(map_fn,env_sexp(cur_env_ptr),1);
+  //  if(FUNP(map_fn)){
+    f=map_fn.val.subr->comp.f1;
+    /*  } else if(LAMBDAP(map_fn)){
+    closure=make_closure(map_fn,env_sexp(current_env),1);
     if(!closure){
-      return error_sexp("error constructing ffi_closure");
+      raise_simple_error(Einternal,("error constructing ffi_closure"));
     }
     f=(sexp(*)(sexp))(closure[0]);
-  }
+    }*/
   while(!NILP(XCDR(ls))){
     cur_cell->car=f(XCAR(ls));
     cur_cell->cdr=cons_sexp(xmalloc(sizeof(cons)));
@@ -217,7 +218,7 @@ sexp mapcar(sexp ls,sexp map_fn){
   }
   return result;
 }
-static __attribute__((pure,leaf,nothrow)) sexp len_acc(sexp ls,long n){
+static __attribute__((pure,nothrow)) sexp len_acc(sexp ls,long n){
   if(!CONSP(ls)){
     //PRINT_FMT("length = %d",n);
     return long_sexp(n);
@@ -258,11 +259,11 @@ static inline sexp int_iota_helper(int64_t j,int64_t jstep,int64_t imax){
   cons *newlist=xmalloc(sizeof(cons)*imax+1);
   for(i=0;i<=imax;i++){
     newlist[i].car=int64_sexp(j);
-    newlist[i].cdr=(sexp){.tag=_list,.val={.cons=&newlist[i+1]}};
+    newlist[i].cdr=cons_sexp(&newlist[i+1]);
     j+=jstep;
   }
   newlist[i-1].cdr=NIL;
-  return (sexp){.tag=sexp_cons,.val={.cons=newlist}};
+  return cons_sexp(newlist);
 }
 sexp list_int_iota(sexp start,sexp stop,sexp step){
   int64_t i,j,imax,jstep;
@@ -280,13 +281,16 @@ sexp list_int_iota(sexp start,sexp stop,sexp step){
       jstep=step.val.int64;
       imax=abs((stop.val.int64-start.val.int64)/jstep);
       if(j>>63 != direction){//check the sign bit
-        return error_sexp
-          ("error in iota, sign of step not equal to sign of stop-start");
+        raise_simple_error(Erange,
+          ("error in iota, sign of step not equal to sign of stop-start"));
       }
     }
   }
   return int_iota_helper(j,jstep,imax);
 }
+//no need to include the whole math header for one function...two functions
+extern sexp lisp_numlt(sexp x,sexp y);
+extern sexp lisp_sub_num(sexp x, sexp y);
 //lisp declaration would be
 //(defun iota (start &optional stop step))
 sexp list_iota(sexp start,sexp stop,sexp step){
@@ -294,7 +298,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   int istep;
   double dstep;
   if(!NUMBERP(start)){
-    return format_type_error("iota","number",start.tag);
+    raise_simple_error(Etype,format_type_error("iota","number",start.tag));
   }
   if(NILP(stop)){
     int64_t jmax=lrint(get_double_val(start));
@@ -302,14 +306,14 @@ sexp list_iota(sexp start,sexp stop,sexp step){
     int64_t jstep=(jmax>>63?-1:1);
     return int_iota_helper(j,jstep,abs(jmax));
   } else if(NILP(step)){
-    step.tag=_int64;
-    if(isTrue(lisp_numlt(stop,start))){
+    step.tag=sexp_int64;
+    if(is_true_once(lisp_numlt(stop,start))){
       dstep=-1;
     } else {
       dstep=1;
     }
   } else {
-    dstep=getDoubleVal(step);
+    dstep=get_double_val(step);
     if(dstep == 0) return NIL;
   }
   if(start.tag==stop.tag && stop.tag==step.tag && step.tag == sexp_int64){
@@ -320,7 +324,7 @@ sexp list_iota(sexp start,sexp stop,sexp step){
   }
   int imax=ceil(fabs(get_double_val(lisp_sub_num(stop,start))/dstep));
   cons* newlist=xmalloc(sizeof(cons)*imax+1);
-  double j=getDoubleVal(start);
+  double j=get_double_val(start);
   for(i=0;i<=imax;i++){
     newlist[i].car=double_sexp(j);
     newlist[i].cdr=cons_sexp(&newlist[i+1]);
@@ -375,11 +379,13 @@ static sexp qsort_acc(sexp ls,sexp(*f)(sexp,sexp)){
 static sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len);
 static sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp));
 //as is this will only work for proper lists
-static inline sexp _merge_sort(sexp ls,sexp sort_fn){
-  sexp(*f)(sexp,sexp);
-  int have_closure=0;
-  void **closure;
-  make_function_pointer(f,sort_fn,2);
+static inline sexp internal_merge_sort(sexp ls,sexp sort_fn){
+  //tempory until I update ffi closures
+  sexp(*f)(sexp,sexp)=sort_fn.val.subr->comp.f2;
+  //  int have_closure=0;
+  //  void **closure;
+  //make_function_pointer(f,sort_fn,2);
+  
   /*  if(FUNP(sort_fn)){
     f=sort_fn.val.fun->comp.f2;
   } else if (LAMBDAP(sort_fn)){
@@ -388,29 +394,29 @@ static inline sexp _merge_sort(sexp ls,sexp sort_fn){
     f=(sexp(*)(sexp,sexp))closure[0];
     }*/
   sexp retval=merge_sort_acc(ls,f,cons_length(ls).val.int64);
-  if(have_closure){
+  /*  if(have_closure){
     ffi_closure_free(closure[1]);
-  }
+    }*/
   return retval;
 }
 sexp c_merge_sort(sexp ls,sexp sort_fn){
-  return _merge_sort(ls,sort_fn);
+  return internal_merge_sort(ls,sort_fn);
 }
 sexp cons_merge_sort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNCTIONP(sort_fn)){
     raise_simple_error(Etype,format_type_error2("merge sort","list",
                                                 ls.tag,"funciton",sort_fn.tag));
   }
-  return _merge_sort(ls,sort_fn);
+  return internal_merge_sort(ls,sort_fn);
 }
 sexp cons_qsort(sexp ls,sexp sort_fn){
   if(!CONSP(ls) || !FUNCTIONP(sort_fn)){
     raise_simple_error(Etype,"qsort sort_fn type error");
   }
-  sexp(*f)(sexp,sexp);
-  int have_closure=0;
+  sexp(*f)(sexp,sexp)=sort_fn.val.subr->comp.f2;
+  /*  int have_closure=0;
   void **closure;
-  make_function_pointer(f,sort_fn,2);
+  make_function_pointer(f,sort_fn,2);*/
   /*  if(FUNP(sort_fn)){
       f=sort_fn.val.fun->comp.f2;
   } else if(LAMBDAP(sort_fn)){
@@ -420,9 +426,9 @@ sexp cons_qsort(sexp ls,sexp sort_fn){
     have_closure=1;
     }*/
   sexp retval=qsort_acc(ls,f);
-  if(have_closure){
+  /*  if(have_closure){
     ffi_closure_free(closure[1]);
-  }
+    }*/
   return retval;
 }
 sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
@@ -446,13 +452,13 @@ sexp merge_sort_acc(sexp ls,sexp(*f)(sexp,sexp),int len){
 }
 sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
   if(NILP(left)){
-    right.tag=cons_sexp;
+    right.tag=sexp_cons;
     return right;
   } else if (NILP(right)){
-    left.tag=cons_sexp;
+    left.tag=sexp_cons;
     return left;
   } else {
-    if(isTrue(f(XCAR(left),XCAR(right)))){
+    if(is_true(f(XCAR(left),XCAR(right)))){
       return Fcons(XCAR(left),merge_sort_merge(XCDR(left),right,f));
     } else {
       return Fcons(XCAR(right),merge_sort_merge(left,XCDR(right),f));
@@ -461,7 +467,7 @@ sexp merge_sort_merge(sexp left,sexp right,sexp(*f)(sexp,sexp)){
 }
 
 sexp assoc(sexp obj,sexp ls,sexp eq_fn){
-  sexp(*eq_fxn)(sexp,sexp)=eq_fn.val.fun->comp.f2;
+  sexp(*eq_fxn)(sexp,sexp)=eq_fn.val.subr->comp.f2;
   while(CONSP(ls)){
     if(is_true(eq_fxn(XCAR(ls),obj))){
       return XCAR(ls);
@@ -472,22 +478,23 @@ sexp assoc(sexp obj,sexp ls,sexp eq_fn){
 }
 sexp lisp_assoc(sexp obj,sexp ls,sexp eq_fn){
   if(!CONSP(ls)){
-    return format_type_error_key("assoc","ls","list",ls.tag);
+    raise_simple_error(Etype,format_type_error_key("assoc","ls","list",ls.tag));
   }
   if(NILP(eq_fn)){
-    eq_fn=function_sexp(&lisp_eq_call);
+    eq_fn=Seq->val;
   }
   return assoc(obj,ls,eq_fn);
 }
 sexp assq(sexp ls, sexp obj){
-  return assoc(ls,obj,function_sexp(&lisp_eq_call));
+  return assoc(ls,obj,Seq->val);
 }
 sexp lisp_assq(sexp ls, sexp obj){
   return lisp_assoc(ls,obj,NIL);
 }
 sexp lisp_nth(sexp ls,sexp n){
   if(!CONSP(ls) || !(INTP(n))){
-    return error_sexp("type error in nth");
+    raise_simple_error(Etype,format_type_error2("nth","cons",
+                                                ls.tag,"integer",n.tag));
   } else {
     return nth(ls,n.val.int64);
   }
@@ -495,7 +502,7 @@ sexp lisp_nth(sexp ls,sexp n){
 //(defun last (list))
 sexp lisp_last(sexp ls){
   if(!CONSP(ls)){
-    return error_sexp("last type error, expected a cons cell");
+    raise_simple_error(Etype,format_type_error("last","cons",ls.tag));
   } else {
     return last(ls);
   }
@@ -505,7 +512,7 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
     return list;
   }
   //type checking and such
-  sexp(*f)(sexp,sexp)=comp_fn.val.fun->comp.f2;
+  sexp(*f)(sexp,sexp)=comp_fn.val.subr->comp.f2;
   sexp cur_pos=list;
 
   sexp start=list;
@@ -514,7 +521,7 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
     cur_pos=list;
     list=XCDR(list);
     trail=&start;
-    while(!NILP((*trail)) && !(isTrue(f(*trail,cur_pos)))){
+    while(!NILP((*trail)) && !(is_true(f(*trail,cur_pos)))){
       trail=&(XCDR((*trail)));
     }
     XCDR(cur_pos)=*trail;
@@ -527,7 +534,7 @@ sexp insertion_sort_cons(sexp list,sexp comp_fn){
 sexp lisp_list(uint64_t numargs,sexp *args){
   cons *new_list=xmalloc(numargs*sizeof(cons));
   sexp retval=cons_sexp(new_list);
-  cons *ptr=retval;
+  cons *ptr=retval.val.cons;
   int i;
   for(i=0;i<numargs-1;i++){
     ptr->car=args[i];
@@ -570,7 +577,7 @@ sexp c_shallow_copy_cons(sexp ls){
   while(CONSP(ls)){
     XCAR(copy)=XCAR(ls);
     XCDR(copy)=cons_sexp(xmalloc(sizeof(cons)));
-    copy=XCDR(copy)
+    copy=XCDR(copy);
     ls=XCDR(ls);
   }
   copy=ls;
@@ -578,13 +585,13 @@ sexp c_shallow_copy_cons(sexp ls){
 }
 sexp lisp_shallow_copy_cons(sexp ls){
   if(!CONSP(ls)){
-    return format_type_error("shallow-copy-cons","cons cell",ls.tag);
+    raise_simple_error(Etype,format_type_error("shallow-copy-cons","cons cell",ls.tag));
   }
   c_shallow_copy_cons(ls);
 }
 sexp copy_cons(sexp ls){
   if(!CONSP(ls)){
-    return format_type_error("copy-cons","cons cell",ls.tag);
+    raise_simple_error(Etype,format_type_error("copy-cons","cons cell",ls.tag));
   }
   unsafe_copy_cons(ls);
 }
@@ -595,7 +602,7 @@ sexp cons_equal(sexp ls1,sexp ls2){
     } else {
       return LISP_FALSE;
     }
-  } else if (isTrue(lisp_equal(XCAR(ls1),XCAR(ls2)))){
+  } else if (is_true(lisp_equal(XCAR(ls1),XCAR(ls2)))){
     return cons_equal(XCDR(ls1),XCDR(ls2));
   } else {
     return LISP_FALSE;
@@ -604,12 +611,12 @@ sexp cons_equal(sexp ls1,sexp ls2){
 //TODO: Rewrite this using mersenne twister
 sexp rand_list(sexp len,sexp type){
   if(!INTP(len)){
-    return format_type_error("rand-list","integer",len.tag);
+    raise_simple_error(Etype,format_type_error("rand-list","integer",len.tag));
   } else {
     int i;
     cons *ls=xmalloc(sizeof(cons)*len.val.int64);
     cons *ret_cons=ls;
-    if(NILP(type) || KEYWORD_COMPARE(":int64",type)){
+    if(NILP(type) || EQ(Tint64_sexp,type)){
       for(i=0;i<len.val.int64-1;i++){
         ls->car=long_sexp(mrand48());
         ls->cdr=list_sexp(ls+1);
@@ -617,24 +624,22 @@ sexp rand_list(sexp len,sexp type){
       }
       ls->car=long_sexp(mrand48());
       ls->cdr=NIL;
-      sexp retval=list_sexp(ret_cons);
-      retval.tag=_list;
-      retval.len=len.val.int64;
+      sexp retval=cons_sexp(ret_cons);
+      retval.tag=sexp_cons;
       return retval;
     }
-    if(KEYWORD_COMPARE(":real64",type)){
+    if(EQ(Treal64_sexp,type)){
       for(i=0;i<len.val.int64-1;i++){
         ls->car=double_sexp(drand48());
-        ls->cdr=list_sexp(ls+1);
+        ls->cdr=cons_sexp(ls+1);
         ls=ls->cdr.val.cons;
       }
       ls->car=double_sexp(drand48());
       ls->cdr=NIL;
-      sexp retval=list_sexp(ret_cons);
-      retval.len=len.val.int64;
+      sexp retval=cons_sexp(ret_cons);
       return retval;
     }
-    return error_sexp("invalid keyword passed to rand-list");
+    raise_simple_error(Ekey,("invalid keyword passed to rand-list"));
   }
 }
 //initial_contents is an &rest arg
@@ -663,7 +668,7 @@ void enqueue(sexp val,sexp queue){
 }
 sexp lisp_enqueue(sexp val,sexp queue){
   if(!CONSP(queue)){
-    return format_type_error("enqueue","queue (aka list)",queue.tag);
+    raise_simple_error(Etype,format_type_error("enqueue","queue (aka list)",queue.tag));
   } else {
     enqueue(val,queue);
     return queue;
@@ -679,7 +684,7 @@ sexp dequeue(sexp queue){
 }
 sexp lisp_dequeue(sexp queue,sexp noerror){
   if(!CONSP(queue)){
-    return format_type_error("dequeue","queue(aka list)",queue.tag);
+    raise_simple_error(Etype,format_type_error("dequeue","queue(aka list)",queue.tag));
   }
   if(C_QUEUE_EMPTY(queue)){
     if(is_true(noerror)){
@@ -696,7 +701,7 @@ sexp queue_empty(sexp queue){
 }
 sexp queue_peek(sexp queue){
   if(!CONSP(queue)){
-    return format_type_error("queue-peek","queue (aka list)",queue.tag);
+    raise_simple_error(Etype,format_type_error("queue-peek","queue (aka list)",queue.tag));
   } else {
     return XCAAR(queue);
   }
@@ -710,9 +715,9 @@ sexp flatten_acc(sexp x,sexp y,int start){
       return y;
     }
   } else if (CONSP(XCAR(x))) {
-    return flatten_acc(XCDR(x),flatten_acc(XCAR(x),y),0);
+    return flatten_acc(XCDR(x),flatten_acc(XCAR(x),y,0),0);
   } else {
-    flatten_acc(XCDR(x),Fcons(XCAR(x),y));
+    flatten_acc(XCDR(x),Fcons(XCAR(x),y),0);
   }
 }
 sexp recursive_flatten(sexp x){
@@ -750,7 +755,7 @@ sexp iterative_flatten(sexp x){
     }
   }
 }
-sexp c_cons_search(sexp list,sexp elt,sexp (*test_fn)(sexp)){
+sexp c_cons_search(sexp list,sexp elt,sexp (*test_fn)(sexp,sexp)){
   while(CONSP(list)){
     if(is_true(test_fn(POP(list),elt))){
       return elt;
@@ -765,7 +770,7 @@ sexp cons_exists(sexp list,sexp elt,sexp test){
   if(!CONSP(list)){
     raise_simple_error(Etype,format_type_error("cons-exists","cons",list.tag));
   }
-  sexp *test_fn(sexp);
+  sexp (*test_fn)(sexp,sexp);
   if(NILP(test)){
     test_fn=lisp_eq;
   } else {
@@ -785,7 +790,7 @@ sexp cons_contains(sexp list,sexp elt,sexp test){
   if(!CONSP(list)){
     raise_simple_error(Etype,format_type_error("cons-contains","cons",list.tag));
   }
-  sexp *test_fn(sexp);
+  sexp (*test_fn)(sexp,sexp);
   if(NILP(test)){
     test_fn=lisp_eq;
   } else {
@@ -806,7 +811,7 @@ sexp cons_member(sexp list,sexp elt,sexp test){
   if(!CONSP(list)){
     raise_simple_error(Etype,format_type_error("member","cons",list.tag));
   }
-  sexp *test_fn(sexp);
+  sexp (*test_fn)(sexp,sexp);
   if(NILP(test)){
     test_fn=lisp_eq;
   } else {
