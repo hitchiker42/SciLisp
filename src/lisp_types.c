@@ -20,52 +20,27 @@
 //for simple stuff with no obvious location
 #include "common.h"
 #include "prim.h"
-#define MK_PREDICATE(lname,test)                \
+#define MK_PREDICATE(lname,macro)               \
   sexp lisp_##lname (sexp obj){                 \
-    if(obj.tag == test){                        \
+    if(macro(obj)){                             \
       return LISP_TRUE;                         \
     } else {                                    \
       return LISP_FALSE;                        \
     }                                           \
   }
-#define MK_PREDICATE2(lname,test,test2)         \
-  sexp lisp_##lname (sexp obj){                 \
-    if(obj.tag == test || obj.tag == test2){    \
-      return LISP_TRUE;                         \
-    } else {                                    \
-      return LISP_FALSE;                        \
-    }                                           \
-  }
-#define MK_PREDICATE3(lname,test,test2,test3)                           \
-  sexp lisp_##lname (sexp obj){                                         \
-    if(obj.tag == test || obj.tag == test2 || obj.tag == test3){        \
-      return LISP_TRUE;                                                 \
-    } else {                                                            \
-      return LISP_FALSE;                                                \
-    }                                                                   \
-  }
-#define MK_PREDICATE4(lname,test,test2,test3,test4)                     \
-  sexp lisp_##lname (sexp obj){                                         \
-    if(obj.tag == test || obj.tag == test2 || obj.tag == test3 ||       \
-       obj.tag == test4){                                               \
-      return LISP_TRUE;                                                 \
-    } else {                                                            \
-      return LISP_FALSE;                                                \
-    }                                                                   \
-  }
-MK_PREDICATE3(consp,_cons,_list,_dpair);
-MK_PREDICATE2(numberp,_long,_double);
-MK_PREDICATE(arrayp,_array);
-MK_PREDICATE(nilp,_nil);
-MK_PREDICATE(symbolp,_sym);
-MK_PREDICATE(bigintp,_bigint);
-MK_PREDICATE(bigfloatp,_bigfloat);
-MK_PREDICATE2(stringp,_str,_ustr);
-MK_PREDICATE4(bignump,_bigint,_bigfloat,_long,_double);
-MK_PREDICATE(errorp,_error);
-MK_PREDICATE(functionp,_fun);
-MK_PREDICATE(streamp,_stream);
-MK_PREDICATE2(booleanp,_true,_false);
+MK_PREDICATE(arrayp,ARRAYP)
+MK_PREDICATE(bigintp,BIGINTP)
+MK_PREDICATE(bigfloatp,BIGFLOATP)
+MK_PREDICATE(bignump,BIGNUMP)
+MK_PREDICATE(consp,CONSP)
+MK_PREDICATE(subrp,SUBRP)
+MK_PREDICATE(realp,REALP)
+MK_PREDICATE(intp,INTP)
+MK_PREDICATE(nilp,NILP)
+MK_PREDICATE(sequencep,SEQUENCEP)
+MK_PREDICATE(streamp,STREAMP)
+MK_PREDICATE(stringp,STRINGP)
+MK_PREDICATE(hashtablep,HASHTABLEP)
 //This differs from common lisp and elisp where eq tests for identical objects
 //eql in addition checks for numerical equality(only for the same types)
 //equal in addition compares conses and strings elementwise
@@ -151,16 +126,16 @@ inline sexp get_type_from_string(CORD typestring){
     return type_sym->val;
   }
 }
-sexp _getKeywordType(sexp obj){
+sexp internal_get_keyword_type(sexp obj){
   return get_type_from_string
     (CORD_substr(obj.val.keyword->name,1,
                  CORD_len(obj.val.keyword->name)-1));
 }
-sexp getKeywordType(sexp obj){
+sexp get_keyword_type(sexp obj){
   if(!KEYWORDP(obj)){
     return format_type_error("get-type","keyword",obj.tag);
   }
-  return _getKeywordType(obj);
+  return internal_getKeywordType(obj);
 }
 sexp lisp_cast_to_float(sexp obj){
   if(!NUMBERP(obj)){

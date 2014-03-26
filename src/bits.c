@@ -129,26 +129,19 @@ static uint64_t(*bool_dispatch_table[16])(uint64_t,uint64_t) =
     return uint64_sexp(c_bool_##name(A.val.uint64,B.val.uint64));       \
   }
 
-#ifdef __x86_64__
-//this is kinda silly, I'm pretty sure gcc knows to use these
 sexp bit_scan_forward(sexp x){
-  //typecheck?
-  int64_t result;
-  asm ("tzcntq %1,%0": "=g" (result) : "g" (x.val.int64));
-  return int64_sexp(result);
+  //typecheck
+  return int64_sexp((int64_t)(__builtin_ffsl(x.val.int64)));
 }
-sexp bit_scan_reverse(sexp x){//aka clz
-  //typecheck?
-  int64_t result;
-  asm("lzcntq %1,%0": "=g" (result) : "g" (x.val.int64));
-  return int64_sexp(result);
+sexp bit_scan_reverse(sexp x){
+  //typecheck
+  return int64_sexp((int64_t)(__builtin_clzl(x.val.int64)));
 }
 sexp population_count(sexp x){
-  //typecheck?
-  int64_t result;
-  asm("popcntq %1,%0": "=g"(result):"g"(x.val.int64));
-  return int64_sexp(result);
+  //typecheck
+  return int64_sexp((int64_t)__builtin_popcountl(x.val.int64));
 }
+#ifdef __x86_64__
 sexp bit_rotate(sexp x,sexp y){
   //typecheck
   int64_t result;
@@ -169,17 +162,12 @@ sexp bit_test(sexp x,sexp y){
   return uint64_sexp(offset);
 }
 #else
-sexp bit_scan_forward(sexp x){
-  //typecheck
-  return int64_sexp((int64_t)(__builtin_ffsl(x.val.int64)));
-}
-sexp bit_scan_reverse(sexp x){
-  //typecheck
-  return int64_sexp((int64_t)(__builtin_clzl(x.val.int64)));
-}
-sexp population_count(sexp x){
-  //typecheck
-  return int64_sexp((int64_t)__builtin_popcountl(x.val.int64));
+sexp bit_test(sexp x,sexp y){
+  uint8_t bit=y.val.uint8;
+  uint64_t val=x.val.uint64;
+  //I don't really know a better way to do this
+  //I mean (val&(1<<bit)?1:0) would work too, but this is cooler
+  return uint64_sexp(!!(val & (1<<bit)));
 }
 sexp bit_rotate(sexp a,sexp b){
   //this is a bit tricky

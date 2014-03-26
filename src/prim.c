@@ -3,6 +3,7 @@
 #include <locale.h>
 #include <langinfo.h>
 #include "prim.h"
+#include "lisp_types.h"
 MAKE_TYPE(Tint8,int8,4,0xf5a67dc57a8fe232 ,{0},sexp_int8);
 MAKE_TYPE(Tint16,int16,5,0xf9e84c8f42970271 ,{0},sexp_int16);
 MAKE_TYPE(Tint32,int32,5,0xf9e1c08f4291a8df ,{0},sexp_int32);
@@ -94,7 +95,6 @@ MAKE_SYMBOL(Sarrayp,"array?",6,0x104d4a9bad9d3a7b ,lisp_arrayp,{0},2);
 MAKE_SYMBOL(Sconsp,"cons?",5,0x65c92c8e19e369f5 ,lisp_consp,{0},2);
 MAKE_SYMBOL(Snumberp,"number?",7,0xcb4c6ddc0c92cbed ,lisp_numberp,{0},2);
 MAKE_SYMBOL(Sintegerp,"integer?",8,0x7e2a1481098e008e ,lisp_integerp,{0},2);
-MAKE_SYMBOL(Sfunctionp,"function?",9,0x644a182163bbf242 ,lisp_functionp,{0},2);
 MAKE_SYMBOL(Sstringp,"string?",7,0x80eb77b1f909e305 ,lisp_stringp,{0},2);
 MAKE_SYMBOL(Sstreamp,"stream?",7,0x81f4ec932d7ed70e ,lisp_streamp,{0},2);
 MAKE_SYMBOL(Ssequencep,"sequence?",9,0x3375f288d393f895 ,lisp_sequencep,{0},2);
@@ -103,8 +103,6 @@ MAKE_SYMBOL(Sbignump,"bignum?",7,0x9d48773d512c7998 ,lisp_bignump,{0},2);
 MAKE_SYMBOL(Sbigintp,"bigint?",7,0xeb60f8074f23206f ,lisp_bigintp,{0},2);
 MAKE_SYMBOL(Sbigfloatp,"bigfloat?",9,0x439ce8cbd75405fa ,lisp_bigfloatp,{0},2);
 MAKE_SYMBOL(Shashtablep,"hashtable?",10,0x2627a63f6846f3fc ,lisp_hashtablep,{0},2);
-MAKE_SYMBOL(Smacrop,"macro?",6,0x47a919a8afc9a3e4 ,lisp_macrop,{0},2);
-MAKE_SYMBOL(Sspecial_formp,"special-form?",13,0x7f4e97444bb4e9f6 ,lisp_special_formp,{0},2);
 MAKE_SYMBOL(Seq,"eq",2,0x088e3b07b5394bc3 ,lisp_eq,{0},2);
 MAKE_SYMBOL(Seql,"eql",3,0xc2f9fd18f05b9a5d ,lisp_eql,{0},2);
 MAKE_SYMBOL(Sequal,"equal",5,0x6a7933d70f43faaf ,lisp_equal,{0},2);
@@ -153,7 +151,6 @@ PRIM_DEFSUBR("array?",Sarrayp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("cons?",Sconsp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("number?",Snumberp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("integer?",Sintegerp,1,0,0,0,1,f1,"(object)",subr_compiled);
-PRIM_DEFSUBR("function?",Sfunctionp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("string?",Sstringp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("stream?",Sstreamp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("sequence?",Ssequencep,1,0,0,0,1,f1,"(object)",subr_compiled);
@@ -162,8 +159,6 @@ PRIM_DEFSUBR("bignum?",Sbignump,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("bigint?",Sbigintp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("bigfloat?",Sbigfloatp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("hashtable?",Shashtablep,1,0,0,0,1,f1,"(object)",subr_compiled);
-PRIM_DEFSUBR("macro?",Smacrop,1,0,0,0,1,f1,"(object)",subr_compiled);
-PRIM_DEFSUBR("special-form?",Sspecial_formp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("eq",Seq,2,0,0,0,2,f2,"(obj1 obj2)",subr_compiled);
 PRIM_DEFSUBR("eql",Seql,2,0,0,0,2,f2,"(obj1 obj2)",subr_compiled);
 PRIM_DEFSUBR("equal",Sequal,2,0,0,0,2,f2,"(obj1 obj2)",subr_compiled);

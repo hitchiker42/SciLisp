@@ -132,11 +132,11 @@
   (append
    (mapcar (lambda (x) (list (concat x "?") (concat "S" x "p") (concat "lisp_" x "p")
                              1 :sig "(object)" :type '(:sexp . :bool)))
-           '("array" "cons" "number" "integer" "function"
+           '("array" "cons" "number" "integer" ;"function"
              "string" "stream" "sequence" "real" "bignum" "bigint" "bigfloat"
-             "hashtable" "macro"))
-   '(("special-form?" "Sspecial_formp" "lisp_special_formp"
-      1 :sig "(object)" :type '(:sexp . :bool))
+             "hashtable")); "macro"))
+   '(;("special-form?" "Sspecial_formp" "lisp_special_formp"
+      ;1 :sig "(object)" :type '(:sexp . :bool))
      ("eq" "Seq" "lisp_eq" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
      ("eql" "Seql" "lisp_eql" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
      ("equal" "Sequal" "lisp_equal" 2 :sig "(obj1 obj2)" :type '(:sexp :sexp . :bool))
@@ -153,7 +153,7 @@
    ("/" "Sdiv" "lisp_div_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    ("<" "Slt" "lisp_numlt" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    ("<=" "Sle" "lisp_numle" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
-   ("=" "Seq" "lisp_numeq" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
+   ("=" "Snum_eq" "lisp_numeq" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    (">" "Sgt" "lisp_numgt" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    (">=" "Sge" "lisp_numge" 2 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    ("abs" "Sabs" "lisp_abs" 1 :sig "(number)" :type '(:number . :number))

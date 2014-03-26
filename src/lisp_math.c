@@ -41,12 +41,20 @@
       return format_type_error2(#fun_name,"number",x.tag,"number",y.tag); \
     }                                                                   \
   }
-#define mkMathFun1(cname,lispname)                                      \
-  sexp lispname (sexp obj){                                             \
-    if(!NUMBERP(obj)){return format_type_error(#lispname,"number",obj.tag);} \
-    return double_sexp(cname(get_double_val_unsafe(obj)));                 \
+#define make_math_fun1(cname)                                           \
+  sexp lisp_num_##cname (sexp obj){                                     \
+    if(!NUMBERP(obj)){                                                  \
+      raise_simple_error(Etype,format_type_error(#lispname,"number",obj.tag));} \
+    return double_sexp(cname(get_double_val_unsafe(obj)));              \
   }
-#define mkMathFun2(cname,lispname)                              \
+#define make_math_fun1_safe(cname)                                      \
+  sexp lisp_num_##cname##_safe (sexp obj){                                      \
+  if(!NUMBERP(obj)){                                                    \
+    return NIL;                                                         \
+  }                                                                     \
+    return double_sexp(cname(get_double_val_unsafe(obj)));              \
+  }
+#define make_math_fun2(cname,lispname)                          \
   sexp lispname(sexp x,sexp y){                                 \
     if(!NUMBERP(x)||!NUMBERP(y))                                \
       {return format_type_error2(#lispname,"number",            \
@@ -88,14 +96,45 @@ sexp lisp_div_num(sexp x,sexp y){
   }
 }
 //binop_to_fun(/,lisp_div_num);
-//math primitives
-mkMathFun2(pow,lisp_pow);
-mkMathFun1(sqrt,lisp_sqrt);
-mkMathFun1(cos,lisp_cos);
-mkMathFun1(sin,lisp_sin);
-mkMathFun1(tan,lisp_tan);
-mkMathFun1(exp,lisp_exp);
-mkMathFun1(log,lisp_log);
+//math primitives (aka wrappers around libm functions)
+//log and exp 
+make_math_fun1(exp);
+make_math_fun1(exp10);
+make_math_fun1(exp2);
+make_math_fun1(log);
+make_math_fun1(log10);
+make_math_fun1(log2);
+make_math_fun1(expm1);
+make_math_fun1(log1p);
+//trig functions 
+make_math_fun1(cos);
+make_math_fun1(sin);
+make_math_fun1(tan);
+make_math_fun1(acos);
+make_math_fun1(asin);
+make_math_fun1(atan);
+make_math_fun1(cosh);
+make_math_fun1(sinh);
+make_math_fun1(tanh);
+make_math_fun1(acosh);
+make_math_fun1(asinh);
+make_math_fun1(atanh);
+//other functions 
+make_math_fun2(pow);
+make_math_fun1(sqrt);
+make_math_fun1(cbrt);
+make_math_fun2(hypot);
+//special functions
+make_math_fun1(erf);
+make_math_fun1(erfc);
+make_math_fun1(lgamma);
+make_math_fun1(tgamma);
+make_math_fun1(j0);
+make_math_fun1(j1);
+make_math_fun1(jn);
+make_math_fun1(y0);
+make_math_fun1(y1);
+make_math_fun1(yn);
 //compairson primitives
 mkLisp_cmp(>,lisp_numgt);
 mkLisp_cmp(<,lisp_numlt);
@@ -104,6 +143,15 @@ mkLisp_cmp(<=,lisp_numle);
 mkLisp_cmp(!=,lisp_numne);
 mkLisp_cmp(==,lisp_numeq);
 
+sexp lisp_sincos(sexp x){
+  if(!NUMBERP(x)){
+    raise_simple_error(Etype,format_type_error("sincos","number",obj.tag));
+  }
+  register double temp=get_double_val_unsafe(x);
+  double *sinx,*cosx;
+  sincos(temp,sinx,cosx);
+  return Fcons(double_sexp(*sinx),double_sexp(*cosx));
+}
 //some helper functions to make translating things to lisp eaiser
 //essentially translate everything to functions of one argument
 struct sfmt_and_buf {
@@ -354,43 +402,73 @@ sexp lisp_zerop(sexp obj){
   }
   return lisp_numeq(obj,long_sexp(0));
 }
+#define negate(num) (-num)
+#define lisp_bignum_fun1a(lname,long_fun,double_fun,bigint_fun,bigfloat_fun) \
+  sexp lispname(sexp num){                                              \
+    if(!BIGNUMP(num)){                                                  \
+      raise_simple_error(Etype,format_type_error(#lispname,"bignum",num.tag)); \
+    }                                                                   \
+    switch(num.tag){                                                    \
+      case sexp_long:                                                   \
+        return long_sexp(long_fun(num.val.int64));                      \
+      case sexp_double:                                                 \
+        return double_sexp(double_fun(num.val.real64));                 \
+      case sexp_bigint:                                                 \
+        return bigint_fun(num);                                         \
+      case sexp_bigfloat:                                               \
+        return bigfloat_fun(num);                                       \
+      default:                                                          \
+        return NIL;                                                     \
+    }                                                                   \
+  }
+#define lisp_bignum_fun1b(lname,number_fun,bigint_fun,bigfloat_fun)     \
+  sexp lispname(sexp num){                                              \
+    if(!BIGNUMP(num)){                                                  \
+      raise_simple_error(Etype,format_type_error(#lispname,"bignum",num.tag)); \
+    }                                                                   \
+    switch(num.tag){                                                    \
+      case sexp_long:                                                   \
+      case sexp_double:                                                 \
+        return number_fun(num);                                         \
+      case sexp_bigint:                                                 \
+        return bigint_fun(num);                                         \
+      case sexp_bigfloat:                                               \
+        return bigfloat_fun(num);                                       \
+      default:                                                          \
+        return NIL;                                                     \
+    }                                                                   \
+  }                         
+#define lisp_bignum_fun1c(cname)                                        \
+  lisp_bignum_fun1b(lisp_##cname,lisp_num_##cname,                      \
+                    lisp_bigint_##cname,lisp_bigfloat_##cname)
 //c isn't very functional, we need to define these functions staticly
 //and outside of any function
-sexp lisp_neg(sexp num){
-  if(!BIGNUMP(num)){
-    return error_sexp("can't negate something that's not a number");
-  }
-  switch(num.tag){
-    case sexp_long:
-      return long_sexp(-num.val.int64);
-    case sexp_double:
-      return double_sexp(-num.val.real64);
-    case sexp_bigint:
-      return lisp_bigint_neg(num);
-    case sexp_bigfloat:
-      return lisp_bigfloat_neg(num);
-    default:
-      return NIL;
-  }
-}
-//(defun abs (number))
-sexp lisp_abs(sexp num){
-  if(!BIGNUMP(num)){
-    return error_sexp("can't take the absolute value of something that's not a number");
-  }
-  switch(num.tag){
-    case sexp_long:
-      return long_sexp(abs(num.val.int64));
-    case sexp_double:
-      return double_sexp(fabs(num.val.real64));
-    case sexp_bigint:
-      return lisp_bigint_abs(num);
-    case sexp_bigfloat:
-      return lisp_bigfloat_abs(num);
-    default:
-      return NIL;
-  }
-}
+lisp_bignum_fun1a(lisp_neg,negate,negate,lisp_bigint_neg,lisp_bigfloat_neg)
+lisp_bignum_fun1a(lisp_abs,abs,fabs,lisp_bigint_abs,lisp_bigfloat_abs)
+lisp_bignum_fun1c(sqrt)
+lisp_bignum_fun1c(log)
+lisp_bignum_fun1c(exp)
+lisp_bignum_fun1c(log10)
+lisp_bignum_fun1c(exp10)
+lisp_bignum_fun1c(log2)
+lisp_bignum_fun1c(exp2)
+lisp_bignum_fun1c(cos);
+lisp_bignum_fun1c(sin);
+lisp_bignum_fun1c(tan);
+lisp_bignum_fun1c(acos);
+lisp_bignum_fun1c(asin);
+lisp_bignum_fun1c(atan);
+lisp_bignum_fun1c(log1p);
+lisp_bignum_fun1c(expm1);
+lisp_bignum_fun1c(lgamma);
+lisp_bignum_fun1c(erf);
+lisp_bignum_fun1c(erfc);
+lisp_bignum_fun1c(j0);
+lisp_bignum_fun1c(j1);
+lisp_bignum_fun1cp(jn);
+lisp_bignum_fun1c(y0);
+lisp_bignum_fun1c(y1);
+lisp_bignum_fun1c(yn);
 sexp lisp_recip(sexp num){
   if(!BIGNUMP(num)){
     return error_sexp("can't negate something that's not a number");

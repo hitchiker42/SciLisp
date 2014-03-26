@@ -37,22 +37,54 @@ sexp lisp_logior_driver(uint64_t numargs,sexp *values);
 sexp lisp_logxor_driver(uint64_t numargs,sexp *values);
 sexp lisp_logeqv_driver(uint64_t numargs,sexp *values);
 sexp arith_driver(uint64_t numargs,sexp *values,enum operator op);
-sexp lisp_abs(sexp x);
-sexp lisp_mod(sexp x,sexp y);
-sexp lisp_dec(sexp val);
-sexp lisp_inc(sexp val);
+
+//implementaitons should be moved to seperate file
 sexp lisp_init_rand(sexp seed);
 sexp lisp_init_randr(sexp seed);
 sexp lisp_randint(sexp sfmt,sexp un_signed);
 sexp lisp_randfloat(sexp sfmt,sexp scale);
+
 sexp ash(sexp x,sexp y);
 sexp lisp_sll(sexp x, sexp y);//<<
 sexp lisp_sar(sexp x, sexp y);//>>
 sexp lisp_slr(sexp x, sexp y);//~>>
-#ifdef __x86_64__
-sexp bit_scan_forward(sexp x);
-sexp bit_scan_reverse(sexp x);
-#else
-sexp bit_scan(sexp x);
-#endif
+sexp lisp_oddp(sexp obj);
+sexp lisp_evenp(sexp obj);
+sexp lisp_zerop(sexp obj);
+sexp lisp_numeq(sexp x,sexp y);
+sexp lisp_abs(sexp x);
+sexp lisp_mod(sexp x,sexp y);
+sexp lisp_dec(sexp val);
+sexp lisp_inc(sexp val);
+sexp lisp_sqrt(sexp x);
+sexp lisp_log(sexp obj);
+sexp lisp_exp(sexp obj);
+sexp lisp_log10(sexp obj);
+sexp lisp_exp10(sexp obj);
+sexp lisp_log2(sexp obj);
+sexp lisp_exp2(sexp obj);
+sexp lisp_cos(sexp obj);
+sexp lisp_sin(sexp obj);
+sexp lisp_tan(sexp obj);
+sexp lisp_acos(sexp obj);
+sexp lisp_asin(sexp obj);
+sexp lisp_atan(sexp obj);
+sexp lisp_log1p(sexp obj);
+sexp lisp_expm1(sexp obj);
+sexp lisp_lgamma(sexp obj);
+sexp lisp_erf(sexp obj);
+sexp lisp_erfc(sexp obj);
+sexp lisp_j0(sexp obj);
+sexp lisp_j1(sexp obj);
+sexp lisp_jn(sexp obj);
+sexp lisp_y0(sexp obj);
+sexp lisp_y1(sexp obj);
+sexp lisp_yn(sexp obj);
+
+//in bits.c, need to add typecheking first
+//sexp bit_scan_forward(sexp x);
+//sexp bit_scan_reverse(sexp x);
+//sexp population_count(sexp x);
+//sexp bit_rotate(sexp x);
+
 #endif

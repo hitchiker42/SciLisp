@@ -11,50 +11,63 @@
   mpfr_init(*mpfr_temp);                        \
   function(*mpfr_temp,args,MPFR_RNDN);          \
   return bigfloat_sexp(mpfr_temp)
+#define gmp_mpfr_wrapper1(function,arg)         \
+  mpfr_t *mpfr_temp=xmalloc(sizeof(mpfr_t));    \
+  mpfr_init_set_z(*mpfr_temp,arg,MPFR_RNDN);     \
+  function(*mpfr_temp,*mpfr_temp,MPFR_RNDN);    \
+  return bigfloat_sexp(mpfr_temp)
+#define gmp_mpfr_wrapper2(function,arg1,arg2)                   \
+  mpfr_t *mpfr_temp1=xmalloc(sizeof(mpfr_t)),mpfr_temp2;        \
+  mpfr_init_set_z(*mpfr_temp1,arg1,MPFR_RNDN);                  \
+  mpfr_init_set_z(mpfr_temp2,arg2,MPFR_RNDN);                   \
+  function(*mpfr_temp1,*mpfr_temp1,mpfr_temp2MPFR_RNDN);        \
+  return bigfloat_sexp(mpfr_temp1)
 sexp lisp_bigint(sexp init){
   switch(init.tag){
-    case _double:{
+    case sexp_double:{
       mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
       mpz_init_set_d(*new_bignum,init.val.real64);
       return bigint_sexp(new_bignum);
     }
-    case _long:{
+    case sexp_long:{
       mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
       mpz_init_set_si(*new_bignum,init.val.int64);
       return bigint_sexp(new_bignum);
     }
-    case _ulong:{
+    case sexp_ulong:{
       mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
       mpz_init_set_ui(*new_bignum,init.val.int64);
       return bigint_sexp(new_bignum);
     }
-    case _str:{
+    case sexp_str:{
       mpz_t *new_bignum =xmalloc(sizeof(mpz_t));
       mpz_init_set_str(*new_bignum,CORD_to_const_char_star(init.val.cord),0);
       return bigint_sexp(new_bignum);
     }
-    case _bigint:{
+    case sexp_bigint:{
       //bignum's are effectively immutable (at least from lisp)
       //so we can just return the same thing we got
       return init;
     }
-    case _bigfloat:{
+    case sexp_bigfloat:{
       mpz_t *new_bignum = xmalloc(sizeof(mpz_t));
       mpz_init(*new_bignum);
       mpz_set_f(*new_bignum,*init.val.bigfloat);
       return bigint_sexp(new_bignum);
     }
     default:
-      return format_type_error("bigint","bignum",init.tag);
+      raise_simple_error(Etype,format_type_error("bigint","bignum",init.tag));
   }
 }
 sexp lisp_bigfloat(sexp init,sexp prec_sexp,sexp rnd_sexp){
   //prec & rnd are optional args, I'll add them later
   if(!INTP(prec_sexp) && !NILP(prec_sexp)){
-    return format_type_error_opt_named("bigfloat","prec","integer",prec_sexp.tag);
+    raise_simple_error
+      (format_type_error_opt_named("bigfloat","prec","integer",prec_sexp.tag));
   }
   if(!KEYWORDP(rnd_sexp) && !NILP(rnd_sexp)){
-    return format_type_error_opt_named("bigfloat","rnd","keyword",rnd_sexp.tag);
+    raise_simple_error
+      (format_type_error_opt_named("bigfloat","rnd","keyword",rnd_sexp.tag));
   }
   mpfr_t *new_bignum=xmalloc(sizeof(mpfr_t));
   mpfr_prec_t prec;
@@ -68,40 +81,41 @@ sexp lisp_bigfloat(sexp init,sexp prec_sexp,sexp rnd_sexp){
   if(NILP(rnd_sexp)){
     rnd=MPFR_RNDN;
   } else {
-    return error_sexp("selectable rounding modes unimplemented");
+    raise_simple_error(Einternal,("selectable rounding modes unimplemented"));
   }
   switch(init.tag){
-    case _double:{
+    case sexp_double:{
       mpfr_set_d(*new_bignum,init.val.real64,rnd);
       return bigfloat_sexp(new_bignum);
     }
-    case _long:{
+    case sexp_long:{
       mpfr_set_si(*new_bignum,init.val.int64,rnd);
       return bigfloat_sexp(new_bignum);
     }
-    case _ulong:{
+    case sexp_ulong:{
       mpfr_set_ui(*new_bignum,init.val.uint64,rnd);
       return bigfloat_sexp(new_bignum);
     }
-    case _bigint:{
+    case sexp_bigint:{
       mpfr_set_z(*new_bignum,*init.val.bigint,rnd);
       return bigfloat_sexp(new_bignum);
     }
-    case _bigfloat:{
+    case sexp_bigfloat:{
       return init;//bigfloats are immutable
     }
-    case _str:{
+    case sexp_str:{
       int status=mpfr_set_str(*new_bignum,
                               CORD_to_const_char_star(init.val.cord),
                               0,rnd);
       if(status){
-        return error_sexp("invalid bigfloat string passed to bigfloat");
+        //not sure that this is the best error type for this 
+        raise_simple_error(Eargs,("invalid bigfloat string passed to bigfloat"));
       } else {
         return bigfloat_sexp(new_bignum);
       }
     }
     default:
-      return format_type_error("bigfloat","bignum",init.tag);
+      raise_simple_error(Etype,format_type_error("bigfloat","bignum",init.tag));
   }   
 }
 #undef init_set
@@ -109,47 +123,48 @@ sexp asDouble(sexp obj);
 sexp asLong(sexp obj);
 static sexp promoteInt(sexp obj1,_tag type){
   switch(obj1.tag){
-    case _byte:
+    case sexp_byte:
       obj1.val.int64=(int64_t)obj1.val.int8;
       break;
-    case _short:
+    case sexp_short:
       obj1.val.int64=(int64_t)obj1.val.int16;
       break;
-    case _int:
+    case sexp_int:
       obj1.val.int64=(int64_t)obj1.val.int32;
-    case _long:
+    case sexp_long:
       break;
     default:
-      return format_type_error("promote-int","Integer",obj1.tag);
+      raise_simple_error(Etype,format_type_error("promote-int","Integer",obj1.tag));
   }
   obj1.tag=type;
   return obj1;
 }
 sexp promoteNum(sexp obj1,sexp obj2){
   if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){
-    return format_type_error2("promote","bignum",obj1.tag,"bignum",obj2.tag);
+    raise_simple_error(Etype,format_type_error2("promote","bignum",
+                                                obj1.tag,"bignum",obj2.tag);
   }
   if(obj1.tag == obj2.tag){return obj2;}
   if(obj2.tag > obj1.tag){
     sexp temp;temp=obj1;obj1=obj2;obj2=temp;
   }
   switch(obj1.tag){
-    case _short:
+    case sexp_short:
       return int_n_sexp(obj2.val.int8,16);
-    case _int:
+    case sexp_int:
       return promoteInt(obj2,_int);
-    case _long:
+    case sexp_long:
       return promoteInt(obj2,_long);
-    case _float:
+    case sexp_float:
       return (sexp){.tag=_float,.val={.real32=(float)(promoteInt(obj2,_long).val.int64)}};
-    case _double:
+    case sexp_double:
       if(obj2.tag == _float){
         return double_sexp(obj2.val.real32);
       }
       return double_sexp(getDoubleValUnsafe(promoteInt(obj2,_long)));
-    case _bigint:
+    case sexp_bigint:
       return lisp_bigint(obj2);
-    case _bigfloat:
+    case sexp_bigfloat:
       return lisp_bigfloat(obj2,NIL,NIL);
   }
 }
@@ -160,15 +175,15 @@ int gmp_compare_generic(sexp obj1,sexp obj2){
   }
   mpz_t *bigint1=obj1.val.bigint;
   switch(obj2.tag){
-    case _long:
+    case sexp_long:
       return mpz_cmp_si(*bigint1,obj2.val.int64);
-    case _ulong:
+    case sexp_ulong:
       return mpz_cmp_ui(*bigint1,obj2.val.uint64);
-    case _double:
+    case sexp_double:
       return mpz_cmp_d(*bigint1,obj2.val.real64);
-    case _bigint:
+    case sexp_bigint:
       return mpz_cmp(*bigint1,*obj2.val.bigint);
-    case _bigfloat:
+    case sexp_bigfloat:
       return mpz_cmp(*bigint1,*(lisp_bigint(obj2).val.bigint));
   }
 }
@@ -178,15 +193,15 @@ int mpfr_compare_generic(sexp obj1,sexp obj2){
   }
   mpfr_t *bigfloat1=(obj1.val.bigfloat);
   switch(obj2.tag){
-    case _long:
+    case sexp_long:
       return mpfr_cmp_si(*bigfloat1,obj2.val.int64);
-    case _ulong:
+    case sexp_ulong:
       return mpfr_cmp_ui(*bigfloat1,obj2.val.uint64);
-    case _double:
+    case sexp_double:
       return mpfr_cmp_d(*bigfloat1,obj2.val.real64);
-    case _bigint:
+    case sexp_bigint:
       return mpfr_cmp_z(*bigfloat1,*obj2.val.bigint);
-    case _bigfloat:
+    case sexp_bigfloat:
       return mpfr_cmp(*bigfloat1,*obj1.val.bigfloat);
   }
 }
@@ -260,7 +275,8 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
 #define mpfr_binop(op,unsafe)                                           \
   sexp lisp_bigfloat_##unsafe##op(sexp obj1,sexp obj2){                 \
     if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){                           \
-      return format_type_error2(#op,"bignum",obj1.tag,"bignum",obj2.tag); \
+      raise_simple_error(Etype,format_type_error2(#op,"bignum",obj1.tag, \
+                                                  "bignum",obj2.tag));  \
     }                                                                   \
     if(!(BIGFLOATP(obj1))&& BIGFLOATP(obj2)){                           \
       sexp temp_obj=obj1;                                               \
@@ -271,23 +287,24 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
     }                                                                   \
     mpfr_t *bigfloat1=(obj1.val.bigfloat);                              \
     switch(obj2.tag){                                                   \
-      case _long:{                                                      \
+      case sexp_long:{                                                  \
         mpfr_wrapper(mpfr_##op##_si,*bigfloat1,obj2.val.int64);}        \
-      case _ulong:{                                                     \
+      case sexp_ulong:{                                                 \
         mpfr_wrapper(mpfr_##op##_ui,*bigfloat1,obj2.val.uint64);}       \
-      case _double:{                                                    \
+      case sexp_double:{                                                \
         mpfr_wrapper(mpfr_##op##_d,*bigfloat1,obj2.val.real64);}        \
-      case _bigint:{                                                    \
+      case sexp_bigint:{                                                \
         mpfr_wrapper(mpfr_##op##_z,*bigfloat1,*obj2.val.bigint);}       \
-      case _bigfloat:{                                                  \
+      case sexp_bigfloat:{                                              \
         mpfr_wrapper(mpfr_##op,*bigfloat1,*obj2.val.bigfloat);}         \
     }                                                                   \
   }
 //gmp doesn't have functions on bigint,(long|double|bigfloat)unlike mpfr,its sad
 #define gmp_binop(op,unsafe)                                            \
   sexp lisp_bigint_##unsafe##op(sexp obj1,sexp obj2){                   \
-    if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){                            \
-      return format_type_error2(#op,"bignum",obj1.tag,"bignum",obj2.tag); \
+    if(!(BIGNUMP(obj1)) || !(BIGNUMP(obj2))){                           \
+      raise_simple_error(Etypeformat_type_error2(#op,"bignum",obj1.tag, \
+                                                 "bignum",obj2.tag));   \
     }                                                                   \
     if(!(BIGINTP(obj1)) && (BIGINTP(obj2))){                            \
       sexp temp_obj = obj1;                                             \
@@ -298,9 +315,9 @@ int mpfr_pow_d(mpfr_t ROP,mpfr_t OP1,double OP2,mpfr_rnd_t RND){
     }                                                                   \
     mpz_t *bigint1=(obj1.val.bigint);                                   \
     switch(obj2.tag){                                                   \
-      case _ulong:{                                                     \
+      case sexp_ulong:{                                                     \
         gmp_wrapper(mpz_##op##_ui,*bigint1,obj2.val.uint64);}           \
-      case _bigint:{                                                    \
+      case sexp_bigint:{                                                    \
         gmp_wrapper(mpz_##op,*bigint1,*obj2.val.bigint);}               \
       default:{                                                         \
         gmp_wrapper(mpz_##op,*bigint1,*(lisp_bigint(obj2).val.bigint));} \
@@ -358,6 +375,20 @@ mpfr_binop(pow,unsafe_);
     }                                                                   \
     gmp_wrapper(mpz_##op,*obj1.val.bigint);                             \
   }
+#define gmp_mpfr_unop(op)                                               \
+  sexp lisp_bigint_##op(sexp obj1){                                     \
+    if(!(BIGINTP(obj1))){                                               \
+      return format_type_error(#op,"bigint",obj1.tag);                  \
+    }                                                                   \
+    mpfr_gmp_wrapper1(mpfr_##op,*obj1.val.bigint);                      \
+  }
+#define gmp_mpfr_binop(op)                                              \
+  sexp lisp_bigint_##op(sexp obj1,sexp obj2){                           \
+    if(!(BIGINTP(obj1))||!(BIGINTP(obj2))){                             \
+      return format_type_error2(#op,"bigint",obj1.tag,"bigint",obj2.tag); \
+    }                                                                   \
+    gmp_wrapper(mpfr_##op,*obj1.val.bigint,*obj2.val.bigint);           \
+  }
 #define mpfr_binop_mpfr(op)                                             \
   sexp lisp_mpfr_##op(sexp obj1,sexp obj2){                             \
     if(!(BIGFLOATP(obj1))||!(BIGFLOATP(obj2))){                         \
@@ -389,15 +420,71 @@ gmp_binop_mpz(xor);
 gmp_unop_mpz(neg);
 gmp_unop_mpz(abs);
 gmp_unop_mpz(sqrt);
+
+gmp_mpfr_binop(div);
+gmp_mpfr_binop(pow);
+gmp_mpfr_binop(hypot);
+
+gmp_mpfr_unop(log);
+gmp_mpfr_unop(exp);
+gmp_mpfr_unop(log10);
+gmp_mpfr_unop(exp10);
+gmp_mpfr_unop(log2);
+gmp_mpfr_unop(exp2);
+gmp_mpfr_unop(cos);
+gmp_mpfr_unop(sin);
+gmp_mpfr_unop(tan);
+gmp_mpfr_unop(acos);
+gmp_mpfr_unop(asin);
+gmp_mpfr_unop(atan);
+gmp_mpfr_unop(abs);
+gmp_mpfr_unop(neg);
+gmp_mpfr_unop(log1p);
+gmp_mpfr_unop(expm1);
+gmp_mpfr_unop(gamma);
+gmp_mpfr_unop(lgamma);
+gmp_mpfr_unop(erf);
+gmp_mpfr_unop(erfc);
+gmp_mpfr_unop(j0);
+gmp_mpfr_unop(j1);
+gmp_mpfr_unop(jn);
+gmp_mpfr_unop(y0);
+gmp_mpfr_unop(y1);
+gmp_mpfr_unop(yn);
+
+
 mpfr_binop_mpfr(add);
 mpfr_binop_mpfr(sub);
 mpfr_binop_mpfr(mul);
 mpfr_binop_mpfr(div);
 mpfr_binop_mpfr(pow);
+mpfr_binop_mpfr(hypot);
+
+mpfr_unop_mpfr(sqrt);
+
 mpfr_unop_mpfr(log);
 mpfr_unop_mpfr(exp);
+mpfr_unop_mpfr(log10);
+mpfr_unop_mpfr(exp10);
+mpfr_unop_mpfr(log2);
+mpfr_unop_mpfr(exp2);
 mpfr_unop_mpfr(cos);
 mpfr_unop_mpfr(sin);
 mpfr_unop_mpfr(tan);
+mpfr_unop_mpfr(acos);
+mpfr_unop_mpfr(asin);
+mpfr_unop_mpfr(atan);
 mpfr_unop_mpfr(abs);
 mpfr_unop_mpfr(neg);
+mpfr_unop_mpfr(log1p);
+mpfr_unop_mpfr(expm1);
+mpfr_unop_mpfr(gamma);
+mpfr_unop_mpfr(lgamma);
+mpfr_unop_mpfr(erf);
+mpfr_unop_mpfr(erfc);
+mpfr_unop_mpfr(j0);
+mpfr_unop_mpfr(j1);
+mpfr_unop_mpfr(jn);
+mpfr_unop_mpfr(y0);
+mpfr_unop_mpfr(y1);
+mpfr_unop_mpfr(yn);
