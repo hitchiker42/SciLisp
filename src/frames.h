@@ -65,7 +65,12 @@ void unwind_with_value(uint64_t tag,sexp value) __attribute__((noreturn));
 void unwind_call_stack(env_ptr env,uint64_t index);
 void unwind_bindings(env_ptr env,uint64_t n);
 #define raise_sexp_error(tag,value) unwind_with_value((uint64_t)tag,value)
+#ifdef DEBUG
+#define raise_simple_error(tag,value) PRINT_MSG("raising simple error");\
+  unwind_with_value((uint64_t)tag,c_string_sexp(value))
+#else
 #define raise_simple_error(tag,value) unwind_with_value((uint64_t)tag,c_string_sexp(value))
+#endif
 #define raise_simple_error_cord(tag,value) unwind_with_value((uint64_t)tag,\
                                                              string_sexp(make_string(value)))
 #define raise_simple_error_fmt(tag,format,args...)                      \

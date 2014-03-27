@@ -463,6 +463,7 @@ static inline char parse_simple_escape(char escape_char){
     case 'x':
     case 'u':
     case 'U':
+      HERE();
       return (char)-1;
       //\char = char for any non special char, this implictly includes
       //\? for chars and \" for strings, this does mean however
@@ -477,15 +478,20 @@ static inline char parse_simple_escape(char escape_char){
 //rewrite to use read_char
 static int parse_escape_internal(read_input *input,char** output){
   //input is the text immediately following a backslash
+  READ_MESSAGE("Reading escape sequence");
+  PRINT_FMT("*output = %#0lx, **output = %c\n",*output,**output);
   uint8_t c=read_char(input);
   **output=parse_simple_escape(c);
+  HERE();
   if(**output != ((char)-1)){
     return 1;
   }
   int temp=0;
   uint32_t uvalue;
   int udigits=0;
-  switch((c=read_char(input))){
+  HERE();
+  PRINT_FMT("escape char is %c\n",c);
+  switch(c){
     case 'x':{
       //note to self: --  (prefix or postfix) has higer precidence than &&
       uvalue=parse_hex_escape(input);
@@ -512,6 +518,7 @@ static int parse_escape_internal(read_input *input,char** output){
   }
 }
 static char parse_hex_escape(read_input *input){//sets input to the first character after the escape
+  READ_MESSAGE("Reading hex escape");
   char c=read_char(input);
   if(!(isxdigit(c))){
     raise_simple_error(Eread,"error lexing char, expected hex digit after \\x\n");
@@ -523,6 +530,7 @@ static char parse_hex_escape(read_input *input){//sets input to the first charac
   }
 }
 static uint32_t parse_unicode_escape(read_input *input,int udigits){
+  READ_MESSAGE("Reading unicode escape");
   uint32_t uvalue;
   uint8_t c=read_char(input);
   if(!isxdigit(c)){
@@ -542,9 +550,10 @@ static uint32_t parse_unicode_escape(read_input *input,int udigits){
 //char literals should be uints
 static sexp read_char_literal(read_input *input){
   uint8_t c=read_char(input);
-  char retval[8]={0};
+  char *retval=alloca(8*sizeof(char));
+  *(uint64_t*)retval=0;
   if(c=='\\'){
-    parse_escape_internal(input,(char**)&retval);
+    parse_escape_internal(input,&retval);
     return mb_char_sexp(*(uint64_t*)retval);
   } else if (c<0x80){
     return mb_char_sexp(c);
