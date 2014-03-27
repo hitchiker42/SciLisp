@@ -68,6 +68,8 @@ sexp lisp_identical(sexp obj1,sexp obj2){//same as common lisp eq
     return LISP_FALSE;
   } else {
     return (obj1.val.uint64 == obj2.val.uint64 ? LISP_TRUE : LISP_FALSE);
+  }
+}
 sexp lisp_eql(sexp obj1,sexp obj2){
   if(EQ(obj1,obj2)){//make simple equaiity fast
     return LISP_TRUE;
@@ -225,4 +227,15 @@ sexp boundp(sexp sym){
   }
   symref ref=getSymFromSexp(sym,NULL);
   return (ref?LISP_TRUE:LISP_FALSE);
+}
+  
+sexp lisp_string_equal(sexp obj1,sexp obj2){
+  //assume obj1 and obj2 are strings
+  if(obj1.val.string->len != obj2.val.string->len){
+    return LISP_FALSE;
+  }
+  if(!(CORD_cmp(obj1.val.string->cord,obj1.val.string->cord))){
+    return LISP_TRUE;
+  }
+  return LISP_FALSE;
 }

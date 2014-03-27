@@ -35,3 +35,4 @@ sexp lisp_eq(sexp obj1,sexp obj2);
 sexp lisp_identical(sexp obj1,sexp obj2);
 sexp lisp_eql(sexp obj1,sexp obj2);
 sexp lisp_equal(sexp obj1,sexp obj2);
+sexp lisp_string_equal(sexp obj1,sexp obj2);
