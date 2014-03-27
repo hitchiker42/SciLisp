@@ -16,6 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
+#ifndef LISP_TYPES_H
+#define LISP_TYPES_H
 sexp lisp_arrayp(sexp obj);
 sexp lisp_consp(sexp obj);
 sexp lisp_numberp(sexp obj);
@@ -36,3 +38,4 @@ sexp lisp_identical(sexp obj1,sexp obj2);
 sexp lisp_eql(sexp obj1,sexp obj2);
 sexp lisp_equal(sexp obj1,sexp obj2);
 sexp lisp_string_equal(sexp obj1,sexp obj2);
+#endif /*LISP_TYPES_H*/

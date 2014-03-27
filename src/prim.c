@@ -55,6 +55,8 @@ MAKE_SELF_QUOTING_SYMBOL(Eprint,"print",5,0x2f0792248c7d6068 ,{0});
 MAKE_SELF_QUOTING_SYMBOL(Evisibility,"visibility",10,0x512b4b435e30c025 ,{0});
 MAKE_SELF_QUOTING_SYMBOL(Eilseq,"ilseq",5,0xce27407d802a4137 ,{0});
 MAKE_SELF_QUOTING_SYMBOL(Einternal,"internal",8,0xe08a40f0f6141500 ,{0});
+MAKE_SELF_QUOTING_SYMBOL(Einval,"inval",5,0xe8cbc48f38f54f75 ,{0});
+MAKE_SELF_QUOTING_SYMBOL(Eassert,"assert",6,0xf89e75bdb43c5a5b ,{0});
 /*Subroutines*/
 PRIM_DEFSUBR("array?",lisp_arrayp,1,0,0,0,1,f1,"(object)",subr_compiled);
 PRIM_DEFSUBR("cons?",lisp_consp,1,0,0,0,1,f1,"(object)",subr_compiled);
@@ -295,6 +297,8 @@ c_intern_unsafe(global_obarray,Eprint);
 c_intern_unsafe(global_obarray,Evisibility);
 c_intern_unsafe(global_obarray,Eilseq);
 c_intern_unsafe(global_obarray,Einternal);
+c_intern_unsafe(global_obarray,Einval);
+c_intern_unsafe(global_obarray,Eassert);
 c_intern_unsafe(global_obarray,Tint8);
 c_intern_unsafe(global_obarray,Tint16);
 c_intern_unsafe(global_obarray,Tint32);

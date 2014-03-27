@@ -100,7 +100,7 @@
 (define SciLisp-errors;prefix E
   (list "type" "bounds" "file" "read" "args" "key" "fatal" ;stack overflow,c error
         "undefined" "unbound" "math" "eof" "io" "overflow" "range" "const"
-        "system" "print" "visibility" "ilseq" "internal"))
+        "system" "print" "visibility" "ilseq" "internal" "inval" "assert"))
 (define SciLisp-types;prefix T
   (list "int8" "int16" "int32" "int64" "uint8" "uint16" "uint32"
         "uint64" "error" "real32" "real64" "bigint" "bigfloat"

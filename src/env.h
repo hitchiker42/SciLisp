@@ -272,11 +272,11 @@ static void __attribute__((noreturn)) handle_fatal(int signal){
   //function call inside of a signal handler, so avoid that 
 #if defined(MULTI_THREADED)
   fprintf(stderr,
-          "recieved %s signal in thread number %ul\n",
+          "recieved %s in thread number %ul\n",
           sys_siglist[signal],pthread_self());
 #else
   fprintf(stderr,
-          "recieved %s signal, printing bactrace\n",
+          "recieved %s printing bactrace\n",
           sys_siglist[signal]);
 #endif
   if(!quiet_signals){

@@ -210,7 +210,8 @@ sexp expand_pathname(sexp pathname_str,sexp default_directory){
   for(;CORD_pos_valid(pos); CORD_next(pos)){
     c=CORD_pos_fetch(p);
     switch(c){
-      
+    }
+  }
   return cord_sexp(pathname);
 }
 //I can think of an issue here, if I fail to load a file, the parts I'd already
@@ -296,4 +297,40 @@ sexp lisp_exit(sexp exit_code){
   } else {
     exit(exit_code.val.int64);
   }
+}
+//check compile time options
+sexp check_debug(){
+#if (defined DEBUG) && !(defined NDEBUG)
+  return LISP_TRUE;
+#else
+  return LISP_FALSE;
+#endif
+}
+sexp check_multithreaded(){
+#if (defined MULTI_THREADED)
+  return LISP_TRUE;
+#else
+  return LISP_FALSE;
+#endif
+}
+sexp check_pcre(){
+#if (defined HAVE_PCRE)
+  return LISP_TRUE;
+#else
+  return LISP_FALSE;
+#endif
+}
+sexp check_readline(){
+#if (defined HAVE_READLINE)
+  return LISP_TRUE;
+#else
+  return LISP_FALSE;
+#endif
+}
+sexp check_gc_threads(){
+#if (defined GC_THREADS)
+  return LISP_TRUE;
+#else
+  return LISP_FALSE;
+#endif
 }

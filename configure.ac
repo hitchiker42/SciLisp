@@ -2,7 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
 LT_PREREQ([2.4.2])
-AC_INIT([SciLisp], [0.02-alpha], [SciLisp@gmail.com])
+AC_INIT([SciLisp], [0.02-alpha], [SciLisp@gmail.com], [],
+                   [https://github.com/hitchiker42/SciLisp])
 #AC_CONFIG_SRCDIR([scilisp.h])
 AC_CONFIG_HEADERS([src/include/config.h])
 AC_CONFIG_AUX_DIR([build-aux])

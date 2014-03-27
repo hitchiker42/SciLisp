@@ -31,6 +31,7 @@ read_test_SOURCES = read_test.c env.c print.c cord.c frames.c \
 		cons.c lisp_math.c bignum.c lisp_types.c
 read_test_CFLAGS = -std=gnu99 -Og -ggdb -rdynamic
 read_test_LDFLAGS = -lreadline -lmpfr -lgmp -lpthread -ldl -lgc
+read_test_LDADD = SFMT/libSFMT.la 
 
 SciLisp_LDADD = SFMT/libSFMT.la libSciLisp.la
 SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)

@@ -21,6 +21,7 @@
 #include "common.h"
 #include "prim.h"
 #include "cons.h"
+#include "lisp_types.h"
 extern sexp lisp_numeq(sexp x,sexp y);
 #define MK_PREDICATE(lname,macro)               \
   sexp lisp_##lname (sexp obj){                 \
@@ -79,7 +80,7 @@ sexp lisp_eql(sexp obj1,sexp obj2){
     return lisp_string_equal(obj1,obj2);
   }
   return LISP_FALSE;
-} 
+}
 sexp lisp_equal(sexp obj1,sexp obj2){
   if(EQ(obj1,obj2)){//make simple equaiity fast
     return LISP_TRUE;
@@ -95,7 +96,9 @@ sexp lisp_equal(sexp obj1,sexp obj2){
         return cons_equal(obj1,obj2);
       }
     case sexp_array:
-      if(obj1.len != obj2.len){
+      //temporary
+      return LISP_FALSE;
+      /*      if(obj1.len != obj2.len){
         return LISP_FALSE;
       } else {
         int i;
@@ -105,9 +108,9 @@ sexp lisp_equal(sexp obj1,sexp obj2){
           }
         }
         return LISP_TRUE;
-      }
+        }*/
     case sexp_string:
-      return (CORD_cmp(obj1.val.cord,obj2.val.cord)==0 ? LISP_TRUE : LISP_FALSE);
+      return lisp_string_equal(obj1,obj2);
     default:
       return LISP_FALSE;
   }
@@ -121,13 +124,15 @@ sexp lisp_not_eql(sexp obj1,sexp obj2){
 sexp lisp_not_equal(sexp obj1,sexp obj2){
   return lisp_not(lisp_equal(obj1,obj2));
 }
+//this doesn't work any more
+/*
 inline sexp get_type_from_string(CORD typestring){
   CORD type_symbol_name=CORD_catn(3,"#<",typestring,">");
   symref type_sym=getGlobalSym(type_symbol_name);
   if(!type_sym){
-    return format_error_sexp("unknown typename %s",typestring);
+    raise_simple_error(Etype,format_error_sexp("unknown typename %s",typestring));
   } else if(!TYPEP(type_sym->val)){
-    return format_error_sexp("%s is not a type)",typestring);
+    raise_simple_error(Etype,format_error_sexp("%s is not a type)",typestring));
   } else {
     return type_sym->val;
   }
@@ -138,50 +143,41 @@ sexp internal_get_keyword_type(sexp obj){
                  CORD_len(obj.val.keyword->name)-1));
 }
 sexp get_keyword_type(sexp obj){
-  if(!KEYWORDP(obj)){
-    return format_type_error("get-type","keyword",obj.tag);
+  if(!SYMBOLP(obj)){
+    raise_simple_error(Etype,format_type_error("get-type","keyword",obj.tag));
   }
   return internal_getKeywordType(obj);
 }
+*/
 sexp lisp_cast_to_float(sexp obj){
   if(!NUMBERP(obj)){
-    return format_type_error("float","number",obj.tag);
+    raise_simple_error(Etype,format_type_error("float","number",obj.tag));
   }
-  return real64_sexp(getDoubleValUnsafe(obj));
+  return real64_sexp(get_double_val_unsafe(obj));
 }
-
-sexp lisp_strtod(sexp obj){
-  if(!STRINGP(obj)){
-    return format_type_error("string->real","string",obj.tag);
-  }
-  char *err_test;
-  double retval=strtod(CORD_to_const_char_star(obj.val.cord),&err_test);
-  if(err_test){
-    return error_sexp("invalid string passed to string->real");
-  } else {
-    return real64_sexp(retval);
-  }
-}
+//this needs to be fixed
 sexp lisp_error(sexp error_message){
-  if(!STRINGP(error_message) && !ERRORP(error_message)){
-    return format_type_error_opt2("raise-error","string","error",
-                                  error_message.tag);
+  if(!STRINGP(error_message)){
+    raise_simple_error(Etype,format_type_error_opt2("raise-error",
+                                                    "string","error",
+                                                    error_message.tag));
   }
-  return error_sexp(error_message.val.cord);
+  raise_simple_error(Eassert,error_message.val.string->cord);
 }
-sexp lisp_assert(sexp expr){
-  if(isTrue(expr)){
+sexp lisp_assert(sexp expr,sexp message){
+  if(is_true(expr)){
     return NIL;
   } else {
-    return error_sexp("Assertation faliure");
+    raise_simple_error_fmt(Eassert,"Assertation faliure:\n%s",
+                           message.val.string->cord);
   }
 }
 #define make_lisp_assert_eq(name,fun,error_string)                      \
   sexp name(sexp obj1,sexp obj2){                                       \
-    if(isTrue(fun(obj1,obj2))){                                         \
+    if(is_true(fun(obj1,obj2))){                                         \
       return NIL;                                                       \
     } else {                                                            \
-      return format_error_sexp(error_string,print(obj1),print(obj2));   \
+      raise_simple_error_fmt(Eassert,error_string,print(obj1),print(obj2)); \
     }                                                                   \
   }
 make_lisp_assert_eq(lisp_assert_eq,lisp_eq,
@@ -199,6 +195,8 @@ make_lisp_assert_eq(lisp_assert_not_eql,lisp_not_eq,
 sexp lisp_identity(sexp expr){
   return expr;
 }
+//I'll fix this later
+/*
 CORD make_function_signature(function_args *args){
   CORD signature="(";
   int i,j;
@@ -221,14 +219,17 @@ CORD make_function_signature(function_args *args){
       (CORD_cat(CORD_substr(signature,0,CORD_len(signature)-1),")"));
   }
 }
+*/
+/*
 sexp boundp(sexp sym){
   if(!SYMBOLP(sym)){
-    return format_type_error("bound?","symbol",sym.tag);
+    raise_simple_error(Etype,format_type_error("bound?","symbol",sym.tag));
   }
   symref ref=getSymFromSexp(sym,NULL);
   return (ref?LISP_TRUE:LISP_FALSE);
 }
-  
+*/
+
 sexp lisp_string_equal(sexp obj1,sexp obj2){
   //assume obj1 and obj2 are strings
   if(obj1.val.string->len != obj2.val.string->len){
@@ -238,4 +239,48 @@ sexp lisp_string_equal(sexp obj1,sexp obj2){
     return LISP_TRUE;
   }
   return LISP_FALSE;
+}
+//needs keyword options for:
+//start, end, 'junk_allowed'(i.e is (parse-int "12345baoesuth" 10) legal)
+//'junk' is allowed in C
+sexp parse_int(sexp str,sexp base){
+  if(!STRINGP(str)){
+    raise_simple_error(Etype,format_type_error("parse-int","string",str.tag));
+  }
+  if(!NILP(base) && !INTP(base)){
+    raise_simple_error(Etype,format_type_error("parse-int","string",str.tag));
+  }
+  //the value of nil is 0, conviently
+  char *endptr;
+  const char *string=CORD_to_const_char_star(str.val.string->cord);
+  errno=0;
+  uint64_t val=strtoul(string,&endptr,base.val.int64);
+  if(endptr==string){
+    raise_simple_error(Einval,"Illegal value passed to parse-int");
+  }
+  if(errno==EINVAL){
+    raise_simple_error(Einval,"Illegal value passed to parse-int");
+  }
+  if(errno=ERANGE){
+    raise_simple_error(Erange,"Range error in parse-int");
+  }
+}
+sexp parse_double(sexp str,sexp base){
+  if(!STRINGP(str)){
+    raise_simple_error(Etype,format_type_error("parse-int","string",str.tag));
+  }
+  if(!NILP(base) && !INTP(base)){
+    raise_simple_error(Etype,format_type_error("parse-int","string",str.tag));
+  }
+  //the value of nil is 0, conviently
+  char *endptr;
+  const char *string=CORD_to_const_char_star(str.val.string->cord);
+  errno=0;
+  double val=strtod(string,&endptr);
+  if(endptr==string){
+    raise_simple_error(Einval,"Illegal value passed to parse double");
+  }
+  if(errno=ERANGE){
+    raise_simple_error(Erange,"Range error in parse double");
+  }
 }

@@ -193,6 +193,10 @@ extern symbol *Eilseq;
 extern sexp Eilseq_sexp;
 extern symbol *Einternal;
 extern sexp Einternal_sexp;
+extern symbol *Einval;
+extern sexp Einval_sexp;
+extern symbol *Eassert;
+extern sexp Eassert_sexp;
 /*Type Symbols*/
 extern symbol *Tint8;
 extern sexp Tint8_sexp;

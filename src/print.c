@@ -324,8 +324,8 @@ CORD print(sexp obj){
     }
     case sexp_hashtable:{
       hash_table *hash=obj.val.hashtable;
-      CORD_sprintf(&retval,"#<hash-table :test %r :entries %d>",
-                   hashtable_test_fn_name(hash->test_fn),hash->entries);
+      CORD_sprintf(&retval,"#<hash-table :test %r :entries %d>","eq"
+                   /*hashtable_test_fn_name(hash->test_fn)*/,hash->entries);
       return retval;
     }
     case sexp_env:{

@@ -19,6 +19,8 @@ void handle_sigsegv(int signal){
   }
   exit(1);
 }
+const struct sigaction sigsegv_action={.sa_handler=handle_sigsegv};
+struct sigaction *sigsegv_action_pointer=&sigsegv_action;
 //mega hack
 sexp eval(sexp expr,env_ptr env){
   return expr;
@@ -27,7 +29,9 @@ sexp read_only(sexp expr,env_ptr env){
   return expr;
 }
 int main(){
+  quiet_signals=0;
   init_signal_handlers();
+  sigaction(SIGSEGV,sigsegv_action_pointer,NULL);
   GC_set_handle_fork(1);
   GC_INIT();
   init_prims();

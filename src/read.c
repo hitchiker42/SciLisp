@@ -144,10 +144,13 @@ sexp internal_read(read_input *input,int *pch,int flags){
   while((c=(read_char(input)))!=EOF){
     switch(c){
       case ' ':
+        READ_MESSAGE("read a space");
       case '\n':
+        READ_MESSAGE("read a newline");
       case '\t':
+        READ_MESSAGE("read a tab");
       case '\v':
-        PRINT_FMT("Read a whitespace character, code %hhx",c);
+        READ_MESSAGE("read a vtab");
         continue;
       case ';':READ_MESSAGE("reading single line comment");
         skip_line(input);
@@ -350,24 +353,29 @@ static sexp read_sharp(read_input *input){
   char c;
   switch((c=read_char(input))){
     case '|'://nested comment, comments delimited by #| and |#
+      READ_MESSAGE("Reading multiline comment");
       read_nested_comment(input);
-    case 's'://read a hash table where input is of the form:
+      /*    case 's'://read a hash table where input is of the form:
       //(hash-table [prop val]* ([key val]*)) (don't actually put brackets)
       return NIL;//for now
-      //      return read_hash_table(input);
+      //      return read_hash_table(input);*/
     case 'x'://read a hexadecimal integer
     case 'X':
+      READ_MESSAGE("Reading hex int");
       return read_integer(input,16);
     case 'Z'://read an arbitary precision integer
     case 'z'://either in base ten or with leading 0x in base 16
+      READ_MESSAGE("Reading bigint");
       return read_bigint(input,0);
       /* need to write this first
     case 'R'://read an arbitary precison floating point number
     case 'r'://would use #f but thats used for false
     return read_bigfloat(input,0);*/
     case 't':
+      READ_MESSAGE("Reading true");
       return LISP_TRUE;
     case 'f':
+      READ_MESSAGE("Reading false");
       return LISP_FALSE;
     case '<':{//signal a read error
       //try to read whot exactly is the invalid object, for a better message
@@ -386,6 +394,7 @@ static sexp read_sharp(read_input *input){
       read_uninterned_symbol(input);
     case 'b':
     case 'B':{
+      READ_MESSAGE("Reading binary int");
       return uint64_sexp
         (read_pow_of_two_base_number
          (input,binary_char_test,binary_char_extract,1,
@@ -832,6 +841,8 @@ static sexp read_array(read_input *input){
     }
     if(ch){
       if(ch==']'){
+        //temp hack
+        return NIL;
         if(!arr->vector){//haven't allocated any memory yet
           arr->typed_vector=xmalloc_atomic(stack_index);
           arr->len=stack_index;

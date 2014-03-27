@@ -468,7 +468,7 @@ lisp_bignum_fun1c(asin);
 lisp_bignum_fun1c(atan);
 lisp_bignum_fun1c(log1p);
 lisp_bignum_fun1c(expm1);
-lisp_bignum_fun1c(lgamma);
+//lisp_bignum_fun1c(lgamma);
 lisp_bignum_fun1c(erf);
 lisp_bignum_fun1c(erfc);
 lisp_bignum_fun1c(j0);
