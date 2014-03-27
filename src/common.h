@@ -239,6 +239,7 @@ static void *xmemalign(size_t align,size_t sz){
 #define opaque_sexp(opaque_val) construct_ptr(opaque_val,opaque)
 #define re_match_sexp(match_val) construct_ptr(match_val,re_data)
 #define regex_sexp(regex_val) construct_ptr(regex_val,regex)
+#define real32_sexp(real32_val) construct_atom(real32_val,real32)
 #define real64_sexp(real64_val) construct_atom(real64_val,real64)
 #define array_sexp(array_val) construct_ptr(array_val,array)
 //#define spec_sexp(spec_tag) construct_atom(spec_tag,special)

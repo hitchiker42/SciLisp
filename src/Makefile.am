@@ -28,7 +28,7 @@ SUBDIRS = SFMT gc/bdwgc libffi
 bin_PROGRAMS = SciLisp read_test
 read_test_SOURCES = read_test.c env.c print.c cord.c frames.c \
 		lisp_utf8.c read.c prim.c extra/memcpy_stride.S\
-		cons.c lisp_math.c
+		cons.c lisp_math.c bignum.c lisp_types.c
 read_test_CFLAGS = -std=gnu99 -Og -ggdb -rdynamic
 read_test_LDFLAGS = -lreadline -lmpfr -lgmp -lpthread -ldl -lgc
 

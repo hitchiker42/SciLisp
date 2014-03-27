@@ -573,7 +573,7 @@ sexp constOfTypeX(sexp_tag x,long val){
       raise_simple_error(Etype,"non numeric type recieved");
   }
 }
-static const char *op_fun_name(enum operator op);
+static const char *op_fun_name(enum operator op){return"";};
 sexp arith_driver(uint64_t numargs,sexp *values,enum operator op){
   //lets make this a bit unsafe, the type of the result is the type of required
   //we'll prevent serious errors by type checking each argument against
@@ -828,8 +828,8 @@ sexp lisp_oddp(sexp obj){
   } else if(NILP(obj2)){                                \
     return LISP_TRUE;                                   \
   } else {                                              \
-    return  format_type_error_opt2_named                \
-      (#op,"rest","bignum","list",obj2.tag);            \
+    raise_simple_error(Etype,format_type_error_opt2_named       \
+                       (#op,"rest","bignum","list",obj2.tag));  \
   }                                                     \
   }
 mk_lisp_cmp_select(ge,>=);

@@ -92,8 +92,36 @@ sexp lisp_mpfr_sub(sexp obj1,sexp obj2);
 sexp lisp_mpfr_mul(sexp obj1,sexp obj2);
 sexp lisp_mpfr_div(sexp obj1,sexp obj2);
 sexp lisp_mpfr_pow(sexp obj1,sexp obj2);*/
-sexp lisp_bigfloat_sqrt(sexp x);
+sexp lisp_bigint_sqrt(sexp x);
 
+sexp lisp_bigint_log(sexp x);
+sexp lisp_bigint_exp(sexp x);
+sexp lisp_bigint_log10(sexp x);
+sexp lisp_bigint_exp10(sexp x);
+sexp lisp_bigint_log2(sexp x);
+sexp lisp_bigint_exp2(sexp x);
+sexp lisp_bigint_cos(sexp x);
+sexp lisp_bigint_sin(sexp x);
+sexp lisp_bigint_tan(sexp x);
+sexp lisp_bigint_acos(sexp x);
+sexp lisp_bigint_asin(sexp x);
+sexp lisp_bigint_atan(sexp x);
+sexp lisp_bigint_abs(sexp x);
+sexp lisp_bigint_neg(sexp x);
+sexp lisp_bigint_log1p(sexp x);
+sexp lisp_bigint_expm1(sexp x);
+sexp lisp_bigint_gamma(sexp x);
+sexp lisp_bigint_lgamma(sexp x);
+sexp lisp_bigint_erf(sexp x);
+sexp lisp_bigint_erfc(sexp x);
+sexp lisp_bigint_j0(sexp x);
+sexp lisp_bigint_j1(sexp x);
+//sexp lisp_bigint_jn(sexp x);
+sexp lisp_bigint_y0(sexp x);
+sexp lisp_bigint_y1(sexp x);
+//sexp lisp_bigint_yn(sexp x);
+
+sexp lisp_bigfloat_sqrt(sexp x);
 sexp lisp_bigfloat_log(sexp x);
 sexp lisp_bigfloat_exp(sexp x);
 sexp lisp_bigfloat_log10(sexp x);
@@ -116,10 +144,10 @@ sexp lisp_bigfloat_erf(sexp x);
 sexp lisp_bigfloat_erfc(sexp x);
 sexp lisp_bigfloat_j0(sexp x);
 sexp lisp_bigfloat_j1(sexp x);
-sexp lisp_bigfloat_jn(sexp x);
+//sexp lisp_bigfloat_jn(sexp x);
 sexp lisp_bigfloat_y0(sexp x);
 sexp lisp_bigfloat_y1(sexp x);
-sexp lisp_bigfloat_yn(sexp x);
+//sexp lisp_bigfloat_yn(sexp x);
 
 #endif
 

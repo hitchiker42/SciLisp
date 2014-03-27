@@ -20,6 +20,8 @@
 //for simple stuff with no obvious location
 #include "common.h"
 #include "prim.h"
+#include "cons.h"
+extern sexp lisp_numeq(sexp x,sexp y);
 #define MK_PREDICATE(lname,macro)               \
   sexp lisp_##lname (sexp obj){                 \
     if(macro(obj)){                             \
@@ -63,7 +65,7 @@ sexp lisp_eq(sexp obj1,sexp obj2){
 }
 sexp lisp_identical(sexp obj1,sexp obj2){//same as common lisp eq
   if(obj1.tag != obj2.tag){
-    return lisp_false;
+    return LISP_FALSE;
   } else {
     return (obj1.val.uint64 == obj2.val.uint64 ? LISP_TRUE : LISP_FALSE);
 sexp lisp_eql(sexp obj1,sexp obj2){
