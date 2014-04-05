@@ -8,16 +8,12 @@
   (setq lisp-mode-hook (lambda nil nil)))
 (defalias 'scilisp-mode 'SciLisp-mode)
 (defvar SciLisp-mode-abbrev-table nil)
-(define-abbrev-table 'lisp-mode-abbrev-table ()
-  "Abbrev table for Lisp mode.")
+(define-abbrev-table 'SciLisp-mode-abbrev-table ()
+  "Abbrev table for SciLisp mode.")
 (defvar SciLisp-mode-syntax-table
-  (let ((table (copy-syntax-table emacs-lisp-mode-syntax-table)))
-    (modify-syntax-entry ?\[ "_   " table)
-    (modify-syntax-entry ?\] "_   " table)
-    (modify-syntax-entry ?# "' 14" table)
-    (modify-syntax-entry ?| "\" 23bn" table)
+  (let ((table (copy-syntax-table lisp-mode-syntax-table)))
     table)
-  "Syntax table used in `lisp-mode'.")
+  "Syntax table used in `SciLisp-mode'.")
 
 (defvar SciLisp-imenu-generic-expression
   (list
