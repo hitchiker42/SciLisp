@@ -27,11 +27,18 @@
 #define HERE_FMT(string,fmt...) debug_printf(string "\n",##fmt);HERE()
 #define PRINT_MSG(string) CORD_debug_printf(CORD_cat(string,"\n"))
 #define PRINT_FMT(string,fmt...) CORD_debug_printf(CORD_cat(string,"\n"),##fmt)
+//maybe make these enabled/disabled with a seperate macro
+#define FUNCTION_ENTRY debug_printf("starting function %s in file %s at line %d\n",\
+                                    __func__,__FILE__,__LINE__);
+#define FUNCTION_EXIT debug_printf("exiting function %s in file %s at line %d\n",\
+                                    __func__,__FILE__,__LINE__);
 #else 
 #define HERE()
 #define HERE_MSG(string)
 #define PRINT_MSG(string)
 #define PRINT_FMT(string,fmt...)
+#define FUNCTION_ENTRY
+#define FUNCTION_EXIT
 #endif
 #if defined (VERBOSE_LEXING) && !(defined (QUIET_LEXING))
 #define LEX_MSG(string) fputs(string,stderr);fputs("\n",stderr)
@@ -40,7 +47,11 @@
 #define LEX_MSG(string)
 #define LEX_FMT(string,fmt...)
 #endif
-
+#ifdef __x86_64__
+#define BREAKPOINT __asm__ volatile ("int $3\n")
+#else
+#define BREAKPOINT raise(SIGTRAP)
+#endif
 /*
   static assert, there's compiler support for static_asserts, but I like
   mine, since you can specify something of an error message(as long as

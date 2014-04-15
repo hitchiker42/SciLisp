@@ -236,6 +236,7 @@ static inline symbol *c_intern_maybe_copy(const char *name,uint32_t len,
   if(!len){
     len=strlen(name);
   }
+  PRINT_FMT("Interning string %s",name);
   uint64_t hashv=hash_function(name,len);
   multithreaded_only(pthread_rwlock_rdlock(ob->lock);)
   uint32_t bucket=hashv % ob->size;
@@ -403,7 +404,7 @@ void init_environment(void){
     current_env->frame_ptr+(frame_stack_size);
   current_env->protect_frame=
     make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
-  push_frame(current_env,*(current_env->protect_frame));
+  push_frame(*(current_env->protect_frame),current_env);
   current_env->data_stack=
     GC_malloc_ignore_off_page(data_stack_size);//*sizeof(sexp));
   current_env->data_ptr=current_env->data_stack;

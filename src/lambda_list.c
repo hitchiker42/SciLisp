@@ -1,3 +1,4 @@
+//unmodifed code from ecl
 /* ------------------------------------------------------------
    LAMBDA OBJECTS: An interpreted function is a vector made of
 	the following components

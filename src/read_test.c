@@ -20,11 +20,7 @@ void handle_sigsegv(int signal){
   exit(1);
 }
 const struct sigaction sigsegv_action={.sa_handler=handle_sigsegv};
-struct sigaction *sigsegv_action_pointer=&sigsegv_action;
-//mega hack
-sexp eval(sexp expr,env_ptr env){
-  return expr;
-}
+const struct sigaction *sigsegv_action_pointer=&sigsegv_action;
 sexp read_only(sexp expr,env_ptr env){
   return expr;
 }

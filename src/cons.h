@@ -100,6 +100,11 @@ static sexp unsafe_last(sexp ls);
   ({sexp list1_last=unsafe_last(list1);         \
     SET_CDR(list1_last(list2));                 \
     list1;})
+#define Acons(_car,_cdr)                        \
+  ({sexp retval=cons_sexp(alloca(sizeof(cons)));        \
+    SET_CAR(retval,_car);                               \
+    SET_CDR(retval,_cdr);                               \
+    retval})
 //typechecked car function
 static sexp car(sexp cell) __attribute__((pure,hot));
 static sexp cdr(sexp cell) __attribute__((pure,hot));

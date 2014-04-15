@@ -57,13 +57,12 @@ CORD get_sexp_readline(){
     }
   }
 }  
-
 void __attribute__((noreturn)) readline_repl(sexp(*eval_fun)(sexp,env_ptr)){
   read_input *cord_input;
   CORD readline_output;
   sexp ast,ans;
   top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,unwind_protect_frame);
-  push_frame(current_env,*top_level_frame);
+  push_frame(*top_level_frame,current_env);
  REPL:while(1){
     if(setjmp(top_level_frame->dest)){
       PRINT_MSG("jumped to top level frame");
@@ -98,8 +97,10 @@ void __attribute__((noreturn)) simple_repl(sexp(*eval_fun)(sexp,env_ptr)){
         CORD_fprintf(stderr,"Recieved lisp error with value",print(top_level_frame->value));
       }
     }
+    ast=NIL;
     fputs("SciLisp>",stdout);
     ast=read_sexp(stdin_input);
+    PRINT_FMT("Read input, %r",print(ast));
     if(!NILP(ast)){
       //lisp_ans_ptr->val=eval_fun(ast,current_env);
       ans=eval_fun(ast,current_env);

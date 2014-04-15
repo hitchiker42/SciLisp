@@ -28,7 +28,8 @@ SUBDIRS = SFMT gc/bdwgc libffi
 bin_PROGRAMS = SciLisp read_test
 read_test_SOURCES = read_test.c env.c print.c cord.c frames.c \
 		lisp_utf8.c read.c prim.c extra/memcpy_stride.S\
-		cons.c lisp_math.c bignum.c lisp_types.c
+		cons.c lisp_math.c bignum.c lisp_types.c\
+		interpreter.c
 read_test_CFLAGS = -std=gnu99 -Og -ggdb -rdynamic
 read_test_LDFLAGS = -lreadline -lmpfr -lgmp -lpthread -ldl -lgc
 read_test_LDADD = SFMT/libSFMT.la 
@@ -44,7 +45,7 @@ libSciLisp_la_LIBADD = SFMT/libSFMT.la gc/bdwgc/libgc_convenience.la \
 
 #Explicit targets
 #make assembly files
-%.s : %.c 
+p%.s : %.c 
 	$(CC) $(INCLUDE_FLAGS) -Og -fverbose-asm $<
 test: SciLisp_test
 #gc/bdwgc/libcord.la gc/bdwgc/libgc.la: gc/bdwgc/configure

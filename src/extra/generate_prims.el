@@ -145,6 +145,7 @@
      ("odd?" "Soddp" "lisp_oddp" 1 :sig "(integer)" :type '(:int :int . :bool))
      ("zero?" "Szerop" "lisp_zerop" 1 :sig "(number)" :type '(:num  :num . :bool)))))
 (define SciLisp-math-funs
+;  (mapcar (lambda (x) (apply #'mk-prim-subr x))
   '(("!=" "Sne" "lisp_numne" 2 :sig "(num1 num2)" :type '(:number :number . :bool))
    ("*"  "Smul" "lisp_mul_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
    ("+"  "Sadd" "lisp_add_driver" 1 :restarg 1 :sig "(num1 num2)" :type '(&rest :numbers . :number))
@@ -167,6 +168,7 @@
    ("sin" "Ssin" "lisp_sin" 1 :sig "(number)" :type '(:number . :number))
    ("tan" "Stan" "lisp_tan" 1 :sig "(number)" :type '(:number . :number))))
 (define SciLisp-cons-funs
+;  (mapcar (lambda (x) (apply #'mk-prim-subr x))
     '(("assoc" "Sassoc" "assoc" 2 :optargs 1 :sig "(key list &optional test-fn)")
     ("assq" "Sassq" "assq" 2 :sig "key list")
     ("cons" "Scons" "Fcons" 2 :sig "(car cdr)")
@@ -185,6 +187,7 @@
     ("split" "Ssplit" "cons_split" 1 :optargs 1)
     ("take" "Stake" "cons_take" 2 :sig "(list n)")))
 (define SciLisp-array-funs
+;  (mapcar (lambda (x) (apply #'mk-prim-subr x))
   '(("aref" "Saref" "aref" 2 :sig "(array index)")
    ("array-map!" "Sarray_mapn" "array_nmap" 2 :sig "(array map-fn)")
    ("array-map" "Sarray_map" "array_map" 2 :sig "(array map-fn)")

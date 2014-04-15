@@ -145,10 +145,13 @@ sexp internal_read(read_input *input,int *pch,int flags){
     switch(c){
       case ' ':
         READ_MESSAGE("read a space");
+        continue;
       case '\n':
         READ_MESSAGE("read a newline");
+        continue;
       case '\t':
         READ_MESSAGE("read a tab");
+        continue;
       case '\v':
         READ_MESSAGE("read a vtab");
         continue;
@@ -159,6 +162,8 @@ sexp internal_read(read_input *input,int *pch,int flags){
         return read_list(input,flags);
       case '[':READ_MESSAGE("reading vector");
         return read_array(input);
+      case '{':READ_MESSAGE("read {");
+        raise_simple_error(Eread,"Undefined character {");
       case ')':
       case '}':
       case ']':
@@ -688,15 +693,19 @@ sexp string_to_number(char *str){
 static sexp read_symbol_or_number(read_input *input){
   CORD_ec buf;
   CORD_ec_init(buf);
-  uint8_t c;
+  uint8_t c=0;
   int len=0,mb=0;
   read_symbol_string(input);
+  if(len=0){
+    PRINT_MSG("Invalid symbol or number");
+    raise_simple_error(Eread,"invalid symbol or number");
+  }
   HERE();
   //maybe if(c)==':' goto qualified symbol
   unread_char(input);
   char *str=CORD_ec_to_char_star(buf);
   PRINT_FMT("string read %s",str);
-  if(!mb && strchr("0123456789+-",str[0])){
+  if(!mb && memchr("0123456789+-",str[0],12)){
     sexp maybe_num=string_to_number(str);
     if(!NILP(maybe_num)){READ_MESSAGE("read number");
       return maybe_num;

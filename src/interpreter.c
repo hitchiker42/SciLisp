@@ -57,8 +57,10 @@ sexp lisp_eval(sexp expr,sexp env){
                        "error eval with non current environment unimplemented");
   }
 }
+sexp eval(sexp sexp,env_ptr env) __attribute__((weak,alias("eval_top")));
 /* minargs=0,maxarg=1,restarg=1...?*/
 sexp eval_top(sexp expr,env_ptr env){
+FUNCTION_ENTRY
   switch(expr.tag){
     case sexp_sym:
       //if(expr.val.sym->special){return expr.val.sym->val;}
@@ -118,7 +120,7 @@ static inline sexp get_symbol_value(symbol *sym,env_ptr env){
   if(!CONSP(arg) && !SYMBOLP(arg)){             \
     argval=arg;                                 \
   } if(SYMBOLP(arg)){                           \
-    argval=lookup_arg(arg,env);                 \
+    argval=lookup_var(arg.val.sym,env);         \
   } else {                                      \
     argval=eval(arg,env);                       \
   }                                             \
@@ -518,11 +520,11 @@ sexp funcall(subr *sub,sexp args,env_ptr env){
       while(CONSP(args)){
         sexp arg=POP(args);
         if(!CONSP(arg) && !SYMBOLP(arg)){
-          push_data(current_env,arg);
+          push_data(arg,current_env);
         } if(SYMBOLP(arg)){
-          push_data(current_env,lookup_var(arg.val.sym,env));
+          push_data(lookup_var(arg.val.sym,env),current_env);
         } else {
-          push_data(current_env,eval(arg,env));
+          push_data(eval(arg,env),current_env);
         }
         //only call eval if we have to(i.e. if arg is a cons cell
         numargs++;
@@ -544,6 +546,7 @@ sexp funcall(subr *sub,sexp args,env_ptr env){
       cons *lambda=sub->lambda_body;
       sexp fun_env=NIL;
       if(lambda->car.val.uint64 == (uint64_t)Qclosure){
+        //if it's a closure set the lexical environment
         fun_env=Fcons(XCAR(lambda->cdr),NIL);
         lambda=lambda->cdr.val.cons->cdr.val.cons;
       } else {
@@ -551,9 +554,9 @@ sexp funcall(subr *sub,sexp args,env_ptr env){
       }
       lambda_list arglist=*(sub->lambda_arglist);
       int num_reqargs = arglist.req_args->car.val.int64;
-      symbol *req_arg_names= arglist.req_args->cdr.val.sym;
+      symbol *req_arg_names= arglist.req_args->cdr.val.sym;//array of symbols
       int num_optargs = arglist.opt_args->car.val.int64;
-      cons*opt_arg_names= arglist.opt_args->cdr.val.cons;//array of conses
+      cons *opt_arg_names= arglist.opt_args->cdr.val.cons;//array of conses
       int num_keyargs = arglist.key_args->car.val.int64;
       cons *key_arg_names= arglist.key_args->cdr.val.cons;//array of conses
       /*
@@ -568,20 +571,23 @@ sexp funcall(subr *sub,sexp args,env_ptr env){
       //LOOK AT THIS WHEN I'M less tired
       for(i=0;i<num_reqargs;i++){
         if(!CONSP(args)){
-          raise_simple_error_fmt(Eargs,"Too few args passed to %r",sub->lname.cord);
+          raise_simple_error_fmt(Eargs,"Too few args passed to %r",
+                                 sub->lname.cord);
         } else {
           //I think push data is what this should be
-          push_data(Fcons(req_arg_names[i],eval_arg(POP(args),env)),env);
+          push_data(Fcons(symref_sexp(req_arg_names+i),
+                          eval_arg(POP(args),env)),env);
         }
       }
       for(i=0;i<num_optargs;i++){
         if(!CONSP(args)){
           while(i<num_optargs){
-            PUSH(cons_sexp(&opt_arg_names[i++]),fun_env);
+            push_data((cons_sexp(&opt_arg_names[i++])),env);
           }
           break;
         } else {
-          PUSH(Fcons(opt_arg_names[i].car,eval_arg(POP(args),fun_env)));
+          push_data(Fcons(opt_arg_names[i].car,
+                          eval_arg(POP(args),env)),env);
         }
       }
       /*      for(i=0;i<num_keyargs;i++){
@@ -598,11 +604,12 @@ sexp funcall(subr *sub,sexp args,env_ptr env){
           } else {
           while*/
       CALL:{
-        subr_call fcall=(subr_call){.lex_env=env->lex_env,.lisp_subr=sub,
+        subr_call fcall=(subr_call){.lex_env=env->lex_env,
+                                    .lisp_subr=subr_sexp(sub),
                                     .bindings_index=env->bindings_index};
-        push_call(env,fcall);
+        push_call(fcall,env);
         env->lex_env=Fcons(fun_env,env->lex_env);
-        sexp retval=eval(sub->lambda,env);
+        sexp retval=eval(cons_sexp(sub->lambda_body),env);
         env->lex_env=pop_call(env).lex_env;
         return retval;
       }

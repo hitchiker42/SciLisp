@@ -34,10 +34,13 @@ frame_addr frame_search(uint64_t tag){
   unwind_call_stack(env,(env->call_index)-(env->frame_ptr->call_index)); \
   env->frame_index=env->frame_ptr->frame_index;
 void __attribute__((noreturn)) unwind_to_frame(env_ptr env,frame_addr fr){
-  while(env->frame_ptr != fr && env->frame_ptr->tag != (uint64_t)UNWIND_PROTECT_TAG){
-    env->frame_ptr--;    
+  while((env->frame_ptr != fr) && 
+        (env->frame_ptr->tag != (uint64_t)UNWIND_PROTECT_TAG)){
+    env->frame_ptr--;
   }
+  PRINT_MSG("unwinding stacks");
   unwind_stacks(env);
+  PRINT_MSG("calling longjmp");
   longjmp(env->frame_ptr->dest,1);
 }
 void __attribute__((noreturn)) unwind_to_tag(env_ptr env,uint64_t tag){
@@ -49,8 +52,10 @@ void __attribute__((noreturn)) unwind_to_tag(env_ptr env,uint64_t tag){
   longjmp(env->frame_ptr->dest,1);
 }
 void __attribute__((noreturn)) unwind_with_value(uint64_t tag,sexp value){
+  FUNCTION_ENTRY
   frame_addr fr=frame_search(tag);
   fr->value=value;
+  PRINT_MSG("Unwinding");
   unwind_to_frame(current_env,fr);
 }
 void unwind_call_stack(env_ptr env,uint64_t index){
