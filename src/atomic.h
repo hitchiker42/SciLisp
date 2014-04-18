@@ -84,21 +84,27 @@ static inline uint64_t atomic_dec_64(uint64_t *addr){
   __asm__ ("lock decq %0,$1" : "+m" (addr));
   return *addr;
 }
-static inline uint64_t atomic_inc_32(uint32_t *addr){
+static inline uint32_t atomic_inc_32(uint32_t *addr){
   __asm__ ("lock incl %0,$1" : "+m" (addr));
   return *addr;
 }
-static inline uint64_t atomic_dec_32(uint32_t *addr){
+static inline uint32_t atomic_dec_32(uint32_t *addr){
   __asm__ ("lock decl %0,$1" : "+m" (addr));
   return *addr;
 }
-#define PAUSE __builtin_ia32_pause
+#define PAUSE volatile __asm__("pause\n")
 #else
-static inline uint64_t atomic_inc(uint64_t *addr){
+static inline uint64_t atomic_inc_64(uint64_t *addr){
   return (uint64_t)__atomic_add_fetch(addr,1,ATOMIC_FULL);
 }
-static inline uint64_t atomic_dec(uint64_t *addr){
+static inline uint64_t atomic_dec_64(uint64_t *addr){
   return (uint64_t)__atomic_sub_fetch(addr,1,ATOMIC_FULL);
+}
+static inline uint32_t atomic_inc_64(uint64_t *addr){
+  return (uint32_t)__atomic_add_fetch(addr,1,ATOMIC_FULL);
+}
+static inline uint32_t atomic_dec_64(uint64_t *addr){
+  return (uint32_t)__atomic_sub_fetch(addr,1,ATOMIC_FULL);
 }
 #define PAUSE 
 #endif

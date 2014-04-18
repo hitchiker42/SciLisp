@@ -13,6 +13,9 @@ STD_LIB_SRC = array.c bignum.c c_codegen.c ccall.c cffi.c cons.c cord.c env.c \
 	emacs_regex.c eval.c format.c hash.c interpreter.c lisp_math.c lisp_utf8.c \
 	lisp_system.c lisp_types.c parser.c print.c prim.c regex.c read.c sequence.c \
 	tree.c unicode.c #setf.c
+SIMPLE_SRC = frontend.c repl.c read.c env.c print.c cord.c frames.c\
+	lisp_utf8.c prim.c extra/memcpy_stride.S cons.c lisp_math.c\
+	bignum.c lisp_types.c interpreter.c
 CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h
 DISTCLEANFILES=$(CLEAN_FILES) get_hash
 #BACKEND_SRC = c_codegen.c
@@ -36,6 +39,10 @@ read_test_LDADD = SFMT/libSFMT.la
 
 SciLisp_LDADD = SFMT/libSFMT.la libSciLisp.la
 SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)
+SciLisp_simple_SOURCES = $(SIMPLE_SRC)
+SciLisp_simple_LDFLAGS = -lreadline -lmpfr -lgmp -lpthread -ldl -lgc
+SciLisp_simple_LDADD = SFMT/libSFMT.la 
+
 lib_LTLIBRARIES = libSciLisp.la
 libSciLisp_la_SOURCES = $(STD_LIB_SRC)
 libSciLisp_la_LIBADD = SFMT/libSFMT.la gc/bdwgc/libgc_convenience.la \
