@@ -36,7 +36,7 @@ char *c_char_to_string(uint64_t lisp_char){
   return str;
 }
 CORD CORD_cat_lisp_string(CORD acc,lisp_string *str){
-  if(!str->string[0]){
+  if(str->string[0]=='\0'){
     return CORD_cat(acc,str->cord);
   } else {
     return CORD_cat_char_star(acc,str->string,str->len);

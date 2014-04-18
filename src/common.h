@@ -132,6 +132,17 @@ static inline void *xmalloc_atomic(size_t sz){
   }
   return test;
 }
+//use for large (>100kb) objects, disables interior pointers
+//beyond the first 256 bytes
+static inline void *xmalloc_large(size_t sz){
+  void *test=GC_MALLOC_IGNORE_OFF_PAGE(sz);
+  if(!test && sz){
+    current_env->error_num=ENOMEM;
+    raise(SIGUSR1);
+  }
+  return test;
+}
+  
 //version unexposed to user code or anything
 //taken from the code for GC_memalign
 //but opimized to assume align is newer anywhere
@@ -181,6 +192,9 @@ static void *xmemalign(size_t align,size_t sz){
   ({CORD retval;                                \
   CORD_sprintf(&retval,format,##args);          \
   retval;})
+#define scilisp_unlikely(expr) __builtin_expect(expr,0)
+#define scilisp_likely(expr) __builtin_expect(expr,1)
+#define scilisp_expect(expr,c) __builtin_expect(expr,c)
 //Macros used in defining sexp constructor macros
 #define construct_sexp_generic(sexp_val,sexp_tag,                       \
                                sexp_field,is_ptr_val,sexp_cast)         \
@@ -320,8 +334,8 @@ static inline double get_double_val_unsafe(sexp x){
 }
 //#define return_errno(fn_name), was here, now in debug.h
 //rather simple but fairly useful functions
-static inline sexp lisp_id(sexp obj){return obj;}
-static inline sexp lisp_not(sexp obj){
+extern inline sexp lisp_id(sexp obj){return obj;}
+extern inline sexp lisp_not(sexp obj){
   return (is_true(obj)?LISP_FALSE:LISP_TRUE);
 }
 //reallocate memory and set any newly allocated memory to 0

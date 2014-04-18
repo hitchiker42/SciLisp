@@ -62,8 +62,7 @@ compile(FILE* input,const char *output,FILE* c_code){
     CORD_fprintf(stderr,error_str);
     exit(5);
   }
-  char tmpFilename[]={'/','t','m','p','/','t','m','p',
-                      'X','X','X','X','X','X','.','c','\0'};
+  char tmpFilename[]="/tmp/tmpXXXXXX.c";
   int fd=mkstemps(tmpFilename,2);
   FILE* tmpFile=fdopen(fd,"w");
   CORD_put(generated_code,tmpFile);
@@ -109,7 +108,7 @@ int main(int argc,char* argv[]){
   pthread_join(getopt_thread,NULL);
 #endif
   //use fputs because the way I disable printing these is by setting the
-  //variables to the empty string
+  //variables to the empty string (puts would print a newline regardless)
   fputs(SciLisp_Banner,stdout);
   fputs(banner,stdout);
   if(lisp_hist_size==-1){

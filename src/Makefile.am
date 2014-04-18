@@ -25,7 +25,7 @@ BUILT_SOURCES =  get_hash prim.c prim.h
 #libffi and gc are subpackages
 SUBDIRS = SFMT gc/bdwgc libffi
 #Things to be built
-bin_PROGRAMS = SciLisp read_test
+bin_PROGRAMS = SciLisp read_test SciLisp_test
 read_test_SOURCES = read_test.c env.c print.c cord.c frames.c \
 		lisp_utf8.c read.c prim.c extra/memcpy_stride.S\
 		cons.c lisp_math.c bignum.c lisp_types.c\

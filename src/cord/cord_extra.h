@@ -20,6 +20,10 @@
 #define CORD_append(val,ext) val=CORD_cat(val,ext)
 #define CORD_cat_line(cord1,cord2) CORD_catn(3,cord1,cord2,"\n")
 #define CORD_append_line(val,ext) val=CORD_cat_line(val,ext)
+//this needs to be a macro since sring literals have an array type
+//and decay to pointers when passed to functions
+#define CORD_cat_literal(cord,string_literal)                   \
+  CORD_cat_char_star(cord,string_literal,sizeof(string_literal)-1)
 //does the same job as the macro below, but in a function
 //CORD CORD_asprintf(CORD format,...);
 #define CORD_asprintf(format,args...)           \

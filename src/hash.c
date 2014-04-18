@@ -392,3 +392,17 @@ void hashtable_add_entry_unsafe(hash_table *ht,sexp key,sexp val){
   ht->entries++;
   ht->capacity+=ht->capacity_inc;
 }
+
+//could be useful, but probably not
+static uint32_t fnv_hash_32_folded(const void *key,int keylen){
+  const uint8_t *raw_data=(const uint8_t *)key;
+  int i;
+  union {
+    uint64_t uint64; 
+    struct {uint32_t low; uint32_t high};
+  } hash=offset_basis_64;
+  for(i=0; i < keylen; i++){
+    hash.uint64 = (hash.uint64 ^ raw_data[i])*fnv_prime_64;
+  }
+  return (hash.high ^ hash.low);
+}
