@@ -281,13 +281,13 @@ AUTOCONF = ${SHELL} /home/tucker/Repo/SciLisp/build-aux/missing autoconf
 AUTOHEADER = ${SHELL} /home/tucker/Repo/SciLisp/build-aux/missing autoheader
 AUTOMAKE = ${SHELL} /home/tucker/Repo/SciLisp/build-aux/missing automake-1.14
 AWK = gawk
-CC = ccache gcc -std=gnu99
-CCAS = ccache gcc
+CC = gcc -std=gnu99
+CCAS = gcc
 CCASDEPMODE = depmode=gcc3
 CCASFLAGS = -g -O2
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2 -ggdb -flto -Og -fmax-errors=20
-CPP = ccache gcc -E
+CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
@@ -339,7 +339,7 @@ RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
-SIMD_SET = avx2
+SIMD_SET = avx
 STRIP = strip
 VERSION = 0.02-alpha
 abs_builddir = /home/tucker/Repo/SciLisp
@@ -347,7 +347,7 @@ abs_srcdir = /home/tucker/Repo/SciLisp
 abs_top_builddir = /home/tucker/Repo/SciLisp
 abs_top_srcdir = /home/tucker/Repo/SciLisp
 ac_ct_AR = ar
-ac_ct_CC = ccache gcc
+ac_ct_CC = gcc
 ac_ct_DUMPBIN = 
 am__include = include
 am__leading_dot = .

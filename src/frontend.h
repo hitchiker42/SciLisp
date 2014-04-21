@@ -29,6 +29,7 @@ static const char *banner=
 static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
 static int no_banner=0;
 static int no_copyright=0;
+sexp (*eval_fun)(sexp,env_ptr);
 symbol *lisp_ans_ptr;
 //int parens_matched(const char* line,int parens)__attribute__((pure));
 //int lisp_getline(FILE* outfile,char* filename);

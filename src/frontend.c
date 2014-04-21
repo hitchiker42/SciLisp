@@ -20,7 +20,7 @@
 #include "prim.h"
 #include "print.h"
 #include "codegen.h"
-#incldue "frame.h"
+#include "frames.h"
 #define DEFAULT_LISP_HIST_SIZE 100
 #if defined(MULTI_THREADED)
 static void* initPrims_pthread(void*);
@@ -37,7 +37,7 @@ int quiet_signals=0;
 static FILE *logfile;
 static long lisp_hist_size=-1;
 static sexp *lisp_history;
-static sexp eval_log(sexp expr,env *cur_env);
+static sexp eval_log(sexp expr,env_ptr cur_env);
 static void inferior_scilisp();// __attribute__((noreturn));
 static void load_file(const char *filename);
 static const char *load_filename=NULL;
@@ -85,7 +85,7 @@ struct thread_args {
 int main(int argc,char* argv[]){
   init_signal_handlers();
   //allocate signal stack before gc init so gc doesn't have to worry about it
-  init_sigstk();
+  init_sigstk(current_env->sigstack);
   GC_set_handle_fork(1);
   GC_INIT();
 #if defined (MULTI_THREADED)
@@ -115,8 +115,8 @@ int main(int argc,char* argv[]){
     lisp_hist_size=DEFAULT_LISP_HIST_SIZE;
   }
   lisp_history=xmalloc(sizeof(sexp)*lisp_hist_size);
-  if(!evalFun){
-    evalFun=eval;
+  if(!eval_fun){
+    eval_fun=eval;
   }
   init_environment();
   //delay this untill now to avoid initializing the environment in 
@@ -294,7 +294,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
         sexp result;
         top_level_frame=make_frame((uint64_t)UNWIND_PROTECT_TAG,
                                           unwind_protect_frame);
-        push_frame(current_env,*top_level_frame);
+        push_frame(*top_level_frame,current_env);
         while (CONSP(ast)){
           if(setjmp(top_level_frame->dest)){
             tests_failed++;
@@ -380,7 +380,7 @@ static void SciLisp_getopt(int argc,char *argv[]){
     exit(2);
   }
 }
-static sexp eval_log(sexp expr,env *cur_env){
+static sexp eval_log(sexp expr,env_ptr cur_env){
   sexp retval=eval(expr,cur_env);
   CORD_fprintf(logfile,print(retval));
   return retval;

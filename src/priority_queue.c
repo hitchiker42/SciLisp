@@ -151,3 +151,51 @@ sexp ring_pop(ring_buffer *ring){
     ring->state=-1;
   }
 } 
+
+
+struct queue_node {
+  sexp *data;
+  queue_node *next;
+};
+struct queue {
+  queue_node *head;//(data . next)
+  queue_node *tail;//(data . nil)
+};
+sexp atomic_queue_pop(struct queue *queue){
+  queue_node *old_head;
+  //exchanges pointers, which is why it can be atomic
+  atomic_exchange(&queue->head,&queue->head->next,&old_head);
+  return old_head->data;
+}
+sexp queue_pop(struct queue *queue){
+  queue_node *old_head=queue->head;
+  queue->head=queue->head->next;
+  return old_head;
+}
+void atomic_queue_append_by_value(struct queue *queue, sexp val){
+  sexp *val_ptr=xmalloc(sizeof(sexp));
+  *val_ptr=val;
+  atomic_queue_append(queue,val_ptr);
+}
+void atomic_queue_append(struct queue *queue,sexp *val){
+  queue_node *tail_copy=xmalloc(sizeof(queue_node));
+  queue_node *new_node=xmalloc(sizeof(queue_node));
+  new_node={.data=val,.next=NULL};
+  do {
+    queue_node *old_tail =queue->tail;
+    *tail_copy = *old_tail;     
+    tail_copy->next=new_node;
+  } while(!compare_exchange(&queue->tail,&old_tail,&tail_copy));
+}
+void queue_append_by_value(struct queue *queue,sexp val){
+  sexp *val_ptr=xmalloc(sizeof(sexp));
+  *val_ptr=val;
+  queue_append(queue,val_ptr);
+}
+void queue_append(struct queue *queue,sexp *val){
+  queue_node *new_node=xmalloc(sizeof(queue_node));
+  new_node={.data=val,.next=NULL};
+  queue->tail->next=new_node;
+  queue->tail=queue->tail->next;
+  return;
+}

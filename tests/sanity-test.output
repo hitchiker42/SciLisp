@@ -1,0 +1,10 @@
+Hello, World!
+Print Test
+42
+42.42
+66
+(1 . 2)
+(1 2)
+nil
+(int? 12); Pass
+(int? 12.9); Fail

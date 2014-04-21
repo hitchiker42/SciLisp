@@ -276,14 +276,14 @@ static void *xmemalign(size_t align,size_t sz){
     error_sexp(CORD_to_char_star(error_str))
 //We use a seperate stack for handling signals so that we don't die on stack
 //overflow, this macro initializes that stack
-#define init_sigstk(sigstk)                                             \
-  sigstk.ss_sp=malloc(SIGSTKSZ);                                        \
-  if(!sigstk.ss_sp){                                                    \
+#define init_sigstk(sigstk)                     \
+  ({sigstk->ss_sp=malloc(SIGSTKSZ);                                      \
+  if(!sigstk->ss_sp){                                                    \
   fprintf(stderr,"error, virtual memory exhausted\n");                  \
   exit(EXIT_FAILURE);                                                   \
   }                                                                     \
-  sigstk.ss_size=SIGSTKSZ;                                              \
-  sigaltstack(&sigstk,NULL)
+  sigstk->ss_size=SIGSTKSZ;                                              \
+  sigaltstack(sigstk,NULL);})
 //lisp constants needed in c
 static const sexp UNBOUND={.tag = sexp_unbound,.val={0}};
 static const sexp LISP_TRUE={.tag = sexp_true,.val={1}};

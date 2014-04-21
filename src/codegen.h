@@ -5,7 +5,11 @@
 //Idea
 //make a cfg, identify basic blocks and assign an sexp value to
 //each basic block
-
+static CORD codegen(sexp ast,enum backend backend){
+  fprintf(stderr,"codegen unimplemented exiting\n");
+  exit(0);
+}
+#if 0
 #include "common.h"
 #include "cons.h"
 #include "prim.h"
@@ -23,3 +27,4 @@ static CORD codegen(sexp ast,enum backend backend){
       return "";
   }
 }
+#endif

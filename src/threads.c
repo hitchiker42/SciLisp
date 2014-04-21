@@ -17,6 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with SciLisp.  If not, see <http://www.gnu.org*/
 #include "common.h"
+#include "threads.h"
 #include <semaphore.h>
 /* ideas/Issues with atomic queues (using arrays, not linked lists);
    using an array is a bad idea in the first place since it has
@@ -206,6 +207,6 @@ sexp get_promise_val_wait(sexp promise_sexp){
   } else {
     retval=promise->retval;
   }
-  phread_wrlock_unlock(promise->lock);
+  phread_rwlock_unlock(promise->lock);
   return retval;
 }
