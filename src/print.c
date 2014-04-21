@@ -106,6 +106,7 @@ sexp type_of_tag(sexp_tag tag){
 const char *typeName(sexp obj){
   return tag_name(obj.tag);
 }
+
 /*sexp lisp_typeName(sexp obj){
   return (sexp){.tag = sexp_string,.val={.cord = CORD_from_char_star(typeName(obj))}};
 }*/

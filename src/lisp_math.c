@@ -551,7 +551,7 @@ static sexp lisp_long_min(sexp a,sexp b)
 {return a.val.int64<b.val.int64?a:b;}
 #undef op_to_fun
 #undef cmp_driver_fun
-sexp constOfTypeX(sexp_tag x,long val){
+sexp const_of_typeX(sexp_tag x,long val){
   switch(x){
     case sexp_long:
       return long_sexp(val);
@@ -578,6 +578,9 @@ sexp arith_driver(uint64_t numargs,sexp *values,enum operator op){
   //lets make this a bit unsafe, the type of the result is the type of required
   //we'll prevent serious errors by type checking each argument against
   //the required type, and raising an error if it can't be promoted
+
+  //return values when given no arguments (*) and (+) are valid expressions
+  //however (-) and (/) are not, any logical function is valid with no arguments
   if(!numargs){
     switch(op){
       case binop_mul:
