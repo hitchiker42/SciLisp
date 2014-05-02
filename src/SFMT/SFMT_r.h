@@ -18,6 +18,7 @@ struct sfmt_buf {
 void sfmt_init_fast_r(sfmt_t *sfmt);
 void sfmt_init_explicit_r(sfmt_t *sfmt,uint32_t seed);
 void sfmt_init_stable_r(sfmt_t *sfmt);
+uint32_t sfmt_init_fast_seed_r(sfmt_t *sfmt);
 uint32_t sfmt_nrand32_buf(sfmt_t *sfmt,sfmt_buf *buf);
 uint64_t sfmt_nrand64_buf(sfmt_t *sfmt,sfmt_buf *buf);
 void sfmt_init_buf_r(sfmt_t *sfmt,sfmt_buf *buf);

@@ -18,8 +18,7 @@
    along with SciLisp.  If not, see <http://www.gnu.org*/
 /* NOTE: eventually I should have a dynamic variable for regex syntax
 */
-/*SciLisp interface to emacs regex (also possibly pcre if I add in
- *support for that)*/
+/*SciLisp interface to emacs/pcre regex*/
 #ifndef _REGEX_H_
 #define _REGEX_H_
 #include "common.h"
@@ -82,6 +81,7 @@ sexp lisp_re_optimize(sexp regex);
 sexp lisp_re_match(sexp regex,sexp string,sexp start,sexp opts);
 sexp lisp_get_re_backref(sexp match_data,sexp ref_num);
 sexp lisp_re_replace(sexp regex,sexp replacement,sexp string);
+
 #endif
 /*pcre regex struct
   typedef struct real_pcre8_or_16 {

@@ -77,13 +77,14 @@ compile(FILE* input,const char *output,FILE* c_code){
   exit(retval);
 }
 //kinda an abuse of include, but it makes this more maintainable
-#include "repl.c"
+//#include "repl.c"
 struct thread_args {
   int argc;
   char **argv;
 };
 int main(int argc,char* argv[]){
   init_signal_handlers();
+  ///um I need to create an environment first here...
   //allocate signal stack before gc init so gc doesn't have to worry about it
   init_sigstk(current_env->sigstack);
   GC_set_handle_fork(1);

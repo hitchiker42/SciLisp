@@ -334,8 +334,8 @@ static inline double get_double_val_unsafe(sexp x){
 }
 //#define return_errno(fn_name), was here, now in debug.h
 //rather simple but fairly useful functions
-extern inline sexp lisp_id(sexp obj){return obj;}
-extern inline sexp lisp_not(sexp obj){
+static inline sexp lisp_id(sexp obj){return obj;}
+static inline sexp lisp_not(sexp obj){
   return (is_true(obj)?LISP_FALSE:LISP_TRUE);
 }
 //reallocate memory and set any newly allocated memory to 0

@@ -16,7 +16,7 @@ STD_LIB_SRC = array.c bignum.c c_codegen.c ccall.c cffi.c cons.c cord.c env.c \
 SIMPLE_SRC = frontend.c repl.c read.c env.c print.c cord.c frames.c\
 	lisp_utf8.c prim.c extra/memcpy_stride.S cons.c lisp_math.c\
 	bignum.c lisp_types.c interpreter.c
-CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h
+1CLEANFILES=$(MOSTLYCLEANFILES) prim.c prim.h
 DISTCLEANFILES=$(CLEAN_FILES) get_hash
 #BACKEND_SRC = c_codegen.c
 INCLUDE_FLAGS = -I$$PWD/include
@@ -35,13 +35,12 @@ read_test_SOURCES = read_test.c env.c print.c cord.c frames.c \
 		interpreter.c
 read_test_CFLAGS = -std=gnu99 -Og -ggdb -rdynamic
 read_test_LDFLAGS = -lreadline -lmpfr -lgmp -lpthread -ldl -lgc
-read_test_LDADD = SFMT/libSFMT.la 
+
 
 SciLisp_LDADD = SFMT/libSFMT.la libSciLisp.la
 SciLisp_SOURCES = $(FRONTEND_SRC) $(BACKEND_SRC) $(SCILISP_INCLUDES)
 SciLisp_simple_SOURCES = $(SIMPLE_SRC)
 SciLisp_simple_LDFLAGS = -lreadline -lmpfr -lgmp -lpthread -ldl -lgc
-SciLisp_simple_LDADD = SFMT/libSFMT.la
 SciLisp_simple_CFLAGS = $(AM_CFLAGS)
 
 lib_LTLIBRARIES = libSciLisp.la

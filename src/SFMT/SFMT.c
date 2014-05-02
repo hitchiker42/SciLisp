@@ -5,15 +5,21 @@ union uintN_t {
   uint32_t uint32[2];
   uint64_t uint64;
 };
-#define time_seed()                             \
+#define time_seed(tp)                             \
   (gettimeofday(&tp,NULL),(uint32_t)(tp.tv_sec^tp.tv_usec))
 union lcg_state {
   long X_i;
   unsigned short state[3];
 };
 void sfmt_init_fast_r(sfmt_t *sfmt){
+  struct timeval tp;  
+  sfmt_init_gen_rand(sfmt,time_seed(tp));
+}
+uint32_t sfmt_init_fast_seed_r(sfmt_t *sfmt){
   struct timeval tp;
-  sfmt_init_gen_rand(sfmt,time_seed());
+  uint32_t seed=time_seed(tp);
+  sfmt_init_gen_rand(sfmt,seed);
+  return seed;
 }
 void sfmt_init_explicit_r(sfmt_t *sfmt,uint32_t seed){
   sfmt_init_gen_rand(sfmt,seed);
