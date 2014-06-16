@@ -56,13 +56,18 @@ typedef enum TOKEN TOKEN;//type of values returned from yylex
 //typedef union data data;//core representation of a lisp object
 typedef union c_funcall c_funcall;//type of primitive functions (bad name)
 typedef union ctype_val ctype_val;
+//typedef union data_t data_T
 typedef union data data;//actual data for any lisp object(should this be lisp_data?)
+//typedef struct sexp_t sexp_t
 typedef struct sexp sexp;//type of all lisp objects
-typedef struct cons cons;//cons cell, for lists,pairs and everything else
+///typedef struct cons_t cons_t
+typedef struct cons cons;//cons cell, for lists, pairs and everything else
 //typedef struct fxn_proto fxn_proto;//primitive function prototype
+//typedef struct symbol_t symbol_t
 typedef struct symbol symbol;//generic symbol type
 //symbol names, a string, a length, a hash value and some properties
 typedef struct symbol_name symbol_name;
+//typedef struct env_t env_t
 typedef struct environment environment;//generic symbol namespace
 typedef struct package package;//lisp packages/modules
 typedef struct obarray obarray;//obarrays, actually hash tables for symbols
@@ -78,7 +83,7 @@ typedef struct lisp_string lisp_string;//string/CORD + length
 typedef struct lisp_array lisp_array;//array/typed array/matrix
 typedef struct lisp_simple_vector lisp_svector;
 typedef struct lisp_simple_vector lisp_vector;
-typedef struct subr subr;//any kind of subroutine(macro,function,special form,etc)
+typedef struct subr subr;//any kind of subroutine(macro, function, special form, etc)
 typedef struct lisp_record lisp_record;
 typedef struct frame frame;//a jmp_buf and information to reinitialize lisp environment
 typedef struct frame *frame_addr;
@@ -107,27 +112,27 @@ static const int sexp_seq_tag_max = 30;
 #define BIGNUMP(obj) (obj.tag >= sexp_num_tag_min && obj.tag <= sexp_num_tag_max)
 #define CHARP(obj) (obj.tag == sexp_char)
 #define CONSP(obj) (obj.tag == sexp_cons)
-#define CONS_OR_NIL(obj) TYPE_OR_NIL(obj,CONSP)
+#define CONS_OR_NIL(obj) TYPE_OR_NIL(obj, CONSP)
 #define ENVP(obj)(obj.tag == sexp_env)
 #define ERRORP(obj)(obj.tag == sexp_error)
 #define FLOATP(obj) (obj.tag == sexp_double)
 #define SUBRP(obj) (obj.tag == sexp_subr)
 #define FUNP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type == subr_compiled)
 #define FUNCTIONP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type <= subr_compiled)
-#define FUN_N_P(obj,n) (FUNP(obj) && obj.val.fun->args->max_args==n)
+#define FUN_N_P(obj, n) (FUNP(obj) && obj.val.fun->args->max_args == n)
 #define HASHTABLEP(obj) (obj.tag == sexp_hashtable)
 #define INT16P(obj) (obj.tag == sexp_short)
 #define INT32P(obj) (obj.tag == sexp_int)
 #define INT64P(obj) (obj.tag == sexp_long)
 #define INT8P(obj) (obj.tag == sexp_byte)
-#define INTP(obj) (obj.tag == sexp_long || obj.tag== sexp_ulong)
-#define INT_ANYP(obj)(obj.tag >=1 && obj.tag <= 8)
+#define INTP(obj) (obj.tag == sexp_long || obj.tag == sexp_ulong)
+#define INT_ANYP(obj)(obj.tag >= 1 && obj.tag <= 8)
 #define IS_POINTER(obj) (obj.is_ptr == 1)
 #define LAMBDAP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type == subr_lambda)
 #define LITERALP(obj) (obj.is_ptr == 0)
 #define MACROP(obj) (obj.tag == sexp_subr && obj.val.subr->subr_type == subr_macro)
 #define NILP(obj) (obj.tag == sexp_nil)
-#define NUMBERP(obj) (obj.tag>=1 && obj.tag<=10)
+#define NUMBERP(obj) (obj.tag >= 1 && obj.tag <= 10)
 #define OPAQUEP(obj) (obj.tag == sexp_opaque)
 #define REAL32P(obj) (obj.tag == sexp_float)
 #define REAL64P(obj) (obj.tag == sexp_double)
@@ -139,7 +144,7 @@ static const int sexp_seq_tag_max = 30;
 #define STRINGP(obj) (obj.tag == sexp_str)
 #define SYMBOLP(obj) (obj.tag == sexp_sym)
 #define TYPEP(obj) (obj.tag == sexp_type)
-#define TYPE_OR_NIL(obj,typecheck) (typecheck(obj) || NILP(obj))
+#define TYPE_OR_NIL(obj, typecheck) (typecheck(obj) || NILP(obj))
 #define UINT64P(obj) (obj.tag == sexp_ulong)
 #define UNBOUNDP(obj) (obj.tag == sexp_unbound)
 #define PACKAGEP(obj) (obj.tag == sexp_package)
@@ -152,25 +157,25 @@ extern symbol *Efile;
 extern symbol *Eread;
 extern symbol *Eundefined;
 extern symbol *E*/
-#define NUM_EQ(obj1,obj2)                               \
-  ({sexp x=obj1;                                        \
-    sexp y=obj2;                                        \
-    ((x.tag<=8?x.val.uint64:x.val.real64)==    \
-     (y.tag<=8?y.val.uint64:y.val.real64));})
-#define EQ(obj1,obj2)                           \
-  ({sexp x=obj1;                                                        \
-    sexp y=obj2;                                                        \
-    ((NUMBERP(x) && NUMBERP(y))?NUM_EQ(x,y):                            \
-     ((x.tag==y.tag) && (x.val.uint64 == y.val.uint64)));})
+#define NUM_EQ(obj1, obj2)                               \
+  ({sexp x = obj1;                                        \
+    sexp y = obj2;                                        \
+    ((x.tag <= 8?x.val.uint64:x.val.real64)==    \
+     (y.tag <= 8?y.val.uint64:y.val.real64));})
+#define EQ(obj1, obj2)                           \
+  ({sexp x = obj1;                                                        \
+    sexp y = obj2;                                                        \
+    ((NUMBERP(x) && NUMBERP(y))?NUM_EQ(x, y):                            \
+     ((x.tag == y.tag) && (x.val.uint64 == y.val.uint64)));})
 //more defined in cons,h, but these are so common I need them even in headers
 #define XCAR(cell) cell.val.cons->car
 #define XCDR(cell) cell.val.cons->cdr
 //macros to format error strings
 #include "error_fmt.h"
-#define const_real64_sexp(real64_val) {.tag=sexp_real64,.val={.real64=real64_val}}
-#define const_real32_sexp(real32_val) {.tag=sexp_real32,.val={.real32=real32_val}}
-#define const_int64_sexp(int64_val) {.tag=sexp_int64,.val={.int64=int64_val}}
-#define const_uint64_sexp(uint64_val) {.tag=sexp_uint64,.val={.uint64=uint64_val}}
+#define const_real64_sexp(real64_val) {.tag = sexp_real64, .val = {.real64 = real64_val}}
+#define const_real32_sexp(real32_val) {.tag = sexp_real32, .val = {.real32 = real32_val}}
+#define const_int64_sexp(int64_val) {.tag = sexp_int64, .val = {.int64 = int64_val}}
+#define const_uint64_sexp(uint64_val) {.tag = sexp_uint64, .val = {.uint64 = uint64_val}}
 
 //key point to this enum is that arithmetic types are numbered in their type
 //hierarchy, ints by size < floats by size < bigint < bigfloat, if you add any
@@ -178,21 +183,21 @@ extern symbol *E*/
 enum sexp_tag {
   //literals 0-20
   sexp_nil = 0,
-  sexp_char = 1, sexp_uchar = 1, sexp_mb_char=1,
+  sexp_char = 1, sexp_uchar = 1, sexp_mb_char = 1,
   //numbers 2-19
-  sexp_byte = 2,sexp_int8 = 2,
-  sexp_ubyte = 3,sexp_uint8 = 3,
-  sexp_short = 4,sexp_int16 = 4,
-  sexp_ushort = 5,sexp_uint16 = 5,
-  sexp_int = 6,sexp_int32 = 6,
-  sexp_uint = 7,sexp_uint32 = 7,
-  sexp_long = 8,sexp_int64 = 8,//type of integers1, value is int64
-  sexp_ulong = 9,sexp_uint64 = 9,
-  sexp_float = 10,sexp_real32 = 10,
-  sexp_double = 11,sexp_real64 = 11,//type of floating point numbers1, value is real64
+  sexp_byte = 2, sexp_int8 = 2,
+  sexp_ubyte = 3, sexp_uint8 = 3,
+  sexp_short = 4, sexp_int16 = 4,
+  sexp_ushort = 5, sexp_uint16 = 5,
+  sexp_int = 6, sexp_int32 = 6,
+  sexp_uint = 7, sexp_uint32 = 7,
+  sexp_long = 8, sexp_int64 = 8, //type of integers1, value is int64
+  sexp_ulong = 9, sexp_uint64 = 9,
+  sexp_float = 10, sexp_real32 = 10,
+  sexp_double = 11, sexp_real64 = 11, //type of floating point numbers1, value is real64
   //end of literals(mostly)
-  sexp_bigint = 12,sexp_mpz=12,
-  sexp_bigfloat = 13,sexp_mpfr=13,
+  sexp_bigint = 12, sexp_mpz = 12,
+  sexp_bigfloat = 13, sexp_mpfr = 13,
   //end of numbers
   //define c_char as int8 or uint8 based on platform
 #ifdef SIGNED_CHAR
@@ -201,50 +206,50 @@ enum sexp_tag {
   sexp_c_char = sexp_uint8,
 #endif
   //sequences 20-30
-  sexp_c_str = 20,sexp_c_string=20,//const char *'s, for simple strings
-  sexp_str = 21,sexp_string=21,//type of lisp_strings
-  sexp_array = 22,//type of arrays
-  sexp_svector = 23,//array subtype, 1-D arrays
-  sexp_matrix =24,//array subtype, 2-D arrays
+  sexp_c_str = 20, sexp_c_string = 20, //const char *'s, for simple strings
+  sexp_str = 21, sexp_string = 21, //type of lisp_strings
+  sexp_array = 22, //type of arrays
+  sexp_svector = 23, //array subtype, 1-D arrays
+  sexp_matrix = 24, //array subtype, 2-D arrays
   sexp_cons = 26,
-  sexp_regex = 30,//compiled regular expression
-  sexp_stream = 31,sexp_file=31,//type of input/output streams
-  sexp_subr=32,//typo of functions,macros,special forms and builtins
-  sexp_sym = 33,sexp_symbol=33,//type of symbols,value is var
-  sexp_type = 35,//type of types
-  sexp_env = 38,sexp_environment=38,
+  sexp_regex = 30, //compiled regular expression
+  sexp_stream = 31, sexp_file = 31, //type of input/output streams
+  sexp_subr = 32, //typo of functions, macros, special forms and builtins
+  sexp_sym = 33, sexp_symbol = 33, //type of symbols, value is var
+  sexp_type = 35, //type of types
+  sexp_env = 38, sexp_environment = 38,
   //maybe just a boolean type instead of two
-  sexp_false = 40,//#f, singular value
-  sexp_true = 41,//#t, singular value
+  sexp_false = 40, //#f, singular value
+  sexp_true = 41, //#t, singular value
   sexp_obarray = 42,
-  sexp_frame = 43,//internal type
-  sexp_ctype=44,//c ffi type
-  sexp_cdata=45,//c value and typeinfo(includes c pointer types)
-  sexp_opaque=46,//generic opaque c struct/union
-  sexp_regexp_data=47,sexp_re_data=47,//re match data
-  sexp_hash_table=48,sexp_hashtable=48,
-  sexp_record=49,//simple records (basicallly assoicative arrays)
-  sexp_sfmt=53,//random state
-  sexp_package=54,
+  sexp_frame = 43, //internal type
+  sexp_ctype = 44, //c ffi type
+  sexp_cdata = 45, //c value and typeinfo(includes c pointer types)
+  sexp_opaque = 46, //generic opaque c struct/union
+  sexp_regexp_data = 47, sexp_re_data = 47, //re match data
+  sexp_hash_table = 48, sexp_hashtable = 48,
+  sexp_record = 49, //simple records (basicallly assoicative arrays)
+  sexp_sfmt = 53, //random state
+  sexp_package = 54,
   //simd types
-  sexp_simd128_real32=60,
-  sexp_simd128_real64=61,
-  sexp_simd128_int8=62,
-  sexp_simd128_int16=63,
-  sexp_simd128_int32=64,
-  sexp_simd128_int64=65,
-  sexp_simd256_real32=66,
-  sexp_simd256_real64=67,
-  sexp_simd256_int8=68,
-  sexp_simd256_int16=69,
-  sexp_simd256_int32=70,
-  sexp_simd256_int64=71,
-  sexp_sexp = 0xfc,//supertype of everything else, used mainly to indicate that
+  sexp_simd128_real32 = 60,
+  sexp_simd128_real64 = 61,
+  sexp_simd128_int8 = 62,
+  sexp_simd128_int16 = 63,
+  sexp_simd128_int32 = 64,
+  sexp_simd128_int64 = 65,
+  sexp_simd256_real32 = 66,
+  sexp_simd256_real64 = 67,
+  sexp_simd256_int8 = 68,
+  sexp_simd256_int16 = 69,
+  sexp_simd256_int32 = 70,
+  sexp_simd256_int64 = 71,
+  sexp_sexp = 0xfc, //supertype of everything else, used mainly to indicate that
   //something (i.e an array) doesn't have a specific type
   //internal use only
-  sexp_uninterned=0xfd,
-  sexp_unbound=0xfe,
-  sexp_error=0xff,//don't think I need this anymore
+  sexp_uninterned = 0xfd,
+  sexp_unbound = 0xfe,
+  sexp_error = 0xff, //don't think I need this anymore
 };
 union data {//keep max size at 64 bits
   uint64_t uint64;//just so this is the default type
@@ -301,54 +306,55 @@ struct cons {//32 bytes
   sexp car;
   sexp cdr;
 };
+//get rid of these
 enum TOKEN {
   TOK_ERROR=-3,
   TOK_UNKN=-2,
   TOK_EOF=-1,
   //literals|ID 0-20
-  TOK_INT=1,
-  TOK_REAL=2,
-  TOK_CHAR=3,
-  TOK_STRING=4,
-  TOK_ID=5,
-  TOK_LISP_TRUE=6,
-  TOK_LISP_FALSE=7,
-  TOK_KEYSYM=8,
-  TOK_SYMBOL=9,
+  TOK_INT = 1,
+  TOK_REAL = 2,
+  TOK_CHAR = 3,
+  TOK_STRING = 4,
+  TOK_ID = 5,
+  TOK_LISP_TRUE = 6,
+  TOK_LISP_FALSE = 7,
+  TOK_KEYSYM = 8,
+  TOK_SYMBOL = 9,
   //reserved words/characters 18-30
-  TOK_BACKQUOTE=17,
-  TOK_QUOTE=18,
-  TOK_QUASI=19,//`
-  TOK_COMMENT_START=21,//#|
-  TOK_COMMENT_END=22,//|#
-  TOK_DOT=23,
-  TOK_COLON=24,
-  TOK_STRUDEL=26,//@
-  TOK_COMMA=27,
-  TOK_LIST_SPLICE=28,//,@
-  TOK_HASH=29,//#
+  TOK_BACKQUOTE = 17,
+  TOK_QUOTE = 18,
+  TOK_QUASI = 19, //`
+  TOK_COMMENT_START = 21, //#|
+  TOK_COMMENT_END = 22, //|#
+  TOK_DOT = 23,
+  TOK_COLON = 24,
+  TOK_STRUDEL = 26, //@
+  TOK_COMMA = 27,
+  TOK_LIST_SPLICE = 28, //, @
+  TOK_HASH = 29, //#
   //Types 40-50
-  TOK_TYPEDEF=40,
-  TOK_TYPEINFO=41,
+  TOK_TYPEDEF = 40,
+  TOK_TYPEINFO = 41,
   //delimiters 50 - 60
-  TOK_LPAREN=50,
-  TOK_RPAREN=51,
-  TOK_LBRACE=52,
-  TOK_RBRACE=53,
-  TOK_LCBRACE=54,
-  TOK_RCBRACE=55,
-  TOK_DBL_LBRACE=56,//[[
-  TOK_DBL_RBRACE=57,//]]
-  TOK_MAT_OPEN=58,//"[|", start a literal blas compatiable matrix
-  TOK_MAT_CLOSE=59,//"|]", close """"
-  TOK_ERR=60,
+  TOK_LPAREN = 50,
+  TOK_RPAREN = 51,
+  TOK_LBRACE = 52,
+  TOK_RBRACE = 53,
+  TOK_LCBRACE = 54,
+  TOK_RCBRACE = 55,
+  TOK_DBL_LBRACE = 56, //[[
+  TOK_DBL_RBRACE = 57, //]]
+  TOK_MAT_OPEN = 58, //"[|", start a literal blas compatiable matrix
+  TOK_MAT_CLOSE = 59, //"|]", close """"
+  TOK_ERR = 60,
 };
 /*
   structure of strings in lisp,
-  strings immutable, we use cords for actions that would normally use mutable strings
+  strings are immutable, we use cords for actions that would normally use mutable strings
   ie sprintf, concatenation, modifying substrings etc, or to store the a string
   described by a function. i.e to represent a string who's i'th character is i %10;
-  char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten,NULL,<len>);
+  char mod_10(i){return (i%10)+0x30;};CORD_from_fn(mod_ten, NULL, <len>);
   be careful about trying to turn something like this into a standard c string
 
   strings are kept internally in utf-8 encoding (ie multibyte) and can
@@ -364,35 +370,35 @@ struct lisp_string {
     CORD cord;
   };
   uint32_t len;//length in bytes (i.e. for multibyte strings not the length in chars)
-  uint8_t multibyte;//0=no,1=yes
+  uint8_t multibyte;//0 = no, 1 = yes
 };
 //this is almost exactly the way emacs does builtin functions
 union c_funcall{
   sexp(*f0)(void);
   sexp(*f1)(sexp);
-  sexp(*f2)(sexp,sexp);
-  sexp(*f3)(sexp,sexp,sexp);
-  sexp(*f4)(sexp,sexp,sexp,sexp);
-  sexp(*f5)(sexp,sexp,sexp,sexp,sexp);
-  sexp(*f6)(sexp,sexp,sexp,sexp,sexp,sexp);
-  sexp(*f7)(sexp,sexp,sexp,sexp,sexp,sexp,sexp);
+  sexp(*f2)(sexp, sexp);
+  sexp(*f3)(sexp, sexp, sexp);
+  sexp(*f4)(sexp, sexp, sexp, sexp);
+  sexp(*f5)(sexp, sexp, sexp, sexp, sexp);
+  sexp(*f6)(sexp, sexp, sexp, sexp, sexp, sexp);
+  sexp(*f7)(sexp, sexp, sexp, sexp, sexp, sexp, sexp);
   //more can be added if/when needed
-  sexp(*fmany)(uint64_t,sexp*);
+  sexp(*fmany)(uint64_t, sexp*);
   sexp(*funevaled)(sexp);//sexp is presumably a list
-  sexp(*fspecial)(sexp,env_ptr);//not all special forms called like this
+  sexp(*fspecial)(sexp, env_ptr);//not all special forms called like this
 };
 typedef enum {
   rec_none,
   rec_simple,
   rec_tail,
-p} recursion_type;
+} recursion_type;
 enum subr_type {
-    subr_lambda=1,
-    subr_closure=2,
-    subr_compiled=3,
-    subr_compiler_macro=4,
-    subr_special_form=5,
-    subr_macro=6,
+    subr_lambda = 1,
+    subr_closure = 2,
+    subr_compiled = 3,
+    subr_compiler_macro = 4,
+    subr_special_form = 5,
+    subr_macro = 6,
 };
 struct lambda_list {
   cons *arglist;//unmodified arglist
@@ -423,7 +429,7 @@ struct subr {
   uint32_t maxargs;//60
   uint8_t subr_type;//61
   uint8_t return_type;//useful for things like mapping over typed arrays
-  unsigned int rec_fun :2;//0 not-recursive,1 recursive, 2 tail recursive
+  unsigned int rec_fun :2;//0 not-recursive, 1 recursive, 2 tail recursive
   unsigned int pure_fun :1;//no change to it's arguments
   //Most functions should be pure, perhaps this should be impure instead
   unsigned int const_fun :1;//returns the same result given the same arguments
@@ -446,14 +452,14 @@ struct package {
 #define is_true(x)                               \
   (x.val.uint64 == 0 || x.tag == sexp_real64 && x.val.real64 == 0.0)
 #define is_true_once(x)                         \
-  ({sexp val=x;                                 \
+  ({sexp val = x;                                 \
     is_true(x);})
 //possible compiler backends
 enum backend{
-  c_backend=0,
-  llvm_backend=1,
-  asm_backend=2,
-  interpreter_backend=3,
+  c_backend = 0,
+  llvm_backend = 1,
+  asm_backend = 2,
+  interpreter_backend = 3,
 };
 enum operator{
   binop_add,
@@ -475,20 +481,20 @@ enum operator{
   binop_ge,
   binop_gt,
 };
-static const sexp LISP_INT64_MAX=const_int64_sexp(INT64_MAX);
-static const sexp LISP_INT64_MIN=const_int64_sexp(INT64_MIN);
-static const sexp LISP_UINT64_MAX=const_uint64_sexp(UINT64_MAX);
-static const sexp LISP_REAL32_MAX=const_real32_sexp(FLT_MAX);
-static const sexp LISP_REAL64_MAX=const_real64_sexp(DBL_MAX);
-static const sexp LISP_REAL32_MIN=const_real32_sexp(FLT_MIN);
-static const sexp LISP_REAL64_MIN=const_real64_sexp(DBL_MIN);
-static const sexp LISP_REAL32_EPSILON=const_real32_sexp(FLT_EPSILON);
-static const sexp LISP_REAL64_EPSILON=const_real64_sexp(DBL_EPSILON);
-static const sexp lisp_int64_1=const_int64_sexp(1);
-static const sexp lisp_int64_m1=const_int64_sexp(-1);
-static const sexp lisp_int64_0=const_int64_sexp(0);
-static const sexp lisp_real64_1=const_real64_sexp(1);
-static const sexp lisp_real64_0=const_real64_sexp(0);
+static const sexp LISP_INT64_MAX = const_int64_sexp(INT64_MAX);
+static const sexp LISP_INT64_MIN = const_int64_sexp(INT64_MIN);
+static const sexp LISP_UINT64_MAX = const_uint64_sexp(UINT64_MAX);
+static const sexp LISP_REAL32_MAX = const_real32_sexp(FLT_MAX);
+static const sexp LISP_REAL64_MAX = const_real64_sexp(DBL_MAX);
+static const sexp LISP_REAL32_MIN = const_real32_sexp(FLT_MIN);
+static const sexp LISP_REAL64_MIN = const_real64_sexp(DBL_MIN);
+static const sexp LISP_REAL32_EPSILON = const_real32_sexp(FLT_EPSILON);
+static const sexp LISP_REAL64_EPSILON = const_real64_sexp(DBL_EPSILON);
+static const sexp lisp_int64_1 = const_int64_sexp(1);
+static const sexp lisp_int64_m1 = const_int64_sexp(-1);
+static const sexp lisp_int64_0 = const_int64_sexp(0);
+static const sexp lisp_real64_1 = const_real64_sexp(1);
+static const sexp lisp_real64_0 = const_real64_sexp(0);
 sexp lisp_bigint_0;
 sexp lisp_bigint_1;
 sexp lisp_bigfloat_0;
@@ -598,7 +604,7 @@ static double get_double_val(sexp x){
   number - any numberic type, not a great defination I know
   direct - any object not represented by a pointer in c
   indirect - any object represented by a pointer in c
-  literal - any `read`able object, i.e a string,vector,cons,etc..
+  literal - any `read`able object, i.e a string, vector, cons, etc..
     examples of non literal objects are streams, random-state, regular
     expression data and compiled functions
   opaque - any object which is completly opaque to the user, that is
@@ -674,7 +680,7 @@ static double get_double_val(sexp x){
     ;Type
     String Stream
     File Stream ;A stream backed by a normal file
-    ;not sure of the best name for this (stdout,/dev/*,stdin,etc type streams)
+    ;not sure of the best name for this (stdout, /dev/*, stdin, etc type streams)
     Interactive Stream / Special Stream ;A stream backed by a special file
     Null Stream ;Special stream, discards any output, returns EOF for any input
     ;maybe Composite Streams, special streams ala common lisp

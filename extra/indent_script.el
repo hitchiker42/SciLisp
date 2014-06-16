@@ -36,7 +36,7 @@
           nil t)
     (replace-match "\\1 \\2 \\3")))
 (defun indent-by-line ()
-  (unless (looking-at-p "^ *[\"/*]")
+  (unless (looking-at-p "^ *\\([\"/]\\|\\* \\)")
     (indent-commas-line)
     (beginning-of-line)
     (indent-equals-line)))

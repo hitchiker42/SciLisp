@@ -17,4 +17,11 @@
 ;;'-' -> 'minus'
 ;;'/' -> 'div'
 ;;'*' -> 'mul'
-;;Generally preface with lisp, with some exceptions (i.e cons because I use it so much)
+;;Everything is prefaced with lisp_, however there may be aliases that are used
+;;in the C code in order to keep names short
+
+;;types are suffixed by _t, This will probably require a lot of replacing things
+
+;;Lisp symbol names (in C) are formed by adding the suffix _sym to the c names
+;;Pointers to lisp symbols are formed by adding the suffix _ptr to the c names
+;;Function objects are formed by adding _fun to the function name

@@ -21,23 +21,23 @@
 #include "common.h"
 static void SciLisp_help(int exitCode) __attribute__((noreturn));
 static void SciLisp_version(int exitCode) __attribute__((noreturn));
-static void SciLisp_getopt(int argc,char *argv[]);
+static void SciLisp_getopt(int argc, char *argv[]);
 static const char *banner=
   "SciLisp  Copyright (C) 2013-2014 Tucker DiNapoli\n"
   "SciLisp is free software licensed under the GNU GPL V3+\n";
 //globals, but only ever set once in a locked thread (getopt) or read
-static struct timespec timer_struct={.tv_sec=0,.tv_nsec=10000};
-static int no_banner=0;
-static int no_copyright=0;
-sexp (*eval_fun)(sexp,env_ptr);
+static struct timespec timer_struct = {.tv_sec = 0, .tv_nsec = 10000};
+static int no_banner = 0;
+static int no_copyright = 0;
+sexp (*eval_fun)(sexp, env_ptr);
 symbol *lisp_ans_ptr;
 //int parens_matched(const char* line,int parens)__attribute__((pure));
 //int lisp_getline(FILE* outfile,char* filename);
-void simple_repl(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
+void simple_repl(sexp(*eval_fun)(sexp, env_ptr))__attribute__((noreturn));
 //the repl isn't multithreaded (at least for now)
 //static sexp (*eval_fun)(sexp,env_ptr)=NULL;
 /*just to note I didn't write this I got it from
-  http://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=SciLisp*/
+  http://patorjk.com/software/taag/#p = display&f = Small%20Slant&t = SciLisp*/
 static const char *SciLisp_Banner=
 "    ____      _  __    _          \n"
 "   / __/____ (_)/ /   (_)___  ___ \n"
@@ -46,21 +46,21 @@ static const char *SciLisp_Banner=
 "                           /_/     \n";
 static CORD Make_SciLisp_verson_string(const char *Version_no){
   CORD version_string;
-  CORD_sprintf(&version_string,"SciLisp %s",PACKAGE_VERSION);
+  CORD_sprintf(&version_string, "SciLisp %s", PACKAGE_VERSION);
   return version_string;
 }
 static CORD Make_SciLisp_Copyright_string(){
   CORD retval;
-  CORD_sprintf(&retval,"Copyright %lc 2013 Tucker DiNapoli\n"
+  CORD_sprintf(&retval, "Copyright %lc 2013 Tucker DiNapoli\n"
                "License GPLv3+: GNU GPL version 3 or "
                "later <http://gnu.org/licenses/gpl.html>.",0x00A9);
   return retval;
 }
 static CORD Make_SciLisp_help_string(){
-  CORD copyright_string=Make_SciLisp_Copyright_string();
-  CORD version_string=Make_SciLisp_verson_string(PACKAGE_VERSION);
-  CORD help_string=CORD_catn(4,version_string," ",copyright_string,"\n");
-  help_string=CORD_cat
+  CORD copyright_string = Make_SciLisp_Copyright_string();
+  CORD version_string = Make_SciLisp_verson_string(PACKAGE_VERSION);
+  CORD help_string = CORD_catn(4, version_string, " ", copyright_string, "\n");
+  help_string = CORD_cat
     (help_string,
      "SciLisp [-hqv] [-e|--eval] [-f|--file] [-l|--load] [-o|--output] [file]\n"
      "Options:\n"
@@ -85,7 +85,7 @@ static void SciLisp_version(int exitCode){
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
-void readline_repl(sexp(*eval_fun)(sexp,env_ptr))__attribute__((noreturn));
+void readline_repl(sexp(*eval_fun)(sexp, env_ptr))__attribute__((noreturn));
 #define read_eval_print_loop readline_repl
 #else
 #define read_eval_print_loop simple_repl
