@@ -1,0 +1,845 @@
+typedef int llvmBool;
+typedef struct llvm_opaque_context
+typedef struct llvm_opaque_module
+typedef struct llvm_opaque_type
+typedef struct llvm_opaque_value
+typedef struct llvm_opaque_basic_block
+typedef struct llvm_opaque_builder
+typedef struct llvm_opaque_module_provider
+typedef struct llvm_opaque_memory_buffer
+typedef struct llvm_opaque_pass_manager
+typedef struct llvm_opaque_pass_registry
+typedef struct llvm_opaque_use
+typedef enum {
+    llvm_z_ext_attribute       = 1<<0,
+    llvm_s_ext_attribute       = 1<<1,
+    llvm_no_return_attribute   = 1<<2,
+    llvm_in_reg_attribute      = 1<<3,
+    llvm_struct_ret_attribute  = 1<<4,
+    llvm_no_unwind_attribute   = 1<<5,
+    llvm_no_alias_attribute    = 1<<6,
+    llvm_by_val_attribute      = 1<<7,
+    llvm_nest_attribute       = 1<<8,
+    llvm_read_none_attribute   = 1<<9,
+    llvm_read_only_attribute   = 1<<10,
+    llvm_no_inline_attribute   = 1<<11,
+    llvm_always_inline_attribute    = 1<<12,
+    llvm_optimize_for_size_attribute = 1<<13,
+    llvm_stack_protect_attribute    = 1<<14,
+    llvm_stack_protect_req_attribute = 1<<15,
+    llvm_alignment = 31<<16,
+    llvm_no_capture_attribute  = 1<<21,
+    llvm_no_red_zone_attribute  = 1<<22,
+    llvm_no_implicit_float_attribute = 1<<23,
+    llvm_naked_attribute      = 1<<24,
+    llvm_inline_hint_attribute = 1<<25,
+    llvm_stack_alignment = 7<<26,
+    llvm_returns_twice = 1 << 29,
+    llvm_u_w_table = 1 << 30,
+    llvm_non_lazy_bind = 1 << 31
+       a temporary measure until the API/ABI impact to the C API is understood
+       and the path forward agreed upon.
+    llvm_address_safety = 1ULL << 32,
+    llvm_stack_protect_strong_attribute = 1ULL<<33,
+    llvm_cold = 1ULL << 34,
+    llvm_optimize_none = 1ULL << 35
+} llvm_attribute;
+typedef enum {
+  llvm_ret            = 1,
+  llvm_br             = 2,
+  llvm_switch         = 3,
+  llvm_indirect_br     = 4,
+  llvm_invoke         = 5,
+  llvm_unreachable    = 7,
+  llvm_add            = 8,
+  llvm_f_add           = 9,
+  llvm_sub            = 10,
+  llvm_f_sub           = 11,
+  llvm_mul            = 12,
+  llvm_f_mul           = 13,
+  llvm_u_div           = 14,
+  llvm_s_div           = 15,
+  llvm_f_div           = 16,
+  llvm_u_rem           = 17,
+  llvm_s_rem           = 18,
+  llvm_f_rem           = 19,
+  llvm_shl            = 20,
+  llvm_l_shr           = 21,
+  llvm_a_shr           = 22,
+  llvm_and            = 23,
+  llvm_or             = 24,
+  llvm_xor            = 25,
+  llvm_alloca         = 26,
+  llvm_load           = 27,
+  llvm_store          = 28,
+  llvm_get_element_ptr  = 29,
+  llvm_trunc          = 30,
+  llvm_z_ext           = 31,
+  llvm_s_ext           = 32,
+  llvm_f_p_to_u_i         = 33,
+  llvm_f_p_to_s_i         = 34,
+  llvm_u_i_to_f_p         = 35,
+  llvm_s_i_to_f_p         = 36,
+  llvm_f_p_trunc        = 37,
+  llvm_f_p_ext          = 38,
+  llvm_ptr_to_int       = 39,
+  llvm_int_to_ptr       = 40,
+  llvm_bit_cast        = 41,
+  llvm_addr_space_cast  = 60,
+  llvm_i_cmp           = 42,
+  llvm_f_cmp           = 43,
+  llvm_p_h_i            = 44,
+  llvm_call           = 45,
+  llvm_select         = 46,
+  llvm_user_op1        = 47,
+  llvm_user_op2        = 48,
+  llvm_v_a_arg          = 49,
+  llvm_extract_element = 50,
+  llvm_insert_element  = 51,
+  llvm_shuffle_vector  = 52,
+  llvm_extract_value   = 53,
+  llvm_insert_value    = 54,
+  llvm_fence          = 55,
+  llvm_atomic_cmp_xchg  = 56,
+  llvm_atomic_r_m_w      = 57,
+  llvm_resume         = 58,
+  llvm_landing_pad     = 59
+} llvm_opcode;
+typedef enum {
+  llvm_void_type_kind,
+  llvm_half_type_kind,
+  llvm_float_type_kind,
+  llvm_double_type_kind,
+  llvm_x86_FP80TypeKind,
+  llvm_f_p128TypeKind,
+  llvm_p_p_c_FP128TypeKind,
+  llvm_label_type_kind,
+  llvm_integer_type_kind,
+  llvm_function_type_kind,
+  llvm_struct_type_kind,
+  llvm_array_type_kind,
+  llvm_pointer_type_kind,
+  llvm_vector_type_kind,
+  llvm_metadata_type_kind,
+  llvm_x86_MMXTypeKind
+} llvm_type_kind;
+typedef enum {
+  llvm_external_linkage,
+  llvm_available_externally_linkage,
+  llvm_link_once_any_linkage,
+  llvm_link_once_o_d_r_linkage,
+                            equivalent.
+  llvm_link_once_o_d_r_auto_hide_linkage,
+  llvm_weak_any_linkage,
+  llvm_weak_o_d_r_linkage,
+                            equivalent.
+  llvm_appending_linkage,
+  llvm_internal_linkage,
+                               functions)
+  llvm_private_linkage,
+  llvm_d_l_l_import_linkage,
+  llvm_d_l_l_export_linkage,
+  llvm_external_weak_linkage,
+  llvm_ghost_linkage,
+  llvm_common_linkage,
+  llvm_linker_private_linkage,
+  llvm_linker_private_weak_linkage
+} llvm_linkage;
+typedef enum {
+  llvm_default_visibility,
+  llvm_hidden_visibility,
+  llvm_protected_visibility
+} llvm_visibility;
+typedef enum {
+  llvm_c_call_conv           = 0,
+  llvm_fast_call_conv        = 8,
+  llvm_cold_call_conv        = 9,
+  llvm_web_kit_j_s_call_conv    = 12,
+  llvm_any_reg_call_conv      = 13,
+  llvm_x86StdcallCallConv  = 64,
+  llvm_x86FastcallCallConv = 65
+} llvm_call_conv;
+typedef enum {
+  llvm_int_e_q = 32,
+  llvm_int_n_e,
+  llvm_int_u_g_t,
+  llvm_int_u_g_e,
+  llvm_int_u_l_t,
+  llvm_int_u_l_e,
+  llvm_int_s_g_t,
+  llvm_int_s_g_e,
+  llvm_int_s_l_t,
+  llvm_int_s_l_e
+} llvm_int_predicate;
+typedef enum {
+  llvm_real_predicate_false,
+  llvm_real_o_e_q,
+  llvm_real_o_g_t,
+  llvm_real_o_g_e,
+  llvm_real_o_l_t,
+  llvm_real_o_l_e,
+  llvm_real_o_n_e,
+  llvm_real_o_r_d,
+  llvm_real_u_n_o,
+  llvm_real_u_e_q,
+  llvm_real_u_g_t,
+  llvm_real_u_g_e,
+  llvm_real_u_l_t,
+  llvm_real_u_l_e,
+  llvm_real_u_n_e,
+  llvm_real_predicate_true
+} llvm_real_predicate;
+typedef enum {
+  llvm_landing_pad_catch,
+  llvm_landing_pad_filter
+} llvm_landing_pad_clause_ty;
+typedef enum {
+  llvm_not_thread_local = 0,
+  llvm_general_dynamic_t_l_s_model,
+  llvm_local_dynamic_t_l_s_model,
+  llvm_initial_exec_t_l_s_model,
+  llvm_local_exec_t_l_s_model
+} llvm_thread_local_mode;
+typedef enum {
+  llvm_atomic_ordering_not_atomic = 0,
+  llvm_atomic_ordering_unordered = 1,
+                                     somewhat sane results, lock free.
+  llvm_atomic_ordering_monotonic = 2,
+                                     operations affecting a specific address,
+                                     a consistent ordering exists
+  llvm_atomic_ordering_acquire = 4,
+                                   necessary to acquire a lock to access other
+                                   memory with normal loads and stores.
+  llvm_atomic_ordering_release = 5,
+                                   a barrier of the sort necessary to release
+                                   a lock.
+  llvm_atomic_ordering_acquire_release = 6,
+                                          Release barrier (for fences and
+                                          operations which both read and write
+                                           memory).
+  llvm_atomic_ordering_sequentially_consistent = 7
+                                                 for loads and Release
+                                                 semantics for stores.
+                                                 Additionally, it guarantees
+                                                 that a total ordering exists
+                                                 between all
+                                                 SequentiallyConsistent
+                                                 operations.
+} llvm_atomic_ordering;
+typedef enum {
+    llvm_atomic_r_m_w_bin_op_xchg,
+    llvm_atomic_r_m_w_bin_op_add,
+    llvm_atomic_r_m_w_bin_op_sub,
+    llvm_atomic_r_m_w_bin_op_and,
+    llvm_atomic_r_m_w_bin_op_nand,
+    llvm_atomic_r_m_w_bin_op_or,
+    llvm_atomic_r_m_w_bin_op_xor,
+    llvm_atomic_r_m_w_bin_op_max,
+                             original using a signed comparison and return
+                             the old one
+    llvm_atomic_r_m_w_bin_op_min,
+                             original using a signed comparison and return
+                             the old one
+    llvm_atomic_r_m_w_bin_op_u_max,
+                             original using an unsigned comparison and return
+                             the old one
+    llvm_atomic_r_m_w_bin_op_u_min
+                             original using an unsigned comparison  and return
+                             the old one
+} llvm_atomic_r_m_w_bin_op;
+void llvm_initialize_core(llvm_pass_registry R);
+    @see llvm::llvm_shutdown
+    @see ManagedStatic
+void llvm_shutdown(void);
+char
+void llvm_dispose_message(char
+typedef void (
+void llvm_install_fatal_error_handler(llvm_fatal_error_handler Handler);
+void llvm_reset_fatal_error_handler(void);
+void llvm_enable_pretty_stack_trace(void);
+llvm_context llvm_context_create(void);
+llvm_context llvm_get_global_context(void);
+void llvm_context_dispose(llvm_context C);
+unsigned llvm_get_m_d_kind_i_d_in_context(llvm_context C, const char
+                                  unsigned SLen);
+unsigned llvm_get_m_d_kind_i_d(const char
+llvm_module llvm_module_create_with_name(const char
+llvm_module llvm_module_create_with_name_in_context(const char
+                                                llvm_context C);
+void llvm_dispose_module(llvm_module M);
+const char
+void llvm_set_data_layout(llvm_module M, const char
+const char
+void llvm_set_target(llvm_module M, const char
+void llvm_dump_module(llvm_module M);
+llvm_bool llvm_print_module_to_file(llvm_module M, const char
+                               char
+char
+void llvm_set_module_inline_asm(llvm_module M, const char
+llvm_context llvm_get_module_context(llvm_module M);
+llvm_type llvm_get_type_by_name(llvm_module M, const char
+unsigned llvm_get_named_metadata_num_operands(llvm_module M, const char
+void llvm_get_named_metadata_operands(llvm_module M, const char
+void llvm_add_named_metadata_operand(llvm_module M, const char
+                                 llvm_value Val);
+llvm_value llvm_add_function(llvm_module M, const char
+                             llvm_type FunctionTy);
+llvm_value llvm_get_named_function(llvm_module M, const char
+llvm_value llvm_get_first_function(llvm_module M);
+llvm_value llvm_get_last_function(llvm_module M);
+llvm_value llvm_get_next_function(llvm_value Fn);
+llvm_value llvm_get_previous_function(llvm_value Fn);
+
+llvm_type_kind llvm_get_type_kind(llvm_type Ty);
+llvm_bool llvm_type_is_sized(llvm_type Ty);
+llvm_context llvm_get_type_context(llvm_type Ty);
+void llvm_dump_type(llvm_type Val);
+char
+llvm_type llvm_int1TypeInContext(llvm_context C);
+llvm_type llvm_int8TypeInContext(llvm_context C);
+llvm_type llvm_int16TypeInContext(llvm_context C);
+llvm_type llvm_int32TypeInContext(llvm_context C);
+llvm_type llvm_int64TypeInContext(llvm_context C);
+llvm_type llvm_int_type_in_context(llvm_context C, unsigned NumBits);
+llvm_type llvm_int1Type(void);
+llvm_type llvm_int8Type(void);
+llvm_type llvm_int16Type(void);
+llvm_type llvm_int32Type(void);
+llvm_type llvm_int64Type(void);
+llvm_type llvm_int_type(unsigned NumBits);
+unsigned llvm_get_int_type_width(llvm_type IntegerTy);
+llvm_type llvm_half_type_in_context(llvm_context C);
+llvm_type llvm_float_type_in_context(llvm_context C);
+llvm_type llvm_double_type_in_context(llvm_context C);
+llvm_type llvm_x86FP80TypeInContext(llvm_context C);
+llvm_type llvm_f_p128TypeInContext(llvm_context C);
+llvm_type llvm_p_p_c_f_p128TypeInContext(llvm_context C);
+llvm_type llvm_half_type(void);
+llvm_type llvm_float_type(void);
+llvm_type llvm_double_type(void);
+llvm_type llvm_x86FP80Type(void);
+llvm_type llvm_f_p128Type(void);
+llvm_type llvm_p_p_c_f_p128Type(void);
+llvm_type llvm_function_type(llvm_type ReturnType,
+                             llvm_type
+                             llvm_bool IsVarArg);
+llvm_bool llvm_is_function_var_arg(llvm_type FunctionTy);
+llvm_type llvm_get_return_type(llvm_type FunctionTy);
+unsigned llvm_count_param_types(llvm_type FunctionTy);
+void llvm_get_param_types(llvm_type FunctionTy, llvm_type
+llvm_type llvm_struct_type_in_context(llvm_context C, llvm_type
+                                    unsigned ElementCount, llvm_bool Packed);
+llvm_type llvm_struct_type(llvm_type
+                           llvm_bool Packed);
+llvm_type llvm_struct_create_named(llvm_context C, const char
+const char
+void llvm_struct_set_body(llvm_type StructTy, llvm_type
+                       unsigned ElementCount, llvm_bool Packed);
+unsigned llvm_count_struct_element_types(llvm_type StructTy);
+void llvm_get_struct_element_types(llvm_type StructTy, llvm_type
+llvm_bool llvm_is_packed_struct(llvm_type StructTy);
+llvm_bool llvm_is_opaque_struct(llvm_type StructTy);
+llvm_type llvm_get_element_type(llvm_type Ty);
+llvm_type llvm_array_type(llvm_type ElementType, unsigned ElementCount);
+unsigned llvm_get_array_length(llvm_type ArrayTy);
+llvm_type llvm_pointer_type(llvm_type ElementType, unsigned AddressSpace);
+unsigned llvm_get_pointer_address_space(llvm_type PointerTy);
+llvm_type llvm_vector_type(llvm_type ElementType, unsigned ElementCount);
+unsigned llvm_get_vector_size(llvm_type VectorTy);
+llvm_type llvm_void_type_in_context(llvm_context C);
+llvm_type llvm_label_type_in_context(llvm_context C);
+llvm_type llvm_x86MMXTypeInContext(llvm_context C);
+llvm_type llvm_void_type(void);
+llvm_type llvm_label_type(void);
+llvm_type llvm_x86MMXType(void);
+llvm_type llvm_type_of(llvm_value Val);
+const char
+void llvm_set_value_name(llvm_value Val, const char
+void llvm_dump_value(llvm_value Val);
+char
+void llvm_replace_all_uses_with(llvm_value OldVal, llvm_value NewVal);
+llvm_bool llvm_is_constant(llvm_value Val);
+llvm_bool llvm_is_undef(llvm_value Val);
+#define LLVM_DECLARE_VALUE_CAST(name) \
+  llvm_value llvm_is_a##name(llvm_value Val);
+LLVM_FOR_EACH_VALUE_SUBCLASS(LLVM_DECLARE_VALUE_CAST)
+llvm_use llvm_get_first_use(llvm_value Val);
+llvm_use llvm_get_next_use(llvm_use U);
+llvm_value llvm_get_user(llvm_use U);
+llvm_value llvm_get_used_value(llvm_use U);
+llvm_value llvm_get_operand(llvm_value Val, unsigned Index);
+void llvm_set_operand(llvm_value User, unsigned Index, llvm_value Val);
+int llvm_get_num_operands(llvm_value Val);
+llvm_value llvm_const_null(llvm_type Ty);
+llvm_value llvm_const_all_ones(llvm_type Ty);
+llvm_value llvm_get_undef(llvm_type Ty);
+llvm_bool llvm_is_null(llvm_value Val);
+llvm_value llvm_const_pointer_null(llvm_type Ty);
+llvm_value llvm_const_int(llvm_type IntTy, unsigned long long N,
+                          llvm_bool SignExtend);
+llvm_value llvm_const_int_of_arbitrary_precision(llvm_type IntTy,
+                                              unsigned NumWords,
+                                              const uint64_t Words[]);
+llvm_value llvm_const_int_of_string(llvm_type IntTy, const char
+                                  uint8_t Radix);
+llvm_value llvm_const_int_of_string_and_size(llvm_type IntTy, const char
+                                         unsigned SLen, uint8_t Radix);
+llvm_value llvm_const_real(llvm_type RealTy, double N);
+llvm_value llvm_const_real_of_string(llvm_type RealTy, const char
+llvm_value llvm_const_real_of_string_and_size(llvm_type RealTy, const char
+                                          unsigned SLen);
+unsigned long long llvm_const_int_get_z_ext_value(llvm_value ConstantVal);
+long long llvm_const_int_get_s_ext_value(llvm_value ConstantVal);
+llvm_value llvm_const_string_in_context(llvm_context C, const char
+                                      unsigned Length, llvm_bool DontNullTerminate);
+llvm_value llvm_const_string(const char
+                             llvm_bool DontNullTerminate);
+llvm_value llvm_const_struct_in_context(llvm_context C,
+                                      llvm_value
+                                      unsigned Count, llvm_bool Packed);
+llvm_value llvm_const_struct(llvm_value
+                             llvm_bool Packed);
+llvm_value llvm_const_array(llvm_type ElementTy,
+                            llvm_value
+llvm_value llvm_const_named_struct(llvm_type StructTy,
+                                  llvm_value
+                                  unsigned Count);
+llvm_value llvm_const_vector(llvm_value
+llvm_opcode llvm_get_const_opcode(llvm_value ConstantVal);
+llvm_value llvm_align_of(llvm_type Ty);
+llvm_value llvm_size_of(llvm_type Ty);
+llvm_value llvm_const_neg(llvm_value ConstantVal);
+llvm_value llvm_const_n_s_w_neg(llvm_value ConstantVal);
+llvm_value llvm_const_n_u_w_neg(llvm_value ConstantVal);
+llvm_value llvm_const_f_neg(llvm_value ConstantVal);
+llvm_value llvm_const_not(llvm_value ConstantVal);
+llvm_value llvm_const_add(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_n_s_w_add(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_n_u_w_add(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_f_add(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_sub(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_n_s_w_sub(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_n_u_w_sub(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_f_sub(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_mul(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_n_s_w_mul(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_n_u_w_mul(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_f_mul(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_u_div(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_s_div(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_exact_s_div(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_f_div(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_u_rem(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_s_rem(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_f_rem(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_and(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_or(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_xor(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_i_cmp(llvm_int_predicate Predicate,
+                           llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_f_cmp(llvm_real_predicate Predicate,
+                           llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_shl(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_l_shr(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_a_shr(llvm_value LHSConstant, llvm_value RHSConstant);
+llvm_value llvm_const_g_e_p(llvm_value ConstantVal,
+                          llvm_value
+llvm_value llvm_const_in_bounds_g_e_p(llvm_value ConstantVal,
+                                  llvm_value
+                                  unsigned NumIndices);
+llvm_value llvm_const_trunc(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_s_ext(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_z_ext(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_f_p_trunc(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_f_p_ext(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_u_i_to_f_p(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_s_i_to_f_p(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_f_p_to_u_i(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_f_p_to_s_i(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_ptr_to_int(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_int_to_ptr(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_bit_cast(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_addr_space_cast(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_z_ext_or_bit_cast(llvm_value ConstantVal,
+                                    llvm_type ToType);
+llvm_value llvm_const_s_ext_or_bit_cast(llvm_value ConstantVal,
+                                    llvm_type ToType);
+llvm_value llvm_const_trunc_or_bit_cast(llvm_value ConstantVal,
+                                     llvm_type ToType);
+llvm_value llvm_const_pointer_cast(llvm_value ConstantVal,
+                                  llvm_type ToType);
+llvm_value llvm_const_int_cast(llvm_value ConstantVal, llvm_type ToType,
+                              llvm_bool isSigned);
+llvm_value llvm_const_f_p_cast(llvm_value ConstantVal, llvm_type ToType);
+llvm_value llvm_const_select(llvm_value ConstantCondition,
+                             llvm_value ConstantIfTrue,
+                             llvm_value ConstantIfFalse);
+llvm_value llvm_const_extract_element(llvm_value VectorConstant,
+                                     llvm_value IndexConstant);
+llvm_value llvm_const_insert_element(llvm_value VectorConstant,
+                                    llvm_value ElementValueConstant,
+                                    llvm_value IndexConstant);
+llvm_value llvm_const_shuffle_vector(llvm_value VectorAConstant,
+                                    llvm_value VectorBConstant,
+                                    llvm_value MaskConstant);
+llvm_value llvm_const_extract_value(llvm_value AggConstant, unsigned
+                                   unsigned NumIdx);
+llvm_value llvm_const_insert_value(llvm_value AggConstant,
+                                  llvm_value ElementValueConstant,
+                                  unsigned
+llvm_value llvm_const_inline_asm(llvm_type Ty,
+                                const char
+                                llvm_bool HasSideEffects, llvm_bool IsAlignStack);
+llvm_value llvm_block_address(llvm_value F, llvm_basic_block BB);
+llvm_module llvm_get_global_parent(llvm_value Global);
+llvm_bool llvm_is_declaration(llvm_value Global);
+llvm_linkage llvm_get_linkage(llvm_value Global);
+void llvm_set_linkage(llvm_value Global, llvm_linkage Linkage);
+const char
+void llvm_set_section(llvm_value Global, const char
+llvm_visibility llvm_get_visibility(llvm_value Global);
+void llvm_set_visibility(llvm_value Global, llvm_visibility Viz);
+unsigned llvm_get_alignment(llvm_value V);
+void llvm_set_alignment(llvm_value V, unsigned Bytes);
+llvm_value llvm_add_global(llvm_module M, llvm_type Ty, const char
+llvm_value llvm_add_global_in_address_space(llvm_module M, llvm_type Ty,
+                                         const char
+                                         unsigned AddressSpace);
+llvm_value llvm_get_named_global(llvm_module M, const char
+llvm_value llvm_get_first_global(llvm_module M);
+llvm_value llvm_get_last_global(llvm_module M);
+llvm_value llvm_get_next_global(llvm_value GlobalVar);
+llvm_value llvm_get_previous_global(llvm_value GlobalVar);
+void llvm_delete_global(llvm_value GlobalVar);
+llvm_value llvm_get_initializer(llvm_value GlobalVar);
+void llvm_set_initializer(llvm_value GlobalVar, llvm_value ConstantVal);
+llvm_bool llvm_is_thread_local(llvm_value GlobalVar);
+void llvm_set_thread_local(llvm_value GlobalVar, llvm_bool IsThreadLocal);
+llvm_bool llvm_is_global_constant(llvm_value GlobalVar);
+void llvm_set_global_constant(llvm_value GlobalVar, llvm_bool IsConstant);
+llvm_thread_local_mode llvm_get_thread_local_mode(llvm_value GlobalVar);
+void llvm_set_thread_local_mode(llvm_value GlobalVar, llvm_thread_local_mode Mode);
+llvm_bool llvm_is_externally_initialized(llvm_value GlobalVar);
+void llvm_set_externally_initialized(llvm_value GlobalVar, llvm_bool IsExtInit);
+llvm_value llvm_add_alias(llvm_module M, llvm_type Ty, llvm_value Aliasee,
+                          const char
+void llvm_delete_function(llvm_value Fn);
+unsigned llvm_get_intrinsic_i_d(llvm_value Fn);
+unsigned llvm_get_function_call_conv(llvm_value Fn);
+void llvm_set_function_call_conv(llvm_value Fn, unsigned CC);
+const char
+void llvm_set_g_c(llvm_value Fn, const char
+void llvm_add_function_attr(llvm_value Fn, llvm_attribute PA);
+void llvm_add_target_dependent_function_attr(llvm_value Fn, const char
+                                        const char
+llvm_attribute llvm_get_function_attr(llvm_value Fn);
+void llvm_remove_function_attr(llvm_value Fn, llvm_attribute PA);
+unsigned llvm_count_params(llvm_value Fn);
+void llvm_get_params(llvm_value Fn, llvm_value
+llvm_value llvm_get_param(llvm_value Fn, unsigned Index);
+llvm_value llvm_get_param_parent(llvm_value Inst);
+llvm_value llvm_get_first_param(llvm_value Fn);
+llvm_value llvm_get_last_param(llvm_value Fn);
+llvm_value llvm_get_next_param(llvm_value Arg);
+llvm_value llvm_get_previous_param(llvm_value Arg);
+void llvm_add_attribute(llvm_value Arg, llvm_attribute PA);
+void llvm_remove_attribute(llvm_value Arg, llvm_attribute PA);
+llvm_attribute llvm_get_attribute(llvm_value Arg);
+void llvm_set_param_alignment(llvm_value Arg, unsigned align);
+
+llvm_value llvm_m_d_string_in_context(llvm_context C, const char
+                                   unsigned SLen);
+llvm_value llvm_m_d_string(const char
+llvm_value llvm_m_d_node_in_context(llvm_context C, llvm_value
+                                 unsigned Count);
+llvm_value llvm_m_d_node(llvm_value
+const char
+unsigned llvm_get_m_d_node_num_operands(llvm_value V);
+void llvm_get_m_d_node_operands(llvm_value V, llvm_value
+llvm_value llvm_basic_block_as_value(llvm_basic_block BB);
+llvm_bool llvm_value_is_basic_block(llvm_value Val);
+llvm_basic_block llvm_value_as_basic_block(llvm_value Val);
+llvm_value llvm_get_basic_block_parent(llvm_basic_block BB);
+llvm_value llvm_get_basic_block_terminator(llvm_basic_block BB);
+unsigned llvm_count_basic_blocks(llvm_value Fn);
+void llvm_get_basic_blocks(llvm_value Fn, llvm_basic_block
+llvm_basic_block llvm_get_first_basic_block(llvm_value Fn);
+llvm_basic_block llvm_get_last_basic_block(llvm_value Fn);
+llvm_basic_block llvm_get_next_basic_block(llvm_basic_block BB);
+llvm_basic_block llvm_get_previous_basic_block(llvm_basic_block BB);
+llvm_basic_block llvm_get_entry_basic_block(llvm_value Fn);
+llvm_basic_block llvm_append_basic_block_in_context(llvm_context C,
+                                                llvm_value Fn,
+                                                const char
+llvm_basic_block llvm_append_basic_block(llvm_value Fn, const char
+llvm_basic_block llvm_insert_basic_block_in_context(llvm_context C,
+                                                llvm_basic_block BB,
+                                                const char
+llvm_basic_block llvm_insert_basic_block(llvm_basic_block InsertBeforeBB,
+                                       const char
+void llvm_delete_basic_block(llvm_basic_block BB);
+void llvm_remove_basic_block_from_parent(llvm_basic_block BB);
+void llvm_move_basic_block_before(llvm_basic_block BB, llvm_basic_block MovePos);
+void llvm_move_basic_block_after(llvm_basic_block BB, llvm_basic_block MovePos);
+llvm_value llvm_get_first_instruction(llvm_basic_block BB);
+llvm_value llvm_get_last_instruction(llvm_basic_block BB);
+int llvm_has_metadata(llvm_value Val);
+llvm_value llvm_get_metadata(llvm_value Val, unsigned KindID);
+void llvm_set_metadata(llvm_value Val, unsigned KindID, llvm_value Node);
+llvm_basic_block llvm_get_instruction_parent(llvm_value Inst);
+llvm_value llvm_get_next_instruction(llvm_value Inst);
+llvm_value llvm_get_previous_instruction(llvm_value Inst);
+void llvm_instruction_erase_from_parent(llvm_value Inst);
+llvm_opcode   llvm_get_instruction_opcode(llvm_value Inst);
+llvm_int_predicate llvm_get_i_cmp_predicate(llvm_value Inst);
+void llvm_set_instruction_call_conv(llvm_value Instr, unsigned CC);
+unsigned llvm_get_instruction_call_conv(llvm_value Instr);
+void llvm_add_instr_attribute(llvm_value Instr, unsigned index, llvm_attribute);
+void llvm_remove_instr_attribute(llvm_value Instr, unsigned index,
+                              llvm_attribute);
+void llvm_set_instr_param_alignment(llvm_value Instr, unsigned index,
+                                unsigned align);
+llvm_bool llvm_is_tail_call(llvm_value CallInst);
+void llvm_set_tail_call(llvm_value CallInst, llvm_bool IsTailCall);
+llvm_basic_block llvm_get_switch_default_dest(llvm_value SwitchInstr);
+void llvm_add_incoming(llvm_value PhiNode, llvm_value
+                     llvm_basic_block
+unsigned llvm_count_incoming(llvm_value PhiNode);
+llvm_value llvm_get_incoming_value(llvm_value PhiNode, unsigned Index);
+llvm_basic_block llvm_get_incoming_block(llvm_value PhiNode, unsigned Index);
+llvm_builder llvm_create_builder_in_context(llvm_context C);
+llvm_builder llvm_create_builder(void);
+void llvm_position_builder(llvm_builder Builder, llvm_basic_block Block,
+                         llvm_value Instr);
+void llvm_position_builder_before(llvm_builder Builder, llvm_value Instr);
+void llvm_position_builder_at_end(llvm_builder Builder, llvm_basic_block Block);
+llvm_basic_block llvm_get_insert_block(llvm_builder Builder);
+void llvm_clear_insertion_position(llvm_builder Builder);
+void llvm_insert_into_builder(llvm_builder Builder, llvm_value Instr);
+void llvm_insert_into_builder_with_name(llvm_builder Builder, llvm_value Instr,
+                                   const char
+void llvm_dispose_builder(llvm_builder Builder);
+void llvm_set_current_debug_location(llvm_builder Builder, llvm_value L);
+llvm_value llvm_get_current_debug_location(llvm_builder Builder);
+void llvm_set_inst_debug_location(llvm_builder Builder, llvm_value Inst);
+llvm_value llvm_build_ret_void(llvm_builder);
+llvm_value llvm_build_ret(llvm_builder, llvm_value V);
+llvm_value llvm_build_aggregate_ret(llvm_builder, llvm_value
+                                   unsigned N);
+llvm_value llvm_build_br(llvm_builder, llvm_basic_block Dest);
+llvm_value llvm_build_cond_br(llvm_builder, llvm_value If,
+                             llvm_basic_block Then, llvm_basic_block Else);
+llvm_value llvm_build_switch(llvm_builder, llvm_value V,
+                             llvm_basic_block Else, unsigned NumCases);
+llvm_value llvm_build_indirect_br(llvm_builder B, llvm_value Addr,
+                                 unsigned NumDests);
+llvm_value llvm_build_invoke(llvm_builder, llvm_value Fn,
+                             llvm_value
+                             llvm_basic_block Then, llvm_basic_block Catch,
+                             const char
+llvm_value llvm_build_landing_pad(llvm_builder B, llvm_type Ty,
+                                 llvm_value PersFn, unsigned NumClauses,
+                                 const char
+llvm_value llvm_build_resume(llvm_builder B, llvm_value Exn);
+llvm_value llvm_build_unreachable(llvm_builder);
+void llvm_add_case(llvm_value Switch, llvm_value OnVal,
+                 llvm_basic_block Dest);
+void llvm_add_destination(llvm_value IndirectBr, llvm_basic_block Dest);
+void llvm_add_clause(llvm_value LandingPad, llvm_value ClauseVal);
+void llvm_set_cleanup(llvm_value LandingPad, llvm_bool Val);
+llvm_value llvm_build_add(llvm_builder, llvm_value LHS, llvm_value RHS,
+                          const char
+llvm_value llvm_build_n_s_w_add(llvm_builder, llvm_value LHS, llvm_value RHS,
+                             const char
+llvm_value llvm_build_n_u_w_add(llvm_builder, llvm_value LHS, llvm_value RHS,
+                             const char
+llvm_value llvm_build_f_add(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_sub(llvm_builder, llvm_value LHS, llvm_value RHS,
+                          const char
+llvm_value llvm_build_n_s_w_sub(llvm_builder, llvm_value LHS, llvm_value RHS,
+                             const char
+llvm_value llvm_build_n_u_w_sub(llvm_builder, llvm_value LHS, llvm_value RHS,
+                             const char
+llvm_value llvm_build_f_sub(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_mul(llvm_builder, llvm_value LHS, llvm_value RHS,
+                          const char
+llvm_value llvm_build_n_s_w_mul(llvm_builder, llvm_value LHS, llvm_value RHS,
+                             const char
+llvm_value llvm_build_n_u_w_mul(llvm_builder, llvm_value LHS, llvm_value RHS,
+                             const char
+llvm_value llvm_build_f_mul(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_u_div(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_s_div(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_exact_s_div(llvm_builder, llvm_value LHS, llvm_value RHS,
+                                const char
+llvm_value llvm_build_f_div(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_u_rem(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_s_rem(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_f_rem(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_shl(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_l_shr(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_a_shr(llvm_builder, llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_and(llvm_builder, llvm_value LHS, llvm_value RHS,
+                          const char
+llvm_value llvm_build_or(llvm_builder, llvm_value LHS, llvm_value RHS,
+                          const char
+llvm_value llvm_build_xor(llvm_builder, llvm_value LHS, llvm_value RHS,
+                          const char
+llvm_value llvm_build_bin_op(llvm_builder B, llvm_opcode Op,
+                            llvm_value LHS, llvm_value RHS,
+                            const char
+llvm_value llvm_build_neg(llvm_builder, llvm_value V, const char
+llvm_value llvm_build_n_s_w_neg(llvm_builder B, llvm_value V,
+                             const char
+llvm_value llvm_build_n_u_w_neg(llvm_builder B, llvm_value V,
+                             const char
+llvm_value llvm_build_f_neg(llvm_builder, llvm_value V, const char
+llvm_value llvm_build_not(llvm_builder, llvm_value V, const char
+llvm_value llvm_build_malloc(llvm_builder, llvm_type Ty, const char
+llvm_value llvm_build_array_malloc(llvm_builder, llvm_type Ty,
+                                  llvm_value Val, const char
+llvm_value llvm_build_alloca(llvm_builder, llvm_type Ty, const char
+llvm_value llvm_build_array_alloca(llvm_builder, llvm_type Ty,
+                                  llvm_value Val, const char
+llvm_value llvm_build_free(llvm_builder, llvm_value PointerVal);
+llvm_value llvm_build_load(llvm_builder, llvm_value PointerVal,
+                           const char
+llvm_value llvm_build_store(llvm_builder, llvm_value Val, llvm_value Ptr);
+llvm_value llvm_build_g_e_p(llvm_builder B, llvm_value Pointer,
+                          llvm_value
+                          const char
+llvm_value llvm_build_in_bounds_g_e_p(llvm_builder B, llvm_value Pointer,
+                                  llvm_value
+                                  const char
+llvm_value llvm_build_struct_g_e_p(llvm_builder B, llvm_value Pointer,
+                                unsigned Idx, const char
+llvm_value llvm_build_global_string(llvm_builder B, const char
+                                   const char
+llvm_value llvm_build_global_string_ptr(llvm_builder B, const char
+                                      const char
+llvm_bool llvm_get_volatile(llvm_value MemoryAccessInst);
+void llvm_set_volatile(llvm_value MemoryAccessInst, llvm_bool IsVolatile);
+llvm_value llvm_build_trunc(llvm_builder, llvm_value Val,
+                            llvm_type DestTy, const char
+llvm_value llvm_build_z_ext(llvm_builder, llvm_value Val,
+                           llvm_type DestTy, const char
+llvm_value llvm_build_s_ext(llvm_builder, llvm_value Val,
+                           llvm_type DestTy, const char
+llvm_value llvm_build_f_p_to_u_i(llvm_builder, llvm_value Val,
+                             llvm_type DestTy, const char
+llvm_value llvm_build_f_p_to_s_i(llvm_builder, llvm_value Val,
+                             llvm_type DestTy, const char
+llvm_value llvm_build_u_i_to_f_p(llvm_builder, llvm_value Val,
+                             llvm_type DestTy, const char
+llvm_value llvm_build_s_i_to_f_p(llvm_builder, llvm_value Val,
+                             llvm_type DestTy, const char
+llvm_value llvm_build_f_p_trunc(llvm_builder, llvm_value Val,
+                              llvm_type DestTy, const char
+llvm_value llvm_build_f_p_ext(llvm_builder, llvm_value Val,
+                            llvm_type DestTy, const char
+llvm_value llvm_build_ptr_to_int(llvm_builder, llvm_value Val,
+                               llvm_type DestTy, const char
+llvm_value llvm_build_int_to_ptr(llvm_builder, llvm_value Val,
+                               llvm_type DestTy, const char
+llvm_value llvm_build_bit_cast(llvm_builder, llvm_value Val,
+                              llvm_type DestTy, const char
+llvm_value llvm_build_addr_space_cast(llvm_builder, llvm_value Val,
+                                    llvm_type DestTy, const char
+llvm_value llvm_build_z_ext_or_bit_cast(llvm_builder, llvm_value Val,
+                                    llvm_type DestTy, const char
+llvm_value llvm_build_s_ext_or_bit_cast(llvm_builder, llvm_value Val,
+                                    llvm_type DestTy, const char
+llvm_value llvm_build_trunc_or_bit_cast(llvm_builder, llvm_value Val,
+                                     llvm_type DestTy, const char
+llvm_value llvm_build_cast(llvm_builder B, llvm_opcode Op, llvm_value Val,
+                           llvm_type DestTy, const char
+llvm_value llvm_build_pointer_cast(llvm_builder, llvm_value Val,
+                                  llvm_type DestTy, const char
+llvm_value llvm_build_int_cast(llvm_builder, llvm_value Val,
+                              llvm_type DestTy, const char
+llvm_value llvm_build_f_p_cast(llvm_builder, llvm_value Val,
+                             llvm_type DestTy, const char
+llvm_value llvm_build_i_cmp(llvm_builder, llvm_int_predicate Op,
+                           llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_f_cmp(llvm_builder, llvm_real_predicate Op,
+                           llvm_value LHS, llvm_value RHS,
+                           const char
+llvm_value llvm_build_phi(llvm_builder, llvm_type Ty, const char
+llvm_value llvm_build_call(llvm_builder, llvm_value Fn,
+                           llvm_value
+                           const char
+llvm_value llvm_build_select(llvm_builder, llvm_value If,
+                             llvm_value Then, llvm_value Else,
+                             const char
+llvm_value llvm_build_v_a_arg(llvm_builder, llvm_value List, llvm_type Ty,
+                            const char
+llvm_value llvm_build_extract_element(llvm_builder, llvm_value VecVal,
+                                     llvm_value Index, const char
+llvm_value llvm_build_insert_element(llvm_builder, llvm_value VecVal,
+                                    llvm_value EltVal, llvm_value Index,
+                                    const char
+llvm_value llvm_build_shuffle_vector(llvm_builder, llvm_value V1,
+                                    llvm_value V2, llvm_value Mask,
+                                    const char
+llvm_value llvm_build_extract_value(llvm_builder, llvm_value AggVal,
+                                   unsigned Index, const char
+llvm_value llvm_build_insert_value(llvm_builder, llvm_value AggVal,
+                                  llvm_value EltVal, unsigned Index,
+                                  const char
+llvm_value llvm_build_is_null(llvm_builder, llvm_value Val,
+                             const char
+llvm_value llvm_build_is_not_null(llvm_builder, llvm_value Val,
+                                const char
+llvm_value llvm_build_ptr_diff(llvm_builder, llvm_value LHS,
+                              llvm_value RHS, const char
+llvm_value llvm_build_atomic_r_m_w(llvm_builder B,llvm_atomic_r_m_w_bin_op op,
+                                llvm_value PTR, llvm_value Val,
+                                llvm_atomic_ordering ordering,
+                                llvm_bool singleThread);
+llvm_module_provider
+llvm_create_module_provider_for_existing_module(llvm_module M);
+void llvm_dispose_module_provider(llvm_module_provider M);
+llvm_bool llvm_create_memory_buffer_with_contents_of_file(const char
+                                                  llvm_memory_buffer
+                                                  char
+llvm_bool llvm_create_memory_buffer_with_s_t_d_i_n(llvm_memory_buffer
+                                         char
+llvm_memory_buffer llvm_create_memory_buffer_with_memory_range(const char
+                                                          size_t InputDataLength,
+                                                          const char
+                                                          llvm_bool RequiresNullTerminator);
+llvm_memory_buffer llvm_create_memory_buffer_with_memory_range_copy(const char
+                                                              size_t InputDataLength,
+                                                              const char
+const char
+size_t llvm_get_buffer_size(llvm_memory_buffer MemBuf);
+void llvm_dispose_memory_buffer(llvm_memory_buffer MemBuf);
+llvm_pass_registry llvm_get_global_pass_registry(void);
+llvm_pass_manager llvm_create_pass_manager(void);
+llvm_pass_manager llvm_create_function_pass_manager_for_module(llvm_module M);
+llvm_pass_manager llvm_create_function_pass_manager(llvm_module_provider MP);
+llvm_bool llvm_run_pass_manager(llvm_pass_manager PM, llvm_module M);
+llvm_bool llvm_initialize_function_pass_manager(llvm_pass_manager FPM);
+llvm_bool llvm_run_function_pass_manager(llvm_pass_manager FPM, llvm_value F);
+llvm_bool llvm_finalize_function_pass_manager(llvm_pass_manager FPM);
+void llvm_dispose_pass_manager(llvm_pass_manager PM);
+llvm_bool llvm_start_multithreaded(void);
+void llvm_stop_multithreaded(void);
+llvm_bool llvm_is_multithreaded(void);
+#ifdef __cplusplus
+}
+#endif
+#endif___
